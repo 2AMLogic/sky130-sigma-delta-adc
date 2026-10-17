@@ -11,6 +11,8 @@ __pycache__/
 sim/build/
 # synthesis / P&R scratch
 flow/build/
+# klt synthesize per-run scratch next to the request file
+verification/smoke/.klt/
 # local klt install, created by the setup script
 .venv/
 # >>> loom-managed (do not edit) >>>

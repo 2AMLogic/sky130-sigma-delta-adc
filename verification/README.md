@@ -1,3 +1,4 @@
 # verification
 
-Empty until the first work lands here. See the repo README for scope.
+Digital smoke fixture in `smoke/` (cocotb + Icarus + `klt synthesize`). See the
+repo README "Reproduce" section.

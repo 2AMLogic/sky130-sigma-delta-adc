@@ -78,11 +78,31 @@ silicon. **Current position: pre-spec.**
 spec/          ratified spec + decision records
 design/        modulator schematics / netlists (xschem)
 rtl/           decimation filter and control
-sim/           modulator testbenches + PVT corner results (ngspice)
+sim/           PDK/tool pins, modulator testbenches + PVT corner results (ngspice)
 verification/  cocotb testbenches for the decimation filter
 layout/        GDS + DRC/LVS reports (klayout-tools driven)
 measurements/  silicon characterization (empty until tape-out)
 ```
+
+## Reproduce
+
+Both flows are smoke fixtures ("smoke fixture, not design") that prove the
+toolchain runs on the pinned PDK. The PDK revision is pinned in
+[`sim/pdk.json`](sim/pdk.json), tool versions in
+[`sim/toolchain.json`](sim/toolchain.json). Each runner exits `2` and refuses to
+run if the PDK's `SOURCES` stamp differs from the pin.
+
+```
+ciel enable --pdk-family sky130 f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7   # PDK, once
+klt pdk find --pdk sky130A                                                 # confirm resolution
+python3 sim/smoke/run_smoke.py                       # analog: ngspice, tt/27 C/1.8 V
+uv venv .venv && uv pip install --python .venv/bin/python cocotb==2.1.0
+.venv/bin/python verification/smoke/run_smoke.py     # digital: cocotb + Icarus + klt synthesize
+```
+
+Committed records: `sim/smoke/record.json`, `verification/smoke/record.json`
+(add `--record` to regenerate). Needs `ngspice`, `iverilog`, `yosys` and `klt`
+on `PATH`.
 
 ## License
 

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "note": "Versions observed when the smoke records were produced. Hosts may carry newer patch builds; a mismatch is reported in the records, not refused (only the PDK revision is a hard gate).",
+  "ngspice": "46",
+  "xschem": "3.4.7",
+  "icarus_verilog": "13.0",
+  "yosys": "0.67+post (git b8e7da6f40ae8f552c116bf6c359b07c6533e159)",
+  "cocotb": "2.1.0",
+  "klayout_tools": "0.7.1.dev1754+g81ac4d3915c1",
+  "python_for_cocotb": "3.13 (venv: uv venv .venv && uv pip install cocotb==2.1.0)",
+  "pdk_pin": "sim/pdk.json"
+}

@@ -1,0 +1,37 @@
+{
+  "fixture": "smoke fixture, not design",
+  "result_kind": "simulated RTL (cocotb/Icarus) + synthesized (Yosys via klt), no timing",
+  "pdk_sources_stamp": "open_pdks f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+  "cell_library": "sky130_fd_sc_hd",
+  "corner": "tt_025C_1v80",
+  "tools": {
+    "cocotb": "2.1.0",
+    "icarus": "Icarus Verilog version 13.0",
+    "yosys": "0.67+post",
+    "klt": "klt 0.7.1.dev1754+g81ac4d3915c1"
+  },
+  "cocotb": {
+    "testcases": 1,
+    "failed": 0
+  },
+  "synth": {
+    "instance_count": 31,
+    "area_um2": 316.5536,
+    "instance_counts_by_type": {
+      "sky130_fd_sc_hd__a21oi_1": 6,
+      "sky130_fd_sc_hd__a31oi_1": 1,
+      "sky130_fd_sc_hd__and3_1": 2,
+      "sky130_fd_sc_hd__and3_4": 1,
+      "sky130_fd_sc_hd__and4_1": 1,
+      "sky130_fd_sc_hd__and4_4": 1,
+      "sky130_fd_sc_hd__buf_6": 1,
+      "sky130_fd_sc_hd__clkbuf_1": 1,
+      "sky130_fd_sc_hd__dfxtp_1": 8,
+      "sky130_fd_sc_hd__nor2_1": 1,
+      "sky130_fd_sc_hd__nor3_1": 3,
+      "sky130_fd_sc_hd__nor3_2": 2,
+      "sky130_fd_sc_hd__o21a_1": 3
+    },
+    "netlist_sha256": "2351866d9c0a8b95eef5d66af5b12263cc09230cadbc10cd9b282fab34b52d6d"
+  }
+}
