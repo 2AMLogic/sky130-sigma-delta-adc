@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "pdk": "sky130",
+  "variant": "sky130A",
+  "open_pdks_revision": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+  "sources_stamp": "open_pdks f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+  "install_command": "ciel enable --pdk-family sky130 f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+  "pdk_root": "~/.ciel",
+  "resolve_command": "klt pdk find --pdk sky130A",
+  "standard_cell_library": "sky130_fd_sc_hd",
+  "note": "Same revision as the sky130-opamp / sky130-comparator / sky130-bandgap siblings (see 2AMLogic/sky130-comparator#178). If that pin moves, update this file in a PR; the smoke runners refuse any other revision."
+}

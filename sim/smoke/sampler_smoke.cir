@@ -1,0 +1,19 @@
+* SMOKE FIXTURE, NOT DESIGN: NMOS sampling switch charging a MIM cap.
+* tt / 27 C / 1.8 V. {{PDK_LIB}} is substituted by run_smoke.py.
+.lib {{PDK_LIB}} tt
+.temp 27
+Vdd vdd 0 1.8
+Vin in 0 0.6
+* ideal clock: high 0-20 ns (track), falls at 20 ns (hold)
+Vclk clk 0 PULSE(1.8 0 20n 100p 100p 80n 200n)
+XM1 in clk out 0 sky130_fd_pr__nfet_01v8 W=2 L=0.15
+XC1 out 0 sky130_fd_pr__cap_mim_m3_1 W=10 L=10
+.ic v(out)=0
+.tran 50p 60n
+.control
+run
+meas tran vhold FIND v(out) AT=50n
+meas tran vtrack FIND v(out) AT=19n
+print vtrack vhold
+.endc
+.end

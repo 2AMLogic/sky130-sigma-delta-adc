@@ -1,0 +1,28 @@
+{
+  "fixture": "smoke fixture, not design",
+  "result_kind": "simulated (ngspice, transistor-level, single point)",
+  "conditions": {
+    "corner": "tt",
+    "temp_C": 27,
+    "vdd_V": 1.8,
+    "vin_V": 0.6
+  },
+  "ngspice": "ngspice-46",
+  "pdk_sources_stamp": "open_pdks f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+  "model_sha256": {
+    "libs.tech/ngspice/sky130.lib.spice": "17c208a699228f5acb87bf59c09c22a4c4d3937b6766b4957737d34e8e075f64",
+    "libs.tech/ngspice/corners/tt.spice": "961b2e4f381bb8a6306a16840afacd8772b400b42cd4dee6c284d58e03983d9d",
+    "libs.tech/ngspice/capacitors/sky130_fd_pr__model__cap_mim.model.spice": "7e4802d7047f0f116a3e4c7e49118962cfe248dc9cbb6d626d49196d30cb273a",
+    "libs.ref/sky130_fd_pr/spice/sky130_fd_pr__nfet_01v8__tt.pm3.spice": "459eca963a134574cf7c842ad6d3814e7e0752bfb5de8e581c2f483534b5ad06"
+  },
+  "deck_sha256": "74a4d7c2b13d346a2618a141f614a45880f97c139f8ac557e2f147e73024d270",
+  "measured": {
+    "v_track_at_19ns_V": 0.6,
+    "v_hold_at_50ns_V": 0.593434
+  },
+  "check": {
+    "abs_error_V": 0.006565999999999961,
+    "tolerance_V": 0.02,
+    "pass": true
+  }
+}
