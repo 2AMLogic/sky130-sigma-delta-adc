@@ -92,7 +92,7 @@ every corner in DR-002. It does not mean a T transient of the full record.
    change (a longer decimation chain), not an analog change. Whether the
    adopted comparator's decision time fits the half-period (97.7 ns at
    5.12 MHz, 78.1 ns at 6.4 MHz) is a check owed by
-   [DR-003](DR-003-sibling-reuse.md), not a claim made here.
+   [DR-003](decisions/DR-003-sibling-reuse.md), not a claim made here.
 6. **Output rate.** Decided here as `4·BW`. A rate of `2·BW` leaves no
    transition band between the signal edge and the first alias, which would
    force a brick-wall filter. At `4·BW` the transition band is `BW` to
