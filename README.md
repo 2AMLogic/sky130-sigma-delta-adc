@@ -8,7 +8,7 @@ AI agents driving [klayout-tools](https://github.com/2AMLogic/klayout-tools),
 xschem + ngspice on the analog side and cocotb + Icarus, Yosys/OpenROAD on
 the digital side.
 
-**Status: just opened, specification phase.** Nothing is designed yet.
+**Status: specification phase.** The spec is written; nothing is designed yet.
 
 **Built agent-native.** Every specification, decision record, testbench, and
 line of documentation here is produced by AI agents working from a ratified
@@ -54,23 +54,21 @@ to the most sensitive analog nodes in the design.
   do not size a second one by accident. `sky130-sar-adc` is a different
   converter architecture, not a duplicate.
 
-## Target specification (DRAFT — engineering to ratify, see issue #1)
+## Target specification
 
-| Parameter | Target | Fallback | Stretch |
-|---|---|---|---|
-| Signal bandwidth | 20 kHz | 10 kHz | 50 kHz |
-| Peak SNDR (simulated) | ≥ 80 dB | ≥ 70 dB | ≥ 90 dB |
-| Modulator | 2nd-order, single-bit, switched-capacitor | — | higher order or multi-bit |
-| Oversampling ratio | 128 | 256 | 64 at the stretch bandwidth |
-| Output | 16-bit words at the decimated rate | — | — |
-| Input range | differential, fraction of reference to ratify | — | — |
-| Supply / power | 1.8 V core devices; ≤ 1 mW analog | ≤ 2 mW | ≤ 0.5 mW |
-| Signoff | DRC + LVS clean, post-layout re-verified | — | — |
+The ratified target specification is [`spec/modulator-adc.md`](spec/modulator-adc.md):
+bandwidth, SNDR, modulator, OSR and clock, output, input range, supply and
+analog power, and signoff, each as target / fallback / stretch with its
+rationale and the evidence type that backs it. The decision records behind
+it are in [`spec/decisions/`](spec/decisions/) (index:
+[`spec/README.md`](spec/README.md)). The headline is unchanged: **80 dB SNDR
+in 20 kHz** is the target, 70 dB the fallback, 90 dB the stretch. All
+figures are simulated; none is measured.
 
 Maturity ladder: spec ratified → behavioural modulator and decimation filter
 verified → transistor-level modulator simulated across PVT → layout
 DRC/LVS-clean → post-layout re-verification → shuttle seat → measured
-silicon. **Current position: pre-spec.**
+silicon. **Current position: spec ratified on merge of the spec pull request (issue #2); no design work yet.**
 
 ## Repo layout
 

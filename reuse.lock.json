@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "imports": [
+    {
+      "block": "comparator",
+      "sibling": "2AMLogic/sky130-comparator",
+      "commit": "a0767fa5a4bedc9128a7e95b8b512075536522c8",
+      "decision": "spec/decisions/DR-003-sibling-reuse.md"
+    }
+  ],
+  "in_tree": [
+    {
+      "block": "integrator-amplifier",
+      "sibling": "2AMLogic/sky130-opamp",
+      "status": "kept",
+      "decision": "spec/decisions/DR-003-sibling-reuse.md"
+    }
+  ]
+}
