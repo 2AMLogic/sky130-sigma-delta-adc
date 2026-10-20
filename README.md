@@ -70,6 +70,24 @@ verified → transistor-level modulator simulated across PVT → layout
 DRC/LVS-clean → post-layout re-verification → shuttle seat → measured
 silicon. **Current position: spec ratified on merge of the spec pull request (issue #2); no design work yet.**
 
+## T1 evidence
+
+The block's T1 tier state is graded by `klt signoff`, not read by hand. The
+manifest is [`manifests/sky130-sigma-delta-adc.json`](manifests/sky130-sigma-delta-adc.json);
+the verdict of record is
+[`manifests/sky130-sigma-delta-adc.signoff.json`](manifests/sky130-sigma-delta-adc.signoff.json).
+CI re-renders it with the `klayout-tools` version pinned in
+[`.github/klt-version`](.github/klt-version) and fails on any difference.
+Regenerate it with:
+
+```
+uvx --from "klayout-tools==$(cat .github/klt-version)" klt signoff \
+    --manifest manifests/sky130-sigma-delta-adc.json --format json \
+    > manifests/sky130-sigma-delta-adc.signoff.json
+```
+
+(`klt signoff` exits 3 while any T1 item is unmet; that is a valid run.)
+
 ## Repo layout
 
 ```
