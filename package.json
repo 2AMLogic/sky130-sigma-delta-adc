@@ -4,9 +4,8 @@
   "private": true,
   "scripts": {
     "worktree:return": "./.loom/scripts/worktree-return.sh",
-    "check:ci": "echo 'No CI checks configured. Customize this script for your project.' && exit 0",
-    "check:all": "echo 'No checks configured. Customize this script for your project.' && exit 0",
-    "test": "echo 'No tests configured. Customize this script for your project.' && exit 0",
-    "lint": "echo 'No linter configured. Customize this script for your project.' && exit 0"
+    "check:ci": "python3 -I -c \"import json,pathlib,sys; fs=sorted(pathlib.Path('manifests').rglob('*.json')); assert fs, 'no manifests found'; [json.load(open(f)) for f in fs]; print('ok:', len(fs), 'manifest JSON files parse')\"",
+    "check:all": "npm run check:ci",
+    "test": "npm run check:ci"
   }
 }
