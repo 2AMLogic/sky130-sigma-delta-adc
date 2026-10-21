@@ -2,6 +2,12 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-10-21
+
+- **PR #13**: fix: make npm check scripts validate manifest JSON instead of always passing
+- **PR #10**: Bump Repo Skills 0.24.3 -> 0.24.7
+- **Issue #12** (closed): Replace vacuous always-pass package.json check scripts
+
 ### 2026-10-20
 
 - **PR #6**: ci: grade T1 state with klt signoff and commit the verdict of record
