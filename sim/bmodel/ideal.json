@@ -1,0 +1,11 @@
+{
+  "dc_gain": null,
+  "settling_error": 0.0,
+  "ci_offset": 0.0,
+  "ci_gain_error": 0.0,
+  "ktc_noise_var": 0.0,
+  "comparator_offset": 0.0,
+  "comparator_hysteresis": 0.0,
+  "jitter_rms_s": 0.0,
+  "seed": 1
+}
