@@ -2,6 +2,13 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-10-23
+
+- **PR #19**: feat(sim): behavioural second-order delta-sigma model B with SNDR records
+- **PR #17**: feat(rtl): CIC4 + 41-tap FIR decimation filter with cycle model, cocotb tests and synthesis record
+- **Issue #15** (closed): Behavioural modulator model (B): discrete-time 2nd-order 1-bit loop with T-parameter inputs and a §1.2-conformant SNDR report
+- **Issue #16** (closed): Decimation filter RTL: CIC3 + FIR to 80 kSps, 16-bit output, bit-exact against a fixed-point model with cocotb
+
 ### 2026-10-21
 
 - **PR #13**: fix: make npm check scripts validate manifest JSON instead of always passing
