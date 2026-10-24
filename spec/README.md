@@ -18,6 +18,8 @@ delta-sigma ADC.
     substrate and clock separation; post-layout grading plan
   - [DR-005](decisions/DR-005-reference-bias-boundary.md) — reference and
     bias boundary
+  - [DR-006](decisions/DR-006-decimation-stopband-reading.md) — decimation
+    stopband (row 9) graded in the alias bands
 
 Pinned sibling references live in [`../reuse.lock.json`](../reuse.lock.json).
 

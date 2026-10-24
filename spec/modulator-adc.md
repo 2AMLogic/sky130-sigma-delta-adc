@@ -41,7 +41,7 @@
 | 6 | Output word rate, `fout = 4·BW` | 80 kSps (decimate by 64) | 40 kSps (decimate by 128) | 200 kSps (decimate by 32) | B, RTL sim |
 | 7 | Output word | 16-bit, two's complement | 16-bit | 16-bit (see §4) | RTL sim |
 | 8 | Decimation passband | 0 – `BW`, ripple ≤ 0.1 dB | same | same | RTL sim |
-| 9 | Decimation stopband | ≥ 90 dB from `fout − BW` to `fs/2` | ≥ 80 dB | ≥ 100 dB | RTL sim, B |
+| 9 | Decimation stopband | ≥ 90 dB in the alias bands `k·fout ± BW`, k = 1 … `fs/(2·fout)` (last clipped at `fs/2`) | ≥ 80 dB, same bands | ≥ 100 dB, same bands | RTL sim, B |
 | 10 | Decimation filter order | CIC order ≥ 3 (= modulator order + 1), then FIR to `fout` | same | CIC order ≥ 4 if the modulator order rises | RTL sim |
 | 11 | Input | fully differential, peak differential input ≤ 0.5 · `VREF` | same | same | B, T, P |
 | 12 | Supply | `VDD` = 1.8 V ± 10 % (1.62 – 1.98 V), 1.8 V core devices only | same | same | T, P |
@@ -106,7 +106,10 @@ every corner in DR-002. It does not mean a T transient of the full record.
    amplitude, far below the SNDR budget; it is a gain error, not a noise
    term). The stopband is set so alias leakage from the shaped
    quantization noise lands well below the thermal floor of §5.3: 90 dB
-   against the 80 dB target. The CIC order of (modulator order + 1) is the
+   against the 80 dB target. It is graded in the alias bands, the only
+   places where energy folds into `[0, BW]` on decimation to `fout`; the gaps
+   between alias bands are not graded
+   ([DR-006](decisions/DR-006-decimation-stopband-reading.md)). The CIC order of (modulator order + 1) is the
    standard minimum to keep aliased shaped noise from dominating. Anything
    finer (stage split, coefficient widths) is RTL design, not spec.
 11. **Input.** Differential at the boundary, decided here as a fraction of
