@@ -2,6 +2,10 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-10-24
+
+- **Issue #20** (closed): Remove digital smoke fixture verification/smoke: superseded by decimator runner
+
 ### 2026-10-23
 
 - **PR #19**: feat(sim): behavioural second-order delta-sigma model B with SNDR records
