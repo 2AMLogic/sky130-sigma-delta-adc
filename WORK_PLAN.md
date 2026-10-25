@@ -31,13 +31,13 @@ _None._
 
 Issues currently being built (`loom:building`).
 
-_None._
+- **#18**: Spec owner: confirm row 9 stopband reading (alias bands vs every frequency fout-BW..fs/2)
 
 ## PRs Awaiting Review
 
 PRs waiting on Judge (`loom:review-requested`).
 
-_None._
+- **#23**: docs(spec): grade decimation stopband (row 9) in the alias bands, DR-006
 
 ## Approved (Awaiting Merge)
 
@@ -53,7 +53,7 @@ Issues carrying `loom:curated`.
 
 ## Proposed (Architect / Hermit)
 
-- **#20**: Remove digital smoke fixture verification/smoke: superseded by decimator runner *(hermit)*
+_None._
 
 ## Epics
 
@@ -67,10 +67,10 @@ _None._
 | Very important | 0 |
 | Important | 0 |
 | Ready (`loom:issue`) | 0 |
-| In Progress (`loom:building`) | 0 |
-| PRs awaiting review | 0 |
+| In Progress (`loom:building`) | 1 |
+| PRs awaiting review | 1 |
 | Approved PRs awaiting merge | 0 |
 | Curated | 1 |
-| Architect / Hermit proposals | 1 |
+| Architect / Hermit proposals | 0 |
 | Active epics | 0 |
 <!-- guide:plan-body:end -->
