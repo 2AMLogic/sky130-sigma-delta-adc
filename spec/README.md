@@ -19,7 +19,7 @@ delta-sigma ADC.
   - [DR-005](decisions/DR-005-reference-bias-boundary.md) — reference and
     bias boundary
   - [DR-006](decisions/DR-006-decimation-stopband-reading.md) — decimation
-    stopband (row 9) graded in the alias bands
+    stopband (row 9) graded in the alias bands, with a gap floor
 
 Pinned sibling references live in [`../reuse.lock.json`](../reuse.lock.json).
 
