@@ -37,7 +37,7 @@ Issues currently being built (`loom:building`).
 
 PRs waiting on Judge (`loom:review-requested`).
 
-- **#23**: docs(spec): grade decimation stopband (row 9) in the alias bands, DR-006
+_None._
 
 ## Approved (Awaiting Merge)
 
