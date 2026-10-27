@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "kind": "generic",
+  "status": "pass",
+  "t1_item": 9,
+  "summary": "T1 item 9 (Testbenches shipped): 12/12 attestation checks passed (klt signoff --attest)",
+  "source": "attestation/item9-inventory.json",
+  "attestation": {
+    "producer": "klt signoff --attest",
+    "inventory_schema_version": 1,
+    "hash_algorithm": "sha256-raw-bytes",
+    "check_count": 12,
+    "passed_count": 12,
+    "checks": [
+      {
+        "check": "present",
+        "role": "testbench",
+        "path": "sim/bmodel/run.py",
+        "passed": true,
+        "content_hash": "sha256:95ae3de96eaea24d6f0a4f6be0fa53a8d1acac000b51bcb3b20fe97e24df343a"
+      },
+      {
+        "check": "present",
+        "role": "testbench",
+        "path": "sim/bmodel/test_bmodel.py",
+        "passed": true,
+        "content_hash": "sha256:42e3a1f1338a10e76d678f8c587eafb11e92575355f06e86ac9ffb274a0ae053"
+      },
+      {
+        "check": "present",
+        "role": "testbench",
+        "path": "sim/smoke/run_smoke.py",
+        "passed": true,
+        "content_hash": "sha256:67c186fbd29289adaba45cea70432981f47d9930e4e885a9db097450d46a0d82"
+      },
+      {
+        "check": "present",
+        "role": "testbench",
+        "path": "sim/smoke/sampler_smoke.cir",
+        "passed": true,
+        "content_hash": "sha256:74a4d7c2b13d346a2618a141f614a45880f97c139f8ac557e2f147e73024d270"
+      },
+      {
+        "check": "present",
+        "role": "testbench",
+        "path": "verification/decimator/response.py",
+        "passed": true,
+        "content_hash": "sha256:6e2fe4f78b8a2f9d4cfab48de44c0d315688c6694d0836494c52ec8d130e060d"
+      },
+      {
+        "check": "present",
+        "role": "testbench",
+        "path": "verification/decimator/run_synth.py",
+        "passed": true,
+        "content_hash": "sha256:f5fa8a32e14e21be286bffec11287bf7a96b078d0dfaf23996b655036689145e"
+      },
+      {
+        "check": "present",
+        "role": "testbench",
+        "path": "verification/decimator/test_decimator.py",
+        "passed": true,
+        "content_hash": "sha256:038877acb19a731293dba17a0302434979ef96bf340ca1d79c04c6910b2330ab"
+      },
+      {
+        "check": "present",
+        "role": "testbench",
+        "path": "verification/smoke/run_smoke.py",
+        "passed": true,
+        "content_hash": "sha256:2f6dd987c90ddd4c5ea0675fb507309931210ea43efc637f4cc5c240e409c4f6"
+      },
+      {
+        "check": "present",
+        "role": "testbench",
+        "path": "verification/smoke/test_smoke_acc1.py",
+        "passed": true,
+        "content_hash": "sha256:965bd2fb4b4e3203601e0705e34a7691c106be737a29469dacfea88b354183a6"
+      },
+      {
+        "check": "command",
+        "role": "cold_start",
+        "argv": [
+          "sh",
+          "attestation/cold_start_item9.sh"
+        ],
+        "cwd": ".",
+        "exit_status": 0,
+        "passed": true,
+        "local_only": true
+      },
+      {
+        "check": "pin",
+        "role": "pdk",
+        "passed": true,
+        "value": {
+          "name": "sky130A",
+          "revision": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7"
+        }
+      },
+      {
+        "check": "pin",
+        "role": "tools",
+        "passed": true,
+        "value": {
+          "cocotb": "2.1.0",
+          "icarus_verilog": "13.0",
+          "klayout-tools": "0.8.0",
+          "ngspice": "46",
+          "numpy": "1.26.4",
+          "xschem": "3.4.7",
+          "yosys": "0.67+post (git b8e7da6f40ae8f552c116bf6c359b07c6533e159)"
+        }
+      }
+    ]
+  },
+  "provenance": {
+    "klt_version": "0.8.1.dev55+g879d39bad82b",
+    "klayout_version": null,
+    "pdk": null,
+    "deck": null,
+    "input": {
+      "path": {
+        "path": "attestation/item9-inventory.json",
+        "scope": "repo"
+      },
+      "content_hash": "sha256:1e1a2d88d733f467ec328d76d224cae64a4017285d7d91fca843eb5a34b1e08c"
+    }
+  }
+}

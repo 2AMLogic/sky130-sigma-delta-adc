@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "kind": "t1-attestation-inventory",
+  "t1_item": 10,
+  "description": "Repo hygiene: README, license, CI workflow, and the pure-Python checks CI runs.",
+  "hygiene": [
+    "README.md",
+    "LICENSE",
+    ".github/klt-version",
+    ".github/workflows/signoff.yml"
+  ],
+  "checks": [
+    {
+      "name": "bmodel-unittests",
+      "argv": [
+        "python3",
+        "-I",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "sim/bmodel",
+        "-p",
+        "test_*.py"
+      ],
+      "local_only": true
+    },
+    {
+      "name": "decimator-response",
+      "argv": [
+        "python3",
+        "response.py"
+      ],
+      "cwd": "verification/decimator",
+      "local_only": true
+    }
+  ]
+}

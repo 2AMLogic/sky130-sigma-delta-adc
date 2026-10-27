@@ -1,0 +1,36 @@
+#### Project-local xschem configuration for sky130-sigma-delta-adc (issue #38).
+####
+#### Makes `xschem` (and `klt netlist --rcfile design/xschemrc`) find the
+#### sky130 symbol library without relying on ~/.xschem, so batch netlisting
+#### and interactive editing share one config. Adapted from the same-PDK
+#### sibling sky130-opamp/design/xschemrc.
+
+if {![info exists env(PDK_ROOT)] || $env(PDK_ROOT) eq {}} {
+  set env(PDK_ROOT) [file normalize ~/.volare]
+}
+if {![info exists env(PDK)] || $env(PDK) eq {}} {
+  set env(PDK) sky130A
+}
+
+set _sky130_rc $env(PDK_ROOT)/$env(PDK)/libs.tech/xschem/xschemrc
+if {![file exists $_sky130_rc]} {
+  puts stderr "sky130-sigma-delta-adc: no PDK xschemrc at $_sky130_rc"
+  puts stderr "sky130-sigma-delta-adc: install the PDK or set PDK_ROOT / PDK and restart xschem."
+} else {
+  source $_sky130_rc
+}
+unset _sky130_rc
+
+#### Repo root and design/ on the symbol search path (appended after the PDK
+#### entries so a project symbol can never shadow a sky130_fd_pr one).
+set _repo_root [file normalize [file join [file dirname [info script]] ..]]
+if {![info exists XSCHEM_LIBRARY_PATH] || $XSCHEM_LIBRARY_PATH eq {}} {
+  set XSCHEM_LIBRARY_PATH $_repo_root
+} else {
+  append XSCHEM_LIBRARY_PATH ":$_repo_root"
+}
+append XSCHEM_LIBRARY_PATH ":[file join $_repo_root design]"
+unset _repo_root
+
+#### Do not open the PDK's demo schematic when started with no file argument.
+set XSCHEM_START_WINDOW {}

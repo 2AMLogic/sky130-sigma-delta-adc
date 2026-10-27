@@ -2,6 +2,19 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-10-27
+
+- **PR #52**: feat(sim): OTA step-settling bench with failing 45-corner record
+- **PR #47**: feat: attest T1 item 9 testbench inventory with klt signoff --attest
+- **PR #54**: feat(design): add fully-differential SC integrator with 1-bit feedback DAC
+- **Issue #48** (closed): Follow-on from PR #45: OTA slew-rate risk (~10 V/us vs 0.45 V per-side worst-case step)
+- **Issue #36** (closed): T1 item 9 (testbenches shipped): testbench inventory over the smoke, model B, decimator and modulator benches, attested with klt signoff --attest 9
+- **Issue #40** (closed): T1 item 1 (analog 2/4): SC integrator and 1-bit feedback DAC, schematic and netlist
+- **PR #45**: feat(design): add fully-differential folded-cascode OTA with CMFB
+- **PR #44**: feat: attest T1 item 10 repo hygiene with klt 0.8.0 and refresh README
+- **Issue #38** (closed): T1 item 1 (analog 1/4): fully-differential OTA with CMFB, schematic and netlist
+- **Issue #37** (closed): T1 item 10 (repo hygiene): README status and full reproduction, hygiene inventory attested with klt signoff --attest 10
+
 ### 2026-10-24
 
 - **Issue #20** (closed): Remove digital smoke fixture verification/smoke: superseded by decimator runner

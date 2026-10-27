@@ -5,6 +5,11 @@
     "1.digital": {
       "file": "design/attest/item1-digital-envelope.json",
       "content_hash": "sha256:842e6b9c1875c0b6a4b587a796abefb8881f602090ca6ca455534ad839c6e691"
+    },
+    "9": {"file": "attestation/item9-envelope.json", "content_hash": "sha256:1e1a2d88d733f467ec328d76d224cae64a4017285d7d91fca843eb5a34b1e08c"},
+    "10": {
+      "file": "evidence/item10.json",
+      "content_hash": "sha256:02c59c092ccf82d8c16fe91d33b430d381d06a2275646b2901ccec8ce2d1eeac"
     }
   }
 }
