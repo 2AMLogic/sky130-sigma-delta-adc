@@ -19,7 +19,7 @@ _None._
 
 `loom:important`; taken before unlabelled work.
 
-- **#40**: T1 item 1 (analog 2/4): SC integrator and 1-bit feedback DAC, schematic and netlist
+_None._
 
 ## Ready
 
@@ -33,8 +33,7 @@ Issues currently being built (`loom:building`).
 
 - **#18**: Spec owner: confirm row 9 stopband reading (alias bands vs every frequency fout-BW..fs/2)
 - **#28**: T1 item 1 (design sources, digital partition): commit the decimator gate-level netlist and attest the RTL + netlist inventory
-- **#36**: T1 item 9 (testbenches shipped): testbench inventory over the smoke, model B, decimator and modulator benches, attested with klt signoff --attest 9
-- **#48**: Follow-on from PR #45: OTA slew-rate risk (~10 V/us vs 0.45 V per-side worst-case step)
+- **#51**: OTA: CMFB sense and branch currents fail the 45-corner step-settling record
 
 ## PRs Awaiting Review
 
@@ -47,7 +46,6 @@ _None._
 PRs that passed review and are queued for Champion auto-merge (`loom:pr`).
 
 - **#23**: docs(spec): grade decimation stopband (row 9): 90 dB in alias bands, 75 dB floor elsewhere, DR-006
-- **#46**: feat: attest digital T1 item 1 with committed synthesized decimator netlist
 
 ## Proposed
 
@@ -55,8 +53,7 @@ Issues carrying `loom:curated`.
 
 - **#3**: Track the gap to T1 (klayout-tools design-evidence-tiers.md) *(curated)*
 - **#28**: T1 item 1 (design sources, digital partition): commit the decimator gate-level netlist and attest the RTL + netlist inventory *(curated)*
-- **#36**: T1 item 9 (testbenches shipped): testbench inventory over the smoke, model B, decimator and modulator benches, attested with klt signoff --attest 9 *(curated)*
-- **#48**: Follow-on from PR #45: OTA slew-rate risk (~10 V/us vs 0.45 V per-side worst-case step) *(curated)*
+- **#51**: OTA: CMFB sense and branch currents fail the 45-corner step-settling record *(curated)*
 
 ## Proposed (Architect / Hermit)
 
@@ -72,11 +69,11 @@ _None._
 |------|-------|
 | Operator merge-risk holds | 1 |
 | Very important | 0 |
-| Important | 1 |
+| Important | 0 |
 | Ready (`loom:issue`) | 0 |
-| In Progress (`loom:building`) | 4 |
+| In Progress (`loom:building`) | 3 |
 | PRs awaiting review | 0 |
-| Approved PRs awaiting merge | 2 |
+| Approved PRs awaiting merge | 1 |
 | Curated | 4 |
 | Architect / Hermit proposals | 1 |
 | Active epics | 0 |
