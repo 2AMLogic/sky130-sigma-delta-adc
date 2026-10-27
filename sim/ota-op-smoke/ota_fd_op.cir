@@ -1,0 +1,48 @@
+* OTA operating-point SMOKE CHECK (issue #38) -- NOT a performance claim.
+* Circuit under test: design/ota/ota_fd.spice (klt netlist --block of ota_fd.sch).
+* Single point: tt / 27 C / VDDA = 1.8 V. Ideal boundary sources (DR-005):
+* VCM = 0.9 V on vcm and on both inputs (zero differential input), ibias = 5 uA
+* sunk into the block. {{PDK_LIB}} and {{NETLIST}} are substituted by run_op.py.
+.lib {{PDK_LIB}} tt
+.temp 27
+.include {{NETLIST}}
+Vdda vdda 0 1.8
+Vvcm vcm 0 0.9
+Vinp inp 0 0.9
+Vinn inn 0 0.9
+Ibias vdda ibias 5u
+Xota vdda 0 inp inn outp outn vcm ibias ota_fd
+* planning load, 1 pF per side (no effect on the DC operating point)
+Cp outp 0 1p
+Cn outn 0 1p
+.control
+op
+print v(outp) v(outn) v(xota.cr) v(xota.vcn) v(xota.vcp) v(xota.tail) v(xota.fa) v(xota.fb) v(xota.sa) v(xota.sb)
+let ivdd = -i(Vdda)
+print ivdd
+print @m.xota.xm1.msky130_fd_pr__nfet_01v8[id] @m.xota.xm1.msky130_fd_pr__nfet_01v8[vds] @m.xota.xm1.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xm1.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xm2.msky130_fd_pr__nfet_01v8[id] @m.xota.xm2.msky130_fd_pr__nfet_01v8[vds] @m.xota.xm2.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xm2.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xmt.msky130_fd_pr__nfet_01v8[id] @m.xota.xmt.msky130_fd_pr__nfet_01v8[vds] @m.xota.xmt.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xmt.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xmp1.msky130_fd_pr__pfet_01v8[id] @m.xota.xmp1.msky130_fd_pr__pfet_01v8[vds] @m.xota.xmp1.msky130_fd_pr__pfet_01v8[vdsat] @m.xota.xmp1.msky130_fd_pr__pfet_01v8[gm]
+print @m.xota.xmp2.msky130_fd_pr__pfet_01v8[id] @m.xota.xmp2.msky130_fd_pr__pfet_01v8[vds] @m.xota.xmp2.msky130_fd_pr__pfet_01v8[vdsat] @m.xota.xmp2.msky130_fd_pr__pfet_01v8[gm]
+print @m.xota.xmpc1.msky130_fd_pr__pfet_01v8[id] @m.xota.xmpc1.msky130_fd_pr__pfet_01v8[vds] @m.xota.xmpc1.msky130_fd_pr__pfet_01v8[vdsat] @m.xota.xmpc1.msky130_fd_pr__pfet_01v8[gm]
+print @m.xota.xmpc2.msky130_fd_pr__pfet_01v8[id] @m.xota.xmpc2.msky130_fd_pr__pfet_01v8[vds] @m.xota.xmpc2.msky130_fd_pr__pfet_01v8[vdsat] @m.xota.xmpc2.msky130_fd_pr__pfet_01v8[gm]
+print @m.xota.xmnc1.msky130_fd_pr__nfet_01v8[id] @m.xota.xmnc1.msky130_fd_pr__nfet_01v8[vds] @m.xota.xmnc1.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xmnc1.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xmnc2.msky130_fd_pr__nfet_01v8[id] @m.xota.xmnc2.msky130_fd_pr__nfet_01v8[vds] @m.xota.xmnc2.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xmnc2.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xmn1.msky130_fd_pr__nfet_01v8[id] @m.xota.xmn1.msky130_fd_pr__nfet_01v8[vds] @m.xota.xmn1.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xmn1.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xmn2.msky130_fd_pr__nfet_01v8[id] @m.xota.xmn2.msky130_fd_pr__nfet_01v8[vds] @m.xota.xmn2.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xmn2.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xmb1.msky130_fd_pr__nfet_01v8[id] @m.xota.xmb1.msky130_fd_pr__nfet_01v8[vds] @m.xota.xmb1.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xmb1.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xmbp1.msky130_fd_pr__pfet_01v8[id] @m.xota.xmbp1.msky130_fd_pr__pfet_01v8[vds] @m.xota.xmbp1.msky130_fd_pr__pfet_01v8[vdsat] @m.xota.xmbp1.msky130_fd_pr__pfet_01v8[gm]
+print @m.xota.xmbn1.msky130_fd_pr__nfet_01v8[id] @m.xota.xmbn1.msky130_fd_pr__nfet_01v8[vds] @m.xota.xmbn1.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xmbn1.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xmbp2.msky130_fd_pr__pfet_01v8[id] @m.xota.xmbp2.msky130_fd_pr__pfet_01v8[vds] @m.xota.xmbp2.msky130_fd_pr__pfet_01v8[vdsat] @m.xota.xmbp2.msky130_fd_pr__pfet_01v8[gm]
+print @m.xota.xmbcn.msky130_fd_pr__nfet_01v8[id] @m.xota.xmbcn.msky130_fd_pr__nfet_01v8[vds] @m.xota.xmbcn.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xmbcn.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xmbcp.msky130_fd_pr__pfet_01v8[id] @m.xota.xmbcp.msky130_fd_pr__pfet_01v8[vds] @m.xota.xmbcp.msky130_fd_pr__pfet_01v8[vdsat] @m.xota.xmbcp.msky130_fd_pr__pfet_01v8[gm]
+print @m.xota.xmbn2.msky130_fd_pr__nfet_01v8[id] @m.xota.xmbn2.msky130_fd_pr__nfet_01v8[vds] @m.xota.xmbn2.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xmbn2.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xmcs1.msky130_fd_pr__nfet_01v8[id] @m.xota.xmcs1.msky130_fd_pr__nfet_01v8[vds] @m.xota.xmcs1.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xmcs1.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xmcs2.msky130_fd_pr__nfet_01v8[id] @m.xota.xmcs2.msky130_fd_pr__nfet_01v8[vds] @m.xota.xmcs2.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xmcs2.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xmcr.msky130_fd_pr__nfet_01v8[id] @m.xota.xmcr.msky130_fd_pr__nfet_01v8[vds] @m.xota.xmcr.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xmcr.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xmct.msky130_fd_pr__nfet_01v8[id] @m.xota.xmct.msky130_fd_pr__nfet_01v8[vds] @m.xota.xmct.msky130_fd_pr__nfet_01v8[vdsat] @m.xota.xmct.msky130_fd_pr__nfet_01v8[gm]
+print @m.xota.xmcps.msky130_fd_pr__pfet_01v8[id] @m.xota.xmcps.msky130_fd_pr__pfet_01v8[vds] @m.xota.xmcps.msky130_fd_pr__pfet_01v8[vdsat] @m.xota.xmcps.msky130_fd_pr__pfet_01v8[gm]
+print @m.xota.xmcpr.msky130_fd_pr__pfet_01v8[id] @m.xota.xmcpr.msky130_fd_pr__pfet_01v8[vds] @m.xota.xmcpr.msky130_fd_pr__pfet_01v8[vdsat] @m.xota.xmcpr.msky130_fd_pr__pfet_01v8[gm]
+.endc
+.end
