@@ -1,0 +1,46 @@
+* Modulator netlist LOAD CHECK (issue #41) -- NOT a performance claim.
+* Circuit under test: design/modulator/modulator.spice (hierarchy: clkgen,
+* integrator x2, comparator) + design/ota/ota_fd.spice + comparator.spice.
+* One transient at tt / 27 C / VDDA = 1.8 V, ideal boundary sources (DR-005):
+* VCM 0.9 V, VREFP 1.5 V, VREFN 0.3 V, ibias 5 uA, 5.12 MHz clk, a small DC
+* differential input. It proves the netlist loads with no unresolved subckt,
+* that phi1/phi2 (and phi1e vs phi1) have a non-overlap gap on every edge, and
+* that the bitstream node toggles. No SNDR, settling or noise result comes from it.
+* {{PDK_LIB}}, {{OTA}}, {{COMPARATOR}} and {{NETLIST}} are substituted by run_load.py.
+.lib {{PDK_LIB}} tt
+.temp 27
+.include {{OTA}}
+.include {{COMPARATOR}}
+.include {{NETLIST}}
+Vdda vdda 0 1.8
+Vvcm vcm 0 0.9
+Vrefp vrefp 0 1.5
+Vrefn vrefn 0 0.3
+Vinp vinp 0 0.93
+Vinn vinn 0 0.87
+Ibias vdda ibias 5u
+Vclk clk 0 pulse(0 1.8 10n 0.2n 0.2n 97.55n 195.3125n)
+Xmod vdda 0 vinp vinn vrefp vrefn vcm ibias clk bs modulator
+.control
+option gmin=1e-9
+tran 0.2n 2.5u
+* non-overlap: the phases must never both be above 0.9 V
+let ov1 = (v(xmod.phi1) gt 0.9) * (v(xmod.phi2) gt 0.9)
+let ov1e = (v(xmod.phi1e) gt 0.9) * (v(xmod.phi2) gt 0.9)
+let overlap_phi1_phi2 = vecmax(ov1)
+let overlap_phi1e_phi2 = vecmax(ov1e)
+print overlap_phi1_phi2 overlap_phi1e_phi2
+* edge times in the 4th clock cycle
+meas tran t_phi2_fall when v(xmod.phi2)=0.9 fall=4
+meas tran t_phi1e_rise when v(xmod.phi1e)=0.9 rise=4
+meas tran t_phi1_rise when v(xmod.phi1)=0.9 rise=4
+meas tran t_phi1e_fall when v(xmod.phi1e)=0.9 fall=4
+meas tran t_phi1_fall when v(xmod.phi1)=0.9 fall=4
+meas tran t_phi2_rise when v(xmod.phi2)=0.9 rise=4
+* bitstream: the node must reach both rails
+let bs_max = vecmax(v(bs))
+let bs_min = vecmin(v(bs))
+print bs_max bs_min
+quit
+.endc
+.end

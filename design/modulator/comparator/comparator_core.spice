@@ -1,0 +1,95 @@
+* comparator_core.spice -- THIS REPO'S OWN comparator design.
+*
+* GENERATED FILE -- do not hand-edit. Regenerate with ./design/netlist.sh
+* (see that script for the exact xschem invocation and the post-processing
+* it applies). The source of truth is design/comparator.sch.
+*
+* This file is no longer the sky130-sar-adc-ported PLACEHOLDER DUT it was
+* under issue #9. It is this repo's own design/comparator.sch (issue #24),
+* implementing the topology and reset scheme decided in
+* spec/decision-records/DR-001-comparator-topology.md (issue #21 / PR #22)
+* at a sizing derived first-principles against this repo's own installed
+* sky130 device models. The prior placeholder content remains in git
+* history; records under sim/comparator-decision/records/ written before
+* this change characterize that placeholder, not this design, and say so in
+* their own Claim fields (they are append-only evidence and are never
+* edited -- they simply stop being the freshest evidence).
+*
+* Topology: static preamplifier + dynamic StrongARM-class latch per
+* DR-004 (issue #34) -- the DR-001-supersession topology-class change
+* that closes the kickback gap DR-003 documented. 16 devices: a
+* continuously-biased preamp (M_PTAIL, a gate-at-VDD NMOS current source;
+* input pair M_PINN/M_PINP; poly loads R_LP/R_LN ~30kohm) whose outputs
+* OUTP1/OUTN1 sit at a static ~1.1-1.25 V common mode and carry the
+* differential with ~13-18x gain, ahead of a clocked latch (strong tail
+* switch M_TAIL2 + steering pair M_STN_P/M_STN_N gated by the preamp
+* outputs + cross-coupled PMOS M_LATP_P/M_LATP_N + output reset PMOS
+* M_RST_P/M_RST_N), plus the OUT1 absorber caps M_C1P/M_C1N (nfet MOS
+* caps at the preamp outputs, absorbing the steering pair's gate kick).
+* CLK-gated PMOS precharge of the differential output
+* nodes to VDD: during reset every latch PMOS sits at Vgs = 0 exactly, so
+* the cross-coupled loop is dead and the reset state is a stable,
+* non-conducting equilibrium -- DR-001 Decision 3's property on the latch
+* stage. The steering pair's gates sit at the static preamp common mode
+* and M_TAIL2 is off in reset, so no supply path exists. The DR-003
+* shaper (R_CLKS x M_CLKCAP, tau ~ 250 ps) drives the latch tail and both
+* reset PMOS from CLKT: the evaluate onset stays slew-limited. The
+* preamp's channels are ALWAYS formed (static bias) -- the input-pin
+* channel-formation transient that dominated the dynamic-input variants
+* (single-tail AND double-tail; measured ladder in DR-004) does not exist
+* in this class, and the latch's kickback arrives at the preamp outputs,
+* divided by the preamp's gain and absorbed by the OUTx1 node before the
+* pins.
+*
+* Sizing (all L=0.5um; full derivation in design/comparator.sch's own
+* sizing-rationale text block and in DR-004):
+*   M_PTAIL               W=0.8um  static current ~44uA total (supply row)
+*   M_PINN, M_PINP        W=13um   offset budget + noise lever (DR-004)
+*   R_LP, R_LN            L=22um   gain A~13-18, output CM ~1.1-1.25V
+*   M_C1P, M_C1N          W=40um   kickback: absorb the steering gate kick
+*   M_TAIL2               W= 8um   output descent + regeneration speed
+*   M_STN_P, M_STN_N      W= 8um   steer strength / offset (2nd, /A)
+*   M_LATP_P, M_LATP_N    W=16um   trip point near VDD/2 (as DR-001 Amd 1)
+*   M_RST_P,  M_RST_N     W= 8um   reset tau << reset window, min C_out
+*   R_CLKS (res_high_po_0p35, L=1.75um, ~2.4kohm) + M_CLKCAP (W=20um):
+*                             DR-003 soft-clock shaper, tau ~ 0.25 ns
+*
+* Ports: VDD, GND (auto-tied to node 0 by ngspice's built-in gnd-name
+* recognition), CLK, VINP, VINN, OUTP, OUTN -- UNCHANGED from every prior
+* revision (the preamp is internally biased; no new port).
+* Internal nodes: TAILP, OUTP1, OUTN1, TAIL2, CLKT.
+* Vin,diff = VINP - VINN > 0 => OUTP settles high.
+*
+* Every device is sky130_fd_pr__{n,p}fet_01v8 (1.8V core flavour, matching
+* this repo's own 1.8V headroom constraint per CLAUDE.md) -- no
+* _g5v0d10v5 or other non-core flavour instances.
+
+XM_PTAIL TAILP VDD GND GND sky130_fd_pr__nfet_01v8 L=0.5 W=0.8 nf=1 ad=0.232 as=0.232 pd=2.18 ps=2.18 nrd=0.3625 nrs=0.3625 sa=0
++ sb=0 sd=0 mult=1 m=1
+XM_PINN OUTN1 VINN TAILP GND sky130_fd_pr__nfet_01v8 L=0.5 W=13 nf=1 ad=3.77 as=3.77 pd=26.58 ps=26.58 nrd=0.0223076923076923
++ nrs=0.0223076923076923 sa=0 sb=0 sd=0 mult=1 m=1
+XM_PINP OUTP1 VINP TAILP GND sky130_fd_pr__nfet_01v8 L=0.5 W=13 nf=1 ad=3.77 as=3.77 pd=26.58 ps=26.58 nrd=0.0223076923076923
++ nrs=0.0223076923076923 sa=0 sb=0 sd=0 mult=1 m=1
+XM_TAIL2 TAIL2 CLKT GND GND sky130_fd_pr__nfet_01v8 L=0.5 W=8 nf=1 ad=2.32 as=2.32 pd=16.58 ps=16.58 nrd=0.03625 nrs=0.03625 sa=0
++ sb=0 sd=0 mult=1 m=1
+XM_STN_P OUTP OUTP1 TAIL2 GND sky130_fd_pr__nfet_01v8 L=0.5 W=8 nf=1 ad=2.32 as=2.32 pd=16.58 ps=16.58 nrd=0.03625 nrs=0.03625
++ sa=0 sb=0 sd=0 mult=1 m=1
+XM_STN_N OUTN OUTN1 TAIL2 GND sky130_fd_pr__nfet_01v8 L=0.5 W=8 nf=1 ad=2.32 as=2.32 pd=16.58 ps=16.58 nrd=0.03625 nrs=0.03625
++ sa=0 sb=0 sd=0 mult=1 m=1
+XM_LATP_P OUTP OUTN VDD VDD sky130_fd_pr__pfet_01v8 L=0.5 W=16 nf=1 ad=4.64 as=4.64 pd=32.58 ps=32.58 nrd=0.018125 nrs=0.018125
++ sa=0 sb=0 sd=0 mult=1 m=1
+XM_LATP_N OUTN OUTP VDD VDD sky130_fd_pr__pfet_01v8 L=0.5 W=16 nf=1 ad=4.64 as=4.64 pd=32.58 ps=32.58 nrd=0.018125 nrs=0.018125
++ sa=0 sb=0 sd=0 mult=1 m=1
+XM_RST_P OUTP CLKT VDD VDD sky130_fd_pr__pfet_01v8 L=0.5 W=8 nf=1 ad=2.32 as=2.32 pd=16.58 ps=16.58 nrd=0.03625 nrs=0.03625 sa=0
++ sb=0 sd=0 mult=1 m=1
+XM_RST_N OUTN CLKT VDD VDD sky130_fd_pr__pfet_01v8 L=0.5 W=8 nf=1 ad=2.32 as=2.32 pd=16.58 ps=16.58 nrd=0.03625 nrs=0.03625 sa=0
++ sb=0 sd=0 mult=1 m=1
+XR_LP OUTN1 VDD GND sky130_fd_pr__res_high_po_0p35 L=22 mult=1 m=1
+XR_LN OUTP1 VDD GND sky130_fd_pr__res_high_po_0p35 L=22 mult=1 m=1
+XR_CLKS CLKT CLK GND sky130_fd_pr__res_high_po_0p35 L=1.75 mult=1 m=1
+XM_CLKCAP GND CLKT GND GND sky130_fd_pr__nfet_01v8 L=0.5 W=20 nf=1 ad=5.8 as=5.8 pd=40.58 ps=40.58 nrd=0.0145 nrs=0.0145 sa=0 sb=0
++ sd=0 mult=1 m=1
+XM_C1P GND OUTP1 GND GND sky130_fd_pr__nfet_01v8 L=0.5 W=40 nf=1 ad=11.6 as=11.6 pd=80.58 ps=80.58 nrd=0.00725 nrs=0.00725 sa=0
++ sb=0 sd=0 mult=1 m=1
+XM_C1N GND OUTN1 GND GND sky130_fd_pr__nfet_01v8 L=0.5 W=40 nf=1 ad=11.6 as=11.6 pd=80.58 ps=80.58 nrd=0.00725 nrs=0.00725 sa=0
++ sb=0 sd=0 mult=1 m=1
