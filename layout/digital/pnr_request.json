@@ -1,0 +1,23 @@
+{
+  "schema": "klt.place_and_route.request/1",
+  "engine": "openroad",
+  "netlist": "../../rtl/netlist/decimator_synth.v",
+  "hdl_toplevel": "decimator",
+  "pdk": {"cell_library": "sky130_fd_sc_hd", "corner": "tt_025C_1v80"},
+  "floorplan": {
+    "method": "utilization",
+    "utilization_pct": 40,
+    "aspect_ratio": 1.0,
+    "core_margin_um": 5.0,
+    "site": "unithd"
+  },
+  "io": {"layer_h": "met3", "layer_v": "met2"},
+  "power": {
+    "preset": "sky130hd",
+    "power_net": "VDDD",
+    "ground_net": "VSSD"
+  },
+  "constraints": {"clock_port": "clk", "clock_period_ns": 195.3125},
+  "seed": 1,
+  "target_stage": "route"
+}
