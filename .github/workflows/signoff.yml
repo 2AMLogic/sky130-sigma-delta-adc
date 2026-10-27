@@ -41,6 +41,14 @@ jobs:
               echo "ok: $f"
             done
 
+      - name: Check the item-9 testbench attestation still reproduces
+        run: |
+          # cold_start is local_only (needs ngspice, iverilog, yosys, the PDK):
+          # --check skips it and reports it, but still re-hashes every bench file
+          # and the inventory itself.
+          klt signoff --attest 9 --inventory attestation/item9-inventory.json \
+                      --check attestation/item9-envelope.json
+
       - name: Re-run klt signoff and compare against the committed record
         run: |
           set -uo pipefail

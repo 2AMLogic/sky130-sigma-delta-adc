@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "kind": "t1-attestation-inventory",
+  "t1_item": 9,
+  "description": "Benches behind every claimed number so far: analog and digital smokes, behavioural model B, decimator (cocotb, response, synthesis). Extend as the modulator benches land (#27, #33). cold_start is local_only: it needs ngspice, iverilog, yosys and the pinned PDK, which the CI runner lacks; CI runs --check, which still re-hashes every bench file.",
+  "testbenches": [
+    "sim/smoke/run_smoke.py",
+    "sim/smoke/sampler_smoke.cir",
+    "verification/smoke/run_smoke.py",
+    "verification/smoke/test_smoke_acc1.py",
+    "sim/bmodel/run.py",
+    "sim/bmodel/test_bmodel.py",
+    "verification/decimator/test_decimator.py",
+    "verification/decimator/response.py",
+    "verification/decimator/run_synth.py"
+  ],
+  "cold_start": {"argv": ["sh", "attestation/cold_start_item9.sh"], "local_only": true},
+  "pins": {
+    "pdk": {"name": "sky130A", "revision": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7"},
+    "tools": {
+      "ngspice": "46",
+      "xschem": "3.4.7",
+      "icarus_verilog": "13.0",
+      "yosys": "0.67+post (git b8e7da6f40ae8f552c116bf6c359b07c6533e159)",
+      "cocotb": "2.1.0",
+      "numpy": "1.26.4",
+      "klayout-tools": "0.8.0"
+    }
+  }
+}
