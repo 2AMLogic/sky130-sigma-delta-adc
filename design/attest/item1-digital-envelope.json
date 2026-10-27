@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "kind": "generic",
+  "status": "pass",
+  "t1_item": 1,
+  "summary": "T1 item 1 (Design sources): 6/6 attestation checks passed (klt signoff --attest)",
+  "source": "design/attest/item1-digital-inventory.json",
+  "attestation": {
+    "producer": "klt signoff --attest",
+    "inventory_schema_version": 1,
+    "hash_algorithm": "sha256-raw-bytes",
+    "check_count": 6,
+    "passed_count": 6,
+    "checks": [
+      {
+        "check": "present",
+        "role": "source",
+        "path": "rtl/decimator.v",
+        "passed": true,
+        "content_hash": "sha256:2a77b51270910bdee6cfa421af221768bbd1dc0d9ca1afd69580b2f9c69b7376"
+      },
+      {
+        "check": "present",
+        "role": "source",
+        "path": "rtl/decimator_coef.v",
+        "passed": true,
+        "content_hash": "sha256:a792c78fb3579d16505aed79b388db3460150af396794ed63a1707d07ddb85b6"
+      },
+      {
+        "check": "present",
+        "role": "source",
+        "path": "verification/decimator/design_fir.py",
+        "passed": true,
+        "content_hash": "sha256:98f09737d849deec49786ca7ae6f73ca909fb995150b1fcbda8c63a8f2046f2f"
+      },
+      {
+        "check": "present",
+        "role": "source",
+        "path": "verification/decimator/synth_request.json",
+        "passed": true,
+        "content_hash": "sha256:46782f3a554585f2e4795345d3eff74d2c0ebf2cf058492cff4cf120c4019e7a"
+      },
+      {
+        "check": "present",
+        "role": "derived",
+        "path": "rtl/netlist/decimator_synth.v",
+        "passed": true,
+        "content_hash": "sha256:313697e35499e6b9dd5ab4cff0a31e4416b3e21d8d2467369108441d85857b54"
+      },
+      {
+        "check": "command",
+        "role": "freshness",
+        "target": "rtl/netlist/decimator_synth.v",
+        "generator": "klt synthesize",
+        "argv": [
+          "python3",
+          "design/attest/check_digital_netlist.py"
+        ],
+        "cwd": ".",
+        "exit_status": 0,
+        "passed": true,
+        "local_only": true
+      }
+    ]
+  },
+  "provenance": {
+    "klt_version": "0.8.0",
+    "klayout_version": null,
+    "pdk": null,
+    "deck": null,
+    "input": {
+      "path": {
+        "path": "design/attest/item1-digital-inventory.json",
+        "scope": "repo"
+      },
+      "content_hash": "sha256:842e6b9c1875c0b6a4b587a796abefb8881f602090ca6ca455534ad839c6e691"
+    }
+  }
+}

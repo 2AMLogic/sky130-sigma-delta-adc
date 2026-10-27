@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "kind": "t1-attestation-inventory",
+  "t1_item": 1,
+  "description": "Digital partition: committed decimator RTL plus the Yosys-synthesized sky130_fd_sc_hd gate-level netlist derived from it. Synthesis only, no timing claim.",
+  "sources": [
+    "rtl/decimator.v",
+    "rtl/decimator_coef.v",
+    "verification/decimator/design_fir.py",
+    "verification/decimator/synth_request.json"
+  ],
+  "derived": [
+    {
+      "path": "rtl/netlist/decimator_synth.v",
+      "generator": "klt synthesize",
+      "check": {
+        "argv": ["python3", "design/attest/check_digital_netlist.py"],
+        "local_only": true
+      }
+    }
+  ]
+}

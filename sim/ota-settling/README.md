@@ -48,6 +48,19 @@ id is in the record's `remote` field. It never falls back to a local grid.
 `--record-name record-<label>.json` for a re-run after a sizing change.
 `python3 -I sim/ota-settling/make_request.py` regenerates `request.json`.
 
+## Records
+
+- `record.json` - issue #48, the original sizing (square-law CMFB sense, 40 uA
+  tail): fails at all 45 corners. Kept unchanged.
+- `record-i51-rcm2M-cff100f.json` - issue #51, resistive CMFB sense, 80 uA
+  tail, ~3.9 pF + 5.5 kohm CM compensation: 45 of 45 corners pass, worst
+  `err_phase` 6.8e-5.
+
+The fleet runner has been klt 0.7.0; a newer client's submit fails with
+`batch_job_failed` (exit 87) and nothing is simulated. Run with a throwaway
+`uv venv` holding `klayout-tools==0.7.0` first on `PATH` until the runner is
+updated; do not install it host-wide.
+
 ## Limits
 
 Open-loop gain, GBW, PM, CMFB stability, noise, swing, Monte Carlo and
