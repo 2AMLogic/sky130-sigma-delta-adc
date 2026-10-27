@@ -7,7 +7,10 @@ REPO = HERE.parents[1]
 VCM = 0.9
 CM_TOL = 0.050    # output common mode within 50 mV of VCM
 SYM_TOL = 0.001   # outp - outn within 1 mV at zero differential input
-IVDD_BAND = (50e-6, 150e-6)  # total VDDA current incl. the 5 uA ibias, sanity band
+# total VDDA current incl. the 5 uA ibias, sanity band. Raised from (50, 150) uA in
+# issue #51: tail and output-branch currents were doubled so the step settles in
+# the 97.66 ns phase (SIZING.md). 250 uA is ~0.45 mW per OTA, under half of spec row 13.
+IVDD_BAND = (100e-6, 250e-6)
 NODES = ("outp", "outn", "xota.cr", "xota.vcn", "xota.vcp", "xota.tail",
          "xota.fa", "xota.fb", "xota.sa", "xota.sb")
 
@@ -57,7 +60,7 @@ def main():
             dev.setdefault(m.group(1), {})[m.group(2)] = v
     node = {k: vals.get(f"v({k})") for k in NODES}
     ivdd = vals.get("ivdd")
-    if r.returncode or ivdd is None or None in node.values() or len(dev) != 24:
+    if r.returncode or ivdd is None or None in node.values() or len(dev) != 23:
         print(log[-2000:], file=sys.stderr)
         return 1
     margins = {n: abs(p["vds"]) - p["vdsat"] for n, p in dev.items()}
@@ -65,7 +68,7 @@ def main():
     checks = {
         "output_cm_within_50mV_of_vcm": abs(cm - VCM) <= CM_TOL,
         "outputs_symmetric_within_1mV": abs(node["outp"] - node["outn"]) <= SYM_TOL,
-        "all_24_transistors_saturated": all(m > 0 for m in margins.values()),
+        "all_23_transistors_saturated": all(m > 0 for m in margins.values()),
         "ivdda_within_sanity_band": IVDD_BAND[0] <= ivdd <= IVDD_BAND[1],
     }
     ok = all(checks.values())

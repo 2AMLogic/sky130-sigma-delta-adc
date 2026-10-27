@@ -18,36 +18,36 @@
     "libs.ref/sky130_fd_pr/spice/sky130_fd_pr__nfet_01v8__tt.pm3.spice": "459eca963a134574cf7c842ad6d3814e7e0752bfb5de8e581c2f483534b5ad06",
     "libs.ref/sky130_fd_pr/spice/sky130_fd_pr__pfet_01v8__tt.pm3.spice": "c943246ce012ea3db2777e3f4633ddccdfee7c8f1bf4dca79af9f7ff17b3d51f"
   },
-  "deck_sha256": "361dd47a06b532af6ca82fa86f06436dae460c093d1410291af2446026466a4b",
-  "netlist_sha256": "997e8bc152f0e46a46ee2cf76cc79152d0925e6e2a71c7aad2b73cfb64080649",
+  "deck_sha256": "92ac4df9933294df791204d5b2c21544ec4e6607e19a971e3b7a79828623167f",
+  "netlist_sha256": "7f4724e9631c05760bc98d161100c41b06928b98e0526c027e6a9271d70f7977",
   "nodes_V": {
     "outp": 0.8998,
     "outn": 0.8998,
-    "xota.cr": 0.7289,
+    "xota.cr": 0.7288,
     "xota.vcn": 0.8953,
     "xota.vcp": 0.4802,
-    "xota.tail": 0.1809,
+    "xota.tail": 0.1893,
     "xota.fa": 1.5952,
     "xota.fb": 1.5952,
     "xota.sa": 0.1636,
     "xota.sb": 0.1636
   },
   "output_cm_V": 0.8998,
-  "ivdda_uA": 100.46,
+  "ivdda_uA": 172.39,
   "devices": {
     "m1": {
-      "id_uA": 18.0,
-      "vds_V": 1.4143,
-      "vdsat_V": 0.0914,
-      "sat_margin_V": 1.3229,
-      "gm_uS": 302.2
+      "id_uA": 36.16,
+      "vds_V": 1.4058,
+      "vdsat_V": 0.0902,
+      "sat_margin_V": 1.3156,
+      "gm_uS": 631.1
     },
     "m2": {
-      "id_uA": 18.0,
-      "vds_V": 1.4143,
-      "vdsat_V": 0.0914,
-      "sat_margin_V": 1.3229,
-      "gm_uS": 302.2
+      "id_uA": 36.16,
+      "vds_V": 1.4058,
+      "vdsat_V": 0.0902,
+      "sat_margin_V": 1.3156,
+      "gm_uS": 631.1
     },
     "mb1": {
       "id_uA": 5.0,
@@ -100,9 +100,9 @@
     },
     "mcpr": {
       "id_uA": 4.53,
-      "vds_V": 1.0711,
+      "vds_V": 1.0712,
       "vdsat_V": 0.1206,
-      "sat_margin_V": 0.9504,
+      "sat_margin_V": 0.9506,
       "gm_uS": 60.8
     },
     "mcps": {
@@ -114,24 +114,17 @@
     },
     "mcr": {
       "id_uA": 4.53,
-      "vds_V": 0.5358,
+      "vds_V": 0.5356,
       "vdsat_V": 0.0783,
-      "sat_margin_V": 0.4575,
+      "sat_margin_V": 0.4573,
       "gm_uS": 84.7
     },
-    "mcs1": {
-      "id_uA": 2.26,
+    "mcs": {
+      "id_uA": 4.52,
       "vds_V": 0.5522,
       "vdsat_V": 0.0783,
       "sat_margin_V": 0.474,
-      "gm_uS": 42.3
-    },
-    "mcs2": {
-      "id_uA": 2.26,
-      "vds_V": 0.5522,
-      "vdsat_V": 0.0783,
-      "sat_margin_V": 0.474,
-      "gm_uS": 42.3
+      "gm_uS": 84.6
     },
     "mct": {
       "id_uA": 9.06,
@@ -141,73 +134,73 @@
       "gm_uS": 140.2
     },
     "mn1": {
-      "id_uA": 17.8,
+      "id_uA": 35.61,
       "vds_V": 0.1636,
       "vdsat_V": 0.0995,
       "sat_margin_V": 0.0641,
-      "gm_uS": 273.8
+      "gm_uS": 547.6
     },
     "mn2": {
-      "id_uA": 17.8,
+      "id_uA": 35.61,
       "vds_V": 0.1636,
       "vdsat_V": 0.0995,
       "sat_margin_V": 0.0641,
-      "gm_uS": 273.8
+      "gm_uS": 547.6
     },
     "mnc1": {
-      "id_uA": 17.8,
+      "id_uA": 35.61,
       "vds_V": 0.7362,
       "vdsat_V": 0.0981,
       "sat_margin_V": 0.638,
-      "gm_uS": 285.1
+      "gm_uS": 570.3
     },
     "mnc2": {
-      "id_uA": 17.8,
+      "id_uA": 35.61,
       "vds_V": 0.7362,
       "vdsat_V": 0.0981,
       "sat_margin_V": 0.638,
-      "gm_uS": 285.1
+      "gm_uS": 570.3
     },
     "mp1": {
-      "id_uA": 35.8,
+      "id_uA": 71.77,
       "vds_V": 0.2048,
-      "vdsat_V": 0.1226,
-      "sat_margin_V": 0.0823,
-      "gm_uS": 469.5
+      "vdsat_V": 0.1227,
+      "sat_margin_V": 0.0822,
+      "gm_uS": 940.5
     },
     "mp2": {
-      "id_uA": 35.8,
+      "id_uA": 71.77,
       "vds_V": 0.2048,
-      "vdsat_V": 0.1226,
-      "sat_margin_V": 0.0823,
-      "gm_uS": 469.5
+      "vdsat_V": 0.1227,
+      "sat_margin_V": 0.0822,
+      "gm_uS": 940.5
     },
     "mpc1": {
-      "id_uA": 17.8,
+      "id_uA": 35.61,
       "vds_V": 0.6954,
       "vdsat_V": 0.121,
       "sat_margin_V": 0.5743,
-      "gm_uS": 242.6
+      "gm_uS": 485.1
     },
     "mpc2": {
-      "id_uA": 17.8,
+      "id_uA": 35.61,
       "vds_V": 0.6954,
       "vdsat_V": 0.121,
       "sat_margin_V": 0.5743,
-      "gm_uS": 242.6
+      "gm_uS": 485.1
     },
     "mt": {
-      "id_uA": 35.99,
-      "vds_V": 0.1809,
-      "vdsat_V": 0.0995,
-      "sat_margin_V": 0.0813,
-      "gm_uS": 556.1
+      "id_uA": 72.31,
+      "vds_V": 0.1893,
+      "vdsat_V": 0.0996,
+      "sat_margin_V": 0.0898,
+      "gm_uS": 1119.1
     }
   },
   "checks": {
     "output_cm_within_50mV_of_vcm": true,
     "outputs_symmetric_within_1mV": true,
-    "all_24_transistors_saturated": true,
+    "all_23_transistors_saturated": true,
     "ivdda_within_sanity_band": true
   },
   "pass": true

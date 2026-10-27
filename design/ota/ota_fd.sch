@@ -7,9 +7,9 @@ v {xschem version=3.4.7 file_version=1.2
 * Topology: NMOS input pair M1/M2 on tail MT; folded into PMOS top sources
 * MP1/MP2 (gate = CMFB node cr) with PMOS cascodes MPC1/MPC2 and NMOS
 * cascodes MNC1/MNC2 over bottom sinks MN1/MN2. Outputs outn (M1 side,
-* inverting from inp) and outp (M2 side). CMFB: sense pair MCS1/MCS2 (gates
-* outp, outn) against reference MCR (gate vcm) with PMOS mirror load
-* MCPS/MCPR; cr drives MP1/MP2. All branch currents mirror the external
+* inverting from inp) and outp (M2 side). CMFB: sense MCS (gate cmx, the
+* Rcm1/Rcm2 resistive average of outp/outn) against reference MCR (gate vcm)
+* with PMOS mirror load MCPS/MCPR; cr drives MP1/MP2, compensated by Rz+Ccm. All branch currents mirror the external
 * ibias (5 uA, DR-005) through MB1; cascode biases vcn/vcp are made on-block
 * (legs MBP1/MBN1/MBP2/MBCN and MBCP/MBN2).
 *
@@ -24,7 +24,7 @@ E {}
 * M1: input pair, inp side -> drives fold node fa (outn)
 C {sky130_fd_pr/nfet_01v8.sym} -900 -400 0 0 {name=M1
 L=0.5
-W=8.0
+W=16.0
 nf=1
 mult=1
 model=nfet_01v8
@@ -41,7 +41,7 @@ C {devices/lab_pin.sym} -860 -400 0 0 {name=l4 lab=vssa}
 * M2: input pair, inn side -> drives fold node fb (outp)
 C {sky130_fd_pr/nfet_01v8.sym} -500 -400 0 0 {name=M2
 L=0.5
-W=8.0
+W=16.0
 nf=1
 mult=1
 model=nfet_01v8
@@ -60,7 +60,7 @@ C {sky130_fd_pr/nfet_01v8.sym} -100 -400 0 0 {name=MT
 L=0.5
 W=2.0
 nf=1
-mult=8
+mult=16
 model=nfet_01v8
 spiceprefix=X}
 N -80 -430 -60 -410 {}
@@ -77,7 +77,7 @@ C {sky130_fd_pr/pfet_01v8.sym} 300 -400 0 0 {name=MP1
 L=0.5
 W=10.0
 nf=1
-mult=4
+mult=8
 model=pfet_01v8
 spiceprefix=X}
 N 320 -370 340 -390 {}
@@ -94,7 +94,7 @@ C {sky130_fd_pr/pfet_01v8.sym} 700 -400 0 0 {name=MP2
 L=0.5
 W=10.0
 nf=1
-mult=4
+mult=8
 model=pfet_01v8
 spiceprefix=X}
 N 720 -370 740 -390 {}
@@ -111,7 +111,7 @@ C {sky130_fd_pr/pfet_01v8.sym} 1100 -400 0 0 {name=MPC1
 L=0.5
 W=10.0
 nf=1
-mult=2
+mult=4
 model=pfet_01v8
 spiceprefix=X}
 N 1120 -370 1140 -390 {}
@@ -128,7 +128,7 @@ C {sky130_fd_pr/pfet_01v8.sym} -900 50 0 0 {name=MPC2
 L=0.5
 W=10.0
 nf=1
-mult=2
+mult=4
 model=pfet_01v8
 spiceprefix=X}
 N -880 80 -860 60 {}
@@ -145,7 +145,7 @@ C {sky130_fd_pr/nfet_01v8.sym} -500 50 0 0 {name=MNC1
 L=0.5
 W=7.0
 nf=1
-mult=1
+mult=2
 model=nfet_01v8
 spiceprefix=X}
 N -480 20 -460 40 {}
@@ -162,7 +162,7 @@ C {sky130_fd_pr/nfet_01v8.sym} -100 50 0 0 {name=MNC2
 L=0.5
 W=7.0
 nf=1
-mult=1
+mult=2
 model=nfet_01v8
 spiceprefix=X}
 N -80 20 -60 40 {}
@@ -179,7 +179,7 @@ C {sky130_fd_pr/nfet_01v8.sym} 300 50 0 0 {name=MN1
 L=0.5
 W=2.0
 nf=1
-mult=4
+mult=8
 model=nfet_01v8
 spiceprefix=X}
 N 320 20 340 40 {}
@@ -196,7 +196,7 @@ C {sky130_fd_pr/nfet_01v8.sym} 700 50 0 0 {name=MN2
 L=0.5
 W=2.0
 nf=1
-mult=4
+mult=8
 model=nfet_01v8
 spiceprefix=X}
 N 720 20 740 40 {}
@@ -327,39 +327,70 @@ C {devices/lab_pin.sym} 1140 510 0 0 {name=l71 lab=vssa}
 N 1120 500 1140 500 {}
 C {devices/lab_pin.sym} 1140 500 0 0 {name=l72 lab=vssa}
 
-* MCS1: CMFB sense, gate outp
-C {sky130_fd_pr/nfet_01v8.sym} -900 950 0 0 {name=MCS1
+* MCS: CMFB sense, gate cmx (resistive average of outp/outn); 2x one old sense device
+C {sky130_fd_pr/nfet_01v8.sym} -900 950 0 0 {name=MCS
 L=0.5
 W=2.0
 nf=1
-mult=1
+mult=2
 model=nfet_01v8
 spiceprefix=X}
 N -880 920 -860 940 {}
 C {devices/lab_pin.sym} -860 940 0 0 {name=l73 lab=cs}
 N -920 950 -940 950 {}
-C {devices/lab_pin.sym} -940 950 0 0 {name=l74 lab=outp}
+C {devices/lab_pin.sym} -940 950 0 0 {name=l74 lab=cmx}
 N -880 980 -860 960 {}
 C {devices/lab_pin.sym} -860 960 0 0 {name=l75 lab=ct}
 N -880 950 -860 950 {}
 C {devices/lab_pin.sym} -860 950 0 0 {name=l76 lab=vssa}
 
-* MCS2: CMFB sense, gate outn
-C {sky130_fd_pr/nfet_01v8.sym} -500 950 0 0 {name=MCS2
-L=0.5
-W=2.0
-nf=1
-mult=1
-model=nfet_01v8
-spiceprefix=X}
-N -480 920 -460 940 {}
-C {devices/lab_pin.sym} -460 940 0 0 {name=l77 lab=cs}
+* Rcm1/Rcm2: CM average of outp/outn onto cmx, ~2 Mohm each (res_xhigh_po_0p35, hand-calc L=350 um; gate-only node, no DC current)
+C {sky130_fd_pr/res_xhigh_po_0p35.sym} -500 950 0 0 {name=Rcm1
+L=350
+model=res_xhigh_po_0p35
+spiceprefix=X
+mult=1}
+N -500 920 -500 900 {}
+C {devices/lab_pin.sym} -500 900 0 0 {name=l77 lab=outp}
+N -500 980 -500 1000 {}
+C {devices/lab_pin.sym} -500 1000 0 0 {name=l78 lab=cmx}
 N -520 950 -540 950 {}
-C {devices/lab_pin.sym} -540 950 0 0 {name=l78 lab=outn}
-N -480 980 -460 960 {}
-C {devices/lab_pin.sym} -460 960 0 0 {name=l79 lab=ct}
-N -480 950 -460 950 {}
-C {devices/lab_pin.sym} -460 950 0 0 {name=l80 lab=vssa}
+C {devices/lab_pin.sym} -540 950 0 0 {name=l79 lab=vssa}
+
+C {sky130_fd_pr/res_xhigh_po_0p35.sym} -300 950 0 0 {name=Rcm2
+L=350
+model=res_xhigh_po_0p35
+spiceprefix=X
+mult=1}
+N -300 920 -300 900 {}
+C {devices/lab_pin.sym} -300 900 0 0 {name=l80 lab=outn}
+N -300 980 -300 1000 {}
+C {devices/lab_pin.sym} -300 1000 0 0 {name=l100 lab=cmx}
+N -320 950 -340 950 {}
+C {devices/lab_pin.sym} -340 950 0 0 {name=l99 lab=vssa}
+
+* Cff1/Cff2: ~100 fF across each Rcm so the CM sense stays wideband (Rcm x gate cap would otherwise put a pole inside the CM loop crossover)
+C {sky130_fd_pr/cap_mim_m3_1.sym} -420 950 0 0 {name=Cff1
+model=cap_mim_m3_1
+W=7.07
+L=7.07
+MF=1
+spiceprefix=X}
+N -420 920 -420 900 {}
+C {devices/lab_pin.sym} -420 900 0 0 {name=l104 lab=outp}
+N -420 980 -420 1000 {}
+C {devices/lab_pin.sym} -420 1000 0 0 {name=l105 lab=cmx}
+
+C {sky130_fd_pr/cap_mim_m3_1.sym} -220 950 0 0 {name=Cff2
+model=cap_mim_m3_1
+W=7.07
+L=7.07
+MF=1
+spiceprefix=X}
+N -220 920 -220 900 {}
+C {devices/lab_pin.sym} -220 900 0 0 {name=l106 lab=outn}
+N -220 980 -220 1000 {}
+C {devices/lab_pin.sym} -220 1000 0 0 {name=l107 lab=cmx}
 
 * MCR: CMFB reference, gate vcm (2x one sense device)
 C {sky130_fd_pr/nfet_01v8.sym} -100 950 0 0 {name=MCR
@@ -432,14 +463,27 @@ C {devices/lab_pin.sym} 1140 950 0 0 {name=l96 lab=vdda}
 * Ccm: CMFB control-node (cr) capacitor to vdda, 0.50 pF (hand-calc, not simulated)
 C {sky130_fd_pr/cap_mim_m3_1.sym} -900 1400 0 0 {name=Ccm
 model=cap_mim_m3_1
-W=15.62
-L=15.62
+W=44.2
+L=44.2
 MF=1
 spiceprefix=X}
 N -900 1370 -900 1350 {}
-C {devices/lab_pin.sym} -900 1350 0 0 {name=l97 lab=cr}
+C {devices/lab_pin.sym} -900 1350 0 0 {name=l97 lab=nz}
 N -900 1430 -900 1450 {}
 C {devices/lab_pin.sym} -900 1450 0 0 {name=l98 lab=vdda}
+
+* Rz: series zero resistor with Ccm (cr -> Ccm), ~5.5 kohm (res_high_po_0p35, hand-calc L=4.5 um); CM-loop phase margin, see SIZING.md
+C {sky130_fd_pr/res_high_po_0p35.sym} -700 1400 0 0 {name=Rz
+L=4.5
+model=res_high_po_0p35
+spiceprefix=X
+mult=1}
+N -700 1370 -700 1350 {}
+C {devices/lab_pin.sym} -700 1350 0 0 {name=l101 lab=cr}
+N -700 1430 -700 1450 {}
+C {devices/lab_pin.sym} -700 1450 0 0 {name=l102 lab=nz}
+N -720 1400 -740 1400 {}
+C {devices/lab_pin.sym} -740 1400 0 0 {name=l103 lab=vssa}
 
 * Block pins. Order sets the .subckt terminal order.
 C {devices/iopin.sym} -1400 -300 0 0 {name=p_vdda lab=vdda}
