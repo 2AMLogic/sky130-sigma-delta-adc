@@ -1,0 +1,117 @@
+{
+  "netlist": "ota_fd_step.cir",
+  "engine": "ngspice",
+  "backend": "batch",
+  "models": {
+    "pdk": "sky130A",
+    "lib": "libs.tech/ngspice/sky130.lib.spice"
+  },
+  "corners": {
+    "process": [
+      "tt",
+      "ss",
+      "ff",
+      "sf",
+      "fs"
+    ],
+    "supply_v": {
+      "vdda": [
+        1.62,
+        1.8,
+        1.98
+      ]
+    },
+    "temperature_c": [
+      -40,
+      27,
+      125
+    ]
+  },
+  "analysis": {
+    "kind": "tran",
+    "args": "10p 3e-07 0 0.1n"
+  },
+  "measurements": [
+    {
+      "name": "vod_pre",
+      "expr": "v(vod)[0]",
+      "unit": "V"
+    },
+    {
+      "name": "vod_end",
+      "expr": "v(vod)[length(v(vod))-1]",
+      "unit": "V"
+    },
+    {
+      "name": "step_dv",
+      "expr": "vod_end - vod_pre",
+      "unit": "V"
+    },
+    {
+      "name": "k_phase",
+      "expr": "mean(time lt 1.0066e-07)*length(time)"
+    },
+    {
+      "name": "vod_phase",
+      "expr": "v(vod)[k_phase-1] + (1.0066e-07-time[k_phase-1])/(time[k_phase]-time[k_phase-1])*(v(vod)[k_phase]-v(vod)[k_phase-1])",
+      "unit": "V"
+    },
+    {
+      "name": "err_phase",
+      "expr": "abs(vod_phase - vod_end)/abs(step_dv)",
+      "limits": {
+        "max": 0.0001
+      }
+    },
+    {
+      "name": "t_1e4",
+      "expr": "vecmax((abs(v(vod)-vod_end) gt 1e-4*abs(step_dv))*time) - 3e-09",
+      "unit": "s"
+    },
+    {
+      "name": "t_1e3",
+      "expr": "vecmax((abs(v(vod)-vod_end) gt 1e-3*abs(step_dv))*time) - 3e-09",
+      "unit": "s"
+    },
+    {
+      "name": "t_1e2",
+      "expr": "vecmax((abs(v(vod)-vod_end) gt 1e-2*abs(step_dv))*time) - 3e-09",
+      "unit": "s"
+    },
+    {
+      "name": "slope_pk",
+      "expr": "vecmax(abs(deriv(v(vod)))*(time gt 3.3e-9))",
+      "unit": "V/s"
+    },
+    {
+      "name": "t_slew",
+      "expr": "vecmax((abs(deriv(v(vod))) ge 0.8*slope_pk)*(time gt 3.3e-9)*time) - vecmin((abs(deriv(v(vod))) ge 0.8*slope_pk)*(time gt 3.3e-9)*time + 1*(1-(abs(deriv(v(vod))) ge 0.8*slope_pk)*(time gt 3.3e-9)))",
+      "unit": "s"
+    },
+    {
+      "name": "slew_frac",
+      "expr": "t_slew/t_1e4"
+    },
+    {
+      "name": "end_ripple_rel",
+      "expr": "(vecmax(v(vod)*(time gt 2.8e-07) - 10*(time le 2.8e-07)) - vecmin(v(vod)*(time gt 2.8e-07) + 10*(time le 2.8e-07)))/abs(step_dv)",
+      "limits": {
+        "max": 0.001
+      }
+    },
+    {
+      "name": "step_err_vs_ideal",
+      "expr": "abs(abs(step_dv) - 0.9)/0.9",
+      "limits": {
+        "max": 0.05
+      }
+    }
+  ],
+  "options": {
+    "timeout_s": 900,
+    "keep_artifacts": false
+  },
+  "batch": {
+    "poll_timeout_s": 5400
+  }
+}
