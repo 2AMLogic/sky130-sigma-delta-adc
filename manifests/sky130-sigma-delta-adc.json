@@ -1,5 +1,10 @@
 {
   "block": "sky130-sigma-delta-adc",
   "kind": "mixed-signal",
-  "evidence": {}
+  "evidence": {
+    "1.digital": {
+      "file": "design/attest/item1-digital-envelope.json",
+      "content_hash": "sha256:842e6b9c1875c0b6a4b587a796abefb8881f602090ca6ca455534ad839c6e691"
+    }
+  }
 }
