@@ -4,6 +4,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-10-27
 
+- **PR #59**: feat(design): add clkgen, vendored comparator and top-level modulator schematic
+- **Issue #41** (closed): T1 item 1 (analog 3/4): clock phases, pinned comparator import, top-level modulator schematic
 - **PR #46**: feat: attest digital T1 item 1 with committed synthesized decimator netlist
 - **Issue #28** (closed): T1 item 1 (design sources, digital partition): commit the decimator gate-level netlist and attest the RTL + netlist inventory
 - **PR #58**: feat(design): linear resistive CMFB sense and doubled tail/branch currents close OTA step settling at 45 corners
