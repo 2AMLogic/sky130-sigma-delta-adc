@@ -29,10 +29,13 @@ jobs:
       - name: Install pinned klt
         run: pip install "klayout-tools==$(cat .github/klt-version)"
 
+      - name: Install numpy for the pure-Python checks
+        run: pip install -r sim/bmodel/requirements.txt
+
       - name: Validate committed JSON parses
         run: |
           set -euo pipefail
-          find manifests -name '*.json' -print0 | sort -z |
+          find manifests attest evidence -name '*.json' -print0 | sort -z |
             while IFS= read -r -d '' f; do
               python3 -m json.tool "$f" > /dev/null || { echo "::error file=$f::not valid JSON"; exit 1; }
               echo "ok: $f"
@@ -62,3 +65,18 @@ jobs:
             exit 1
           fi
           echo "Committed signoff record is fresh."
+
+      # The item-10 (repo hygiene) attestation is derived, not asserted:
+      # re-run the inventory's checks against the committed envelope.
+      # local_only checks are skipped here and run as explicit steps below.
+      - name: Check the item-10 attestation is current
+        run: |
+          klt signoff --attest 10 --inventory attest/item10.json \
+                      --check evidence/item10.json
+
+      - name: Behavioural model unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s sim/bmodel -p 'test_*.py'
+
+      - name: Decimator whole-chain response, spec rows 8-9 (no EDA tools)
+        working-directory: verification/decimator
+        run: python3 response.py
