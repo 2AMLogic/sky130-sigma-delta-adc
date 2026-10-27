@@ -4,6 +4,11 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-10-27
 
+- **PR #46**: feat: attest digital T1 item 1 with committed synthesized decimator netlist
+- **Issue #28** (closed): T1 item 1 (design sources, digital partition): commit the decimator gate-level netlist and attest the RTL + netlist inventory
+- **PR #58**: feat(design): linear resistive CMFB sense and doubled tail/branch currents close OTA step settling at 45 corners
+- **Issue #51** (closed): OTA: CMFB sense and branch currents fail the 45-corner step-settling record
+- **PR #56**: feat(sim): add integrator+ota_fd settling bench and 45-corner runner
 - **PR #52**: feat(sim): OTA step-settling bench with failing 45-corner record
 - **PR #47**: feat: attest T1 item 9 testbench inventory with klt signoff --attest
 - **PR #54**: feat(design): add fully-differential SC integrator with 1-bit feedback DAC
