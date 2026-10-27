@@ -1,5 +1,5 @@
 v {xschem version=3.4.7 file_version=1.2}
-K {type=subcircuit
+K {type=primitive
 format="@name @pinlist @symname"
 template="name=x1"
 }
