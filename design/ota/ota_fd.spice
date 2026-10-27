@@ -1,0 +1,60 @@
+** sch_path: /home/ubuntu/GitHub/sky130-sigma-delta-adc/.loom/worktrees/issue-38/design/ota/ota_fd.sch
+.subckt ota_fd vdda vssa inp inn outp outn vcm ibias
+*.iopin vdda
+*.iopin vssa
+*.ipin inp
+*.ipin inn
+*.opin outp
+*.opin outn
+*.ipin vcm
+*.ipin ibias
+XM1 fa inp tail vssa sky130_fd_pr__nfet_01v8 L=0.5 W=8.0 nf=1 ad=2.32 as=2.32 pd=16.58 ps=16.58 nrd=0.03625 nrs=0.03625 sa=0 sb=0
++ sd=0 mult=1 m=1
+XM2 fb inn tail vssa sky130_fd_pr__nfet_01v8 L=0.5 W=8.0 nf=1 ad=2.32 as=2.32 pd=16.58 ps=16.58 nrd=0.03625 nrs=0.03625 sa=0 sb=0
++ sd=0 mult=1 m=1
+XMT tail ibias vssa vssa sky130_fd_pr__nfet_01v8 L=0.5 W=2.0 nf=1 ad=0.58 as=0.58 pd=4.58 ps=4.58 nrd=0.145 nrs=0.145 sa=0 sb=0
++ sd=0 mult=8 m=8
+XMP1 fa cr vdda vdda sky130_fd_pr__pfet_01v8 L=0.5 W=10.0 nf=1 ad=2.9 as=2.9 pd=20.58 ps=20.58 nrd=0.029 nrs=0.029 sa=0 sb=0 sd=0
++ mult=4 m=4
+XMP2 fb cr vdda vdda sky130_fd_pr__pfet_01v8 L=0.5 W=10.0 nf=1 ad=2.9 as=2.9 pd=20.58 ps=20.58 nrd=0.029 nrs=0.029 sa=0 sb=0 sd=0
++ mult=4 m=4
+XMPC1 outn vcp fa vdda sky130_fd_pr__pfet_01v8 L=0.5 W=10.0 nf=1 ad=2.9 as=2.9 pd=20.58 ps=20.58 nrd=0.029 nrs=0.029 sa=0 sb=0
++ sd=0 mult=2 m=2
+XMPC2 outp vcp fb vdda sky130_fd_pr__pfet_01v8 L=0.5 W=10.0 nf=1 ad=2.9 as=2.9 pd=20.58 ps=20.58 nrd=0.029 nrs=0.029 sa=0 sb=0
++ sd=0 mult=2 m=2
+XMNC1 outn vcn sa vssa sky130_fd_pr__nfet_01v8 L=0.5 W=7.0 nf=1 ad=2.03 as=2.03 pd=14.58 ps=14.58 nrd=0.0414285714285714
++ nrs=0.0414285714285714 sa=0 sb=0 sd=0 mult=1 m=1
+XMNC2 outp vcn sb vssa sky130_fd_pr__nfet_01v8 L=0.5 W=7.0 nf=1 ad=2.03 as=2.03 pd=14.58 ps=14.58 nrd=0.0414285714285714
++ nrs=0.0414285714285714 sa=0 sb=0 sd=0 mult=1 m=1
+XMN1 sa ibias vssa vssa sky130_fd_pr__nfet_01v8 L=0.5 W=2.0 nf=1 ad=0.58 as=0.58 pd=4.58 ps=4.58 nrd=0.145 nrs=0.145 sa=0 sb=0
++ sd=0 mult=4 m=4
+XMN2 sb ibias vssa vssa sky130_fd_pr__nfet_01v8 L=0.5 W=2.0 nf=1 ad=0.58 as=0.58 pd=4.58 ps=4.58 nrd=0.145 nrs=0.145 sa=0 sb=0
++ sd=0 mult=4 m=4
+XMB1 ibias ibias vssa vssa sky130_fd_pr__nfet_01v8 L=0.5 W=2.0 nf=1 ad=0.58 as=0.58 pd=4.58 ps=4.58 nrd=0.145 nrs=0.145 sa=0 sb=0
++ sd=0 mult=1 m=1
+XMBP1 vbpd vbpd vdda vdda sky130_fd_pr__pfet_01v8 L=0.5 W=5.0 nf=1 ad=1.45 as=1.45 pd=10.58 ps=10.58 nrd=0.058 nrs=0.058 sa=0 sb=0
++ sd=0 mult=1 m=1
+XMBN1 vbpd ibias vssa vssa sky130_fd_pr__nfet_01v8 L=0.5 W=2.0 nf=1 ad=0.58 as=0.58 pd=4.58 ps=4.58 nrd=0.145 nrs=0.145 sa=0 sb=0
++ sd=0 mult=1 m=1
+XMBP2 vcn vbpd vdda vdda sky130_fd_pr__pfet_01v8 L=0.5 W=5.0 nf=1 ad=1.45 as=1.45 pd=10.58 ps=10.58 nrd=0.058 nrs=0.058 sa=0 sb=0
++ sd=0 mult=1 m=1
+XMBCN vcn vcn vssa vssa sky130_fd_pr__nfet_01v8 L=1.0 W=0.42 nf=1 ad=0.1218 as=0.1218 pd=1.42 ps=1.42 nrd=0.69047619047619
++ nrs=0.69047619047619 sa=0 sb=0 sd=0 mult=1 m=1
+XMBCP vcp vcp vdda vdda sky130_fd_pr__pfet_01v8 L=0.6 W=0.42 nf=1 ad=0.1218 as=0.1218 pd=1.42 ps=1.42 nrd=0.69047619047619
++ nrs=0.69047619047619 sa=0 sb=0 sd=0 mult=1 m=1
+XMBN2 vcp ibias vssa vssa sky130_fd_pr__nfet_01v8 L=0.5 W=2.0 nf=1 ad=0.58 as=0.58 pd=4.58 ps=4.58 nrd=0.145 nrs=0.145 sa=0 sb=0
++ sd=0 mult=1 m=1
+XMCS1 cs outp ct vssa sky130_fd_pr__nfet_01v8 L=0.5 W=2.0 nf=1 ad=0.58 as=0.58 pd=4.58 ps=4.58 nrd=0.145 nrs=0.145 sa=0 sb=0 sd=0
++ mult=1 m=1
+XMCS2 cs outn ct vssa sky130_fd_pr__nfet_01v8 L=0.5 W=2.0 nf=1 ad=0.58 as=0.58 pd=4.58 ps=4.58 nrd=0.145 nrs=0.145 sa=0 sb=0 sd=0
++ mult=1 m=1
+XMCR cr vcm ct vssa sky130_fd_pr__nfet_01v8 L=0.5 W=2.0 nf=1 ad=0.58 as=0.58 pd=4.58 ps=4.58 nrd=0.145 nrs=0.145 sa=0 sb=0 sd=0
++ mult=2 m=2
+XMCT ct ibias vssa vssa sky130_fd_pr__nfet_01v8 L=0.5 W=2.0 nf=1 ad=0.58 as=0.58 pd=4.58 ps=4.58 nrd=0.145 nrs=0.145 sa=0 sb=0
++ sd=0 mult=2 m=2
+XMCPS cs cs vdda vdda sky130_fd_pr__pfet_01v8 L=0.5 W=5.0 nf=1 ad=1.45 as=1.45 pd=10.58 ps=10.58 nrd=0.058 nrs=0.058 sa=0 sb=0
++ sd=0 mult=1 m=1
+XMCPR cr cs vdda vdda sky130_fd_pr__pfet_01v8 L=0.5 W=5.0 nf=1 ad=1.45 as=1.45 pd=10.58 ps=10.58 nrd=0.058 nrs=0.058 sa=0 sb=0
++ sd=0 mult=1 m=1
+XCcm cr vdda sky130_fd_pr__cap_mim_m3_1 W=15.62 L=15.62 MF=1 m=1
+.ends
