@@ -8,7 +8,10 @@ AI agents driving [klayout-tools](https://github.com/2AMLogic/klayout-tools),
 xschem + ngspice on the analog side and cocotb + Icarus, Yosys/OpenROAD on
 the digital side.
 
-**Status: specification phase.** The spec is written; nothing is designed yet.
+**Status: spec ratified; behavioural model and decimation filter committed.** The
+behavioural modulator model (B) and the decimation filter RTL are verified and
+recorded; there is no transistor-level modulator yet. Every figure here is
+simulated, none is measured.
 
 **Built agent-native.** Every specification, decision record, testbench, and
 line of documentation here is produced by AI agents working from a ratified
@@ -65,10 +68,23 @@ it are in [`spec/decisions/`](spec/decisions/) (index:
 in 20 kHz** is the target, 70 dB the fallback, 90 dB the stretch. All
 figures are simulated; none is measured.
 
+| # | Parameter | Target | Fallback | Stretch |
+|---|---|---|---|---|
+| 1 | Signal bandwidth | 20 kHz | 10 kHz | 50 kHz |
+| 2 | Peak SNDR over BW (simulated) | ≥ 80 dB | ≥ 70 dB | ≥ 90 dB |
+| 3 | Modulator | 2nd-order, single-bit, SC | same | higher order or multi-bit |
+| 4 | OSR | 128 | 256 | 64 |
+| 5 | Modulator clock | 5.12 MHz | 5.12 MHz | 6.4 MHz |
+| 6 | Output word rate | 80 kSps | 40 kSps | 200 kSps |
+| 12 | Supply | 1.8 V ± 10 % | same | same |
+| 13 | Analog power | ≤ 1 mW | ≤ 2 mW | ≤ 0.5 mW |
+
+Rows are numbered as in the spec; the full table is there.
+
 Maturity ladder: spec ratified → behavioural modulator and decimation filter
 verified → transistor-level modulator simulated across PVT → layout
 DRC/LVS-clean → post-layout re-verification → shuttle seat → measured
-silicon. **Current position: spec ratified on merge of the spec pull request (issue #2); no design work yet.**
+silicon. **Current position: spec ratified; behavioural modulator model and decimation filter verified; no transistor-level modulator, layout or silicon yet.**
 
 ## T1 evidence
 
@@ -102,23 +118,43 @@ measurements/  silicon characterization (empty until tape-out)
 
 ## Reproduce
 
-Both flows are smoke fixtures ("smoke fixture, not design") that prove the
-toolchain runs on the pinned PDK. The PDK revision is pinned in
-[`sim/pdk.json`](sim/pdk.json), tool versions in
-[`sim/toolchain.json`](sim/toolchain.json). Each runner exits `2` and refuses to
-run if the PDK's `SOURCES` stamp differs from the pin.
+The PDK revision is pinned in [`sim/pdk.json`](sim/pdk.json), tool versions in
+[`sim/toolchain.json`](sim/toolchain.json). Each PDK-dependent runner exits `2`
+and refuses to run if the PDK's `SOURCES` stamp differs from the pin. The smoke
+flows are fixtures ("smoke fixture, not design") that prove the toolchain runs
+on the pinned PDK.
 
 ```
 ciel enable --pdk-family sky130 f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7   # PDK, once
 klt pdk find --pdk sky130A                                                 # confirm resolution
+uv venv .venv && uv pip install --python .venv/bin/python numpy==1.26.4 cocotb==2.1.0
+
+# smoke fixtures
 python3 sim/smoke/run_smoke.py                       # analog: ngspice, tt/27 C/1.8 V
-uv venv .venv && uv pip install --python .venv/bin/python cocotb==2.1.0
 .venv/bin/python verification/smoke/run_smoke.py     # digital: cocotb + Icarus + klt synthesize
+
+# behavioural modulator model B (numpy only; no EDA tools)
+.venv/bin/python -I -m unittest discover -s sim/bmodel -p 'test_*.py'
+.venv/bin/python -I sim/bmodel/run.py --params sim/bmodel/ideal.json   # appends a record
+
+# decimation filter
+.venv/bin/python verification/decimator/response.py       # spec rows 8-9, analytic; no EDA tools
+.venv/bin/python verification/decimator/run_synth.py      # + cocotb RTL sim + klt synthesize
 ```
 
-Committed records: `sim/smoke/record.json`, `verification/smoke/record.json`
-(add `--record` to regenerate). Needs `ngspice`, `iverilog`, `yosys` and `klt`
-on `PATH`.
+Committed records: `sim/smoke/record.json`, `verification/smoke/record.json`,
+`sim/bmodel/records/*` (append-only; each `run.py` run adds one) and
+`verification/decimator/record.json`. The smoke runners and `run_synth.py` add
+`--record` to regenerate theirs. The smoke flows and `run_synth.py` need
+`ngspice`, `iverilog`, `yosys` and `klt` on `PATH`; the unit tests and
+`response.py` need only Python and numpy.
+
+The T1 item 10 (repo hygiene) attestation is derived, not asserted:
+
+```
+uvx --from "klayout-tools==$(cat .github/klt-version)" klt signoff --attest 10 \
+    --inventory attest/item10.json --check evidence/item10.json
+```
 
 ## License
 
