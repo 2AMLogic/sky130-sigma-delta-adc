@@ -2,6 +2,13 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-10-27
+
+- **PR #45**: feat(design): add fully-differential folded-cascode OTA with CMFB
+- **PR #44**: feat: attest T1 item 10 repo hygiene with klt 0.8.0 and refresh README
+- **Issue #38** (closed): T1 item 1 (analog 1/4): fully-differential OTA with CMFB, schematic and netlist
+- **Issue #37** (closed): T1 item 10 (repo hygiene): README status and full reproduction, hygiene inventory attested with klt signoff --attest 10
+
 ### 2026-10-24
 
 - **Issue #20** (closed): Remove digital smoke fixture verification/smoke: superseded by decimator runner
