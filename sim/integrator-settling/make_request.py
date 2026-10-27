@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Regenerate the two deck/request pairs (int1, int2). See README.md."""
-import json, pathlib
+import json, pathlib, sys
 
 HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent))
+from settling_common import request
+
 T_STEP = 35.0e-9      # phi2 mid-edge (200 ps edge from 34.9 ns)
 T_PHASE = 97.66e-9    # 1 / (2 * 5.12 MHz), spec row 5
 T_SAMPLE = T_STEP + T_PHASE
@@ -56,28 +59,10 @@ MEASUREMENTS = [
 ]
 
 
-def request(deck):
-    return {
-        "netlist": deck,
-        "engine": "ngspice",
-        "backend": "batch",
-        "models": {"pdk": "sky130A", "lib": "libs.tech/ngspice/sky130.lib.spice"},
-        "corners": {
-            "process": ["tt", "ss", "ff", "sf", "fs"],
-            "supply_v": {"vdda": [1.62, 1.80, 1.98]},
-            "temperature_c": [-40, 27, 125],
-        },
-        "analysis": {"kind": "tran", "args": f"10p {T_END:.6g} 0 0.1n"},
-        "measurements": MEASUREMENTS,
-        "options": {"timeout_s": 60, "keep_artifacts": False},
-        "batch": {"poll_timeout_s": 7200},
-    }
-
-
 if __name__ == "__main__":
     tmpl = (HERE / "integrator_settling.cir.tmpl").read_text()
     for v, d in VARIANTS.items():
         deck = f"integrator_settling_{v}.cir"
         (HERE / deck).write_text(tmpl.replace("@VARIANT@", v).replace("@LOAD@", d["load"])
                                  .replace("@LOADNOTE@", d["note"]))
-        (HERE / f"request_{v}.json").write_text(json.dumps(request(deck), indent=2) + "\n")
+        (HERE / f"request_{v}.json").write_text(json.dumps(request(deck, MEASUREMENTS, T_END, timeout_s=60, poll_timeout_s=7200), indent=2) + "\n")

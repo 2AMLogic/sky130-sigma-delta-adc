@@ -7,58 +7,14 @@ to a local grid.
 --probe: one tt/27C/1.8V corner of one variant, run locally (bench debugging,
 no record).
 """
-import argparse, hashlib, json, pathlib, subprocess, sys, tempfile
+import argparse, json, pathlib, subprocess, sys, tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
+sys.path.insert(0, str(HERE.parent))
+from settling_common import grid_complete, pdk_stamp, run_klt, sha256, summarize
+
 VARIANTS = ("int1", "int2")
-KEYS = ("vod_pre", "vod_end", "step_dv", "vod_phase", "err_phase", "t_1e4", "t_1e3", "t_1e2",
-        "slope_pk", "t_slew", "slew_frac", "end_ripple_rel", "step_err_vs_ideal")
-
-
-def sha256(p):
-    return hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
-
-
-def pdk_stamp(variant, pdk_root):
-    if pdk_root:
-        root = pathlib.Path(pdk_root).expanduser()
-    else:
-        out = subprocess.run(["klt", "pdk", "find", "--pdk", variant, "--format", "json"],
-                             capture_output=True, text=True)
-        if out.returncode:
-            sys.exit(f"REFUSE: klt pdk find failed: {out.stderr.strip()}")
-        root = pathlib.Path(json.loads(out.stdout)["root"])
-    src = root / variant / "SOURCES"
-    return root, (src.read_text().strip() if src.exists() else "<missing SOURCES>")
-
-
-def run_variant(v, probe, tmpdir):
-    req = json.load(open(HERE / f"request_{v}.json"))
-    path = HERE / f"request_{v}.json"
-    cmd = ["klt", "sim", str(path), "--format", "json", "-o", str(tmpdir / f"out-{v}")]
-    if probe:
-        req["corners"] = {"process": ["tt"], "supply_v": {"vdda": [1.8]}, "temperature_c": [27]}
-        req["backend"] = "local"
-        path = HERE / f"probe_request_{v}.json"
-        path.write_text(json.dumps(req))
-        cmd[2] = str(path)
-        cmd += ["--backend", "local"]
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    if probe:
-        path.unlink()
-    try:
-        rep = json.loads(r.stdout)
-        rep["corners"]
-    except (ValueError, KeyError):
-        print(r.stdout[-2000:] + r.stderr[-2000:], file=sys.stderr)
-        return None
-    corners = {}
-    for c in rep["corners"]:
-        m = {x["name"]: x.get("value") for x in c["measurements"]}
-        corners[c["corner_id"]] = {"status": c["status"], **{k: m.get(k) for k in KEYS},
-                                   "diagnostics": [d["code"] for d in c.get("diagnostics", [])]}
-    return rep, corners
 
 
 def main():
@@ -83,14 +39,11 @@ def main():
     variants = (a.probe,) if a.probe else VARIANTS
     results, env = {}, {}
     for v in variants:
-        res = run_variant(v, bool(a.probe), tmp)
+        res = run_klt(HERE / f"request_{v}.json", bool(a.probe), tmp, v, HERE / f"probe_request_{v}.json")
         if res is None:
             return 1
         rep, corners = res
-        ok = [k for k, c in corners.items() if c["status"] == "pass"]
-        worst = sorted((c["err_phase"], k) for k, c in corners.items() if c["err_phase"] is not None)[-1:]
-        summary = {"corner_count": len(corners), "pass": len(ok), "fail": len(corners) - len(ok),
-                   "worst_err_phase": worst[0] if worst else None}
+        summary = summarize(corners)
         print(v, json.dumps({"status": rep.get("status"), **summary}, indent=2))
         e = rep.get("environment", {})
         env[v] = {"ngspice": e.get("engine_version", "unknown"), "engine_host": e.get("engine_host"),
@@ -101,8 +54,7 @@ def main():
     if a.probe:
         print(json.dumps(results[a.probe]["corners"], indent=2))
         return 0
-    if any(len(r["corners"]) != 45 for r in results.values()):
-        print("REFUSE: not all 45 grid points returned; no record written", file=sys.stderr)
+    if not grid_complete([r["corners"] for r in results.values()]):
         return 1
     rec = {
         "fixture": "Integrator settling bench (issue #53): full integrator cell + ota_fd, integrate phase, 0.45 V per-side output step",

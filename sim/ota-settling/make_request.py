@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Regenerate request.json (the 45-corner klt sim request). See README.md."""
-import json, pathlib
+import json, pathlib, sys
 
 HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent))
+from settling_common import request
+
 T_STEP = 3.0e-9       # step mid-edge (Vsp/Vsn PULSE: 2.99 ns delay, 20 ps edge)
 T_PHASE = 97.66e-9    # 1 / (2 * 5.12 MHz), spec row 5
 T_SAMPLE = T_STEP + T_PHASE
@@ -44,21 +47,7 @@ MEASUREMENTS = [
     e("step_err_vs_ideal", f"abs(abs(step_dv) - {IDEAL_DV})/{IDEAL_DV}", None, {"max": IDEAL_TOL}),
 ]
 
-REQUEST = {
-    "netlist": "ota_fd_step.cir",
-    "engine": "ngspice",
-    "backend": "batch",
-    "models": {"pdk": "sky130A", "lib": "libs.tech/ngspice/sky130.lib.spice"},
-    "corners": {
-        "process": ["tt", "ss", "ff", "sf", "fs"],
-        "supply_v": {"vdda": [1.62, 1.80, 1.98]},
-        "temperature_c": [-40, 27, 125],
-    },
-    "analysis": {"kind": "tran", "args": f"10p {T_END:.6g} 0 0.1n"},
-    "measurements": MEASUREMENTS,
-    "options": {"timeout_s": 900, "keep_artifacts": False},
-    "batch": {"poll_timeout_s": 5400},
-}
+REQUEST = request("ota_fd_step.cir", MEASUREMENTS, T_END, timeout_s=900, poll_timeout_s=5400)
 
 if __name__ == "__main__":
     (HERE / "request.json").write_text(json.dumps(REQUEST, indent=2) + "\n")
