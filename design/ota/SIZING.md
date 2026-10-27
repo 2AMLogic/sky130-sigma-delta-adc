@@ -11,6 +11,7 @@ single-point operating-point **smoke check** in `sim/ota-op-smoke/` (tt, 27 C,
 1.8 V): it shows the bias point is sane. It is not a gain, GBW, PSRR, swing,
 noise or settling result, and no corner or Monte Carlo has been run.
 Everything marked "not simulated" below is owed to later T-tier evidence.
+Step settling/slew is simulated and failing: `sim/ota-settling/`.
 `sky130-opamp` numbers are sanity bounds only (DR-003).
 
 ## Boundary inputs (DR-005)
@@ -42,12 +43,24 @@ Everything marked "not simulated" below is owed to later T-tier evidence.
   check reports `gm(M1)` ~ 302 uS at its operating point; that is a bias-point
   number, not a GBW claim. At 300 uS: tau = 9 ns, 10.8 tau in 97.7 ns,
   linear settling error ~ 2e-5. **Not simulated.**
-- **Slew risk (open, not simulated).** The folded branch can supply about
-  the bottom-sink current (~18 uA) to each output: SR ~ 18 uA / 1.8 pF =
-  10 V/us, so a 0.45 V per-side step (first-integrator worst case:
-  C1 * (0.6 + 1.2) V / 2 per side) needs ~45 ns of the 97.7 ns phase if it
-  fully slews. This may need a larger bottom/top current; deciding that is a
-  later T-tier settling issue, not fixed here.
+- **Step settling / slew: simulated, FAILS at all 45 corners.**
+  `sim/ota-settling/record.json` (transistor-level, ngspice, DR-002 full
+  grid, batch job `klt-sim-a81ff92498fc`; see its `notes` for the fleet
+  caveats): with the 0.45 V per-side worst-case step in the closed-loop
+  integrate configuration above, the residual error 97.66 ns after the step
+  is 0.5 to 1.3 of the step at every point (target 1e-4), and the output does
+  not reach the ideal final step (`step_err_vs_ideal` 0.17 to 0.47). Two
+  causes seen in single-corner (tt, 27 C, 1.8 V) probes, not recorded
+  evidence: (1) the CMFB sense pair (`MCS1`/`MCS2` on the outputs) is
+  square-law, so a large differential output swing reads as a common-mode
+  shift; `cr` rises, the top sources starve, the fold nodes collapse and the
+  common mode runs away. (2) With the CM sensed linearly (scratch probe:
+  500 k resistors), slewing is ~10 V/us per side as the hand-calc said, but
+  the step's instantaneous capacitive feedthrough moves the outputs ~0.65 V
+  the wrong way first, so each side travels ~0.78 V, not 0.45 V, and the
+  phase still does not close (error ~1e-2). The sizing needs a CMFB sensing
+  change plus more bottom/top current; that is not done here (follow-up).
+  The small-step case (50 mV per side) does settle (error ~1.4e-4 at 97.66 ns).
 
 ## Swing vs spec §5.4 (hand-calc from the smoke-check bias point)
 
@@ -100,6 +113,6 @@ saturation (smallest Vds - Vdsat margin 64 mV, on `MN1`/`MN2`), `I(vdda)`
 ## Not simulated (owed)
 
 Open-loop gain, GBW, phase margin, CMFB loop stability and gain, PSRR, CMRR,
-input offset, noise (amplifier share of the §5.3 thermal budget), step
-settling and slew, output swing and gain compression, corners, Monte Carlo,
+input offset, noise (amplifier share of the §5.3 thermal budget), a step
+settling result that closes (the 45-corner record fails), output swing and gain compression, corners, Monte Carlo,
 layout and parasitics.

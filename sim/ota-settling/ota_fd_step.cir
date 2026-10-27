@@ -1,0 +1,40 @@
+* OTA step-settling bench (issue #48) -- circuit body for `klt sim`
+* (no .lib/.control/.end: klt sim owns those; corner = process/temp/Vdda).
+* Circuit under test: design/ota/ota_fd.spice (klt netlist --block of ota_fd.sch).
+* Closed-loop integrate-phase configuration of design/ota/SIZING.md:
+*   Cs = 1 pF (sampling cap, step source side), Ci = 2 pF (feedback cap),
+*   Cp = 0.035 pF per summing node, beta = Ci/(Ci+Cs+Cp) ~ 0.66.
+*   External per-side load = 1 pF (next-stage Cs) + 0.1 pF (output parasitics);
+*   the series Ci*(Cs+Cp)/(Ci+Cs+Cp) = 0.68 pF comes from the explicit
+*   network, so CL,eff ~ 1.8 pF as in SIZING.md.
+* Sequence: 0..2 ns reset (ideal switches short out<->sum, Ci discharged,
+*   OTA in unity feedback at VCM). 2 ns: switches open. 3 ns (mid-edge): ideal step on
+*   the Cs input plates, +/-0.9 V per side -> +/-0.45 V per side at the
+*   outputs (C1*(0.6+1.2)V/2 worst case, C1 = Cs/Ci = 0.5).
+* Boundary (DR-005): VCM = 0.9 V ideal, ibias = 5 uA ideal sink-source.
+.include "../../design/ota/ota_fd.spice"
+Vdda vdda 0 1.8
+Vvcm vcm 0 0.9
+Ibias vdda ibias 5u
+Xota vdda 0 sump sumn outp outn vcm ibias ota_fd
+* inp is the non-inverting input of outp (M1 folds into outn), so the
+* negative-feedback pairing is inp<->outn, inn<->outp.
+* Cs plates driven by ideal complementary steps (source is the sampled input)
+.param vstep=0.45
+Vsp insp 0 PULSE({0.9-vstep} {0.9+vstep} 2.99n 20p 20p 1)
+Vsn insn 0 PULSE({0.9+vstep} {0.9-vstep} 2.99n 20p 20p 1)
+Csp insp sump 1p
+Csn insn sumn 1p
+Cip sump outn 2p
+Cin sumn outp 2p
+Cpp sump 0 35f
+Cpn sumn 0 35f
+Clp outp 0 1.1p
+Cln outn 0 1.1p
+* reset: ideal switches (ron 1 ohm), closed until 2 ns
+Vrst rst 0 PULSE(1 0 2n 10p 10p 1)
+Srp outn sump rst 0 swr
+Srn outp sumn rst 0 swr
+.model swr sw vt=0.5 vh=0.1 ron=1 roff=1e15
+* differential output
+Bvod vod 0 V='v(outp)-v(outn)'
