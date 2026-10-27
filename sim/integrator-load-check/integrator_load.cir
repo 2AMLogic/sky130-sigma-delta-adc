@@ -1,0 +1,96 @@
+* Integrator netlist LOAD CHECK (issue #40) -- NOT a performance claim.
+* Circuit under test: design/integrator/integrator.spice (+ design/ota/ota_fd.spice).
+* Static switch-level states at tt / 27 C / VDDA = 1.8 V with ideal boundary
+* sources (DR-005): VCM 0.9 V, VREFP 1.5 V, VREFN 0.3 V (VREF = 1.2 V span about
+* VCM), vinp/vinn 1.05/0.75 V. Each state is a DC operating point, no transient.
+* It proves the netlist loads and that both DAC polarities and both phases are
+* wired as intended; it says nothing about settling, noise or charge injection.
+* {{PDK_LIB}}, {{OTA}} and {{NETLIST}} are substituted by run_load.py.
+.lib {{PDK_LIB}} tt
+.temp 27
+.include {{OTA}}
+.include {{NETLIST}}
+Vdda vdda 0 1.8
+Vvcm vcm 0 0.9
+Vrefp vrefp 0 1.5
+Vrefn vrefn 0 0.3
+Vinp vinp 0 1.05
+Vinn vinn 0 0.75
+Ibias vdda ibias 5u
+Vphi1 phi1 0 0
+Vphi1b phi1b 0 0
+Vphi1e phi1e 0 0
+Vphi2 phi2 0 0
+Vdp dp 0 0
+Vdn dn 0 0
+Xint vdda 0 vinp vinn voutp voutn vrefp vrefn vcm ibias phi1 phi1b phi1e phi2 dp dn integrator
+* planning load on the integrator outputs (no effect on DC)
+Cop voutp 0 1p
+Con voutn 0 1p
+.control
+option gmin=1e-9
+* state a: sample, dp=1 (y=+1)
+alter Vphi1 dc = 1.8
+alter Vphi1b dc = 0
+alter Vphi1e dc = 1.8
+alter Vphi2 dc = 0
+alter Vdp dc = 1.8
+alter Vdn dc = 0
+op
+let sa_bpi_p = v(xint.bpi_p)
+let sa_bpi_n = v(xint.bpi_n)
+let sa_tpi_p = v(xint.tpi_p)
+let sa_tpi_n = v(xint.tpi_n)
+let sa_bpr_p = v(xint.bpr_p)
+let sa_bpr_n = v(xint.bpr_n)
+let sa_tpr_p = v(xint.tpr_p)
+let sa_tpr_n = v(xint.tpr_n)
+let sa_rsel_p = v(xint.rsel_p)
+let sa_rsel_n = v(xint.rsel_n)
+let sa_sump = v(xint.sump)
+let sa_sumn = v(xint.sumn)
+print sa_bpi_p sa_bpi_n sa_tpi_p sa_tpi_n sa_bpr_p sa_bpr_n sa_tpr_p sa_tpr_n sa_rsel_p sa_rsel_n sa_sump sa_sumn
+* state b: sample, dn=1 (y=-1)
+alter Vphi1 dc = 1.8
+alter Vphi1b dc = 0
+alter Vphi1e dc = 1.8
+alter Vphi2 dc = 0
+alter Vdp dc = 0
+alter Vdn dc = 1.8
+op
+let sb_bpi_p = v(xint.bpi_p)
+let sb_bpi_n = v(xint.bpi_n)
+let sb_tpi_p = v(xint.tpi_p)
+let sb_tpi_n = v(xint.tpi_n)
+let sb_bpr_p = v(xint.bpr_p)
+let sb_bpr_n = v(xint.bpr_n)
+let sb_tpr_p = v(xint.tpr_p)
+let sb_tpr_n = v(xint.tpr_n)
+let sb_rsel_p = v(xint.rsel_p)
+let sb_rsel_n = v(xint.rsel_n)
+let sb_sump = v(xint.sump)
+let sb_sumn = v(xint.sumn)
+print sb_bpi_p sb_bpi_n sb_tpi_p sb_tpi_n sb_bpr_p sb_bpr_n sb_tpr_p sb_tpr_n sb_rsel_p sb_rsel_n sb_sump sb_sumn
+* state c: integrate, dp=1
+alter Vphi1 dc = 0
+alter Vphi1b dc = 1.8
+alter Vphi1e dc = 0
+alter Vphi2 dc = 1.8
+alter Vdp dc = 1.8
+alter Vdn dc = 0
+op
+let sc_bpi_p = v(xint.bpi_p)
+let sc_bpi_n = v(xint.bpi_n)
+let sc_tpi_p = v(xint.tpi_p)
+let sc_tpi_n = v(xint.tpi_n)
+let sc_bpr_p = v(xint.bpr_p)
+let sc_bpr_n = v(xint.bpr_n)
+let sc_tpr_p = v(xint.tpr_p)
+let sc_tpr_n = v(xint.tpr_n)
+let sc_rsel_p = v(xint.rsel_p)
+let sc_rsel_n = v(xint.rsel_n)
+let sc_sump = v(xint.sump)
+let sc_sumn = v(xint.sumn)
+print sc_bpi_p sc_bpi_n sc_tpi_p sc_tpi_n sc_bpr_p sc_bpr_n sc_tpr_p sc_tpr_n sc_rsel_p sc_rsel_n sc_sump sc_sumn
+.endc
+.end
