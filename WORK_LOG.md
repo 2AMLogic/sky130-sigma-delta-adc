@@ -4,6 +4,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-10-27
 
+- **PR #63**: refactor: share klt sim runner and request builder across settling benches
+- **Issue #57** (closed): Consolidate duplicated klt-sim runner logic in sim/*-settling
 - **PR #59**: feat(design): add clkgen, vendored comparator and top-level modulator schematic
 - **Issue #41** (closed): T1 item 1 (analog 3/4): clock phases, pinned comparator import, top-level modulator schematic
 - **PR #46**: feat: attest digital T1 item 1 with committed synthesized decimator netlist

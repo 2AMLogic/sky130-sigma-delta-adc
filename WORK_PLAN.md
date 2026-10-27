@@ -19,13 +19,13 @@ _None._
 
 `loom:important`; taken before unlabelled work.
 
-_None._
+- **#42**: T1 item 1 (analog 4/4): attestation inventory, manifest evidence, regenerated verdict
 
 ## Ready
 
 Human-approved issues ready for implementation (`loom:issue`).
 
-- **#57**: Consolidate duplicated klt-sim runner logic in sim/*-settling
+_None._
 
 ## In Progress
 
@@ -52,12 +52,12 @@ Issues carrying `loom:curated`.
 
 - **#3**: Track the gap to T1 (klayout-tools design-evidence-tiers.md) *(curated)*
 - **#30**: T1 item 2 (layout, digital partition): place-and-route of the decimator on VDDD/VSSD, committed routed GDS *(curated)*
+- **#42**: T1 item 1 (analog 4/4): attestation inventory, manifest evidence, regenerated verdict *(curated)*
 - **#53**: Settling of the SC integrator with ota_fd over PVT (OTA gm margin at beta 0.50) *(curated)*
 
 ## Proposed (Architect / Hermit)
 
 - **#43**: Deduplicate PDK-pin helpers copy-pasted across three runners *(hermit)*
-- **#57**: Consolidate duplicated klt-sim runner logic in sim/*-settling *(hermit)*
 
 ## Epics
 
@@ -69,12 +69,12 @@ _None._
 |------|-------|
 | Operator merge-risk holds | 1 |
 | Very important | 0 |
-| Important | 0 |
-| Ready (`loom:issue`) | 1 |
+| Important | 1 |
+| Ready (`loom:issue`) | 0 |
 | In Progress (`loom:building`) | 2 |
 | PRs awaiting review | 0 |
 | Approved PRs awaiting merge | 1 |
-| Curated | 3 |
-| Architect / Hermit proposals | 2 |
+| Curated | 4 |
+| Architect / Hermit proposals | 1 |
 | Active epics | 0 |
 <!-- guide:plan-body:end -->
