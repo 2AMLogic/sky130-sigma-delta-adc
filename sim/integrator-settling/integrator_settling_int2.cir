@@ -1,0 +1,41 @@
+* Integrator settling bench (issue #53) -- circuit body for `klt sim`
+* (no .lib/.control/.end: klt sim owns those; corner = process/temp/Vdda).
+* Variant: int2. Circuit under test: design/integrator/integrator.spice
+* (the full cell: switches, 1 pF Cs x2 on the summing node, 2 pF Ci, DAC mux)
+* with design/ota/ota_fd.spice.
+* Boundary (DR-005): VCM 0.9 V, VREFP/VREFN 1.5/0.3 V, ibias 5 uA, all ideal.
+* Stimulus (worst-case first-integrator step): vin diff = +0.6 V
+* (1.2/0.6 V), dn = 1 (y = -1, rsel_p - rsel_n = +1.2 V), so the ideal
+* charge transfer is 0.5 * (0.6 + 1.2) = 0.9 V differential at the output.
+* Sequence: 0..30 ns sample (phi1 high; phi1e falls at 28 ns, bottom-plate
+* sampling). A bench-only ideal reset switch pair (1 ohm, closed to 31 ns)
+* puts the OTA in unity feedback so Ci starts discharged at VCM. 31 ns reset
+* opens, phi2 rises (mid-edge 35 ns, 200 ps edge) and stays high: the 97.66 ns
+* integrate phase is measured from that edge; the long tail gives the settled
+* value. Clocks are rail-to-rail on Vdda (behavioural sources, no non-overlap
+* generator; clock generation is out of scope).
+.include "../../design/ota/ota_fd.spice"
+.include "../../design/integrator/integrator.spice"
+Vdda vdda 0 1.8
+Vvcm vcm 0 0.9
+Vrefp vrefp 0 1.5
+Vrefn vrefn 0 0.3
+Vinp vinp 0 1.2
+Vinn vinn 0 0.6
+Ibias vdda ibias 5u
+Bphi1 phi1 0 V='v(vdda)*(1 - min(max((time-29.9n)/0.2n,0),1))'
+Bphi1b phi1b 0 V='v(vdda) - v(phi1)'
+Bphi1e phi1e 0 V='v(vdda)*(1 - min(max((time-27.9n)/0.2n,0),1))'
+Bphi2 phi2 0 V='v(vdda)*min(max((time-34.9n)/0.2n,0),1)'
+Bdn dn 0 V='v(vdda)'
+Bdp dp 0 V='0'
+Xint vdda 0 vinp vinn voutp voutn vrefp vrefn vcm ibias phi1 phi1b phi1e phi2 dp dn integrator
+* output load per side: 0.1 pF parasitics + 1 pF (case A bound: next-stage Cs / comparator input)
+Clp voutp 0 1.1p
+Cln voutn 0 1.1p
+* bench-only reset (not part of the cell): closes OTA loop until 31 ns
+Brst rst 0 V='1 - min(max((time-30.9n)/0.2n,0),1)'
+Srp voutp xint.sump rst 0 swr
+Srn voutn xint.sumn rst 0 swr
+.model swr sw vt=0.5 vh=0.1 ron=1 roff=1e15
+Bvod vod 0 V='v(voutp)-v(voutn)'
