@@ -49,6 +49,14 @@ jobs:
           klt signoff --attest 9 --inventory attestation/item9-inventory.json \
                       --check attestation/item9-envelope.json
 
+      # Item 8 (characterization report): the pinned klt's --attest takes only
+      # items 1, 9 and 10, so attestation/item8_envelope.py regenerates the
+      # generic envelope from measurements/characterization.md in memory and
+      # fails if the committed one differs (a hand-edited verdict, a cited
+      # record that changed, a missing file, a pending row with no issue).
+      - name: Check the item-8 characterization envelope still reproduces
+        run: python3 -I attestation/item8_envelope.py --check
+
       - name: Re-run klt signoff and compare against the committed record
         run: |
           set -uo pipefail

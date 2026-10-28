@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "kind": "generic",
+  "status": "fail",
+  "t1_item": 8,
+  "summary": "T1 item 8 (Characterization report): spec rows 5 evidenced, 7 partial, 2 pending; decimator Fmax/area/power 2/4 evidenced",
+  "source": "measurements/characterization.md",
+  "metrics": {
+    "report_sha256": "sha256:7315a93fd112a38643268532c9d698f77dc5efbddd9c848d2cb764d10e7b2b05",
+    "spec_rows": [
+      {
+        "row": 1,
+        "verdict": "partial",
+        "evidence": [
+          "sim/bmodel/records/20261023T172440Z-f8b2fa44.json"
+        ],
+        "issues": [
+          "33"
+        ]
+      },
+      {
+        "row": 2,
+        "verdict": "partial",
+        "evidence": [
+          "sim/bmodel/records/20261023T172440Z-f8b2fa44.json"
+        ],
+        "issues": [
+          "33"
+        ]
+      },
+      {
+        "row": 3,
+        "verdict": "partial",
+        "evidence": [
+          "design/modulator/modulator.spice",
+          "sim/bmodel/model.py"
+        ],
+        "issues": [
+          "33"
+        ]
+      },
+      {
+        "row": 4,
+        "verdict": "evidenced",
+        "evidence": [
+          "sim/bmodel/records/20261023T172440Z-f8b2fa44.json"
+        ],
+        "issues": []
+      },
+      {
+        "row": 5,
+        "verdict": "partial",
+        "evidence": [
+          "sim/ota-settling/record-i51-rcm2M-cff100f.json"
+        ],
+        "issues": [
+          "33"
+        ]
+      },
+      {
+        "row": 6,
+        "verdict": "evidenced",
+        "evidence": [
+          "verification/decimator/record.json"
+        ],
+        "issues": [
+          "33"
+        ]
+      },
+      {
+        "row": 7,
+        "verdict": "evidenced",
+        "evidence": [
+          "verification/decimator/record.json"
+        ],
+        "issues": []
+      },
+      {
+        "row": 8,
+        "verdict": "evidenced",
+        "evidence": [
+          "verification/decimator/record.json"
+        ],
+        "issues": []
+      },
+      {
+        "row": 9,
+        "verdict": "partial",
+        "evidence": [
+          "verification/decimator/record.json"
+        ],
+        "issues": [
+          "18"
+        ]
+      },
+      {
+        "row": 10,
+        "verdict": "evidenced",
+        "evidence": [
+          "rtl/decimator.v"
+        ],
+        "issues": []
+      },
+      {
+        "row": 11,
+        "verdict": "partial",
+        "evidence": [
+          "sim/bmodel/records/20261023T172440Z-f8b2fa44.json"
+        ],
+        "issues": [
+          "33"
+        ]
+      },
+      {
+        "row": 12,
+        "verdict": "partial",
+        "evidence": [
+          "sim/ota-settling/record-i51-rcm2M-cff100f.json"
+        ],
+        "issues": [
+          "33"
+        ]
+      },
+      {
+        "row": 13,
+        "verdict": "pending",
+        "evidence": [],
+        "issues": [
+          "33"
+        ]
+      },
+      {
+        "row": 14,
+        "verdict": "pending",
+        "evidence": [],
+        "issues": [
+          "31",
+          "32",
+          "35"
+        ]
+      }
+    ],
+    "decimator": [
+      {
+        "quantity": "Cell area (synthesized)",
+        "evidenced": true,
+        "evidence": [
+          "verification/decimator/record.json"
+        ],
+        "issues": []
+      },
+      {
+        "quantity": "Placed die / core area",
+        "evidenced": true,
+        "evidence": [
+          "layout/README.md",
+          "layout/digital/decimator.gds"
+        ],
+        "issues": []
+      },
+      {
+        "quantity": "Fmax at each of the 45 corners",
+        "evidenced": false,
+        "evidence": [],
+        "issues": [
+          "33"
+        ]
+      },
+      {
+        "quantity": "Power at each of the 45 corners",
+        "evidenced": false,
+        "evidence": [],
+        "issues": [
+          "33"
+        ]
+      }
+    ],
+    "evidence_sha256": {
+      "design/modulator/modulator.spice": "sha256:26d9c3e4ec4aee6093c4eac4c75638b6241685cb2f1519ad2a7342f96696c847",
+      "layout/README.md": "sha256:bb3762413ee0aaec79bde8d556a82c153958cbed1feb3c00b3ce44761888c0ed",
+      "layout/digital/decimator.gds": "sha256:211d42ef71f676bb26b16fb0feef6ed3db8fc9ec7c99033ce074e8a66458d676",
+      "rtl/decimator.v": "sha256:2a77b51270910bdee6cfa421af221768bbd1dc0d9ca1afd69580b2f9c69b7376",
+      "sim/bmodel/model.py": "sha256:04b9b299a656b039333baad926f3b0f35d67ce807d0885541beb1a5e4edd6ec2",
+      "sim/bmodel/records/20261023T172440Z-f8b2fa44.json": "sha256:8b261c0cc3b24f0812c249236732bc8bc29f14bf18c7c1e7857d81687720084e",
+      "sim/ota-settling/record-i51-rcm2M-cff100f.json": "sha256:c8f25c25f37cb18478240e025ed41b7521fc759e486f3899d310328ba729cdd8",
+      "verification/decimator/record.json": "sha256:49ae367446e220cfa37aa36b4eb0348e22a5bd0cde1e66a4249052265796bc99"
+    },
+    "pending_issues": [
+      "18",
+      "31",
+      "32",
+      "33",
+      "35"
+    ]
+  }
+}
