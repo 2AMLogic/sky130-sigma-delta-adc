@@ -2,6 +2,11 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-10-28
+
+- **PR #68**: feat(measurements): characterization report with item-8 envelope and CI re-check
+- **Issue #67** (closed): T1 item 8 (characterization report): per-row characterization report with decimator Fmax/area/power and a klt signoff --attest 8 envelope
+
 ### 2026-10-27
 
 - **PR #65**: feat(layout): reproducible routed GDS and item-2 envelope for the decimator
