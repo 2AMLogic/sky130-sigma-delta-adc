@@ -4,6 +4,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-10-27
 
+- **PR #65**: feat(layout): reproducible routed GDS and item-2 envelope for the decimator
+- **Issue #30** (closed): T1 item 2 (layout, digital partition): place-and-route of the decimator on VDDD/VSSD, committed routed GDS
 - **PR #63**: refactor: share klt sim runner and request builder across settling benches
 - **Issue #57** (closed): Consolidate duplicated klt-sim runner logic in sim/*-settling
 - **PR #59**: feat(design): add clkgen, vendored comparator and top-level modulator schematic

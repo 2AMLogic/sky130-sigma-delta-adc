@@ -20,6 +20,7 @@ _None._
 `loom:important`; taken before unlabelled work.
 
 - **#42**: T1 item 1 (analog 4/4): attestation inventory, manifest evidence, regenerated verdict
+- **#60**: Close klt netlist --check for vendored comparator.sch (needs xschem >= 3.4.5)
 
 ## Ready
 
@@ -32,7 +33,6 @@ _None._
 Issues currently being built (`loom:building`).
 
 - **#18**: Spec owner: confirm row 9 stopband reading (alias bands vs every frequency fout-BW..fs/2)
-- **#30**: T1 item 2 (layout, digital partition): place-and-route of the decimator on VDDD/VSSD, committed routed GDS
 
 ## PRs Awaiting Review
 
@@ -51,7 +51,6 @@ PRs that passed review and are queued for Champion auto-merge (`loom:pr`).
 Issues carrying `loom:curated`.
 
 - **#3**: Track the gap to T1 (klayout-tools design-evidence-tiers.md) *(curated)*
-- **#30**: T1 item 2 (layout, digital partition): place-and-route of the decimator on VDDD/VSSD, committed routed GDS *(curated)*
 - **#42**: T1 item 1 (analog 4/4): attestation inventory, manifest evidence, regenerated verdict *(curated)*
 - **#53**: Settling of the SC integrator with ota_fd over PVT (OTA gm margin at beta 0.50) *(curated)*
 
@@ -69,12 +68,12 @@ _None._
 |------|-------|
 | Operator merge-risk holds | 1 |
 | Very important | 0 |
-| Important | 1 |
+| Important | 2 |
 | Ready (`loom:issue`) | 0 |
-| In Progress (`loom:building`) | 2 |
+| In Progress (`loom:building`) | 1 |
 | PRs awaiting review | 0 |
 | Approved PRs awaiting merge | 1 |
-| Curated | 4 |
+| Curated | 3 |
 | Architect / Hermit proposals | 1 |
 | Active epics | 0 |
 <!-- guide:plan-body:end -->
