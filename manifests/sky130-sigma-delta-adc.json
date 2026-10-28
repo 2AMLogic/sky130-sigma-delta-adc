@@ -10,6 +10,8 @@
       "file": "design/attest/item2-digital-envelope.json",
       "content_hash": "sha256:211d42ef71f676bb26b16fb0feef6ed3db8fc9ec7c99033ce074e8a66458d676"
     },
+    "8.analog": {"file": "attestation/item8-envelope.json", "content_hash": "sha256:37029e3432eace5f7113fe4aeac793c7ac597faef70a0fa407b97ae375525611"},
+    "8.digital": {"file": "attestation/item8-envelope.json", "content_hash": "sha256:37029e3432eace5f7113fe4aeac793c7ac597faef70a0fa407b97ae375525611"},
     "9": {"file": "attestation/item9-envelope.json", "content_hash": "sha256:1e1a2d88d733f467ec328d76d224cae64a4017285d7d91fca843eb5a34b1e08c"},
     "10": {
       "file": "evidence/item10.json",
