@@ -57,19 +57,17 @@ after rounding, so one more bit was spent.
 |---|---|---|
 | 8 | passband ripple ≤ 0.1 dB, 0–20 kHz | 0.040 dB peak-to-peak |
 | 9 | ≥ 90 dB in the alias bands | 93.91 dB worst, at 300 kHz (CIC-limited) |
+| 9 | ≥ 75 dB elsewhere, 60 kHz to fs/2 | 79.20 dB worst, at 284.5 kHz |
 
-**Interpretation of row 9, to be confirmed by the spec owner.** Row 9 says
-"≥ 90 dB from `fout − BW` to `fs/2`". The gate here is the alias bands
-`[k·80 kHz − 20 kHz, k·80 kHz + 20 kHz]`, k = 1 … 32 (clipped at fs/2), which is
-where energy folds into 0–20 kHz and which the issue names as the worst case;
-rationale 8–10 of the spec also frames the stopband as alias leakage. The
-*literal* reading, every frequency from 60 kHz to fs/2, is **not** met: the gaps
-between alias bands are not attenuated to 90 dB (worst 79.2 dB, at 284.5 kHz,
-where the FIR's transition band images next to the CIC's first null). Meeting
-the literal reading needs a much longer FIR running at the input rate or a
-different decimation structure, and would not change the in-band result. This
-repo does not edit the spec; if the literal reading is intended, that is a
-decision record and a redesign. `response.py` prints that number so it stays visible.
+**Row 9 reading** ([DR-006](../spec/decisions/DR-006-decimation-stopband-reading.md)).
+Row 9 grades ≥ 90 dB in the alias bands `[k·80 kHz − 20 kHz, k·80 kHz + 20 kHz]`,
+k = 1 … 32 (clipped at fs/2), which is where energy folds into 0–20 kHz, and
+≥ 75 dB elsewhere from 60 kHz to fs/2. The gaps between alias bands are not
+attenuated to 90 dB (worst 79.2 dB, at 284.5 kHz, where the FIR's transition
+band images next to the CIC's first null), so they carry the 75 dB floor.
+Attenuating the gaps to 90 dB would need a much longer FIR running at the input
+rate or a different decimation structure, and would not change the in-band
+result. `response.py` gates both lines.
 
 ### Arithmetic and widths
 
