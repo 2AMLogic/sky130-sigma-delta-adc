@@ -4,6 +4,10 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-01
 
+- **PR #78**: fix: refresh item-9 attestation envelope for updated response.py hash
+- **Issue #77** (closed): main red: item-9 attestation drifted (response.py hash stale after DR-006)
+- **PR #75**: test(decimator): end-to-end B-bitstream check and re-recorded row 9 floor
+- **Issue #74** (closed): DR-006 follow-ups: record the 75 dB 'row 9 elsewhere' line durably; row 9 evidence column claims B evidence that does not exist
 - **PR #23**: docs(spec): grade decimation stopband (row 9): 90 dB in alias bands, 75 dB floor elsewhere, DR-006
 - **Issue #18** (closed): Spec owner: confirm row 9 stopband reading (alias bands vs every frequency fout-BW..fs/2)
 - **PR #72**: Bump Repo Skills 0.24.7 -> 0.25.1
