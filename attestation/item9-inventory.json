@@ -12,6 +12,7 @@
     "sim/bmodel/test_bmodel.py",
     "verification/decimator/test_decimator.py",
     "verification/decimator/response.py",
+    "verification/decimator/bmodel_xcheck.py",
     "verification/decimator/run_synth.py"
   ],
   "cold_start": {"argv": ["sh", "attestation/cold_start_item9.sh"], "local_only": true},
