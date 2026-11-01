@@ -45,7 +45,7 @@
         "role": "testbench",
         "path": "verification/decimator/response.py",
         "passed": true,
-        "content_hash": "sha256:6e2fe4f78b8a2f9d4cfab48de44c0d315688c6694d0836494c52ec8d130e060d"
+        "content_hash": "sha256:5548af126706a40baecefbf3cba4dbb874548db5603839433b6d358537365d96"
       },
       {
         "check": "present",
@@ -113,7 +113,7 @@
     ]
   },
   "provenance": {
-    "klt_version": "0.8.1.dev55+g879d39bad82b",
+    "klt_version": "0.8.0",
     "klayout_version": null,
     "pdk": null,
     "deck": null,
