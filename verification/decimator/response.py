@@ -7,19 +7,18 @@ synthesis use), not from design floats.
 
   row 8  passband 0 - BW:   peak-to-peak gain variation <= 0.1 dB
   row 9  stopband:          >= 90 dB in the alias bands [k*fout - BW, k*fout + BW],
-                            k = 1 .. fs/(2*fout), the last clipped to fs/2
+                            k = 1 .. fs/(2*fout), the last clipped to fs/2, and
+                            >= 75 dB elsewhere from fout - BW to fs/2 (the gaps
+                            between alias bands); see spec/decisions/DR-006
 
 Gain is relative to DC (the chain has exactly unity DC gain: the coefficients
 sum to 2**COEF_FRAC and the CIC gain is divided out by the offset/scale choice).
-Exit 0 when both rows pass, 1 otherwise, 2 on a malformed coefficient file.
+Exit 0 when all rows pass, 1 otherwise, 2 on a malformed coefficient file.
 
 Frequency grid: 50 Hz spacing, endpoints included - 401 points in the passband,
-and 801 points per alias band (32 bands, 25 632 points in total; the last band
-is clipped at fs/2).
-
-Also reported, not gated: the worst attenuation over the *literal* reading of
-row 9 (the whole range fout - BW .. fs/2, including the gaps between alias
-bands). It is shown so the interpretation is visible; see rtl/DESIGN_NOTE.md.
+and 801 points per alias band (32 bands, 25 232 points in total; the last band
+is clipped at fs/2). The gap check uses the same grid over the points of
+fout - BW .. fs/2 that lie outside every alias band.
 """
 import argparse
 import json
@@ -32,6 +31,7 @@ import model as m
 STEP = 50.0
 RIPPLE_LIMIT_DB = 0.1
 STOP_LIMIT_DB = 90.0
+GAP_LIMIT_DB = 75.0
 
 
 def chain_mag(f, coefs=None):
@@ -54,7 +54,9 @@ def evaluate(coefs):
         bands.append({"k": k, "lo_hz": lo, "hi_hz": hi, "min_attenuation_db": round(a, 2), "at_hz": f})
         if a < worst_att:
             worst_att, worst_f = a, f
-    full = min((-db(f), f) for f in _grid(m.FOUT - m.BW, m.FS / 2))
+    in_band = lambda f: any(b["lo_hz"] <= f <= b["hi_hz"] for b in bands)
+    gap_pts = [f for f in _grid(m.FOUT - m.BW, m.FS / 2) if not in_band(f)]
+    gap = min((-db(f), f) for f in gap_pts)
     dc = m.chain_mag(0.0, coefs)
     return {
         "grid": {"step_hz": STEP, "passband_points": len(pb),
@@ -65,8 +67,9 @@ def evaluate(coefs):
                      "limit_db": RIPPLE_LIMIT_DB},
         "stopband_alias_bands": {"worst_attenuation_db": round(worst_att, 2), "worst_at_hz": worst_f,
                                  "limit_db": STOP_LIMIT_DB, "bands": bands},
-        "informational_literal_row9": {"range_hz": [m.FOUT - m.BW, m.FS / 2],
-                                       "worst_attenuation_db": round(full[0], 2), "at_hz": full[1]},
+        "stopband_gaps": {"range_hz": [m.FOUT - m.BW, m.FS / 2], "points": len(gap_pts),
+                          "worst_attenuation_db": round(gap[0], 2), "worst_at_hz": gap[1],
+                          "limit_db": GAP_LIMIT_DB},
     }
 
 
@@ -101,23 +104,25 @@ def main():
     need, have = acc_width_check(coefs)
     ok_rip = r["passband"]["peak_to_peak_db"] <= RIPPLE_LIMIT_DB
     ok_stop = r["stopband_alias_bands"]["worst_attenuation_db"] >= STOP_LIMIT_DB
+    ok_gap = r["stopband_gaps"]["worst_attenuation_db"] >= GAP_LIMIT_DB
     ok_acc = have >= need
     ok_sum = sum(coefs) == 1 << m.COEF_FRAC
     if a.json:
         print(json.dumps(r, indent=1))
-    pb, sb, lit = r["passband"], r["stopband_alias_bands"], r["informational_literal_row9"]
+    pb, sb, gp = r["passband"], r["stopband_alias_bands"], r["stopband_gaps"]
     print(f"row 8 passband 0-{m.BW/1e3:.0f} kHz: peak-to-peak {pb['peak_to_peak_db']:.4f} dB "
           f"(limit {RIPPLE_LIMIT_DB}) {'PASS' if ok_rip else 'FAIL'}")
     print(f"row 9 alias bands k*{m.FOUT/1e3:.0f}k +/-{m.BW/1e3:.0f}k to fs/2: worst attenuation "
           f"{sb['worst_attenuation_db']:.2f} dB at {sb['worst_at_hz']/1e3:.2f} kHz (limit {STOP_LIMIT_DB}) "
           f"{'PASS' if ok_stop else 'FAIL'}")
-    print(f"info  literal row 9 (every frequency {lit['range_hz'][0]/1e3:.0f} kHz..fs/2): worst "
-          f"{lit['worst_attenuation_db']:.2f} dB at {lit['at_hz']/1e3:.2f} kHz - not gated")
+    print(f"row 9 elsewhere, {gp['range_hz'][0]/1e3:.0f} kHz..fs/2 outside the alias bands: worst attenuation "
+          f"{gp['worst_attenuation_db']:.2f} dB at {gp['worst_at_hz']/1e3:.2f} kHz (limit {GAP_LIMIT_DB}) "
+          f"{'PASS' if ok_gap else 'FAIL'}")
     print(f"grid: {r['grid']['step_hz']:.0f} Hz spacing, {r['grid']['passband_points']} passband points, "
-          f"{r['grid']['alias_band_points']} alias-band points")
+          f"{r['grid']['alias_band_points']} alias-band points, {gp['points']} gap points")
     print(f"coefficient sum {sum(coefs)} (need {1 << m.COEF_FRAC}) {'ok' if ok_sum else 'FAIL'}; "
           f"accumulator needs {need} bits, RTL ACC_W = {have} {'ok' if ok_acc else 'FAIL'}")
-    return 0 if (ok_rip and ok_stop and ok_acc and ok_sum) else 1
+    return 0 if (ok_rip and ok_stop and ok_gap and ok_acc and ok_sum) else 1
 
 
 if __name__ == "__main__":
