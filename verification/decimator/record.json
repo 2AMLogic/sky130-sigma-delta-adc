@@ -9,10 +9,10 @@
   "cell_library": "sky130_fd_sc_hd",
   "corner": "tt_025C_1v80",
   "tools": {
-    "cocotb": "2.1.0",
+    "cocotb": "2.0.1",
     "icarus": "Icarus Verilog version 13.0",
     "yosys": "0.67+post",
-    "klt": "klt 0.7.1.dev2517+g6bb7cf233677"
+    "klt": "klt 0.8.1.dev1012+g31b24f439f3f"
   },
   "cocotb": {
     "testcases": 8,
@@ -21,7 +21,8 @@
   "response": [
     "row 8 passband 0-20 kHz: peak-to-peak 0.0401 dB (limit 0.1) PASS",
     "row 9 alias bands k*80k +/-20k to fs/2: worst attenuation 93.91 dB at 300.00 kHz (limit 90.0) PASS",
-    "grid: 50 Hz spacing, 401 passband points, 25232 alias-band points"
+    "row 9 elsewhere, 60 kHz..fs/2 outside the alias bands: worst attenuation 79.20 dB at 284.50 kHz (limit 75.0) PASS",
+    "grid: 50 Hz spacing, 401 passband points, 25232 alias-band points, 24769 gap points"
   ],
   "synth": {
     "instance_count": 5390,
