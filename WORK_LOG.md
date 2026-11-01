@@ -4,6 +4,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-01
 
+- **PR #23**: docs(spec): grade decimation stopband (row 9): 90 dB in alias bands, 75 dB floor elsewhere, DR-006
+- **Issue #18** (closed): Spec owner: confirm row 9 stopband reading (alias bands vs every frequency fout-BW..fs/2)
 - **PR #72**: Bump Repo Skills 0.24.7 -> 0.25.1
 
 ### 2026-10-28
