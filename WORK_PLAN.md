@@ -57,6 +57,7 @@ Issues carrying `loom:curated`.
 ## Proposed (Architect / Hermit)
 
 - **#43**: Deduplicate PDK-pin helpers copy-pasted across three runners *(hermit)*
+- **#81**: Consolidate 7 copies of the klt pdk find lookup into one helper *(hermit)*
 
 ## Epics
 
@@ -74,6 +75,6 @@ _None._
 | PRs awaiting review | 0 |
 | Approved PRs awaiting merge | 0 |
 | Curated | 3 |
-| Architect / Hermit proposals | 1 |
+| Architect / Hermit proposals | 2 |
 | Active epics | 0 |
 <!-- guide:plan-body:end -->

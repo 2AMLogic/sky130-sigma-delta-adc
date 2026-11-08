@@ -2,6 +2,15 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-07
+
+- **PR #84**: Bump Repo Skills 0.25.1 -> 0.25.10
+
+### 2026-11-06
+
+- **PR #83**: feat(layout): klt drc the routed decimator and grade 3.digital met
+- **Issue #82** (closed): T1 item 3, digital only: klt drc the routed decimator GDS and cite it for 3.digital
+
 ### 2026-11-01
 
 - **PR #78**: fix: refresh item-9 attestation envelope for updated response.py hash
