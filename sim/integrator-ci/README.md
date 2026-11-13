@@ -1,28 +1,33 @@
 # sim/integrator-ci — integrator switch charge injection (issue #102)
 
-Transistor-level extraction of the charge-injection residual of
-`design/integrator/integrator.spice`, and of what issue #92's low-Vth +
-PMOS-half switch change cost. Everything here is **simulated**, never measured.
+**Simulated, transistor-level** (ngspice on `design/integrator/integrator.spice`
+with `design/ota/ota_fd.spice`; not the behavioural model). Question: how large is
+the integrator's switch charge-injection residual with the shipped switch sizes,
+and what did issue #92's low-Vth + PMOS-half change cost? DR-001 item 2 assigns
+this to a transistor-level run; this is that run, and it gives model B's
+`ci_offset` / `ci_gain_error` (`sim/bmodel/model.py`) their first
+transistor-level value.
 
-DR-001 item 2 assigns charge injection to a transistor-level run; this is that
-run for the integrator. It feeds model B's `ci_offset` and `ci_gain_error`
-(`sim/bmodel/model.py`), which had never been given a transistor-level value.
+**Answer: the differential residual is far too small to cost resolution, and the
+sqrt(W L) growth the design notes predicted is not what dominates it.**
 
-**What this bench does not cover** is in "Limits" at the bottom — read it
-before quoting any number from here.
+| Quantity | Result | Source |
+|---|---|---|
+| Differential residual per clock, nominal, zero input | ≤ **2.265e-07 V** over all 45 DR-002 points (`ci_offset` 1.89e-07 FS) | `record.json` |
+| … same, pre-#92 cell | ≤ 2.902e-07 V | `record.json` |
+| Both of the above against the bench's own floor | `vntol` = 1e-7 V — so **nominal cannot distinguish the two cells**, which is what a cell drawn symmetric should give | — |
+| Common-mode step per clock | ~1e-06 V, and **no systematic growth post-#92** (per-anchor ratios scatter 0.47–2.13 about 1, not the 5.7× channel-area factor) | `record.json` |
+| Common-mode accumulation | none — the OTA's common-mode feedback absorbs it | — |
+| Differential σ under PDK mismatch, raw | 1.3–5.8 mV per clock | `record-mc.json` |
+| … of which the **OTA's own input offset** | r = **0.9999**, slope ≈ 1.01 | `record-mc.json` |
+| … leaving the **switch-attributable** σ | **59–90 µV** per clock (4.9e-05 … 7.5e-05 FS) | `record-mc.json` |
+| Signal-dependent part (`ci_gain_error`) | **below this bench's resolution**; the measured slope is accounted for by the drawn capacitor ratio, the finite-gain leak and, at the slow/cold corners, incomplete *input* sampling (#106) | `record.json` |
 
-<!-- toc -->
-- [What is measured, and why that is the observable](#what-is-measured-and-why-that-is-the-observable)
-- [Nulling the DAC](#nulling-the-dac)
-- [Which switches actually land on Ci](#which-switches-actually-land-on-ci)
-- [What else is in the step](#what-else-is-in-the-step)
-- [Variants](#variants)
-- [Bench validity: sensitivity, step independence, DAC cross-check](#bench-validity-sensitivity-step-independence-dac-cross-check)
-- [Monte Carlo and mismatch](#monte-carlo-and-mismatch)
-- [Running it](#running-it)
-- [Records](#records)
-- [Limits](#limits)
-<!-- /toc -->
+Everything here is **simulated**, never measured, and the records carry no
+pass/fail criterion: no spec row bounds this residual. **Read "Limits" at the
+bottom before quoting any number from here** — in particular, the mismatch σ is
+a total that the pre/post comparison, not a single cell, attributes to the
+switches.
 
 ## What is measured, and why that is the observable
 
