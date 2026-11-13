@@ -23,13 +23,16 @@ What is pinned here:
   netlist, so a netlist change cannot silently turn the sensitivity check into
   a no-op.
 - The committed pre-#92 fixture still matches `design/integrator/integrator.spice`
-  at the commit its header names (skipped when git history is unavailable).
+  at the commit its header names. Under CI (`CI` set in the environment) a
+  missing commit is a failure, because the workflow checks out full history for
+  it; outside CI a shallow clone still skips.
 """
 import contextlib
 import importlib.util
 import io
 import json
 import math
+import os
 import pathlib
 import subprocess
 import sys
@@ -814,6 +817,15 @@ class PreI92Fixture(unittest.TestCase):
         r = subprocess.run(["git", "show", "e310b5f:design/integrator/integrator.spice"],
                            cwd=RUNNER.REPO, capture_output=True, text=True)
         if r.returncode:
+            # A local shallow clone legitimately lacks the blob, so skip there.
+            # CI must not: .github/workflows/signoff.yml checks out with
+            # fetch-depth: 0 precisely so this comparison runs, and a silent
+            # skip is how this guard went inert before (issue #120).
+            if os.environ.get("CI"):
+                self.fail(
+                    "git history for e310b5f is unavailable under CI: the checkout "
+                    "step in .github/workflows/signoff.yml must keep fetch-depth: 0, "
+                    "otherwise the pre-#92 fixture comparison does not run at all")
             self.skipTest("git history for e310b5f is unavailable (shallow clone)")
         committed = (HERE / MK.PRE_CELL).read_text()
         # The fixture is the blob with a provenance header prepended; everything

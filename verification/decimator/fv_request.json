@@ -1,0 +1,12 @@
+{
+  "schema": "klt.functional_verification.request/1",
+  "engine": "icarus",
+  "sources": ["../../rtl/decimator.v", "../../rtl/decimator_coef.v"],
+  "hdl_toplevel": "decimator",
+  "testbench": {"module": "test_decimator"},
+  "options": {
+    "build_args": ["-g2012"],
+    "timescale": ["1ns", "1ps"],
+    "random_seed": 1
+  }
+}
