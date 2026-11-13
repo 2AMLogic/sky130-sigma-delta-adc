@@ -5,6 +5,7 @@ Tests use a short record (N = 2^13 output samples = 524 288 clocks) for speed;
 run.py's ideal run uses 2^16. SNDR is a power ratio over [0, BW], so the short
 record changes the bin width, not the expected value.
 """
+import hashlib
 import json
 import pathlib
 import tempfile
@@ -173,6 +174,45 @@ class RecordFields(unittest.TestCase):
         self.assertEqual(rec["source"], "B")
         self.assertEqual(rec["cross_check"], "none (ideal parameters)")
         self.assertTrue(rec["peak_at_sweep_ceiling"])
+
+
+class CodeIdentity(unittest.TestCase):
+    """`code_sha256` names the code that produced the number.
+
+    `git_commit` + `git_dirty` cannot: a record is written before the commit
+    that contains it, so the tree is dirty on every run and the stamped commit
+    is only the base the run started from (issue #110). Two records with the
+    same `params_sha256` and different estimators are indistinguishable by
+    their git fields alone.
+    """
+
+    def test_build_record_stamps_bmodel_code_hashes(self):
+        p = ideal()
+        table, best, det, cycles = run.sweep(p, 2**12, amplitudes=[-6])
+        rec = run.build_record(p, "x", 2**12, table, best, det, cycles)
+        self.assertEqual(set(rec["code_sha256"]),
+                         {"sim/bmodel/model.py", "sim/bmodel/sndr.py", "sim/bmodel/run.py"})
+        for rel, got in rec["code_sha256"].items():
+            want = hashlib.sha256((run.REPO / rel).read_bytes()).hexdigest()
+            self.assertEqual(got, want, rel)
+
+    def test_code_state_adds_extra_paths(self):
+        extra = HERE / "test_bmodel.py"
+        m = run.code_state(extra=[extra])["code_sha256"]
+        self.assertEqual(set(m), {"sim/bmodel/model.py", "sim/bmodel/sndr.py",
+                                  "sim/bmodel/run.py", "sim/bmodel/test_bmodel.py"})
+        self.assertEqual(m["sim/bmodel/test_bmodel.py"],
+                         hashlib.sha256(extra.read_bytes()).hexdigest())
+
+    def test_hash_tracks_file_contents(self):
+        """A one-byte edit moves only that entry."""
+        base = run.code_state()["code_sha256"]
+        with tempfile.TemporaryDirectory() as td:
+            fake = pathlib.Path(td) / "sndr.py"
+            fake.write_bytes((HERE / "sndr.py").read_bytes() + b"\n# one byte\n")
+            self.assertNotEqual(hashlib.sha256(fake.read_bytes()).hexdigest(),
+                                base["sim/bmodel/sndr.py"])
+        self.assertEqual(run.code_state()["code_sha256"], base)
 
 
 if __name__ == "__main__":
