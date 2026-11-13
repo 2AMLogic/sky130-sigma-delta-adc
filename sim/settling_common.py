@@ -9,8 +9,13 @@ The measurement-key list and the admission sentinel are per bench: the
 settling benches' defaults (`KEYS`, `err_phase`) are the historical ones, and
 `run_klt`/`summarize`/`measurements_present` take `keys=`/`key=` overrides for
 a bench that measures something else (issue #102).
+
+`join_continuations` and `ngspice_version` are here for the same reason: they
+are toolchain, not bench content, and the local single-corner probe runners
+(`integrator-settling/run_diag.py`, `integrator-settling/run_variants.py`,
+`switch-probe/run_probe.py`, `integrator-ci/run_ci.py`) each need them.
 """
-import hashlib, json, pathlib, shutil, subprocess, sys
+import hashlib, json, pathlib, re, shutil, subprocess, sys
 
 GRID_POINTS = 45  # DR-002 full grid: 5 process x 3 T x 3 Vdda
 
@@ -39,6 +44,42 @@ CAPACITY_WAIT_S = 600
 
 def sha256(p):
     return hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
+
+
+def join_continuations(text):
+    """Fold SPICE `+` continuation lines into the logical line they continue.
+
+    Returns the logical lines in file order; each folded `+` contributes its
+    text with the `+` stripped and a single space in front. A `+` line with
+    nothing before it has no line to fold into, so it is kept as it stands.
+
+    Shared because every runner that reads a netlist as text needs it before
+    it can match an instance line: `klt netlist` wraps long device lines, so a
+    plain `splitlines()` splits W/L off the instance that declares them.
+    """
+    out, cur = [], None
+    for ln in text.splitlines():
+        if ln.startswith("+") and cur is not None:
+            cur += " " + ln[1:].strip()
+        else:
+            if cur is not None:
+                out.append(cur)
+            cur = ln
+    if cur is not None:
+        out.append(cur)
+    return out
+
+
+def ngspice_version():
+    """Return e.g. 'ngspice-47', or 'unknown'.
+
+    `ngspice -v` line 1 is the banner's '******' rule, not the version, so
+    match the version token anywhere in the output (same convention as
+    sim/smoke/run_smoke.py and sim/ota-op-smoke/run_op.py).
+    """
+    m = re.search(r"ngspice-\d+",
+                  subprocess.run(["ngspice", "-v"], capture_output=True, text=True).stdout)
+    return m.group(0) if m else "unknown"
 
 
 def pdk_stamp(variant, pdk_root):

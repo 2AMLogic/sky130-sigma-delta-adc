@@ -34,8 +34,9 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
 from settling_common import (ANCHOR_SUBSET_NOTE, CAPACITY_WAIT_S,  # noqa: E402
-                             grid_complete, measurements_present, pdk_stamp,
-                             run_klt, sha256, summarize)
+                             grid_complete, join_continuations,
+                             measurements_present, pdk_stamp, run_klt, sha256,
+                             summarize)
 
 sys.path.insert(0, str(HERE))
 import make_request as mk  # noqa: E402
@@ -57,16 +58,6 @@ VCM_SWITCHES = ("Sbi", "Sbr", "Sti", "Str")
 
 
 # --------------------------------------------------- netlist device areas ---
-def _join_continuations(text):
-    out = []
-    for line in text.splitlines():
-        if line.startswith("+") and out:
-            out[-1] += " " + line[1:].strip()
-        else:
-            out.append(line)
-    return out
-
-
 def switch_areas(netlist):
     """{switch_base: {"nmos": [(W, L)...], "pmos": [...]}} from a cell netlist.
 
@@ -75,7 +66,7 @@ def switch_areas(netlist):
     simulated and cannot drift from it.
     """
     areas = {}
-    for line in _join_continuations(pathlib.Path(netlist).read_text()):
+    for line in join_continuations(pathlib.Path(netlist).read_text()):
         m = re.match(r"^X(S[a-z]{2})_([pn])(_p)?\s", line)
         if not m:
             continue
@@ -103,7 +94,7 @@ def cap_ratio(netlist):
     injection.
     """
     out = {}
-    for line in _join_continuations(pathlib.Path(netlist).read_text()):
+    for line in join_continuations(pathlib.Path(netlist).read_text()):
         m = re.match(r"^X(Csi|Csr|Ci)_([pn])\s+.*\bW=([0-9.eE+-]+)\s+L=([0-9.eE+-]+)", line)
         if m:
             out.setdefault(m.group(1), []).append(float(m.group(3)) * float(m.group(4)))

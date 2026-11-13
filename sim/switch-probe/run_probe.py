@@ -24,7 +24,7 @@ import argparse, hashlib, json, pathlib, re, subprocess, sys, tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import pdk_stamp
+from settling_common import join_continuations, ngspice_version, pdk_stamp
 
 VCM = 0.9
 RON_BIAS = 0.010      # 10 mV across the closed switch
@@ -49,17 +49,7 @@ def kv(s):
 
 def self_check():
     """Assert geom() matches how the committed cell actually declares its switches."""
-    txt = (REPO / "design/integrator/integrator.spice").read_text()
-    joined, cur = [], None
-    for ln in txt.splitlines():
-        if ln.startswith("+") and cur is not None:
-            cur += " " + ln[1:].strip()
-        else:
-            if cur is not None:
-                joined.append(cur)
-            cur = ln
-    if cur is not None:
-        joined.append(cur)
+    joined = join_continuations((REPO / "design/integrator/integrator.spice").read_text())
     checked = 0
     for ln in joined:
         m = re.match(r"XS\S+ \S+ \S+ \S+ \S+ (sky130_fd_pr__\S+) (.*)$", ln)
@@ -158,8 +148,6 @@ def main():
     ng = root / pin["variant"] / "libs.tech/ngspice"
     pdk_lib = ng / "sky130.lib.spice"
 
-    ver = re.search(r"ngspice-\d+",
-                    subprocess.run(["ngspice", "-v"], capture_output=True, text=True).stdout)
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="switch-probe-"))
     res = {
         "fixture": "Single-switch DC probes: on-state Ron and off-state leakage (issue #92)",
@@ -178,7 +166,7 @@ def main():
         },
         "pdk_sources_stamp": stamp,
         "pdk_pin": {"file": "sim/pdk.json", "open_pdks_revision": pin["open_pdks_revision"]},
-        "ngspice": ver.group(0) if ver else "unknown",
+        "ngspice": ngspice_version(),
         "deck_sha256": hashlib.sha256((HERE / "switch_probe.cir.tmpl").read_bytes()).hexdigest(),
         "integrator_netlist_sha256": hashlib.sha256(
             (REPO / "design/integrator/integrator.spice").read_bytes()).hexdigest(),
