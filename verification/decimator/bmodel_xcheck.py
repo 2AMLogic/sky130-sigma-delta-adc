@@ -48,6 +48,11 @@ AMPLITUDES_DBFS = (-6, -12)   # spec row 11 ceiling, and a mid-scale point
 WARMUP_OUT = 8
 TOL_BELOW_DB = 3.0            # RTL SNDR may be at most this far below the sinc^3 reference
 TOL_ABOVE_DB = 1.0            # ... and at most this far above it
+# Issue #107 fixed a 3.02 dB ENBW error in sndr.sndr_db, so the absolute SNDR
+# figures move (the rtl-minus-sinc3 delta this check grades on does not: it is a
+# difference of two sndr_db values). Results are append-only, so this writes a
+# new file and leaves the superseded xcheck_record.json alone.
+OUT_NAME = "xcheck_record-i107.json"
 
 
 def one_point(params, amp_dbfs, n_out, cycles, coefs):
@@ -66,7 +71,7 @@ def one_point(params, amp_dbfs, n_out, cycles, coefs):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--record-len", type=int, default=2**16)
-    ap.add_argument("--record", action="store_true", help="write xcheck_record.json (overwrites)")
+    ap.add_argument("--record", action="store_true", help=f"write {OUT_NAME} (overwrites)")
     ap.add_argument("--coef-perturb", type=int, metavar="TAP",
                     help="negative control: add 2**14 to this coefficient before the RTL-model run")
     a = ap.parse_args(argv)
@@ -105,7 +110,7 @@ def main(argv=None):
             "numpy": np.__version__,
             "utc": datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
         }
-        (HERE / "xcheck_record.json").write_text(json.dumps(rec, indent=2) + "\n")
+        (HERE / OUT_NAME).write_text(json.dumps(rec, indent=2) + "\n")
     return 0 if ok else 1
 
 

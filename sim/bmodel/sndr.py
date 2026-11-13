@@ -5,8 +5,15 @@ decimate by 64 (fout = 4*BW = 80 kSps), no droop compensation, no FIR.
 
 SNDR: coherent tone at an odd number of cycles M in the N-sample output
 record, 4-term Blackman-Harris window. Signal = tone bin +/- LOBE bins;
-noise = bins above DC_EXCL_BINS up to the band edge, excluding the tone lobe,
-ENBW-corrected.
+noise = bins above DC_EXCL_BINS up to the band edge, excluding the tone lobe.
+
+No ENBW factor is applied. The windowed lobe sum is about (A^2/4)*N*sum(w^2)
+and each noise bin averages sigma^2*sum(w^2), so sum(w^2) cancels and the
+ratio of the two sums is already the power ratio over the band. An ENBW
+correction belongs only when the signal is taken from the peak bin alone
+(which carries (A^2/4)*sum(w)^2 instead); applying it to a lobe sum added
+10*log10(ENBW) = 3.02 dB to every reported figure (issue #107). `enbw_bins`
+stays in the details as a property of the window, not as a correction.
 """
 import numpy as np
 
@@ -49,10 +56,10 @@ def sndr_db(rec, cycles, fout_hz=FOUT_HZ, bw_hz=BW_HZ):
     lobe = np.arange(cycles - LOBE, cycles + LOBE + 1)
     band = np.arange(DC_EXCL_BINS + 1, edge + 1)
     noise_bins = np.setdiff1d(band, lobe)
-    enbw = n * np.sum(win**2) / np.sum(win) ** 2
+    enbw = n * np.sum(win**2) / np.sum(win) ** 2  # window property, reported; NOT a correction
     sig = p[lobe].sum()
     noise = p[noise_bins].sum()
-    val = 10.0 * np.log10(sig / noise * enbw)
+    val = 10.0 * np.log10(sig / noise)
     det = {
         "bin_bw_hz": fout_hz / n,
         "band_edge_bin": edge,
