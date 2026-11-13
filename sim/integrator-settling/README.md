@@ -67,9 +67,13 @@ The grid separates cleanly by **supply**, not by process:
 
 At 1.620 V every corner misses 1e-4, but the failure is not uniform across the
 supply corner. At the **8 worst corners per variant** the cell never settles:
-`t_1e4` sits at 299-300 ns (the whole transient window) and both validity gates
-are violated, so `err_phase` there reads "never settled", not a precise
-residual. Those 8 are all five process corners at -40 C, plus tt/ss/fs at 27 C.
+`t_1e4` sits at 299-300 ns (the whole transient window) and the `end_ripple_rel`
+gate is violated (the output is still moving when the window ends), so
+`err_phase` there reads "never settled", not a precise residual. Those 8 are
+all five process corners at -40 C, plus tt/ss/fs at 27 C. At 7 of them the
+`step_err_vs_ideal` gate is violated too; the exception is tt/27 C, where the
+step has reached 0.89 V of the ideal 0.9 V by the end of the window
+(`step_err_vs_ideal` 0.011 int1, 0.012 int2, inside the 0.05 gate).
 At the **remaining 7** both gates hold, `t_1e4` is 107-257 ns (int1) and
 148-273 ns (int2), and `err_phase` is 2.1e-4 to 0.107 (int1) and 2.5e-3 to
 0.151 (int2) — a real but bounded residual, not a dead cell. Across all 15,
@@ -104,7 +108,7 @@ its own:
   supply change. At fs/-40 C `step_dv` is 0.067 V and `step_err_vs_ideal`
   reaches 0.93. A beta/gm shortfall does not obviously produce that.
 - **The ordering is by supply and temperature, not process.** At 1.620 V, 125 C
-  holds both validity gates at all five process corners and -40 C violates them
+  holds both validity gates at all five process corners and -40 C violates both
   at all five.
 
 *Suspected cause, unverified:* the twelve VCM-side and summing-node switches in
@@ -155,9 +159,9 @@ a *linear* gain factor `(1 - settling_error)` applied equally to both integrator
 inputs and constant over the record, so it prices only the signal-independent
 part of incomplete settling — a second-order loop at OSR 128 absorbs a uniform
 loop-gain deficit very well, which is why the number is so large. The failures
-measured here are not a uniform linear deficit of that kind: at the 8
+measured here are not a uniform linear deficit of that kind: at 7 of the 8
 non-settling corners per variant the charge transfer itself is incomplete
-(`step_err_vs_ideal` up to 0.93), and at fixed 1.620 V `err_phase` varies by
+(`step_err_vs_ideal` 0.09 to 0.93), and at fixed 1.620 V `err_phase` varies by
 more than three orders of magnitude across PVT — signal- and state-dependent in
 a way a constant gain factor cannot represent. Whether the dominant term there
 is slew limiting or incomplete switch conduction is **not** established by this
@@ -172,8 +176,8 @@ record (above). Comparing the two:
   (int2), both at fs/-40 C — exceeds even that loose 0.57 linear budget. The
   rest of the supply corner does not: 5 of the 15 corners per variant are above
   0.57, and 7 sit at or below 0.16 (worst 0.107 int1, 0.151 int2). The
-  comparison is in any case not apples-to-apples, since at the 8 non-settling
-  corners the charge transfer is incomplete (above), which a constant linear
+  comparison is in any case not apples-to-apples, since at 7 of the 8
+  non-settling corners the charge transfer is incomplete (above), which a constant linear
   gain factor cannot represent. Against DR-005's 1e-4 criterion this is a hard
   failure at **all 15** corners per variant regardless, and that criterion is
   unchanged by the B-model threshold.
