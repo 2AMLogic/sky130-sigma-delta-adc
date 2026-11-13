@@ -9,6 +9,10 @@ __pycache__/
 # (append-only record trail), so they escape the *.log rule.
 !sim/*/corners/**/*.log
 sim/build/
+# settling-bench scratch: per-variant partial results and the raw klt
+# report / batch receipt kept for debugging a failed or partial grid
+sim/*/.partials/
+sim/*/.artifacts/
 # synthesis / P&R scratch
 flow/build/
 # klt synthesize per-run scratch next to the request file

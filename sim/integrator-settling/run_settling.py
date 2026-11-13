@@ -4,6 +4,10 @@
 Default: submit request_int1.json and request_int2.json (45-point DR-002 grid
 each) through `klt sim`, which sends them to the batch fleet; never falls back
 to a local grid.
+--variant: run one variant only. Each completed variant is saved under
+.partials/, so a fleet capacity refusal on one variant does not discard the
+other's 45 corners: re-run the missing variant later and --record assembles
+record.json from both.
 --probe: one tt/27C/1.8V corner of one variant, run locally (bench debugging,
 no record).
 """
@@ -12,14 +16,46 @@ import argparse, json, pathlib, subprocess, sys, tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import grid_complete, pdk_stamp, run_klt, sha256, summarize
+from settling_common import (grid_complete, measurements_present, pdk_stamp, run_klt,
+                             sha256, summarize)
 
 VARIANTS = ("int1", "int2")
+PARTIALS = HERE / ".partials"      # per-variant results, gitignored (see README)
+ARTIFACTS = HERE / ".artifacts"    # raw klt report / batch receipt, gitignored
+
+
+def shas(v):
+    return {"request_sha256": sha256(HERE / f"request_{v}.json"),
+            "deck_sha256": sha256(HERE / f"integrator_settling_{v}.cir")}
+
+
+def load_partial(v):
+    """A previously-run variant, if it matches the current request and deck."""
+    p = PARTIALS / f"{v}.json"
+    if not p.exists():
+        return None
+    try:
+        d = json.loads(p.read_text())
+    except ValueError:
+        return None
+    cur = shas(v)
+    if {k: d.get(k) for k in cur} != cur:
+        print(f"NOTE: ignoring stale .partials/{v}.json (request or deck changed since it ran)",
+              file=sys.stderr)
+        return None
+    return d
+
+
+def save_partial(v, result):
+    PARTIALS.mkdir(exist_ok=True)
+    (PARTIALS / f"{v}.json").write_text(json.dumps(result, indent=2) + "\n")
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pdk-root")
+    ap.add_argument("--variant", choices=VARIANTS, action="append",
+                    help="run only this variant (repeatable); default: both")
     ap.add_argument("--probe", choices=VARIANTS, help="one tt/27C/1.8V corner of a variant, local, no record")
     ap.add_argument("--record", action="store_true",
                     help="write record.json (refuses to overwrite: records are append-only)")
@@ -36,26 +72,57 @@ def main():
         print(f"REFUSE: {out.name} exists; records are append-only (use --record-name)", file=sys.stderr)
         return 2
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="integrator-settling-"))
-    variants = (a.probe,) if a.probe else VARIANTS
-    results, env = {}, {}
-    for v in variants:
-        res = run_klt(HERE / f"request_{v}.json", bool(a.probe), tmp, v, HERE / f"probe_request_{v}.json")
+    if a.probe:
+        run = (a.probe,)
+    elif a.variant:
+        run = tuple(dict.fromkeys(a.variant))
+    else:
+        run = VARIANTS
+
+    results, failed = {}, []
+    for v in VARIANTS if not a.probe else run:
+        if v not in run:                       # not asked for this time
+            saved = load_partial(v)
+            if saved:
+                print(f"{v}: reusing .partials/{v}.json ({saved['summary']})")
+                results[v] = saved
+            continue
+        res = run_klt(HERE / f"request_{v}.json", bool(a.probe), tmp, v,
+                      HERE / f"probe_request_{v}.json", artifacts_dir=None if a.probe else ARTIFACTS)
         if res is None:
-            return 1
+            print(f"{v}: no usable report (see .artifacts/klt-{v}.stderr.txt); "
+                  "not falling back to a local grid", file=sys.stderr)
+            failed.append(v)
+            saved = load_partial(v)
+            if saved:
+                print(f"{v}: falling back to the saved .partials/{v}.json from an earlier run")
+                results[v] = saved
+            continue
         rep, corners = res
         summary = summarize(corners)
         print(v, json.dumps({"status": rep.get("status"), **summary}, indent=2))
         e = rep.get("environment", {})
-        env[v] = {"ngspice": e.get("engine_version", "unknown"), "engine_host": e.get("engine_host"),
-                  "remote": e.get("remote")}
-        results[v] = {"summary": summary, "corners": corners, "pass": rep.get("status") == "pass",
-                      "request_sha256": sha256(HERE / f"request_{v}.json"),
-                      "deck_sha256": sha256(HERE / f"integrator_settling_{v}.cir"), **env[v]}
+        result = {"summary": summary, "corners": corners, "pass": rep.get("status") == "pass",
+                  "ngspice": e.get("engine_version", "unknown"), "engine_host": e.get("engine_host"),
+                  "remote": e.get("remote"), **shas(v)}
+        results[v] = result
+        if not a.probe:
+            save_partial(v, result)
+
     if a.probe:
         print(json.dumps(results[a.probe]["corners"], indent=2))
         return 0
-    if not grid_complete([r["corners"] for r in results.values()]):
+    missing = [v for v in VARIANTS if v not in results]
+    if missing:
+        print(f"REFUSE: no result for {', '.join(missing)}; no record written. "
+              f"Re-run with --variant {missing[0]} when the fleet has capacity.", file=sys.stderr)
         return 1
+    corner_sets = [results[v]["corners"] for v in VARIANTS]
+    if not grid_complete(corner_sets) or not measurements_present(corner_sets):
+        return 1
+    if not a.record:
+        print("all variants complete; re-run with --record to write the record")
+        return 0
     rec = {
         "fixture": "Integrator settling bench (issue #53): full integrator cell + ota_fd, integrate phase, 0.45 V per-side output step",
         "result_kind": "simulated (ngspice, transistor-level netlists of design/integrator + design/ota/ota_fd; not the behavioural model)",
@@ -76,6 +143,7 @@ def main():
         "pass": all(r["pass"] for r in results.values()),
     }
     out.write_text(json.dumps(rec, indent=2) + "\n")
+    print(f"wrote {out.name}: pass={rec['pass']}")
     return 0 if rec["pass"] else 1
 
 
