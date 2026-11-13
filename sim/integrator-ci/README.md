@@ -21,7 +21,9 @@ sqrt(W L) growth the design notes predicted is not what dominates it.**
 | Differential σ under PDK mismatch, raw | 1.3–5.8 mV per clock | `record-mc.json` |
 | … of which the **OTA's own input offset** | r = **0.9999**, slope ≈ 1.01 | `record-mc.json` |
 | … leaving the **switch-attributable** σ | **59–90 µV** per clock (4.9e-05 … 7.5e-05 FS) | `record-mc.json` |
+| … post/pre ratio of that σ | **1.84× – 3.61×** (mean 2.56, per-anchor SE 0.19–0.37) — *faster* than either sqrt(W L) prediction (1.333× / 1.929×) | `record-mc.json` |
 | Signal-dependent part (`ci_gain_error`) | **below this bench's resolution**; the measured slope is accounted for by the drawn capacitor ratio, the finite-gain leak and, at the slow/cold corners, incomplete *input* sampling (#106) | `record.json` |
+| **Cost in model B** | **0.17 dB** of peak SNDR: 89.02 dB against the 89.19 dB ideal record | `sim/bmodel/records/20261113T144417Z-a793a24d.json` |
 
 Everything here is **simulated**, never measured, and the records carry no
 pass/fail criterion: no spec row bounds this residual. **Read "Limits" at the
@@ -282,6 +284,34 @@ lands within about 10 % — enough to separate 1.33× from 1.93×. The record st
 `N`, the base seed, the estimator, and that standard error. A re-run at larger
 `N` is a new append-only record, not an edit of the old one.
 
+**What the ratio came back as, and the verdict on sqrt(W L).** Per anchor, from
+`record-mc.json`:
+
+| anchor | σ raw post/pre | σ switch-attributable post/pre |
+|---|---|---|
+| `ff_mm`/1.980 V/−40 °C | 1.147 | 2.037 ± 0.206 |
+| `ff_mm`/1.980 V/125 °C | 1.044 | 1.838 ± 0.186 |
+| `fs_mm`/1.800 V/27 °C | 1.039 | 2.092 ± 0.211 |
+| `sf_mm`/1.800 V/27 °C | 1.013 | 2.937 ± 0.297 |
+| `ss_mm`/1.620 V/125 °C | 1.060 | 3.610 ± 0.365 |
+| `tt_mm`/1.800 V/27 °C | 1.109 | 2.859 ± 0.289 |
+| `ss_mm`/1.620 V/−40 °C | 0.707 | not separable (#106) |
+
+The **raw** ratios are all ≈ 1: at that level the two cells look identical,
+because the same OTA offset dominates both. A record quoting the raw ratio would
+have concluded #92 cost nothing at all.
+
+The **switch-attributable** ratios are 1.84×–3.61×, i.e. **faster than either
+sqrt(W L) framing**: three anchors sit within half a standard error of the
+all-four prediction (1.929×) and three are 3–4.6 standard errors above it, and
+the corner-to-corner spread exceeds the measurement error, so the ratio is
+genuinely corner-dependent. The term neither prediction contains is the
+standard-Vth → low-Vth swap #92 also made on these switches, which raises
+channel charge at equal area — `sqrt_wl_prediction.note` flags it as
+unaccounted, and the measurement says it matters. **The scaling argument is
+refuted as a quantitative prediction; the engineering conclusion that the fix
+was cheap stands, on the absolute number and the 0.17 dB.**
+
 `family_mismatch` from the response is kept in the record and summarised under
 `derived.mismatch_coverage`: it states, per device family actually instantiated,
 whether that family's mismatch is structurally active in the selected deck.
@@ -416,7 +446,23 @@ fixture tests.
   reference node settling through the mux; post-layout extraction; the DR-001
   item 3 cross-check of model B against a full-modulator transient; any row-2
   SNDR claim.
-- **The model-B run this bench feeds is source B and uncross-checked.** It
-  reports what the extracted `ci_offset`/`ci_gain_error` do to SNDR in the
-  behavioural model; it is not a transistor-level SNDR number and does not
-  become one.
+- **The model-B runs are source B and uncross-checked** (DR-001 item 5). They
+  report what the extracted parameters do to SNDR in the behavioural model; they
+  are not transistor-level SNDR numbers and do not become them. Both use
+  `sim/bmodel/run.py`, N = 2^16 output samples, a Blackman-Harris 4-term window,
+  1.2207 Hz bins, the 0–20 kHz band, and the peak over the amplitude sweep at
+  −6 dBFS, against the committed ideal record (89.19 dB):
+
+  | parameters | `ci_offset` FS | `ci_gain_error` | peak SNDR |
+  |---|---|---|---|
+  | `bmodel-ci-injection.json` | 2.252e-04 | 0 | **89.02 dB** |
+  | `bmodel-ci-worst-bound.json` | 1.183e-02 | −0.5395 | 82.24 dB |
+
+  `injection` is what this bench attributes to the switches: 3σ of the worst
+  OTA-removed spread, with `ci_gain_error` at 0 because the signal-dependent part
+  is below resolution. `worst_bound` deliberately over-states it — its
+  `ci_offset` is the OTA's own offset mismatch and its `ci_gain_error` is #106's
+  input sampling, neither of them charge injection — and it is there only to
+  answer "even at the bound?". Both parameter files and their provenance are
+  committed beside the bench, derived from the records by
+  `run_ci.py --bmodel-params`, never hand-typed.
