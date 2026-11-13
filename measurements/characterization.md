@@ -70,9 +70,10 @@ corner in the cited record, or the only one it has.
   is the real single-bit loop against the corrected bound, and the sinc^3
   decimator gives 1.15 dB back. The corrected ceiling at this operating point
   is 88.2 dB, so 86.17 dB sits 2.1 dB below it and the margin to the 80 dB
-  target of row 2 is about 6 dB. The decomposition is recorded under
-  `sim/bmodel/records/` by `sim/bmodel/ceiling_gap.py` (source B, simulated,
-  issue #108).
+  target of row 2 is about 6 dB. The decomposition is recorded in
+  `sim/bmodel/records/20261113T155236Z-ceiling-gap-f8b2fa44.json`, written by
+  `sim/bmodel/ceiling_gap.py` (source B, simulated, issue #108); the record
+  carries `code_sha256` for the four source files behind it.
 - **Rows 5, 12 (T).** `sim/ota-settling/record-i51-rcm2M-cff100f.json`: ngspice,
   `design/ota/ota_fd`, DR-002 full grid (45 corners), 45 of 45 pass
   `err_phase <= 1e-4`, worst 6.84e-05 at sf/1.620V/125C. The bench uses ideal

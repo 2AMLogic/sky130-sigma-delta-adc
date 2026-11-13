@@ -30,8 +30,13 @@ so the gap had to be attributed before any non-ideality budget read against
 it could mean anything.
 
 `sim/bmodel/ceiling_gap.py` (added by this change) generates one bitstream at
-the row-11 operating point and reads it three ways. Its record is
-append-only evidence under `sim/bmodel/records/`; everything in it is
+the row-11 operating point and reads it three ways. The record of this
+decision is
+`sim/bmodel/records/20261113T155236Z-ceiling-gap-f8b2fa44.json`, which carries
+`code_sha256` naming the four source files that produced it (issue #110);
+records are append-only, so the earlier
+`20261113T152634Z-ceiling-gap-f8b2fa44.json` is kept as written but predates
+that field and is not the record cited here. Everything in it is
 **simulated**, source B, and not cross-checked against T.
 
     spec 5.1 as written                      94.25 dB   (closed form)

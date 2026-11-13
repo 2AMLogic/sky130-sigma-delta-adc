@@ -13,7 +13,10 @@ FFT at the modulator rate, corrected closed-form spec §5.1 bound), splitting th
 gap between the §5.1 ceiling and model B into named terms.
 `python3 -I sim/bmodel/ceiling_gap.py --params sim/bmodel/ideal.json` appends one
 record to `bmodel/records/`; add `--no-record` to print the decomposition
-without writing one.
+without writing one. The record DR-007 cites is
+`bmodel/records/20261113T155236Z-ceiling-gap-f8b2fa44.json`; like `run.py`'s, it
+stamps `code_sha256` for the source files that determine the number, because
+`git_commit`/`git_dirty` cannot identify them (issue #110).
 
 `integrator-ci/` is the integrator charge-injection extraction (issue #102,
 DR-001 item 2): the cell is clocked for six complete phi1/phi2 cycles with the

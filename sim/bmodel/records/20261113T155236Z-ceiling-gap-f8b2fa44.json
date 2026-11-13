@@ -1,0 +1,129 @@
+{
+  "source": "B",
+  "record_kind": "ceiling-gap decomposition (issue #108, DR-007)",
+  "result_kind": "simulated (behavioural model B, uncross-checked)",
+  "corner": "none (ideal parameters)",
+  "cross_check": "none (ideal parameters)",
+  "amplitude_dbfs": -6,
+  "record_len": 65536,
+  "modulator_clocks": 4194304,
+  "warmup_clocks_discarded": 512,
+  "window": "Blackman-Harris 4-term",
+  "tone_cycles": 1639,
+  "tone_hz": 2000.732421875,
+  "band_hz": [
+    0,
+    20000.0
+  ],
+  "oversampling_ratio": 128,
+  "fs_hz": 5120000.0,
+  "fout_hz": 80000.0,
+  "paths": {
+    "sinc3": {
+      "sndr_db": 86.17050637350252,
+      "what": "committed path: sinc^3 decimate by 64, FFT of the output record",
+      "rate_hz": 80000.0,
+      "analysed_samples": 65534,
+      "tone_cycles_in_analysed_window": 1638.9499816894531,
+      "bin_bw_hz": 1.2207403790398876,
+      "band_edge_bin": 16384,
+      "excluded_bins": {
+        "dc": [
+          0,
+          4
+        ],
+        "tone_lobe": [
+          1635,
+          1643
+        ]
+      },
+      "enbw_bins": 2.0043529382170466
+    },
+    "brick_wall": {
+      "sndr_db": 85.02036939692445,
+      "what": "same bitstream, FFT at the modulator rate, summed to 20 kHz",
+      "rate_hz": 5120000.0,
+      "analysed_samples": 4194304,
+      "tone_cycles_in_analysed_window": 1639.0,
+      "bin_bw_hz": 1.220703125,
+      "band_edge_bin": 16384,
+      "excluded_bins": {
+        "dc": [
+          0,
+          4
+        ],
+        "tone_lobe": [
+          1635,
+          1643
+        ]
+      },
+      "enbw_bins": 2.004352938217043
+    }
+  },
+  "bounds": {
+    "spec_5_1_as_written_db": 94.24571612182469,
+    "spec_5_1_level_count_corrected_db": 88.22511620854506,
+    "quantizer_term_as_written_db": 7.781512503836437,
+    "quantizer_term_level_count_db": 1.7609125905568124,
+    "closed_form_is_small_angle": true,
+    "exact_ntf_integral_db": 88.22542765607471,
+    "order": 2,
+    "n_bits": 1
+  },
+  "deficit_db": 8.075209748322166,
+  "terms_db": {
+    "formula_full_scale_convention": 6.020599913279625,
+    "single_bit_loop": 3.204746811620609,
+    "sinc3_decimator": -1.150136976578068
+  },
+  "terms_sum_db": 8.075209748322166,
+  "closure_db": 0.0,
+  "closure_note": "algebraic: the three terms are successive differences along spec -> corrected -> brick wall -> sinc^3",
+  "coherence_note": "the brick-wall path analyses exactly n_out*64 clocks and is exactly coherent; the sinc^3 path is run.run_point unchanged, whose analysed window is two output samples short of record_len, so its tone sits at tone_cycles_in_analysed_window rather than tone_cycles. The residual is carried by the sinc3_decimator term and bounded by cross_checks.sinc3_prediction_error_db.",
+  "cross_checks": {
+    "sinc3_droop_only_db": 86.87633686846327,
+    "sinc3_predicted_from_full_rate_db": 86.25324318563733,
+    "sinc3_prediction_error_db": 0.08273681213481154,
+    "alias_power_over_drooped_in_band_power": 0.15427520927583052,
+    "effective_quantizer": {
+      "gain": 2.509593446570846,
+      "err_var": 0.3062049000053938,
+      "mean_abs_x2": 0.2764571691652369,
+      "mean_sq_x2": 0.11016014149343312,
+      "gain_for_unscaled_ntf": 4.0
+    },
+    "describing_function_sndr_db": 84.54274205153256,
+    "describing_function_error_db": -0.47762734539189466
+  },
+  "loop": {
+    "a1": 0.5,
+    "a2": 0.5,
+    "feedback_to_integrator_2": 1.0,
+    "structure": "delaying integrators"
+  },
+  "decimation": {
+    "filter": "sinc^3 float64",
+    "factor": 64
+  },
+  "params": {
+    "dc_gain": null,
+    "settling_error": 0.0,
+    "ci_offset": 0.0,
+    "ci_gain_error": 0.0,
+    "ktc_noise_var": 0.0,
+    "comparator_offset": 0.0,
+    "comparator_hysteresis": 0.0,
+    "jitter_rms_s": 0.0,
+    "seed": 1
+  },
+  "numpy": "1.26.4",
+  "git_commit": "d16adcfa4445b8c4ab9a535302adc1b4961a6d8b",
+  "git_dirty": false,
+  "code_sha256": {
+    "sim/bmodel/model.py": "04b9b299a656b039333baad926f3b0f35d67ce807d0885541beb1a5e4edd6ec2",
+    "sim/bmodel/sndr.py": "afc75b3a312443aee5a1f819fcf8f2bcf31429f74cbba34f75cc97d47b7e33ef",
+    "sim/bmodel/run.py": "e77fc261e6f6fe366ca4a83dccd9d3af8eb599d87504f4dce0c15d1c86c87f60",
+    "sim/bmodel/ceiling_gap.py": "6c7e74f1929322a2e0108a460c1aa7f126fdb90d8e6751873884a8b86623cf4c"
+  },
+  "params_sha256": "f8b2fa44f7ab91cbffac235018d883bd5baca7b7c03269f392980945a1249811"
+}
