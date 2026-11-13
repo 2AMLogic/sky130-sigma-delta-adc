@@ -97,6 +97,35 @@ class DerivationCase(unittest.TestCase):
         self.assertLess(h, 0.0)
         self.assertAlmostEqual(off, -0.5e-4)
 
+    def test_quantization_bounds_a_hysteresis_free_comparator_at_one_step(self):
+        # The sweep shows the comparator only grid points `step` apart, so an
+        # ideal comparator trips one step apart in the two directions and
+        # reads h = step. The bench must therefore report an upper bound, not
+        # a measurement: a raw difference of one step means h in [0, step).
+        step = 500e-6
+        q = RUNNER.quantization(+250e-6, -250e-6, step)
+        self.assertAlmostEqual(q["hysteresis_upper_bound_V"], step)
+        self.assertEqual(q["hysteresis_lower_bound_V"], 0.0)
+        self.assertAlmostEqual(q["offset_half_width_V"], step / 2)
+
+    def test_quantization_lower_bound_bites_on_a_wide_reading(self):
+        step = 500e-6
+        q = RUNNER.quantization(+2000e-6, -2000e-6, step)
+        self.assertAlmostEqual(q["hysteresis_upper_bound_V"], 4000e-6)
+        self.assertAlmostEqual(q["hysteresis_lower_bound_V"], 3000e-6)
+
+    def test_quantization_needs_a_step_and_both_trips(self):
+        self.assertIsNone(RUNNER.quantization(1e-4, -1e-4, None))
+        self.assertIsNone(RUNNER.quantization(None, -1e-4, 5e-4))
+        self.assertIsNone(RUNNER.quantization(1e-4, -1e-4, 0.0))
+
+    def test_bracket_margin_says_how_central_each_trip_was(self):
+        mid = (MR.TRIP_UP_FIRST + MR.TRIP_UP_LAST) // 2
+        m = RUNNER.bracket_margin({"k_up": mid, "k_dn": MR.TRIP_DN_LAST})
+        self.assertEqual(m["up"], min(mid - MR.TRIP_UP_FIRST, MR.TRIP_UP_LAST - mid))
+        self.assertEqual(m["dn"], 0)        # found on the sweep's own last clock
+        self.assertEqual(RUNNER.bracket_margin({}), {"up": None, "dn": None})
+
     def test_offset_hysteresis_passes_missing_values_through(self):
         self.assertEqual(RUNNER.offset_hysteresis(None, 1e-3), (None, None))
 
@@ -328,6 +357,12 @@ class RunnerCase(unittest.TestCase):
         self.assertAlmostEqual(d["comparator_hysteresis"]["V"], 1e-3)
         self.assertAlmostEqual(d["comparator_hysteresis"]["FS"], 1e-3 / 1.2)
         self.assertEqual(d["model_b_units"]["resolution_V"], 5e-4)
+        self.assertIn("UPPER BOUND", d["model_b_units"]["what_these_numbers_are"])
+        a_corner = d["per_corner"]["tt/1.620V/-40C"]
+        self.assertAlmostEqual(a_corner["quantization"]["offset_half_width_V"], 2.5e-4)
+        self.assertEqual(a_corner["bracket_margin_clocks"],
+                         {"up": min(8 - MR.TRIP_UP_FIRST, MR.TRIP_UP_LAST - 8),
+                          "dn": min(18 - MR.TRIP_DN_FIRST, MR.TRIP_DN_LAST - 18)})
         self.assertEqual(len(d["per_corner"]), GRID_POINTS)
         self.assertEqual(d["decision_time"]["limit_s"], 97.8e-9)
         self.assertAlmostEqual(d["decision_time"]["smallest_differential_decided_V"], 0.2)

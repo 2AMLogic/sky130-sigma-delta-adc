@@ -85,6 +85,39 @@ def offset_hysteresis(v_trip_up, v_trip_dn):
     return -0.5 * (v_trip_up + v_trip_dn), v_trip_up - v_trip_dn
 
 
+def quantization(v_trip_up, v_trip_dn, step_V):
+    """What a staircase of step `step_V` can and cannot say about off and h.
+
+    The sweep only ever shows the comparator grid points `step_V` apart, so
+    with a true threshold `t` and a true hysteresis width `h`:
+
+        the up sweep flips at the first grid point above t + h/2,
+          so   v_up in (t + h/2,      t + h/2 + step]
+        the down sweep flips at the first grid point below t - h/2,
+          so   v_dn in [t - h/2 - step,  t - h/2)
+
+    Subtracting and averaging those two:
+
+        h in (v_up - v_dn - 2*step,  v_up - v_dn)
+        t in ((v_up + v_dn)/2 - step/2,  (v_up + v_dn)/2 + step/2)
+
+    So the offset is resolved to +/- step/2, and the measured difference
+    `v_up - v_dn` is an UPPER bound on the hysteresis, not a measurement of
+    it: a comparator with no hysteresis at all reads one whole step here.
+    h is clamped at 0 from below -- it cannot be negative -- but the raw
+    difference is reported unclamped by the caller so a reading that needs
+    the clamp is visible rather than hidden.
+    """
+    if v_trip_up is None or v_trip_dn is None or not step_V:
+        return None
+    step = abs(step_V)
+    raw = v_trip_up - v_trip_dn
+    return {"offset_half_width_V": step / 2.0,
+            "hysteresis_upper_bound_V": raw,
+            "hysteresis_lower_bound_V": max(0.0, raw - 2.0 * step),
+            "step_V": step}
+
+
 def decision_limit(phi1_width_s):
     """The limit the worst decision time is held to, and where it comes from.
 
@@ -210,12 +243,30 @@ def kickback_at(corner, clocks=MR.LOOP_KICK_CLKS):
     return out
 
 
+def bracket_margin(corner):
+    """Clocks between each trip and the nearer end of its own sweep.
+
+    A trip found on the first or last swept clock is bracketed only by the
+    edge of the sweep; one found in the middle is bracketed on both sides by
+    several steps. Same number, both directions, so a reader can see which
+    corners the staircase only just reached.
+    """
+    out = {}
+    for tag, first, last in (("up", MR.TRIP_UP_FIRST, MR.TRIP_UP_LAST),
+                             ("dn", MR.TRIP_DN_FIRST, MR.TRIP_DN_LAST)):
+        k = corner.get(f"k_{tag}")
+        out[tag] = None if k is None else min(int(k) - first, last - int(k))
+    return out
+
+
 def trip_summary(corners):
     """Offset and hysteresis per corner plus the binding corner of each."""
     per = {}
     for cid, c in sorted(corners.items()):
         off_V, hyst_V = offset_hysteresis(c.get("v_trip_up"), c.get("v_trip_dn"))
         step = [s for s in (c.get("step_up"), c.get("step_dn")) if s is not None]
+        step_V = max((abs(s) for s in step), default=None)
+        q = quantization(c.get("v_trip_up"), c.get("v_trip_dn"), step_V)
         per[cid] = {**parse_corner(cid),
                     "v_trip_up_V": c.get("v_trip_up"),
                     "v_trip_dn_V": c.get("v_trip_dn"),
@@ -223,7 +274,11 @@ def trip_summary(corners):
                     "comparator_offset_FS": fs(off_V),
                     "comparator_hysteresis_V": hyst_V,
                     "comparator_hysteresis_FS": fs(hyst_V),
-                    "staircase_step_V": max((abs(s) for s in step), default=None),
+                    "staircase_step_V": step_V,
+                    "quantization": q,
+                    # how far from the ends of the sweep the trip was found;
+                    # 0 means it was bracketed only by the sweep's own edge
+                    "bracket_margin_clocks": bracket_margin(c),
                     "t_decision_at_trip_up_s": c.get("tdec_up"),
                     "t_decision_at_trip_dn_s": c.get("tdec_dn")}
     off_cid, off_v = worst_abs({k: {"x": v["comparator_offset_V"]} for k, v in per.items()
@@ -245,6 +300,15 @@ def trip_summary(corners):
         # sweep narrows and its resolution sharpens. Both ends are reported,
         # each with the corner it came from, because a single number here
         # would be a claim about corners it was not measured at.
+        "what_these_numbers_are": (
+            "A staircase shows the comparator only grid points one step apart, "
+            "so the offset is resolved to +/- step/2 and the measured "
+            "v_trip_up - v_trip_dn is an UPPER BOUND on the hysteresis width, "
+            "not a measurement of it -- a comparator with no hysteresis at all "
+            "reads one whole step here. Each corner carries its own "
+            "`quantization` block with that step and both hysteresis bounds; "
+            "`comparator_hysteresis` below is the raw difference, i.e. the "
+            "upper bound, and is the conservative value to give model B."),
         "resolution_V": max(steps) if steps else None,
         "resolution_FS": fs(max(steps)) if steps else None,
         "resolution_range_V": None if not steps else {
@@ -498,6 +562,7 @@ def build_record(results, pin, stamp):
                                "Same factor sim/integrator-ci/README.md derives for x1."),
                 "resolution_V": tsum["resolution_V"], "resolution_FS": tsum["resolution_FS"],
                 "resolution_range_V": tsum["resolution_range_V"],
+                "what_these_numbers_are": tsum["what_these_numbers_are"],
             },
             "per_corner": tsum["per_corner"],
             "kickback": {

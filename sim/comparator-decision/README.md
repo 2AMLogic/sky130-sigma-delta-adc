@@ -163,6 +163,35 @@ come from hysteresis; it is reported as measured rather than clamped to zero,
 so a run in which the staircase resolution is the dominant term shows that
 rather than hiding it.
 
+### What a staircase can and cannot say
+
+A staircase shows the comparator only grid points one step `Δ` apart, so with
+a true threshold `t` and a true width `h`:
+
+    the up sweep flips at the first grid point above t + h/2
+        -> v_up in (t + h/2,     t + h/2 + Δ]
+    the down sweep flips at the first grid point below t - h/2
+        -> v_dn in [t - h/2 - Δ, t - h/2)
+
+Subtracting and averaging those:
+
+    h in (v_up - v_dn - 2Δ,  v_up - v_dn)
+    t in ((v_up + v_dn)/2 - Δ/2,  (v_up + v_dn)/2 + Δ/2)
+
+So **the offset is resolved to ±Δ/2, and `v_up − v_dn` is an upper bound on
+the hysteresis, not a measurement of it** — a comparator with no hysteresis
+at all reads one whole step here. The first fleet run measured exactly that
+shape: 522 µV at `tt`/1.800 V/27 °C against a 500 µV step, i.e. 1.04 steps.
+The record therefore carries a `quantization` block per corner with the step
+and both hysteresis bounds, and `comparator_hysteresis` is the raw
+difference — the upper bound, and the conservative value to hand model B.
+`run_decision.quantization()` is that arithmetic and the fixture tests pin
+it, including the hysteresis-free case reading one step.
+
+Each corner also carries `bracket_margin_clocks`: how many clocks separate
+each trip from the nearer end of its own sweep. Zero means the staircase only
+just reached the trip, so that corner's numbers rest on the sweep's own edge.
+
 ## Decision time, and the limit it is held to
 
 The measurement is the delay from the **phi1 rising edge** (50 % of `v(vdda)`,
