@@ -2,6 +2,11 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-13
+
+- **PR #89**: docs: record klt netlist --check result for vendored comparator
+- **Issue #60** (closed): Close klt netlist --check for vendored comparator.sch (needs xschem >= 3.4.5)
+
 ### 2026-11-12
 
 - **PR #87**: Bump Repo Skills 0.25.10 -> 0.26.1
