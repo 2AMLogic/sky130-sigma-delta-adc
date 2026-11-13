@@ -172,11 +172,12 @@ def save_partial(v, mc, result):
     partial_path(v, mc).write_text(json.dumps(result, indent=2) + "\n")
 
 
-def submit(v, mc, tmp, probe=False, probe_path=None):
+def submit(v, mc, tmp, probe=False, probe_path=None, hosts=None):
     req = HERE / (f"request_mc_{v}.json" if mc else f"request_{v}.json")
     tag = f"mc-{v}" if mc else v
     res = run_klt(req, probe, tmp, tag, probe_path or (HERE / f"probe_request_{tag}.json"),
-                  artifacts_dir=None if probe else ARTIFACTS, keys=mk.KEYS)
+                  artifacts_dir=None if probe else ARTIFACTS, keys=mk.KEYS,
+                  hosts=None if probe else hosts)
     if res is None:
         print(f"{tag}: no usable report (see .artifacts/klt-{tag}.stderr.txt); not "
               "falling back to a local grid or to .partials/", file=sys.stderr)
@@ -290,6 +291,20 @@ def dac_crosscheck(results):
             "gain measurement instead, it is an independent check of the OTA DC "
             "gain against the ~55 dB in design/ota/SIZING.md."),
     }
+
+
+# A Monte Carlo campaign returns anchors x N samples; carrying all of
+# make_request.KEYS for each would make the record megabytes of JSON for no
+# gain. These are the per-sample values the record actually reasons about: the
+# step itself, the confounders named in README.md "What else is in the step",
+# and enough provenance to find the sample again.
+MC_SAMPLE_KEYS = ("status", "dvod_mean", "dvoc_mean", "vod_rst", "dvod_leak",
+                  "voc_swing", "w_c3", "diagnostics", "monte_carlo")
+
+
+def trim_mc_samples(corners):
+    return {cid: {k: v for k, v in c.items() if k in MC_SAMPLE_KEYS}
+            for cid, c in corners.items()}
 
 
 def mc_stats(corners):
@@ -506,6 +521,14 @@ def main():
     ap.add_argument("--record", action="store_true",
                     help="write the record (refuses to overwrite: records are append-only)")
     ap.add_argument("--record-name", help="record file name (default: record.json / record-mc.json)")
+    ap.add_argument("--hosts", type=int, metavar="N",
+                    help="shard each submission across N fleet instances. A Monte "
+                         "Carlo campaign is anchors x N units in ONE job, and the "
+                         "fleet kills a job still running at its whole-job ceiling "
+                         "(reporting every unit batch_job_timeout), so split it if "
+                         "the receipt's job_ceiling warns. Sharding does not change "
+                         "the request file, so a partial from an unsharded run of "
+                         "the same request stays valid.")
     a = ap.parse_args()
 
     pin = json.load(open(REPO / "sim/pdk.json"))
@@ -550,7 +573,7 @@ def main():
                     print(f"{v}: reusing {partial_path(v, a.mc).name} ({saved['summary']})")
                     results[v] = saved
                 continue
-            res = submit(v, a.mc, tmp)
+            res = submit(v, a.mc, tmp, hosts=a.hosts)
             if res is None:
                 continue
             print(v, json.dumps(res["summary"], indent=2))
@@ -602,6 +625,13 @@ def main():
         }
         rec["derived"] = (mc_derivation(results, areas) if a.mc
                           else {**nominal_derivation(results), "sqrt_wl_prediction": areas})
+        if a.mc:
+            # Derivations above read the full corner sets; the record keeps the
+            # trimmed per-sample rows (.partials/ still holds everything).
+            for v in want:
+                rec["variants"][v] = {**results[v],
+                                      "corners": trim_mc_samples(results[v]["corners"]),
+                                      "corner_keys_kept": list(MC_SAMPLE_KEYS)}
         out.write_text(json.dumps(rec, indent=2) + "\n")
         print(f"wrote {out.name}: pass={rec['pass']}")
         return 0 if rec["pass"] else 1

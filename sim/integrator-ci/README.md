@@ -263,6 +263,15 @@ Grids are expressed as `klt sim` requests and submitted to the batch fleet with
 `--wait-for-capacity` (`settling_common.CAPACITY_WAIT_S`); only the single-corner
 probes run locally. `run_ci.py` never falls back to a local grid.
 
+**The Monte Carlo campaign is one job of `anchors × N` units**, and the fleet
+kills a job still running at its whole-job ceiling, reporting every unit
+`batch_job_timeout`. The batch receipt's `job_ceiling` block says whether a
+submission is near it. If it warns, split the campaign with
+`run_ci.py --mc --hosts N`: sharding is a submission choice, so it does not
+change the request file and a partial from an unsharded run of the same request
+stays valid. (For reference, the 45-unit nominal grid came back in 106 s of
+fleet time on one `m7i.4xlarge`.)
+
 Each completed variant is cached under `.partials/` (gitignored), keyed on the
 request **and** deck sha256, so a capacity refusal on one variant does not
 discard another's corners — re-run the missing one with `--variant`. A variant

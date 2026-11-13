@@ -111,6 +111,7 @@ class RunnerCase(unittest.TestCase):
         self.work = self.tmp / "work"
         self.work.mkdir()
         self.calls = []
+        self.kwargs = []
 
     def shas(self, v, mc=False):
         with mock.patch.object(RUNNER, "HERE", self.here), mock.patch.object(MK, "HERE", self.here):
@@ -132,6 +133,7 @@ class RunnerCase(unittest.TestCase):
         """main() with argv; `submits` maps run_klt tag -> its return value."""
         def fake_run_klt(request_path, probe, tmpdir, tag, probe_path, **kw):
             self.calls.append(tag)
+            self.kwargs.append(kw)
             return submits.get(tag)
 
         out, err = io.StringIO(), io.StringIO()
@@ -336,6 +338,42 @@ class MonteCarloMode(RunnerCase):
         self.assertEqual(self.calls, ["mc-pre_v0"], "only pre_v0 was requested")
         self.assertNoRecord("record-mc.json")
         self.assertFalse((self.partials / "mc-post_v0.json").exists())
+
+    def test_mc_record_trims_per_sample_rows_but_keeps_the_statistics(self):
+        """anchors x N x 41 keys would be megabytes; the stats must survive it."""
+        rc, out, err = self.run_main(["--mc", "--record"], self.mc_submits())
+
+        self.assertEqual(rc, 0, f"stderr={err!r}")
+        rec = json.loads((self.here / "record-mc.json").read_text())
+        sample = next(iter(rec["variants"]["post_v0"]["corners"].values()))
+        self.assertEqual(set(sample) - set(RUNNER.MC_SAMPLE_KEYS), set())
+        self.assertIn("dvod_mean", sample, "the step itself must be kept")
+        self.assertIn("vod_rst", sample, "the OTA-offset confounder must be kept")
+        self.assertNotIn("vod_c0", sample, "the per-cycle reads are dropped")
+        self.assertEqual(rec["variants"]["post_v0"]["corner_keys_kept"],
+                         list(RUNNER.MC_SAMPLE_KEYS))
+        # The derivation ran on the untrimmed corners, so sigma is still there.
+        d = rec["derived"]
+        self.assertEqual(len(d["post_i92"]), len(MK.ANCHOR_POINTS))
+        for st in d["post_i92"].values():
+            self.assertEqual(st["n"], MK.MC_N)
+            self.assertGreater(st["sigma_dvod_V"], 0.0)
+        self.assertEqual(len(d["sigma_ratio"]), len(MK.ANCHOR_POINTS))
+        self.assertIn("sqrt_wl_prediction", d)
+
+    def test_hosts_is_passed_through_to_every_submission(self):
+        """Sharding is how a campaign fits under the fleet's whole-job ceiling."""
+        rc, _, err = self.run_main(["--mc", "--hosts", "4"], self.mc_submits())
+
+        self.assertEqual(rc, 0, f"stderr={err!r}")
+        self.assertEqual([k.get("hosts") for k in self.kwargs], [4, 4])
+
+    def test_hosts_does_not_change_the_request_files(self):
+        """A sharded re-run must still match an unsharded partial's sha."""
+        before = {v: (self.here / f"request_mc_{v}.json").read_bytes() for v in MCV}
+        self.run_main(["--mc", "--hosts", "7"], self.mc_submits())
+        for v in MCV:
+            self.assertEqual((self.here / f"request_mc_{v}.json").read_bytes(), before[v])
 
     def test_mc_variant_filter_rejects_a_nominal_only_variant(self):
         rc, _, err = self.run_main(["--mc", "--variant", "post_dac"], self.mc_submits())

@@ -96,7 +96,8 @@ def _find_receipt(outdir):
 
 
 def run_klt(request_path, probe, tmpdir, tag, probe_path, *,
-            capacity_wait_s=CAPACITY_WAIT_S, artifacts_dir=None, keys=KEYS):
+            capacity_wait_s=CAPACITY_WAIT_S, artifacts_dir=None, keys=KEYS,
+            hosts=None):
     """Run `klt sim` on request_path; with probe, on one local tt/27C/1.8V corner.
 
     Batch submits always pass --wait-for-capacity, so a refused launch waits
@@ -106,6 +107,13 @@ def run_klt(request_path, probe, tmpdir, tag, probe_path, *,
 
     `keys` selects which measurements are carried into the per-corner dict
     (default: the settling benches' KEYS).
+
+    `hosts` shards the expanded unit list across that many fleet instances
+    (`--hosts`). The fleet kills a job that is still running at its whole-job
+    ceiling and reports every unit `batch_job_timeout`, so a request whose unit
+    count makes one job's wall clock approach that ceiling has to be split;
+    sharding is a submission choice, not a property of the request, so it never
+    changes the request file or its sha256.
 
     Returns (report, corners) or None (details on stderr) if no usable report.
     """
@@ -125,6 +133,8 @@ def run_klt(request_path, probe, tmpdir, tag, probe_path, *,
         cmd += ["--backend", "local"]
     else:
         cmd += ["--wait-for-capacity", str(capacity_wait_s)]
+        if hosts:
+            cmd += ["--hosts", str(hosts)]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if probe:
         probe_path.unlink()
