@@ -337,6 +337,7 @@ def decompose(params, n_out, amp_dbfs=AMP_DBFS):
         "params": params,
         "numpy": np.__version__,
         **run.git_state(),
+        **run.code_state(extra=[__file__]),
     }
 
 

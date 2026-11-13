@@ -306,6 +306,23 @@ class CodeIdentity(unittest.TestCase):
                                 base["sim/bmodel/sndr.py"])
         self.assertEqual(run.code_state()["code_sha256"], base)
 
+    def test_decompose_record_stamps_ceiling_gap_code_hash(self):
+        """The ceiling-gap record names its own estimator, not just run.py's.
+
+        `ceiling_gap.decompose()` is a second B-record writer, so it has to
+        stamp `code_sha256` the same way `run.build_record` does (issue #108),
+        and the map has to include `ceiling_gap.py` itself -- without the
+        `extra=[__file__]` the record would name the three shared B-model files
+        and silently omit the code that actually produced the decomposition.
+        """
+        d = ceiling_gap.decompose(ideal(), 2**12)
+        self.assertEqual(set(d["code_sha256"]),
+                         {"sim/bmodel/model.py", "sim/bmodel/sndr.py",
+                          "sim/bmodel/run.py", "sim/bmodel/ceiling_gap.py"})
+        for rel, got in d["code_sha256"].items():
+            want = hashlib.sha256((run.REPO / rel).read_bytes()).hexdigest()
+            self.assertEqual(got, want, rel)
+
 
 if __name__ == "__main__":
     unittest.main()
