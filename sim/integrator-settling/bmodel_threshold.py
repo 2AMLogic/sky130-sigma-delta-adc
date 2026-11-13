@@ -111,6 +111,7 @@ def main():
         "numpy": np.__version__,
         "generated_at_utc": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         **bmodel_run.git_state(),
+        **bmodel_run.code_state(extra=[__file__]),
     }
     (HERE / OUT_NAME).write_text(json.dumps(out, indent=2) + "\n")
     print(f"\nthreshold settling_error = {threshold} "
