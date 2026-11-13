@@ -299,6 +299,8 @@ class RunnerCase(unittest.TestCase):
             "design/modulator/comparator/comparator_core.spice",
             "design/ota/ota_fd.spice"})
         self.assertEqual(rec["variants"]["loop"]["remote"], {"job_id": "klt-sim-0001"})
+        self.assertEqual(rec["batch_job_ids"],
+                         {"loop": ["klt-sim-0001"], "trip": ["klt-sim-0001"]})
         d = rec["derived"]
         self.assertAlmostEqual(d["comparator_offset"]["V"], 1e-4)
         self.assertAlmostEqual(d["comparator_offset"]["FS"], 1e-4 / 1.2)
@@ -307,6 +309,7 @@ class RunnerCase(unittest.TestCase):
         self.assertEqual(d["model_b_units"]["resolution_V"], 5e-4)
         self.assertEqual(len(d["per_corner"]), GRID_POINTS)
         self.assertEqual(d["decision_time"]["limit_s"], 97.8e-9)
+        self.assertAlmostEqual(d["decision_time"]["smallest_differential_decided_V"], 0.2)
         # the intermediate crossings come from the same clock as the worst
         # delay, not from whichever clock happened to be worst for each
         at = d["decision_time"]["at_the_worst_clock"]
@@ -330,6 +333,17 @@ class RunnerCase(unittest.TestCase):
             self.assertAlmostEqual(kb[f"worst_o2p_V"],
                                    max(loop_corner()[f"kb_o2p_{j}"]
                                        for j in MR.LOOP_KICK_CLKS))
+
+    def test_job_ids_are_listed_whether_or_not_the_request_was_sharded(self):
+        # The ceiling splitter turns one job into N shards; the record has to
+        # name every machine either way.
+        self.assertEqual(RUNNER.job_ids({"remote": {"job_id": "klt-sim-a"}}), ["klt-sim-a"])
+        self.assertEqual(
+            RUNNER.job_ids({"remote": {"fleet": [{"job_id": "klt-sim-a"},
+                                                 {"job_id": "klt-sim-b"}]}}),
+            ["klt-sim-a", "klt-sim-b"])
+        self.assertEqual(RUNNER.job_ids({"remote": None}), [])
+        self.assertEqual(RUNNER.job_ids({}), [])
 
     def test_the_binding_decision_corner_is_the_worst_fraction(self):
         loop = grid(loop_corner)

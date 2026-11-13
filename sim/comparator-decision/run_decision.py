@@ -147,6 +147,12 @@ def binding_decision(corners):
             "limit_s": decision_limit(c.get("phi1_width")),
             "fraction_of_limit": frac,
             "flips_counted": c.get("n_flip"),
+            # the smallest differential this corner was actually asked to
+            # decide on, over the graded clocks: the bench does not command
+            # the overdrive, the closed loop presents it
+            "smallest_differential_decided_V": min(
+                (abs(r["vod_V"]) for r in per_clock_rows(c, MR.LOOP_FIRST, MR.LOOP_LAST)
+                 if r["vod_V"] is not None), default=None),
             # The intermediate crossings are reported from the SAME clock as
             # the worst delay. The corner-wide worsts below are each taken
             # over a different clock, so they do not line up with it and must
@@ -160,6 +166,20 @@ def binding_decision(corners):
             "worst_over_all_graded_clocks": {
                 "t_to_comparator_outputs_s": c.get("tcmp_worst"),
                 "t_to_sr_latch_s": c.get("tq_worst")}}
+
+
+def job_ids(result):
+    """Every fleet job id behind one variant's grid, in submission order.
+
+    A request small enough for one job reports `{"job_id": ...}`; one the
+    whole-job ceiling split reports `{"fleet": [...]}`, one entry per shard.
+    The record names them either way -- that is the thread back from a number
+    to the machine that produced it.
+    """
+    r = (result or {}).get("remote") or {}
+    if r.get("fleet"):
+        return [f.get("job_id") for f in r["fleet"]]
+    return [r["job_id"]] if r.get("job_id") else []
 
 
 def kickback_at(corner, clocks=MR.LOOP_KICK_CLKS):
@@ -424,6 +444,7 @@ def build_record(results, pin, stamp):
         "klt": subprocess.run(["klt", "--version"], capture_output=True, text=True).stdout.strip(),
         "netlist_sha256": netlist_hashes(),
         "comparator_pin": cmp_pin,
+        "batch_job_ids": {v: job_ids(results[v]) for v in VARIANTS},
         "derived": {
             "decision_time": dec,
             "limit_derivation": (
