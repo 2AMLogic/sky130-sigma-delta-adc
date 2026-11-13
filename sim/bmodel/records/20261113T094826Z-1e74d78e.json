@@ -1,0 +1,110 @@
+{
+  "source": "B",
+  "result_kind": "simulated (behavioural model B, uncross-checked)",
+  "corner": "none (parameters not tied to a corner)",
+  "cross_check": "none (not cross-checked against T)",
+  "record_len": 65536,
+  "window": "Blackman-Harris 4-term",
+  "bin_bw_hz": 1.2207403790398876,
+  "band_hz": [
+    0,
+    20000.0
+  ],
+  "excluded_bins": {
+    "dc": [
+      0,
+      4
+    ],
+    "tone_lobe": [
+      1635,
+      1643
+    ]
+  },
+  "band_edge_bin": 16384,
+  "enbw_bins": 2.0043529382170466,
+  "tone_cycles": 1639,
+  "tone_hz": 2000.732421875,
+  "amplitude_dbfs": -6,
+  "peak_sndr_db": 80.06400389552064,
+  "peak_at_sweep_ceiling": true,
+  "sweep": [
+    {
+      "amplitude_dbfs": -60,
+      "sndr_db": 25.295603909057498
+    },
+    {
+      "amplitude_dbfs": -50,
+      "sndr_db": 28.96293149557713
+    },
+    {
+      "amplitude_dbfs": -40,
+      "sndr_db": 46.16541587629361
+    },
+    {
+      "amplitude_dbfs": -30,
+      "sndr_db": 57.54152436574938
+    },
+    {
+      "amplitude_dbfs": -24,
+      "sndr_db": 63.5567544209718
+    },
+    {
+      "amplitude_dbfs": -18,
+      "sndr_db": 69.70232525600353
+    },
+    {
+      "amplitude_dbfs": -14,
+      "sndr_db": 74.88996533640785
+    },
+    {
+      "amplitude_dbfs": -12,
+      "sndr_db": 76.10167648892529
+    },
+    {
+      "amplitude_dbfs": -10,
+      "sndr_db": 78.03026243642626
+    },
+    {
+      "amplitude_dbfs": -8,
+      "sndr_db": 79.6487156030025
+    },
+    {
+      "amplitude_dbfs": -7,
+      "sndr_db": 79.74955377352558
+    },
+    {
+      "amplitude_dbfs": -6,
+      "sndr_db": 80.06400389552064
+    }
+  ],
+  "oversampling_ratio": 128,
+  "fs_hz": 5120000.0,
+  "fout_hz": 80000.0,
+  "decimation": {
+    "filter": "sinc^3 float64",
+    "factor": 64
+  },
+  "modulator_clocks": 4194304,
+  "warmup_clocks_discarded": 512,
+  "loop": {
+    "a1": 0.5,
+    "a2": 0.5,
+    "feedback_to_integrator_2": 1.0,
+    "structure": "delaying integrators"
+  },
+  "params": {
+    "dc_gain": null,
+    "settling_error": 0.57,
+    "ci_offset": 0.0,
+    "ci_gain_error": 0.0,
+    "ktc_noise_var": 0.0,
+    "comparator_offset": 0.0,
+    "comparator_hysteresis": 0.0,
+    "jitter_rms_s": 0.0,
+    "seed": 1
+  },
+  "params_sha256": "1e74d78e288e564766d640767fec2191bce2c669e2014f3579f03685cdf0933f",
+  "numpy": "1.26.4",
+  "git_commit": "337bb5bac99473db983181d95500ebd51874da32",
+  "git_dirty": true
+}

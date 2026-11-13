@@ -1,0 +1,96 @@
+{
+  "question": "largest B-model settling_error keeping peak SNDR >= 80.0 dB",
+  "source": "B",
+  "result_kind": "simulated (behavioural model B, uncross-checked)",
+  "threshold_settling_error": 0.57,
+  "threshold_peak_sndr_db": 80.06400389552064,
+  "threshold_amplitude_dbfs": -6,
+  "first_failing_settling_error": 0.58,
+  "resolution": 0.01,
+  "target_sndr_db": 80.0,
+  "record_len": 65536,
+  "window": "Blackman-Harris 4-term",
+  "bin_bw_hz": 1.2207403790398876,
+  "band_hz": [
+    0,
+    20000.0
+  ],
+  "tone_cycles": 1639,
+  "model_limitation": "settling_error is a linear gain factor (1 - settling_error) applied equally to both integrator inputs, constant over the record. It models the signal-independent part of incomplete settling only. Slew-limited settling is signal-dependent and generates distortion this parameter cannot represent, so this threshold is NOT a licence to accept a transistor-level err_phase of the same size.",
+  "scan": [
+    {
+      "settling_error": 0.0,
+      "peak_sndr_db": 89.19024834397845,
+      "amplitude_dbfs": -6
+    },
+    {
+      "settling_error": 0.1,
+      "peak_sndr_db": 89.45900471608493,
+      "amplitude_dbfs": -6
+    },
+    {
+      "settling_error": 0.2,
+      "peak_sndr_db": 88.8873018957415,
+      "amplitude_dbfs": -6
+    },
+    {
+      "settling_error": 0.3,
+      "peak_sndr_db": 87.74866645644877,
+      "amplitude_dbfs": -6
+    },
+    {
+      "settling_error": 0.4,
+      "peak_sndr_db": 86.35890897092507,
+      "amplitude_dbfs": -6
+    },
+    {
+      "settling_error": 0.45,
+      "peak_sndr_db": 84.94314950501483,
+      "amplitude_dbfs": -6
+    },
+    {
+      "settling_error": 0.5,
+      "peak_sndr_db": 82.96754321197318,
+      "amplitude_dbfs": -6
+    },
+    {
+      "settling_error": 0.55,
+      "peak_sndr_db": 80.94719850038004,
+      "amplitude_dbfs": -6
+    },
+    {
+      "settling_error": 0.56,
+      "peak_sndr_db": 80.6022501502479,
+      "amplitude_dbfs": -6
+    },
+    {
+      "settling_error": 0.57,
+      "peak_sndr_db": 80.06400389552064,
+      "amplitude_dbfs": -6
+    },
+    {
+      "settling_error": 0.58,
+      "peak_sndr_db": 79.5697447253674,
+      "amplitude_dbfs": -6
+    },
+    {
+      "settling_error": 0.6,
+      "peak_sndr_db": 78.77317472816797,
+      "amplitude_dbfs": -6
+    },
+    {
+      "settling_error": 0.65,
+      "peak_sndr_db": 76.91934490251435,
+      "amplitude_dbfs": -8
+    },
+    {
+      "settling_error": 0.7,
+      "peak_sndr_db": 75.39553185196286,
+      "amplitude_dbfs": -8
+    }
+  ],
+  "numpy": "1.26.4",
+  "generated_at_utc": "2026-11-13T09:48:16Z",
+  "git_commit": "337bb5bac99473db983181d95500ebd51874da32",
+  "git_dirty": true
+}

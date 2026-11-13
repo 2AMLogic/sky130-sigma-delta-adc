@@ -112,6 +112,7 @@
     "keep_artifacts": false
   },
   "batch": {
-    "poll_timeout_s": 7200
+    "poll_timeout_s": 7200,
+    "capacity_wait_s": 600
   }
 }
