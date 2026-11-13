@@ -28,16 +28,28 @@ Files in this directory:
 ## What is and is not checked
 
 - `wrap_comparator.sh --check` (exit 0): `comparator.spice` matches its inputs.
-- **`klt netlist --check` on `comparator.sch` cannot pass on this host.** The
-  vendored schematic's device parameters use xschem `expr()`, which xschem
-  3.4.4 (the version on the worker) does not evaluate, and `klt netlist`
-  refuses the result (exit 1). `sim/toolchain.json` records xschem 3.4.7, the
-  version the sibling's netlist was produced with. So `comparator_core.spice`
-  is the sibling's own committed output, not regenerated here; it was compared
-  by eye against the schematic's device list (13 MOSFETs, 3 `res_high_po_0p35`)
-  and the sibling's own `netlist.sh` asserts the same counts. Re-run
-  `klt netlist design/modulator/comparator/comparator.sch -o design/modulator/comparator/comparator_core.spice --rcfile design/xschemrc --check`
-  on a host with xschem >= 3.4.5 to close this.
+- **`klt netlist --check` on `comparator.sch`: run 2026-11-13, rc=3 (diff
+  found), device lines identical.** Host xschem 3.4.7 (`XSCHEM V3.4.7`), klt
+  `0.9.2.dev885+ge4c446bd91f2`. The earlier note that the check "cannot pass"
+  (xschem 3.4.4 did not evaluate the schematic's `expr()` parameters and `klt
+  netlist` refused, exit 1) no longer applies: on 3.4.7 the check runs. It
+  still returns rc=3 because `--check` is byte-level, and the vendored
+  `comparator_core.spice` is the sibling's committed output with its own hand
+  header comment block (lines 1-68) and none of the wrapper lines xschem emits
+  (`** sch_path:`, `**.subckt`, `**.ends`, `.end`). Those header/footer lines
+  are the only differences. Device lines (the `X...` lines and their `+`
+  continuations) were compared after regenerating to a scratch path without
+  `--check`:
+
+  ```
+  klt netlist design/modulator/comparator/comparator.sch -o /tmp/cmp_regen.spice --rcfile design/xschemrc
+  diff <(grep -E '^(X|\+)' design/modulator/comparator/comparator_core.spice) \
+       <(grep -E '^(X|\+)' /tmp/cmp_regen.spice)
+  ```
+
+  The `diff` output is empty. This is a simulated-netlist equivalence of
+  device lines, not a byte-level `--check` pass. Neither vendored file was
+  edited (sha256 values above unchanged).
 
 ## Checks DR-003 still owes (not done here)
 
