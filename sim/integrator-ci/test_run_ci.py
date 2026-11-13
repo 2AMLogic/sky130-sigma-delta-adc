@@ -499,6 +499,51 @@ class DrawnCapRatio(unittest.TestCase):
         self.assertNotIn("slope_vs_drawn_cap_ratio_rel", row)
 
 
+class BmodelParams(unittest.TestCase):
+    """The model-B parameter sets are derived from the records, not hand-typed."""
+
+    NOM = {"derived": {"worst_ci_offset_fs": {"corner": "ss/1.800V/-40C", "value": 1.9e-07},
+                       "worst_slope_vs_drawn_cap_ratio_rel": {"corner": "ss/1.620V/-40C",
+                                                              "value": -0.54}},
+           "variants": {"post_v0": {"remote": {"job_id": "job-nom"}}}}
+    MC = {"derived": {"worst_abs_ci_offset_fs": 4.2e-05,
+                      "worst_abs_dvod_V": {"corner": "ss/1.620_125", "value": 5.04e-05}},
+          "variants": {"post_v0": {"remote": {"job_id": "job-mc"}}}}
+
+    def test_worst_ci_offset_is_taken_across_both_records(self):
+        s = RUNNER.bmodel_params(self.NOM, self.MC)
+        self.assertAlmostEqual(s["injection"]["ci_offset"], 4.2e-05)
+        self.assertIn("monte carlo", s["provenance"]["ci_offset_from"])
+        self.assertEqual(s["provenance"]["records"],
+                         {"nominal_record": "job-nom", "mc_record": "job-mc"})
+
+    def test_injection_set_leaves_gain_error_at_zero(self):
+        """A value the bench cannot resolve must not be invented."""
+        s = RUNNER.bmodel_params(self.NOM, self.MC)
+        self.assertEqual(s["injection"]["ci_gain_error"], 0.0)
+        self.assertAlmostEqual(s["worst_bound"]["ci_gain_error"], 0.54)
+        self.assertEqual(s["injection"]["ci_offset"], s["worst_bound"]["ci_offset"])
+
+    def test_both_sets_validate_against_the_real_model_b_schema(self):
+        """model.validate_params is the schema: unknown or missing keys are errors."""
+        sys.path.insert(0, str(RUNNER.REPO / "sim/bmodel"))
+        try:
+            import model
+        except ImportError as e:
+            self.skipTest(f"model B needs numpy: {e}")
+        s = RUNNER.bmodel_params(self.NOM, self.MC)
+        for name in ("injection", "worst_bound"):
+            model.validate_params(s[name])
+
+    def test_nominal_record_alone_is_enough(self):
+        s = RUNNER.bmodel_params(self.NOM, None)
+        self.assertAlmostEqual(s["injection"]["ci_offset"], 1.9e-07)
+        self.assertIn("nominal grid", s["provenance"]["ci_offset_from"])
+
+    def test_no_records_yields_nothing_rather_than_zeros(self):
+        self.assertIsNone(RUNNER.bmodel_params(None, None))
+
+
 class AreaPrediction(unittest.TestCase):
     """The sqrt(W L) prediction is read off the two real committed netlists."""
 

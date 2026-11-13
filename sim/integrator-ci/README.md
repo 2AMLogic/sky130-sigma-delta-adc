@@ -332,9 +332,9 @@ fixture tests.
   is off and its PMOS half has ~0.1 V of overdrive. At `tt`/27 °C/1.80 V the same
   sampling is exact to six digits, so this is corner-specific and not a property
   of the bench. It is **not** charge injection, it is out of scope for this
-  issue, and it is filed separately — a per-corner `ci_gain_error_bound` from the
-  slow/cold corners is dominated by it and must not be read as a gain error of
-  the charge-transfer path.
+  issue, and it is filed as **#106** — a per-corner `ci_gain_error_bound` from
+  the slow/cold corners is dominated by it and must not be read as a gain error
+  of the charge-transfer path.
 - **Clocks are behavioural**, rail-to-rail with 200 ps edges and ≥ 4.7 ns
   non-overlap from `PULSE` shape sources. There is no non-overlap generator, so
   clock feedthrough from real `clkgen` skew — including a `Sti`/`Str` half left

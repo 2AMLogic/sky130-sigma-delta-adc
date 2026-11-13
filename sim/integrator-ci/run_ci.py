@@ -524,6 +524,93 @@ def probe_step(variant, tmp):
     return 0
 
 
+# ------------------------------------------------- model-B parameter files --
+BMODEL_DEFAULTS = {"dc_gain": None, "settling_error": 0.0, "ci_offset": 0.0,
+                   "ci_gain_error": 0.0, "ktc_noise_var": 0.0,
+                   "comparator_offset": 0.0, "comparator_hysteresis": 0.0,
+                   "jitter_rms_s": 0.0, "seed": 1}
+
+
+def bmodel_params(nominal=None, mc=None):
+    """Model-B parameter sets from the records -- derived, never hand-typed.
+
+    Two sets, because "the worst extracted value" has two honest readings:
+
+    - `injection`: what the bench attributes to charge injection. `ci_offset` is
+      the worst differential residual over everything recorded; `ci_gain_error`
+      is 0 because the signal-dependent part came back below the bench's
+      resolution (README.md "Limits"), and a number the bench cannot resolve
+      must not be invented.
+    - `worst_bound`: the same `ci_offset` with `ci_gain_error` set to the worst
+      slope departure from the drawn capacitor ratio. That bound still contains
+      incomplete input sampling (#106), charge transfer and finite gain, so it
+      over-states charge injection on purpose -- it answers "even at the bound,
+      does this cost SNDR?".
+    """
+    offsets, bounds, prov = [], [], {}
+    if nominal:
+        d = nominal["derived"]
+        if d.get("worst_ci_offset_fs"):
+            offsets.append((abs(d["worst_ci_offset_fs"]["value"]),
+                            f"nominal grid, {d['worst_ci_offset_fs']['corner']}"))
+        if d.get("worst_slope_vs_drawn_cap_ratio_rel"):
+            w = d["worst_slope_vs_drawn_cap_ratio_rel"]
+            bounds.append((abs(w["value"]), f"nominal grid, {w['corner']}"))
+        prov["nominal_record"] = nominal.get("variants", {}).get(
+            "post_v0", {}).get("remote", {}).get("job_id")
+    if mc:
+        d = mc["derived"]
+        if d.get("worst_abs_ci_offset_fs") is not None:
+            offsets.append((abs(d["worst_abs_ci_offset_fs"]),
+                            f"monte carlo, {d['worst_abs_dvod_V']['corner']}"))
+        prov["mc_record"] = mc.get("variants", {}).get(
+            "post_v0", {}).get("remote", {}).get("job_id")
+    if not offsets:
+        return None
+    off, off_src = max(offsets)
+    bnd, bnd_src = max(bounds) if bounds else (0.0, "not extracted")
+    return {
+        "injection": {**BMODEL_DEFAULTS, "ci_offset": off, "ci_gain_error": 0.0},
+        "worst_bound": {**BMODEL_DEFAULTS, "ci_offset": off, "ci_gain_error": bnd},
+        "provenance": {
+            "ci_offset_fs": off, "ci_offset_from": off_src,
+            "ci_gain_error_bound": bnd, "ci_gain_error_bound_from": bnd_src,
+            "ci_gain_error_injection": 0.0,
+            "ci_gain_error_injection_why": (
+                "the signal-dependent part of charge injection came back below "
+                "the bench's resolution; the slope the fit sees is accounted for "
+                "by the drawn capacitor ratio, the finite-gain leak and, at the "
+                "slow/cold corners, incomplete input sampling (#106)"),
+            "records": prov,
+            "sign": ("ci_offset is entered as a magnitude: model B shapes it "
+                     "through one integrator, so the sign moves the output mean "
+                     "and not the in-band noise"),
+        },
+    }
+
+
+def write_bmodel_params(outdir):
+    nom = HERE / "record.json"
+    mc = HERE / "record-mc.json"
+    sets = bmodel_params(
+        json.loads(nom.read_text()) if nom.exists() else None,
+        json.loads(mc.read_text()) if mc.exists() else None)
+    if sets is None:
+        print("REFUSE: no record.json or record-mc.json to derive parameters from; "
+              "run the grids first", file=sys.stderr)
+        return 1
+    outdir = pathlib.Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    for name in ("injection", "worst_bound"):
+        f = outdir / f"bmodel-ci-{name.replace('_', '-')}.json"
+        f.write_text(json.dumps(sets[name], indent=2) + "\n")
+        print(f"wrote {f}")
+    (outdir / "bmodel-ci-provenance.json").write_text(
+        json.dumps(sets["provenance"], indent=2) + "\n")
+    print(json.dumps(sets["provenance"], indent=2))
+    return 0
+
+
 # ----------------------------------------------------------------- main -----
 def conditions():
     return {
@@ -561,6 +648,10 @@ def main():
                     help="one tt/27C/1.8V corner of a variant, local, no record")
     ap.add_argument("--probe-step", choices=GRID_VARIANTS,
                     help="one local corner at two internal step sizes, no record")
+    ap.add_argument("--bmodel-params", metavar="DIR",
+                    help="derive model-B parameter files from the committed "
+                         "records and write them to DIR; run them through "
+                         "sim/bmodel/run.py. Nothing is simulated here.")
     ap.add_argument("--self-test", action="store_true",
                     help="local sensitivity check against a deliberately skewed cell")
     ap.add_argument("--record", action="store_true",
@@ -583,6 +674,8 @@ def main():
                          "the same request stays valid.")
     a = ap.parse_args()
 
+    if a.bmodel_params:          # reads records only: no klt, no PDK, no fleet
+        return write_bmodel_params(a.bmodel_params)
     pin = json.load(open(REPO / "sim/pdk.json"))
     root, stamp = pdk_stamp(pin["variant"], a.pdk_root)
     if stamp != pin["sources_stamp"]:
