@@ -12,6 +12,8 @@ gate-level netlist `rtl/netlist/decimator_synth.v`. Not hand-edited.
 | `run_pnr.py` | driver; `python3 layout/digital/run_pnr.py` regenerates, `--check` compares |
 | `decimator.gds` | routed layout (T1 item 2, digital); hash-pinned by `design/attest/item2-digital-envelope.json` |
 | `decimator.def`, `decimator_pnr.v` | routed DEF and as-built netlist (CTS buffers included): the LVS reference for #32 |
+| `sta_request.json` | the multi-corner `klt sta` request on the routed DEF |
+| `sta-decimator.report.json` | the committed STA report (T1 item 5, digital, with `verification/decimator/fv-decimator.report.json`) |
 
 Recorded choices (`pnr_request.json`):
 
@@ -22,7 +24,7 @@ Recorded choices (`pnr_request.json`):
   target (42.4 % achieved), 5 um core margin. DR-004 gives no coordinates and the analog
   floorplan (#29) has not landed, so this is a standalone block outline; placing it opposite
   the first integrator is left to the assembly step.
-- **Clock**: `clk`, 195.3125 ns (fs = 5.12 MHz, spec row 5). Timing closure is #33's concern.
+- **Clock**: `clk`, 195.3125 ns (fs = 5.12 MHz, spec row 5). Timing is graded by the STA below.
 
 Reproducibility: two independent runs of the driver (same pinned PDK, OpenROAD
 `26Q3-1510-g6cb3f2b704` container, seed 1) gave a byte-identical GDS, DEF and netlist. The
@@ -47,7 +49,108 @@ Analog-partition and assembled-top DRC stay with #31.
 What the router reports: 0 unrouted nets, detailed-route DRC
 count converged to 0, 0 antenna violations. The report also lists max-transition (2053) and
 max-capacitance (43) violations against the library limits, concentrated in the slow corners
-(`ss_*`, 1.28-1.76 V); these are not addressed here and no timing number is claimed.
+(`ss_*`, 1.28-1.76 V); these are not addressed here. The router's own in-flow corner sweep
+spans corners down to 1.28 V, below the spec's 1.62 V supply bound; the STA below declares
+only corners at or above 1.60 V and sees those electrical violations at one corner
+(`ss_n40C_1v60`).
+
+## Multi-corner STA (T1 item 5, digital)
+
+`klt sta` (pinned klt 0.8.0, OpenROAD `26Q3-1510-g6cb3f2b704`) on the committed
+`digital/decimator.def` — `geometry_source: "routed"`, clock `clk` at 195.3125 ns — with
+`pdk.corners` naming ten corners, so one fixed geometry is characterized at all ten in a
+single request. (`klt place-and-route` re-run per corner would give ten *different*
+placements and routings, which is not a characterization of this layout.) Request
+`digital/sta_request.json`, report `digital/sta-decimator.report.json`. Reproduce with:
+
+```sh
+# from the repo root; takes about a minute
+PDK_ROOT=$(klt pdk find --pdk sky130A --format json | jq -r .root) \
+  klt sta layout/digital/sta_request.json --pdk sky130A --format json \
+  > layout/digital/sta-decimator.report.json
+```
+
+**Result**: every one of the ten corners is `timing_status: "constrained"` with
+non-negative setup and hold slack and zero setup/hold violations. Worst setup slack
+157.898 ns of the 195.3125 ns period at `ss_n40C_1v60` (Fmax 26.73 MHz); worst hold slack
+0.2586 ns at `ff_n40C_1v95`; best Fmax 110.05 MHz at `ff_n40C_1v95`. The clock is 5.12 MHz,
+so the slowest declared corner leaves a 5.2x frequency margin.
+
+**Which DR-002 point each declared corner stands in for.** Spec §2 (DR-002) asks for 45
+points: {tt, ss, ff, sf, fs} x {-40, 27, 125 C} x {1.62, 1.80, 1.98 V}. `sky130_fd_sc_hd`
+ships 18 liberty files and none of them is at a DR-002 point exactly, so the declared set is
+the closest available cover at or above 1.60 V:
+
+| Declared liberty corner | DR-002 point it stands in for | How it differs |
+|---|---|---|
+| `tt_025C_1v80` | tt / 27 C / 1.80 V | 25 C, not 27 C |
+| `tt_100C_1v80` | tt / 125 C / 1.80 V | 100 C, not 125 C (optimistic for setup) |
+| `ss_100C_1v60` | ss / 125 C / 1.62 V | 100 C and 1.60 V (20 mV low: pessimistic for setup) |
+| `ss_n40C_1v60` | ss / -40 C / 1.62 V | 1.60 V, 20 mV low (pessimistic for setup) |
+| `ss_n40C_1v76` | ss / -40 C / 1.80 V | 1.76 V, 40 mV low (pessimistic for setup) |
+| `ff_100C_1v65` | ff / 125 C / 1.62 V | 100 C; 1.65 V, 30 mV high |
+| `ff_n40C_1v65` | ff / -40 C / 1.62 V | 1.65 V, 30 mV high |
+| `ff_n40C_1v76` | ff / -40 C / 1.80 V | 1.76 V, 40 mV low |
+| `ff_100C_1v95` | ff / 125 C / 1.98 V | 100 C; 1.95 V, 30 mV low (optimistic for hold) |
+| `ff_n40C_1v95` | ff / -40 C / 1.98 V | 1.95 V, 30 mV low (optimistic for hold) |
+
+**What the library cannot cover, and so this report does not claim.** There is no `sf` or
+`fs` liberty file at all — 18 of the 45 points, uncovered outright. Of the 27 remaining
+`tt`/`ss`/`ff` points, ten have the nearest-available stand-in above and 17 do not: the
+library ships no file above 100 C (against the 125 C bound), none at 27 C, none at exactly
+1.98 V, no `tt` file at -40 C, and no `ss` file above 1.76 V. The liberty files below
+1.60 V (`ss_100C_1v40`, `ss_n40C_1v{28,35,40,44}`, `ff_n40C_1v56`) are
+outside the spec's 1.62-1.98 V supply range and are deliberately **not** declared. `klt
+signoff` grades exactly the corners a run declares, so **item 5 / digital is met on these
+ten corners only — this is not 45-corner coverage.** The 35 uncovered DR-002 points are
+tracked in #131.
+
+**Other limits of this report, stated rather than implied.**
+
+- **No SPEF.** Routed-DEF timing with no extracted wire parasitics
+  (`spef_path: null`, `power_basis.parasitics: "estimate_only"`). Parasitic-annotated
+  timing is #35.
+- **Ideal clock.** `clock_mode: "ideal"` — `create_clock` with no
+  `set_propagated_clock`, so the clock tree's insertion delay never reaches the numbers.
+  Measured `clock_skew_ns` is ~0.013 ns and is not evidence of propagation.
+- **Register-to-register only.** Every corner reports
+  `constraint_completeness.status: "incomplete"` with 17 unconstrained endpoints
+  (`dout[15:0]`, `dout_valid`) and 0 unclocked registers. No block-boundary input/output
+  delay budget is declared, because no ratified document states one; inventing one would be
+  a timing contract no spec backs. Tracked in #131.
+- **`fmax_mhz` is extrapolated**, `1/(T - WNS)`, not a bisected search.
+- **Electrical rules.** `ss_n40C_1v60` reports 660 max-transition and 7 max-capacitance
+  violations against the liberty limits (every other declared corner reports 0). These are
+  electrical-rule violations, not slack violations: they do not enter the item-5 timing
+  verdict and are not addressed here.
+
+## Functional verification (T1 item 5, digital)
+
+The second half of the item-5 digital citation is `klt functional-verification` over the
+same cocotb suite CI already runs, against `rtl/decimator.v` + `rtl/decimator_coef.v`:
+request `../verification/decimator/fv_request.json`, report
+`../verification/decimator/fv-decimator.report.json` — `status: "pass"`, 8 tests, 0 failed,
+0 skipped, Icarus 13.0, cocotb 2.1.0, `random_seed` pinned to 1. It is a pre-layout,
+zero-delay RTL regression (`environment.sdf: null`); SDF-annotated gate-level
+re-simulation is #35. Reproduce with:
+
+```sh
+klt functional-verification verification/decimator/fv_request.json \
+  -o /tmp/klt-fv-decimator --format json \
+  > verification/decimator/fv-decimator.report.json
+```
+
+`-o` is load-bearing for the committed artifact: the pinned klt writes the scratch log
+paths into `environment.results_xml`/`test_log`/`build_log` as **absolute** paths, so
+without it the report would carry the producing checkout's own directory. The same report
+carries no `provenance` block at all, which is why the manifest pins a `content_hash` for
+the STA citation (the routed DEF's own hash) but none for this one. Both gaps are filed
+upstream as 2AMLogic/klayout-tools#5550.
+
+The whole-chain response check (`verification/decimator/response.py`, spec rows 8-9) is
+**not** part of the item-5 citation: it stays gated by
+`verification/decimator/run_synth.py` and by its own CI step in
+`.github/workflows/signoff.yml`.
 
 ## Analog partition
 
