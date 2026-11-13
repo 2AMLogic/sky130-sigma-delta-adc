@@ -21,7 +21,6 @@ _None._
 
 - **#27**: T1 item 1 (design sources, analog partition): xschem schematic and derived netlist of the 2nd-order switched-capacitor modulator
 - **#42**: T1 item 1 (analog 4/4): attestation inventory, manifest evidence, regenerated verdict
-- **#60**: Close klt netlist --check for vendored comparator.sch (needs xschem >= 3.4.5)
 
 ## Ready
 
@@ -33,7 +32,7 @@ _None._
 
 Issues currently being built (`loom:building`).
 
-_None._
+- **#53**: Settling of the SC integrator with ota_fd over PVT (OTA gm margin at beta 0.50)
 
 ## PRs Awaiting Review
 
@@ -70,9 +69,9 @@ _None._
 |------|-------|
 | Operator merge-risk holds | 0 |
 | Very important | 0 |
-| Important | 3 |
+| Important | 2 |
 | Ready (`loom:issue`) | 0 |
-| In Progress (`loom:building`) | 0 |
+| In Progress (`loom:building`) | 1 |
 | PRs awaiting review | 0 |
 | Approved PRs awaiting merge | 0 |
 | Curated | 3 |
