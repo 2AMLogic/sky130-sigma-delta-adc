@@ -807,6 +807,14 @@ def main():
                          "sim/bmodel/run.py. Nothing is simulated here.")
     ap.add_argument("--self-test", action="store_true",
                     help="local sensitivity check against a deliberately skewed cell")
+    ap.add_argument("--from-partials", action="store_true",
+                    help="assemble the record from the cached .partials/ only, "
+                         "submitting nothing. Every variant must already have a "
+                         "non-stale partial or the run refuses. Safe because a "
+                         "partial exists only where a submit SUCCEEDED -- it "
+                         "cannot backfill a failed submit, which is the issue #94 "
+                         "rule -- and it is how a record is regenerated after a "
+                         "derivation changes without re-running the fleet.")
     ap.add_argument("--record", action="store_true",
                     help="write the record (refuses to overwrite: records are append-only)")
     ap.add_argument("--record-name", help="record file name (default: record.json / record-mc.json)")
@@ -856,8 +864,15 @@ def main():
             return 0
 
         want = MC_VARIANTS if a.mc else GRID_VARIANTS
-        run = tuple(dict.fromkeys(a.variant)) if a.variant else want
-        run = tuple(v for v in run if v in want)
+        if a.from_partials:
+            if a.variant:
+                print("REFUSE: --from-partials submits nothing, so --variant has "
+                      "no meaning with it", file=sys.stderr)
+                return 2
+            run = ()
+        else:
+            run = tuple(dict.fromkeys(a.variant)) if a.variant else want
+            run = tuple(v for v in run if v in want)
         if a.variant and not run:
             print(f"REFUSE: --variant names nothing in this mode ({', '.join(want)})",
                   file=sys.stderr)
@@ -881,7 +896,8 @@ def main():
 
         missing = [v for v in want if v not in results]
         if missing:
-            print(f"REFUSE: no result for {', '.join(missing)}; no record written. "
+            how = ("no cached partial for" if a.from_partials else "no result for")
+            print(f"REFUSE: {how} {', '.join(missing)}; no record written. "
                   f"Re-run with --variant {missing[0]} when the fleet has capacity.",
                   file=sys.stderr)
             return 1
@@ -908,6 +924,9 @@ def main():
                             "design/integrator + design/ota/ota_fd; not the "
                             "behavioural model). SIMULATED, NEVER MEASURED."),
             "run_kind": "monte_carlo_mismatch" if a.mc else "nominal_corner_grid",
+            "assembled_from": ("cached .partials/ (fleet results from an earlier "
+                               "invocation; nothing was submitted for this record)"
+                               if a.from_partials else "this invocation's submissions"),
             "conditions": conditions(),
             "corner_set": (f"{ANCHOR_SUBSET_NOTE}; N = {mk.MC_N} per point, "
                            f"base seed {mk.MC_SEED}, vary=mismatch, seed_scope=point, "

@@ -231,6 +231,63 @@ class FailedSubmitIsNotServedFromPartials(RunnerCase):
         self.assertEqual((self.here / "record.json").read_text(), "{}\n")
 
 
+class FromPartials(RunnerCase):
+    """--from-partials assembles a record from cached fleet results only."""
+
+    def test_assembles_without_submitting_anything(self):
+        for v in GRID:
+            self.write_partial(v)
+
+        rc, out, err = self.run_main(["--from-partials", "--record"], {})
+
+        self.assertEqual(rc, 0, f"stderr={err!r}")
+        self.assertEqual(self.calls, [], "--from-partials must submit nothing")
+        rec = json.loads((self.here / "record.json").read_text())
+        self.assertIn("cached .partials/", rec["assembled_from"])
+
+    def test_a_missing_partial_refuses_rather_than_inventing_one(self):
+        for v in GRID[1:]:
+            self.write_partial(v)
+
+        rc, _, err = self.run_main(["--from-partials", "--record"], {})
+
+        self.assertEqual(rc, 1)
+        self.assertIn("no cached partial for post_v0", err)
+        self.assertNoRecord()
+        self.assertEqual(self.calls, [])
+
+    def test_a_stale_partial_refuses(self):
+        """The hash gate still applies: a deck change invalidates the cache."""
+        self.write_partial("post_v0", stale=True)
+        for v in GRID[1:]:
+            self.write_partial(v)
+
+        rc, _, err = self.run_main(["--from-partials", "--record"], {})
+
+        self.assertEqual(rc, 1)
+        self.assertIn("ignoring stale", err)
+        self.assertIn("no cached partial for post_v0", err)
+        self.assertNoRecord()
+
+    def test_variant_is_rejected_with_from_partials(self):
+        rc, _, err = self.run_main(["--from-partials", "--variant", "post_v0"], {})
+        self.assertEqual(rc, 2)
+        self.assertIn("--variant has no meaning", err)
+
+    def test_mc_record_can_be_reassembled_from_partials(self):
+        n = MK.MC_N
+        for v in MCV:
+            self.write_partial(v, mc=True, corners=mc_grid(
+                {b: [1e-5 + 1e-7 * i for i in range(n)] for b in ANCHOR_IDS}))
+
+        rc, out, err = self.run_main(["--mc", "--from-partials", "--record"], {})
+
+        self.assertEqual(rc, 0, f"stderr={err!r}")
+        self.assertEqual(self.calls, [])
+        rec = json.loads((self.here / "record-mc.json").read_text())
+        self.assertEqual(len(rec["derived"]["post_i92"]), len(MK.ANCHOR_POINTS))
+
+
 class AdmissionGates(RunnerCase):
     def test_short_grid_is_refused(self):
         s = self.all_grid_submits()
