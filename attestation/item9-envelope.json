@@ -17,7 +17,7 @@
         "role": "testbench",
         "path": "sim/bmodel/ceiling_gap.py",
         "passed": true,
-        "content_hash": "sha256:d5b18434b88b82d018e6b3a82517ef5ce8e74f9e6304c6a9d6c3fe6f8c36e914"
+        "content_hash": "sha256:6c7e74f1929322a2e0108a460c1aa7f126fdb90d8e6751873884a8b86623cf4c"
       },
       {
         "check": "present",
@@ -31,7 +31,7 @@
         "role": "testbench",
         "path": "sim/bmodel/test_bmodel.py",
         "passed": true,
-        "content_hash": "sha256:2f293baeabc668e3c318302383e0875dc77463026bd338bf9e0c67f630de4fd6"
+        "content_hash": "sha256:8dfd2f60e63195438adf3855d5670c65ad23012a10626fafd59a69652cab000c"
       },
       {
         "check": "present",
