@@ -450,13 +450,41 @@ class Derivations(unittest.TestCase):
         self.assertIsNone(d["sigma_ratio"][ANCHOR_IDS[0]]["sigma_ratio_post_over_pre"])
 
     def test_dac_crosscheck_reads_the_leak_as_a_dc_gain(self):
+        """Built by running the alternating model forward, so the test cannot be
+        satisfied by a formula that divides by the wrong cycle's output."""
+        for a in (1000.0, 667.0):
+            for start_large in (False, True):
+                cid = CORNER_IDS[0]
+                p, S = a / (a + 1.0), 0.6
+                vod = [S if start_large else 0.0]
+                sign = -1.0 if start_large else 1.0
+                for _ in range(MK.N_CYC - 1):
+                    vod.append(p * vod[-1] + sign * S)
+                    sign = -sign
+                c = corner(0.0)
+                for k, v in enumerate(vod):
+                    c[f"vod_c{k}"] = v
+                for k in range(1, MK.N_CYC):
+                    c[f"dvod_c{k}"] = vod[k] - vod[k - 1]
+                c["dvod_2clk"] = (vod[MK.STEADY_TO] - vod[MK.STEADY_TO - 2]) / 2
+
+                d = RUNNER.dac_crosscheck({"post_dac": {"corners": {cid: c}}})
+                got = d["per_corner"][cid]["implied_dc_gain"]
+                self.assertAlmostEqual(
+                    got / a, 1.0, delta=0.02,
+                    msg=f"A={a} start_large={start_large}: recovered {got:.1f}")
+
+    def test_dac_crosscheck_divisor_is_the_transfer_not_one_cycles_output(self):
+        """The regression this had: vod_c4 is the SMALL state half the time."""
         cid = CORNER_IDS[0]
-        # vod leaked from 0.6 V by 1/1000 over two clocks -> dvod_2clk = 0.3e-3.
-        c = corner(0.0, dvod_2clk=-0.3e-3)
-        c[f"vod_c{MK.STEADY_TO - 1}"] = 0.6
+        c = corner(0.0, dvod_2clk=-4.465e-4)
+        for k in range(1, MK.N_CYC):
+            c[f"dvod_c{k}"] = 0.598 * (-1) ** k
+        c["vod_c4"] = -0.0018          # the small state: a tempting wrong divisor
         d = RUNNER.dac_crosscheck({"post_dac": {"corners": {cid: c}}})
-        self.assertAlmostEqual(d["per_corner"][cid]["implied_dc_gain"], 1000.0)
-        self.assertAlmostEqual(d["per_corner"][cid]["implied_dc_gain_db"], 60.0, places=6)
+        db = d["per_corner"][cid]["implied_dc_gain_db"]
+        self.assertAlmostEqual(db, 56.5, delta=0.5,
+                               msg="dividing by vod_c4 would give ~6 dB")
 
 
 class DrawnCapRatio(unittest.TestCase):

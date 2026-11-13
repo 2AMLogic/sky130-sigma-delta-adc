@@ -194,9 +194,26 @@ every clock, the DAC's ±1.2 V transfer cancels over two clocks *in a linear
 circuit*, so `dvod_2clk` was meant to show the residual with the references live.
 It does not. Measured at `tt`/27 °C/1.80 V: the two-clock residual is
 **−896 µV**, essentially constant across cycles, and it is the integrator's
-**finite-gain leak** of the ±0.598 V intermediate state —
-0.598 / 896e-6 → A ≈ 667 (**56.5 dB**), against the ~55 dB
-`design/ota/SIZING.md` records from an unrelated measurement.
+**finite-gain leak** of the ±0.598 V per-clock transfer.
+
+For an alternating transfer `±S`,
+`vod[k+2] - vod[k] = -(1-p)·[(1+p)·vod[k] + s[k]]`, and the bracket is `≈ S`
+whichever state cycle `k` is — `S` when `vod[k] ≈ 0` and `s[k] = +S`, and
+`2S - S = S` when `vod[k] = S` and `s[k] = -S`. So the divisor is the per-clock
+**transfer**, not any one cycle's output; dividing by a fixed cycle's `vod`
+lands on the small state half the time and reads `A` two orders of magnitude
+low. Over the committed 45-point grid:
+
+| | implied OTA DC gain |
+|---|---|
+| `tt`/27 °C/1.80 V | **56.51 dB** |
+| grid range | 40.85 dB (`fs`/1.620 V/−40 °C) … 59.50 dB (`ss`/1.980 V/−40 °C) |
+| independently recorded | ~55 dB, `design/ota/SIZING.md` |
+
+The low outliers are the slow/cold corners where the transfer itself is
+incomplete (#106), so the leak estimate is contaminated there — the figure is a
+cross-check of this bench against an independent result, not a DC-gain
+extraction, and the record does not present it as one.
 
 Two things follow, and the record carries both:
 

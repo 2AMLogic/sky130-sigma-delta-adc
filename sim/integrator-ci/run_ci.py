@@ -306,19 +306,30 @@ def dac_crosscheck(results):
     clocks *in a linear circuit*, so `dvod_2clk` was intended to show the
     injection residual with the references live. It does not: the integrator's
     finite DC gain leaks the large intermediate state, and that leak dominates.
-    Reading it the other way round makes the variant useful -- the residual
-    divided by the state it leaked from is 1/A, an independent estimate of the
-    OTA's DC gain, which design/ota/SIZING.md records as ~55 dB from a
-    different measurement entirely.
+    Reading it the other way round makes the variant useful -- the residual is
+    1/A times the transfer it leaked from, an independent estimate of the OTA's
+    DC gain, which design/ota/SIZING.md records as ~55 dB from a different
+    measurement entirely.
+
+    With `vod[n+1] = p*vod[n] + s[n]` and `s` alternating +/-S,
+
+        vod[k+2] - vod[k] = -(1-p) * [ (1+p)*vod[k] + s[k] ]
+
+    and the bracket is ~S whichever state cycle k happens to be -- S when
+    vod[k] ~ 0 and s[k] = +S, and 2S - S = S when vod[k] = S and s[k] = -S. So
+    the divisor is the per-clock TRANSFER magnitude, not a particular cycle's
+    output: dividing by one cycle's `vod` lands on the small state half the
+    time and reads A two orders of magnitude low.
     """
     out = {}
     for cid, c in results.get("post_dac", {}).get("corners", {}).items():
-        res2, big = c.get("dvod_2clk"), c.get(f"vod_c{mk.STEADY_TO - 1}")
-        row = {"dvod_2clk_V": res2, "leaking_state_V": big}
-        if res2 and big and abs(big) > 1e-3:
-            # dvod_2clk is the 2-clock change halved; the leak over the pair is
-            # 2*dvod_2clk out of the state `big` it leaked from.
-            inv_a = abs(2 * res2) / abs(big)
+        res2 = c.get("dvod_2clk")
+        steps = [abs(c[f"dvod_c{k}"]) for k in range(1, mk.N_CYC)
+                 if c.get(f"dvod_c{k}") is not None]
+        transfer = (sum(steps) / len(steps)) if steps else None
+        row = {"dvod_2clk_V": res2, "transfer_per_clock_V": transfer}
+        if res2 and transfer and transfer > 1e-3:
+            inv_a = abs(2 * res2) / transfer
             row["implied_inv_dc_gain"] = inv_a
             row["implied_dc_gain"] = 1.0 / inv_a
             row["implied_dc_gain_db"] = 20.0 * math.log10(1.0 / inv_a)
