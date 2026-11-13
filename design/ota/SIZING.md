@@ -58,9 +58,10 @@ simulated" below is owed to later T-tier evidence.
 - **`ota_fd` itself is unchanged by issue #92.** The 1.620 V non-settling the
   integrator cell showed was traced to the cell's `vcm`/summing-node switches,
   not to the OTA: with those switches made ideal, the same `ota_fd` settles to
-  2.97e-6 at `sf`/1.620 V/-40 C and 1.33e-6 at `ss`/1.620 V/-40 C in the
-  integrator bench (simulated, one corner each). `ota_fd.spice` is byte-for-byte
-  the netlist `sim/ota-settling/record-i51-rcm2M-cff100f.json` passed 45/45 on,
+  2.85e-6 at `sf`/1.620 V/-40 C and 9.86e-7 at `ss`/1.620 V/-40 C in the
+  integrator bench (simulated, one corner each; bench
+  `sim/integrator-settling/run_variants.py`, results in `variants-i92.json`).
+  `ota_fd.spice` is byte-for-byte the netlist `sim/ota-settling/record-i51-rcm2M-cff100f.json` passed 45/45 on,
   `sha256` `7f4724e9631c05760bc98d161100c41b06928b98e0526c027e6a9271d70f7977`, so **that record still stands and `sim/ota-settling` was not
   re-run** -- there is nothing in this block for it to re-measure.
   `sim/integrator-settling/record-i92.json` carries the same digest in its

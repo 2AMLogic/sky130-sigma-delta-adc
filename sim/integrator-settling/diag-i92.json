@@ -29,7 +29,7 @@
     "file": "sim/pdk.json",
     "open_pdks_revision": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7"
   },
-  "ngspice": "******",
+  "ngspice": "ngspice-47",
   "deck_sha256": "6ff70fa75b23744fb1b0db49ddff2f44ef6bdf8ec304249a019c7cab4ff87c78",
   "ota_netlist_sha256": "7f4724e9631c05760bc98d161100c41b06928b98e0526c027e6a9271d70f7977",
   "baseline_rev": "ffbbb3b",

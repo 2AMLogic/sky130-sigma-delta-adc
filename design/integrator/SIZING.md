@@ -118,12 +118,14 @@ The standard `pfet_01v8` is still subthreshold there (0.946 V of Vth at
 `fs`/-40 C), which is why the low-Vth flavour is used; `pfet_01v8_lvt` has no
 model bin below L = 0.35 um, hence the longer channel. Switching the NMOS half
 to `nfet_01v8_lvt` is free -- identical geometry, so no added capacitance --
-and its measured off-state leakage is unchanged (129 pA either way at
-`ff`/1.980 V/125 C with 0.3 V across it, against the ~0.92 nA that would droop
-1 pF by 1e-4 of 0.9 V in one phase).
+and its simulated off-state leakage is unchanged (129.1 pA as `nfet_01v8`
+against 129.3 pA as `nfet_01v8_lvt` at `ff`/1.980 V/125 C with 0.3 V across
+it -- `leak_nfet_w12_ff` / `leak_nfet_lvt_w12_ff` -- against the ~0.92 nA that
+would droop 1 pF by 1e-4 of 0.9 V in one phase).
 
 **Switch Ron at `Vdda` = 1.620 V, passing 0.9 V, -40 C** (DC probes, 10 mV
-drop, one operating point each; ohms):
+drop, one operating point each; ohms). Bench: `sim/switch-probe/run_probe.py`,
+results in `sim/switch-probe/probe-i92.json` (`ron_*` rows; simulated, local):
 
 | Leg | fs | sf | ss | ff | tt |
 |---|---|---|---|---|---|
@@ -132,13 +134,15 @@ drop, one operating point each; ohms):
 | `pfet_01v8_lvt` W 48, L 0.35 (probe width) | 189 | 663 | 495 | 206 | 296 |
 
 The PMOS row is probed at W 48 for comparability; Ron scales as 1/W here
-(measured at `fs`: 755 / 378 / 189 ohm at W 12 / 24 / 48), so the W 24 and W 4
-devices the cell actually uses are 2x and 12x those numbers.
+(simulated at `fs`: 755 / 378 / 189 ohm at W 12 / 24 / 48 --
+`ron_pfet_lvt_w{12,24,48}_fs`), so the W 24 and W 4 devices the cell actually
+uses are 2x and 12x those numbers.
 
 Every leg is subthreshold at 1.620 V on its own; the pair is not, and the two
 legs fail at opposite process skews, which is what flattens the result across
 the corner. **Widening the NMOS alone does not work**: W 12 -> 96 moves `fs`
-from 456 k only to 180 k, because the device is subthreshold, not resistive.
+from 456 k only to 180 k (`ron_nfet_w96_fs`), because the device is
+subthreshold, not resistive.
 
 **The PMOS halves are sized small on purpose.** Their junction capacitance
 lands on the summing node (`Sti`/`Str`) or on the sampling-cap bottom plate in
@@ -181,13 +185,15 @@ to buy it. That is why W 4 is the floor and not a starting point -- another
 halving would reopen 1.620 V.
 
 Two reference points bound how small the halves can be, both single-corner
-probes at `sf`/1.800 V/125 C: ideal 1 ohm switches give 1.13e-6, and the cell
-with no PMOS halves at all gives 4.45e-6 as plain `nfet_01v8` or 1.32e-5 with
-the low-Vth NMOS. That last pair is worth noting -- **the low-Vth NMOS swap
-costs margin at 125 C** (3x here) even though it is what rescues `ss` and `fs`
-at 1.620 V/-40 C, so it is not a free change, just a worthwhile one. The
-`W 24`/`W 4` halves land at 4.33e-5 at that corner, about 4x above the
-no-halves ceiling: that 4x is the price of 1.620 V operation.
+probes at `sf`/1.800 V/125 C (bench: `sim/integrator-settling/run_variants.py`,
+results in `variants-i92.json`): ideal 1 ohm switches give 3.43e-7, and the
+cell with no PMOS halves at all gives 4.45e-6 as plain `nfet_01v8` or 3.15e-5
+with the low-Vth NMOS. That last pair is worth noting -- **the low-Vth NMOS
+swap costs margin at 125 C** (7x here) even though it is what rescues `ss` and
+`fs` at 1.620 V/-40 C, so it is not a free change, just a worthwhile one. The
+`W 24`/`W 4` halves land at 4.39e-5 at that corner, 1.4x the no-PMOS low-Vth
+cell and 10x the plain-`nfet_01v8` one: that is the price of 1.620 V
+operation, and all four are two to three orders inside the 1e-4 criterion.
 
 `Sci`/`Scr` get **no** PMOS half: they only reset the top plate to `vcm`
 during `phi1e`, and the probe shows the top plate already reaches 0.8993 V at
@@ -307,14 +313,16 @@ simulated here:
   which scales as 1/sqrt(W L) per device while the injected charge scales as
   W L -- so the differential residual grows as sqrt(W L). This is the real cost
   of the fix and it is charged to the charge-injection extraction (out of scope
-  for #92, which is a settling issue).
+  for #92, which is a settling issue). Tracked as issue #102.
 
-The off-state leakage this adds was measured and is small: 129 pA per NMOS half
-(unchanged by the low-Vth swap) and 23 pA for a W 16 PMOS half at
-`ff`/1.980 V/125 C with 0.3 V across it -- the W 24 and W 4 halves the cell uses
-bracket that -- against the ~0.92 nA that would droop 1 pF by 1e-4 of 0.9 V in
-one 97.66 ns phase. One operating point each, not a corner sweep. The DC wiring
-check `sim/integrator-load-check` still holds its original 1e-6 V bound on the
+The off-state leakage this adds was simulated and is small: 129 pA per NMOS half
+(129.1 pA standard against 129.3 pA low-Vth, so the swap does not change it) and
+22.5 pA for a W 16 PMOS half at `ff`/1.980 V/125 C with 0.3 V across it -- the
+W 24 and W 4 halves the cell uses bracket that -- against the ~0.92 nA that would
+droop 1 pF by 1e-4 of 0.9 V in one 97.66 ns phase. One operating point each, not
+a corner sweep; bench `sim/switch-probe/run_probe.py`, results in
+`sim/switch-probe/probe-i92.json` (`leak_*` rows). Simulated, not measured.
+The DC wiring check `sim/integrator-load-check` still holds its original 1e-6 V bound on the
 top-plate-to-summing-node drop with these halves in place (measured 1e-7 V), so
 the added junction leakage does not disturb it.
 

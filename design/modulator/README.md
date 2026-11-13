@@ -51,10 +51,16 @@ A deck includes exactly:
 
 Do **not** also `.include` `design/integrator/integrator.spice` or
 `design/clkgen/clkgen.spice`: both define a subcircuit that `modulator.spice`
-already defines. They are the standalone block netlists. The `integrator`
-subcircuit in `modulator.spice` lists its ports in the symbol's order (`... dp
-dn voutp voutn`), the standalone `integrator.spice` in the schematic's order
-(`... voutp voutn vrefp ...`); use whichever file matches the instantiation.
+already defines. They are the standalone block netlists.
+
+Since #92 the two agree. Both list the `integrator` ports in the same
+type-grouped order (`... dp dn voutp voutn`), and `modulator.spice` carries the
+same low-Vth vcm-switch fix as the standalone cell: it was regenerated with
+`klt netlist` in that change, so an assembled-modulator deck simulates the
+fixed integrator and not the pre-#92 NMOS-only one. **Regenerate
+`modulator.spice` whenever `integrator.sch` or `clkgen.sch` changes** -- it
+embeds their bodies, so a cell fix that stops at the standalone netlist never
+reaches any deck that includes this file.
 
 ## Load and phase check
 

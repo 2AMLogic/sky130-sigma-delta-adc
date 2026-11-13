@@ -171,6 +171,18 @@ def run(tag, netlist_bytes, corner, temp, vdda, load, ng, pdk_lib, tmp):
             "values": vals}
 
 
+def _ngspice_version():
+    """Return e.g. 'ngspice-47', or 'unknown'.
+
+    `ngspice -v` line 1 is the banner's '******' rule, not the version, so
+    match the version token anywhere in the output (same convention as
+    sim/smoke/run_smoke.py and sim/ota-op-smoke/run_op.py).
+    """
+    m = re.search(r"ngspice-\d+",
+                  subprocess.run(["ngspice", "-v"], capture_output=True, text=True).stdout)
+    return m.group(0) if m else "unknown"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pdk-root")
@@ -218,8 +230,7 @@ def main():
         "pass_criterion": "err_phase <= 1e-4 (DR-005), same definition as record.json",
         "pdk_sources_stamp": stamp,
         "pdk_pin": {"file": "sim/pdk.json", "open_pdks_revision": pin["open_pdks_revision"]},
-        "ngspice": subprocess.run(["ngspice", "-v"], capture_output=True, text=True
-                                  ).stdout.splitlines()[0] if True else None,
+        "ngspice": _ngspice_version(),
         "deck_sha256": sha256_bytes((HERE / "diag_1v62.cir.tmpl").read_bytes()),
         "ota_netlist_sha256": sha256_bytes((REPO / "design/ota/ota_fd.spice").read_bytes()),
         "baseline_rev": a.baseline_rev,

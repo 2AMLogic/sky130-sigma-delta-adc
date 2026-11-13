@@ -199,10 +199,13 @@ The other three hypotheses the previous revision of this section left open are
 
 **Cross-check that it is the switches and nothing else:** replacing just those
 twelve switches with ideal 1 ohm switches, leaving the same `ota_fd`, gives
-`err_phase` 1.05e-6 (`fs`), 2.97e-6 (`sf`) and 1.33e-6 (`ss`) at
-1.620 V/-40 C, and ~1e-6 at the 1.980 V corners -- so the OTA closes this phase
-with three to five orders of magnitude of margin at every corner, and the whole
-failure was the switch conduction.
+`err_phase` 9.08e-7 (`fs`), 2.85e-6 (`sf`) and 9.86e-7 (`ss`) at 1.620 V/-40 C,
+and 4.29e-7 / 1.43e-6 / 3.08e-6 (`ss` / `fs` / `sf`) at 1.980 V/-40 C. Against
+the 0.485-0.777 the as-built cell shows at 1.620 V/-40 C that is five to six
+orders of magnitude, and it is 30x to 300x below the 1e-4 criterion -- so the
+OTA closes this phase at every one of these corners and the whole failure was
+the switch conduction. Bench: `run_variants.py`, results in
+`variants-i92.json` (`ideal_*` rows; simulated, one corner each, run locally).
 
 **Fix, and why it is shaped the way it is:** see
 `design/integrator/SIZING.md` -> "Why the `vcm` switches need a PMOS half".
@@ -280,6 +283,23 @@ record (above). Comparing the two:
     python3 -I sim/integrator-settling/run_settling.py --variant int2 --record  # one variant
     python3 -I sim/integrator-settling/run_diag.py                  # 1 corner + node probes, local
     python3 -I sim/integrator-settling/run_diag.py --write          # ... and save diag-i92.json
+    python3 -I sim/integrator-settling/run_variants.py              # 10 single-corner variants, local
+    python3 -I sim/integrator-settling/run_variants.py --write      # ... and save variants-i92.json
+
+`run_variants.py` is the switch-isolation cross-check behind "Mechanism at
+1.620 V" and behind the PMOS-half size bounds in
+`design/integrator/SIZING.md`. It runs the same deck, stimulus and timing as
+`run_diag.py` -- so its `err_phase` is comparable to that bench and to
+`record.json` -- against four netlists: the baseline cell with its twelve `vcm`
+switches replaced by **ideal 1 ohm switches** (`ideal`), the baseline unchanged
+(`no_pmos_std`), the baseline with those twelve moved to `nfet_01v8_lvt` and
+still no PMOS half (`no_pmos_lvt`), and the working-tree cell (`fixed`). The
+three baseline variants are transformed out of `--baseline-rev`, so they stay
+reproducible after the fix lands. One corner per row, local, simulated; results
+in `variants-i92.json`. It refuses to overwrite (append-only; use `--out`).
+
+The switch-level inputs to the same argument -- on-state Ron and off-state
+leakage per device -- are a separate bench, `sim/switch-probe/`.
 
 `run_diag.py` is the diagnosis path, not a record path: it runs
 `diag_1v62.cir.tmpl` at **one** corner locally (default `fs`/-40 C/1.620 V, the
@@ -314,7 +334,16 @@ gate, so a failed or partial grid is still inspectable.
 ## Limits
 
 Noise, charge injection, clock-generator timing, Monte Carlo, layout parasitics
-and the model-versus-transistor cross-check (DR-001) are not covered. `int2`'s
+and the model-versus-transistor cross-check (DR-001) are not covered.
+
+**`phi2b` skew is not simulated (owed).** The PMOS halves are gated by `phi2b`,
+an on-cell inverter of `phi2`, so they switch one inverter delay after the NMOS
+halves. This bench drives `phi2` with an ideal 0.2 ns ramp and leaves a 5 ns
+gap, and it only exercises the phi2 **rising** edge; turn-*off* of `Sti`/`Str`
+against the real `clkgen` non-overlap -- where that skew could briefly leave a
+half open into the summing node -- is not covered here and is owed to the
+clock-generator timing work. Not measured and not bounded by any number in this
+file. `int2`'s
 1 pF is a bound, not an extracted comparator input capacitance. The B-model
 threshold covers the linear part of settling only (above). Nothing here is
 measured and nothing relaxes DR-005 or the spec.
@@ -324,8 +353,8 @@ halves issue #92 added raise the channel area of the phi2-gated `vcm`
 switches by 1.8x (`Sti`/`Str`) and 5.7x (`Sbi`/`Sbr`). The
 common-mode part stays signal-independent, but the mismatch-driven
 *differential* part grows as sqrt(W L); that is the price of this fix and it is
-charged to the charge-injection extraction, not measured here. See
-`design/integrator/SIZING.md` -> "kT/C and charge injection".
+charged to the charge-injection extraction, not measured here. Tracked as
+issue #102. See `design/integrator/SIZING.md` -> "kT/C and charge injection".
 
 **Port-order drift in the committed netlists.** `klt netlist` (klt
 0.9.2.dev885, xschem 3.4.7) orders a subckt's ports by **pin type** --
@@ -336,7 +365,11 @@ terminal order". So regenerating `design/integrator/integrator.spice` moved
 instantiate the cell had to move with it. `design/modulator/modulator.spice`
 was already on the type-grouped order, so the two committed netlists had
 disagreed since before this issue; `klt netlist --check` exits 3 against the
-pre-#92 `integrator.spice` on `main` and no CI job runs that check. A
+pre-#92 `integrator.spice` on `main` and no CI job runs that check. This change
+regenerates `design/modulator/modulator.spice` as well, so its embedded
+`integrator` body now carries the low-Vth switch fix too -- without that, every
+assembled-modulator deck (which includes `modulator.spice`, never
+`integrator.spice`) would have kept simulating the unfixed cell. A
 silently-reordered port list is a tool gap worth filing against klayout-tools:
 it can only be caught by an electrical test, and here it showed up as the
 summing node sitting at -0.48 V in a diagnosis run. Filed as
