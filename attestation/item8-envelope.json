@@ -6,7 +6,7 @@
   "summary": "T1 item 8 (Characterization report): spec rows 5 evidenced, 7 partial, 2 pending; decimator Fmax/area/power 2/4 evidenced",
   "source": "measurements/characterization.md",
   "metrics": {
-    "report_sha256": "sha256:9bbd18e8206cb6dec769a574a16658fb365f616ef01538a71d301e30640a7dd8",
+    "report_sha256": "sha256:ff50802634a7d028dfc56fcfb65e5060975b252dbf940b8d415d6321a045ed25",
     "spec_rows": [
       {
         "row": 1,

@@ -80,8 +80,14 @@ every corner in DR-002. It does not mean a T transient of the full record.
    at an unchanged clock (§5.2), the cheapest way to buy back margin. 50 kHz
    is the stretch.
 2. **Peak SNDR.** From `CLAUDE.md`. The ideal second-order, single-bit
-   quantization-noise ceiling at `OSR` = 128 is 100.2 dB at full scale
-   (§5.1), so 80 dB leaves about 20 dB for all non-idealities.
+   quantization-noise ceiling at `OSR` = 128 is 94.2 dB at full scale and
+   **88.2 dB at the −6 dBFS input of row 11** (§5.1, corrected by
+   [DR-007](decisions/DR-007-single-bit-ideal-ceiling.md)), so 80 dB leaves
+   about **8 dB** for all non-idealities at the ratified operating point —
+   about 6 dB against the 86.2 dB ideal behavioural model B reaches there
+   (simulated). Before DR-007 this row read "about 20 dB" off a ceiling
+   stated 6.02 dB too high for a single-bit quantizer. The target does not
+   move; the margin is what changed.
 3. **Modulator.** Second-order single-bit is the architecture that must
    close first (`CLAUDE.md`). A higher order or multi-bit modulator does
    not drive any other row until it does.
@@ -171,14 +177,22 @@ Two rows are not jointly reachable with the architecture ratified here, and
 this document says so rather than leaving it to be discovered:
 
 - **Stretch SNDR at stretch bandwidth.** A second-order single-bit loop at
-  `OSR` = 64 has an ideal quantization-noise ceiling of 85.2 dB (§5.1),
-  below the 90 dB stretch SNDR. The stretch SNDR therefore needs a higher
-  order or multi-bit modulator (row 3, stretch column). It cannot be met by
-  the second-order design at `OSR` = 64, and per `CLAUDE.md` it does not
-  drive the architecture. The 90 dB stretch **can** still be pursued at the
-  *target* bandwidth, where the ceiling is 100.2 dB, only with the
-  non-idealities held 10 dB tighter; that is a smaller claim and gets its
-  own decision record if attempted.
+  `OSR` = 64 has an ideal quantization-noise ceiling of 79.2 dB at full scale
+  and 73.2 dB at the row-11 input (§5.1, corrected by
+  [DR-007](decisions/DR-007-single-bit-ideal-ceiling.md)), far below the 90 dB
+  stretch SNDR. The stretch SNDR therefore needs a higher order or multi-bit
+  modulator (row 3, stretch column). It cannot be met by the second-order
+  design at `OSR` = 64, and per `CLAUDE.md` it does not drive the
+  architecture.
+- **Stretch SNDR at target bandwidth.** Before DR-007 this document said the
+  90 dB stretch could still be pursued at the *target* bandwidth, "where the
+  ceiling is 100.2 dB, only with the non-idealities held 10 dB tighter". That
+  is false: the corrected ceiling at `OSR` = 128 is 88.2 dB at the −6 dBFS
+  input of row 11, **below** 90 dB, so no tightening of the non-idealities
+  reaches the stretch with this architecture at this input. Row 2's stretch
+  column keeps its ratified 90 dB and now rests on row 3's stretch
+  architecture, or on a ratified change to row 11; DR-007 does not adjust a
+  row to fit.
 - **Stretch SNDR and the 16-bit word.** 16 bits at 0.5 · `VREF` input rounds
   to a 92.1 dB SNR (§5.5); a 90 dB claim would be limited by the word. A
   stretch attempt widens the word through a decision record, not here.
@@ -192,19 +206,47 @@ All numbers are arithmetic from the stated assumptions, not simulation.
 
 ### 5.1 Ideal quantization-noise ceiling
 
+Corrected by [DR-007](decisions/DR-007-single-bit-ideal-ceiling.md); the
+superseded form, every figure it produced, and the measurement behind the
+correction are in that record.
+
 For an `L`-th order, `N`-bit modulator at oversampling ratio `OSR`:
 
-`SQNR = 6.02·N + 1.76 − 10·log10(π^(2L) / (2L + 1)) + (2L + 1)·10·log10(OSR)`
+`SQNR = 10·log10(1.5·(2^N − 1)²) − 10·log10(π^(2L) / (2L + 1)) + (2L + 1)·10·log10(OSR)`
 
-With `L` = 2, `N` = 1: `7.78 − 12.90 + 5·10·log10(OSR)`
+The quantizer term is `10·log10(1.5·(2^N − 1)²)` and **not** the usual
+`6.02·N + 1.76` = `10·log10(1.5·2^(2N))`, which assumes a full-scale sine of
+amplitude `2^(N−1)·Δ` — half a step beyond the outermost quantizer level. The
+single-bit feedback of row 3 is ±1, so full scale is ±1, not ±2
+(`sim/bmodel/model.py`, row 11). The two forms differ by
+`20·log10(2^N / (2^N − 1))`: **6.02 dB at `N` = 1**, 0.001 dB at `N` = 13 and
+0.0003 dB at `N` = 16, so §5.5 is unaffected.
 
-| OSR | `10·log10(OSR)` | SQNR at full scale |
-|---|---|---|
-| 64 | 18.06 dB | 85.2 dB |
-| 128 | 21.07 dB | 100.2 dB |
-| 256 | 24.08 dB | 115.3 dB |
+With `L` = 2, `N` = 1: `1.76 − 12.90 + 5·10·log10(OSR)`
 
-At the −6 dBFS input of row 11, subtract 6 dB: 94.2 dB at `OSR` = 128.
+| OSR | `10·log10(OSR)` | SQNR at full scale | SQNR at −6 dBFS (row 11) |
+|---|---|---|---|
+| 64 | 18.06 dB | 79.2 dB | 73.2 dB |
+| 128 | 21.07 dB | 94.2 dB | 88.2 dB |
+| 256 | 24.08 dB | 109.3 dB | 103.3 dB |
+
+At the −6 dBFS input of row 11, subtract 6 dB: **88.2 dB** at `OSR` = 128.
+That is the figure rationale row 2 reads its headroom off.
+
+**Do not confuse the two 94.2 dB figures.** Here 94.2 dB is the *full-scale*
+ceiling at `OSR` = 128; before DR-007 the same number appeared as the −6 dBFS
+figure. A bare "94.2 dB" from a document or comment predating that record
+means the superseded one.
+
+This is a bound on a linear model with a quantizer error that is white with
+variance `Δ²/12`; a real single-bit loop does not reach it. Ideal behavioural
+model B reads **86.2 dB** at `OSR` = 128 and −6 dBFS (source B, simulated,
+N = 2^16 output samples, 4-term Blackman-Harris, bin 1.2207 Hz, band
+0 – 20 kHz). DR-007 splits the 2.1 dB difference by measurement into the
+loop's own behaviour (−3.2 dB) and the sinc^3 decimator's passband droop
+(+1.2 dB, a gain: the droop attenuates more shaped noise than the filter's
+finite stopband aliases back in). Reproduce with
+`python3 -I sim/bmodel/ceiling_gap.py --params sim/bmodel/ideal.json`.
 
 ### 5.2 Clock and rates
 
@@ -225,12 +267,20 @@ Assumptions, each stated so it can be challenged:
   (42.4 µV rms).
 - Half of that, 9.0 × 10⁻¹⁰ V² (30 µV rms), is the thermal share (sampling
   switches and amplifier); half of the thermal share, 4.5 × 10⁻¹⁰ V², is
-  the sampling-switch kT/C share. The rest (quantization 6.9 × 10⁻¹¹ V² at
+  the sampling-switch kT/C share. The rest (quantization 2.7 × 10⁻¹⁰ V² at
   −6 dBFS, switch charge injection, settling, clock jitter, comparator
   offset leakage, output rounding, leakage and everything else) takes the
   other half. This split is a planning allocation. It is fixed here so the
   row has a budget; measured shares replace it through a decision record,
   not in place.
+- The quantization figure above is the corrected §5.1 ceiling at −6 dBFS
+  (88.2 dB against the 0.18 V² signal); it was 6.9 × 10⁻¹¹ V² before
+  [DR-007](decisions/DR-007-single-bit-ideal-ceiling.md). It therefore spends
+  about 30 % of the 9.0 × 10⁻¹⁰ V² "everything else" half on its own, against
+  about 8 % before — and about 48 % if ideal behavioural model B's simulated
+  86.2 dB is used in place of the bound. The allocation still closes and is
+  **not** re-cut here; that is the separate decision record the previous
+  bullet calls for.
 - Worst-case temperature 125 °C = 398.15 K, so `kT` = 5.497 × 10⁻²¹ J.
 - Sampled noise on a differential input, counting the input and the
   reference sampling phases and both sides: `4·kT / Cs`, spread over
