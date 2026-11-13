@@ -211,16 +211,28 @@ context, not a limit here.
 ## The sibling's records are context, not evidence
 
 `reuse.lock.json` pins `2AMLogic/sky130-comparator` at
-`a0767fa5a4bedc9128a7e95b8b512075536522c8`. At that commit the sibling's
-`sim/pdk.json` pins open_pdks `c6d73a35…`, while this repo pins `f6eeac7d…`
-(`sim/pdk.json`); it grades seven process/temperature points, not the DR-002
-45-point grid; it drives its comparator's inputs from ideal sources through
-1 kΩ rather than from an integrator; and it publishes no hysteresis row at
-all. So the "cite the sibling and measure only what changes" branch of the
-issue's implementation guidance does not apply, and **all 45 points are
-measured here.** The sibling's 0.7725 ns decision time (50 mV overdrive,
-worst at `fs`/125 °C, extracted DUT) and 3.1989 mV kickback (worst at
-`sf`/−40 °C) are quoted only as the order of magnitude to expect.
+`a0767fa5a4bedc9128a7e95b8b512075536522c8`. Read at that commit on
+2026-11-13 (`gh api repos/2AMLogic/sky130-comparator/contents/<path>?ref=<commit>`):
+
+- its `sim/pdk.json` carries `open_pdks_commit`
+  `c6d73a35f524070e85faff4a6a9eef49553ebc2b`, while this repo's `sim/pdk.json`
+  pins `f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7` — **different PDK revisions**,
+  so its numbers cannot be evidence for this repo's corners;
+- `sim/characterization-report.md` grades seven process/temperature points,
+  not the DR-002 45-point grid;
+- its kickback bench biases `VINP`/`VINN` at `VCM` through an explicit 1 kΩ
+  series resistor each, not from an integrator output;
+- `grep -i hysteres` on that report matches nothing: there is no hysteresis
+  row to cite at all.
+
+So the "cite the sibling and measure only what the in-situ loading changes"
+branch of the issue's implementation guidance does not apply, and **all 45
+points are measured here.** Its row 3 (decision time, 0.7725 ns at 50 mV
+overdrive, worst `fs`/125 °C) and row 4 (kickback, 3.1989 mV into 1 kΩ, worst
+`sf`/−40 °C) are quoted only as the order of magnitude to expect. Its kickback
+*definition* — peak absolute deviation from each node's own settled pre-edge
+value — is the same one used here, which is why the magnitudes are
+comparable even though the loading is not.
 
 ## Results
 

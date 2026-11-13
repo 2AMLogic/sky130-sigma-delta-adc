@@ -26,6 +26,7 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 import pathlib
 import shutil
 import sys
@@ -260,6 +261,9 @@ class RunnerCase(unittest.TestCase):
         for p, val in (("HERE", self.here), ("PARTIALS", self.here / ".partials"),
                        ("ARTIFACTS", self.here / ".artifacts")):
             self.enterContext(mock.patch.object(RUNNER, p, val))
+        # main() mkdtemp()s a scratch directory per invocation; keep those
+        # inside this test's own tree so a test run leaves nothing in /tmp.
+        self.enterContext(mock.patch.dict(os.environ, {"TMPDIR": str(self.tmp)}))
         self.enterContext(mock.patch.object(
             RUNNER, "pdk_stamp",
             lambda variant, root: (pathlib.Path("/pdk"),
