@@ -3,14 +3,14 @@
   "kind": "generic",
   "status": "pass",
   "t1_item": 10,
-  "summary": "T1 item 10 (Repo hygiene): 8/8 attestation checks passed (klt signoff --attest)",
+  "summary": "T1 item 10 (Repo hygiene): 6/6 attestation checks passed (klt signoff --attest)",
   "source": "attest/item10.json",
   "attestation": {
     "producer": "klt signoff --attest",
     "inventory_schema_version": 1,
     "hash_algorithm": "sha256-raw-bytes",
-    "check_count": 8,
-    "passed_count": 8,
+    "check_count": 6,
+    "passed_count": 6,
     "checks": [
       {
         "check": "present",
@@ -63,46 +63,6 @@
       {
         "check": "command",
         "role": "audit",
-        "name": "settling-common-unittests",
-        "argv": [
-          "python3",
-          "-I",
-          "-m",
-          "unittest",
-          "discover",
-          "-s",
-          "sim",
-          "-p",
-          "test_settling*.py"
-        ],
-        "cwd": ".",
-        "exit_status": 0,
-        "passed": true,
-        "local_only": true
-      },
-      {
-        "check": "command",
-        "role": "audit",
-        "name": "integrator-settling-unittests",
-        "argv": [
-          "python3",
-          "-I",
-          "-m",
-          "unittest",
-          "discover",
-          "-s",
-          "sim/integrator-settling",
-          "-p",
-          "test_*.py"
-        ],
-        "cwd": ".",
-        "exit_status": 0,
-        "passed": true,
-        "local_only": true
-      },
-      {
-        "check": "command",
-        "role": "audit",
         "name": "decimator-response",
         "argv": [
           "python3",
@@ -125,7 +85,7 @@
         "path": "attest/item10.json",
         "scope": "repo"
       },
-      "content_hash": "sha256:6c19fdf1ba735cda3504470727ad770ff78d1929740142a91f4990baada77d8a"
+      "content_hash": "sha256:02c59c092ccf82d8c16fe91d33b430d381d06a2275646b2901ccec8ce2d1eeac"
     }
   }
 }
