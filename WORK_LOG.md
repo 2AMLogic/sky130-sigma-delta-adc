@@ -4,6 +4,14 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-13
 
+- **PR #109**: fix(bmodel): drop the ENBW factor from sndr_db and regenerate the B evidence
+- **Issue #107** (closed): B-model SNDR estimator reads 3.0 dB high: sndr_db applies an ENBW factor to a lobe-summed signal
+- **PR #100**: refactor(attest): move item-10 inventory and envelope under attestation/
+- **Issue #91** (closed): Fold attest/ and evidence/ into attestation/: three directory conventions for one kind of file
+- **PR #99**: fix(integrator): give the vcm switches a low-Vth PMOS half so the cell settles at 1.620 V
+- **Issue #92** (closed): Integrator cell does not settle at Vdda=1.62 V (0/15 corners, both load variants): diagnose, then fix the OTA or the switches
+- **PR #98**: test(sim): refuse a settling record built on a failed submit, and cover the record-validity gates
+- **Issue #94** (closed): Settling runner: fixture test for measurements_present(), and surface a failed submit that fell back to a cached partial
 - **PR #93**: feat(sim): record 45-corner integrator settling over PVT and extract the B-model settling budget
 - **Issue #53** (closed): Settling of the SC integrator with ota_fd over PVT (OTA gm margin at beta 0.50)
 - **PR #89**: docs: record klt netlist --check result for vendored comparator
