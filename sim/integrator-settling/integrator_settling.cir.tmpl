@@ -29,7 +29,7 @@ Bphi1e phi1e 0 V='v(vdda)*(1 - min(max((time-27.9n)/0.2n,0),1))'
 Bphi2 phi2 0 V='v(vdda)*min(max((time-34.9n)/0.2n,0),1)'
 Bdn dn 0 V='v(vdda)'
 Bdp dp 0 V='0'
-Xint vdda 0 vinp vinn voutp voutn vrefp vrefn vcm ibias phi1 phi1b phi1e phi2 dp dn integrator
+Xint vdda 0 vinp vinn vrefp vrefn vcm ibias phi1 phi1b phi1e phi2 dp dn voutp voutn integrator
 * output load per side: @LOADNOTE@
 Clp voutp 0 @LOAD@
 Cln voutn 0 @LOAD@

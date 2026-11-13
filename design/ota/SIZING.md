@@ -31,15 +31,40 @@ simulated" below is owed to later T-tier evidence.
   (`sim/bmodel/model.py:41-42`) gives `Ci` = `Cs` / 0.5 = 2 pF.
 - Input parasitic at the summing node: `M1` gate, 2/3 * W * L * Cox with
   Cox ~ 8.4 fF/um2 (hand-calc) = 22 fF, plus overlap ~ 10 fF: `Cp` ~ 0.035 pF.
-- Feedback factor in the integrate phase:
-  `beta = Ci / (Ci + Cs + Cp)` = 2 / 3.035 = 0.66.
-- Effective load per side: next-stage `Cs` 1 pF plus the series
-  `Ci * (Cs + Cp) / (Ci + Cs + Cp)` = 0.68 pF plus ~0.1 pF output parasitics:
-  `CL,eff` ~ 1.8 pF.
+- Feedback factor in the integrate phase. **This trace was first written
+  against one `Cs` on the summing node, `beta = Ci / (Ci + Cs + Cp)`
+  = 2 / 3.035 = 0.66. That is not the load the integrator cell presents**: in
+  the integrate phase both the input and the DAC sampling cap sit on the
+  summing node (`design/integrator/SIZING.md`), so the real feedback factor is
+
+      beta = Ci / (Ci + 2 Cs + Cp) = 2 / 4.035 = 0.496
+
+  Restated against beta = 0.496 (issue #92):
+- Effective load per side: the series `Ci * (2 Cs + Cp) / (Ci + 2 Cs + Cp)`
+  = 1.009 pF plus ~0.1 pF output parasitics, plus the next stage's `Cs` (1 pF)
+  only when the stage phasing puts it there: `CL,eff` ~ **2.11 pF** with it
+  (case A) and ~**1.11 pF** without (case B). The 1.8 pF above was the beta =
+  0.66 equivalent of case A.
 - Settling target: 0.01 % (the starting level DR-005 uses for the reference
   node) needs ln(1e4) = 9.2 time constants, so `tau <= 97.7 / 9.2` = 10.6 ns.
-  `tau = CL,eff / (beta * gm)` gives `gm >= 1.8 pF / (0.66 * 10.6 ns)` =
-  **257 uS**.
+  `tau = CL,eff / (beta * gm)` gives
+  `gm >= 2.11 pF / (0.496 * 10.6 ns)` = **402 uS** (case A) and
+  `gm >= 1.11 pF / (0.496 * 10.6 ns)` = **211 uS** (case B), against the
+  **257 uS** the beta = 0.66 trace asked for. Both are met by the 631 uS the
+  cell has; the beta correction raises the case-A requirement by 1.6x, it does
+  not break the sizing. (`design/integrator/SIZING.md` quotes 449 / 236 uS for
+  the same two cases: that table charges the switch time constant to the OTA
+  budget first, leaving `tau <= 9.45 ns`. Same calculation, different split.)
+- **`ota_fd` itself is unchanged by issue #92.** The 1.620 V non-settling the
+  integrator cell showed was traced to the cell's `vcm`/summing-node switches,
+  not to the OTA: with those switches made ideal, the same `ota_fd` settles to
+  2.97e-6 at `sf`/1.620 V/-40 C and 1.33e-6 at `ss`/1.620 V/-40 C in the
+  integrator bench (simulated, one corner each). `ota_fd.spice` is byte-for-byte
+  the netlist `sim/ota-settling/record-i51-rcm2M-cff100f.json` passed 45/45 on,
+  `sha256` `7f4724e9631c05760bc98d161100c41b06928b98e0526c027e6a9271d70f7977`, so **that record still stands and `sim/ota-settling` was not
+  re-run** -- there is nothing in this block for it to re-measure.
+  `sim/integrator-settling/record-i92.json` carries the same digest in its
+  `ota_netlist_sha256` field.
 - Initial choice (before the settling record): `Iin` = 18-20 uA per input
   device at gm/Id ~ 15 gives gm ~ 270-300 uS (hand-calc from a single-device
   gm/Id probe); at 300 uS: tau = 9 ns, 10.8 tau in 97.7 ns, linear settling
