@@ -154,15 +154,26 @@ def binding_decision(corners):
 
 
 def kickback_at(corner, clocks=MR.LOOP_KICK_CLKS):
-    """Peak disturbance per node, worst of the sampled clocks, with the clock."""
-    out = {}
+    """Peak disturbance per node at each sampled clock, plus that clock's overdrive.
+
+    Every sampled clock is kept, not just the worst: the common-mode part of
+    the disturbance is the integrator's own phase transition and barely moves
+    between clocks, while the differential part is the comparator's kickback
+    and tracks the differential its input pair sees. Keeping both clocks is
+    what lets a reader check that separation instead of taking it on trust.
+    """
+    out = {"by_clock": {}}
+    for k in clocks:
+        row = {"differential_at_this_clock_V": corner.get(f"vod_{k}"),
+               "decision_changed": corner.get(f"flip_{k}")}
+        for tag, _sig in MR.KICK_NODES:
+            row[tag] = {"peak_deviation_V": corner.get(f"kb_{tag}_{k}"),
+                        "held_value_V": corner.get(f"kbref_{tag}_{k}")}
+        out["by_clock"][str(k)] = row
     for tag, _sig in MR.KICK_NODES:
-        best = None
-        for k in clocks:
-            v = corner.get(f"kb_{tag}_{k}")
-            if v is not None and (best is None or v > best[1]):
-                best = (k, v)
-        out[tag] = None if best is None else {"clock": best[0], "peak_V": best[1]}
+        vals = [(k, corner.get(f"kb_{tag}_{k}")) for k in clocks
+                if corner.get(f"kb_{tag}_{k}") is not None]
+        out[f"worst_{tag}_V"] = max(v for _k, v in vals) if vals else None
     return out
 
 
@@ -413,11 +424,19 @@ def build_record(results, pin, stamp):
             "per_corner": tsum["per_corner"],
             "kickback": {
                 "corner": kb_corner,
-                "note": ("peak deviation of each node from the value it holds through "
-                         "the same phi1, at the binding decision-time corner. Reported "
-                         "as a number; no pass limit is invented for it. The sibling's "
-                         "own ratified 5 mV row is at a different PDK pin and a 1 kOhm "
-                         "load, not this loading, so it is context and not a limit here."),
+                "note": ("Peak deviation of each node from the value it holds through "
+                         "the same phi1, at the binding decision-time corner. This is "
+                         "the whole disturbance across the phi1 edge: the integrator's "
+                         "own phi2 -> phi1 switch transition (symmetric, so it shows up "
+                         "in the single-ended numbers and cancels in the differential "
+                         "ones) superposed on the comparator's kickback (driven by its "
+                         "input pair, so it scales with the differential). The two "
+                         "sampled clocks have different differentials, so the record "
+                         "carries the evidence for that split rather than asserting it. "
+                         "Reported as a number; NO pass limit is invented for it. The "
+                         "sibling's own ratified 5 mV row is against its bench -- ideal "
+                         "sources through 1 kOhm, a different open_pdks pin -- not this "
+                         "loading, so it is context and not a limit here."),
                 "nodes": None if kb_corner is None else kickback_at(loop[kb_corner]),
             },
         },

@@ -87,7 +87,11 @@ T_END = {"loop": T0 + (LOOP_LAST_CLK + 1) * TCLK + 130e-9,
 # Per-corner wall-clock budget. A 2.5 us transient of this hierarchy took
 # 6 min on the development host; these transients are ~2.9 us (loop) and
 # ~5.7 us (trip), and the slow corners (ss, 1.62 V, -40 C) are slower again.
-TIMEOUT_S = 3600
+# The fleet's whole-job ceiling is 3600 s against the conservative serial
+# bound `timeout_s * units + 120`, so this budget is the largest that still
+# lets two units share a job (2*1700 + 120 = 3520). A tt/27 C/1.8 V `loop`
+# corner took 317 s on a contended development host.
+TIMEOUT_S = 1700
 POLL_TIMEOUT_S = 21600
 # One job of 45 units at that budget would outrun the fleet's whole-job
 # ceiling, so the request asks klt to split it into the fewest jobs that fit
@@ -197,13 +201,21 @@ def clock_measurements(k):
     return out
 
 
-# Kickback is reported on both nodes DR-003 and the issue name: the
-# comparator's own inputs o2p/o2n (where the disturbance lands) and the
-# integrator-2 OTA summing nodes (how DR-003 words the owed check). Each is a
-# peak deviation from the value that node holds through the same phi1, after
-# the disturbance has settled -- which is the pre-edge held value, read late
-# in phi1 because the non-overlap gap before the edge is ~0.6 ns wide and too
-# narrow to sample reliably.
+# The disturbance across the phi1 edge, on both of the nodes DR-003 and the
+# issue name: the comparator's own inputs o2p/o2n (where kickback lands) and
+# the integrator-2 OTA summing nodes (how DR-003 words the owed check). Each
+# is a peak deviation from the value that node holds through the same phi1,
+# after the disturbance has settled -- which is the pre-edge held value, read
+# late in phi1 because the non-overlap gap before the edge is ~0.6 ns wide and
+# too narrow to sample reliably.
+#
+# Both the single-ended nodes and their differences are measured because the
+# edge carries two superposed disturbances: the integrator's own phi2 -> phi1
+# switch transition, which is symmetric and therefore common-mode, and the
+# comparator's kickback, which is driven by its input pair and therefore
+# scales with the differential. Measuring both at two clocks with different
+# overdrives (LOOP_KICK_CLKS) puts that separation in the record as data
+# rather than as an assertion -- see README.md "Kickback".
 KICK_NODES = (("o2p", "v(xmod.o2p)"), ("o2n", "v(xmod.o2n)"),
               ("o2diff", "v(o2d)"), ("sump2", "v(xmod.xi2.sump)"),
               ("sumn2", "v(xmod.xi2.sumn)"), ("sumdiff2", "v(s2d)"))

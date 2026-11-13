@@ -171,6 +171,21 @@ class StaircaseCase(unittest.TestCase):
             self.assertEqual(len(names), len(set(names)), f"{v}: duplicate names")
             self.assertEqual(RUNNER.keys_for(v), tuple(names))
 
+    def test_the_committed_decks_and_requests_match_their_generator(self):
+        # The decks and requests are generated, and their sha256 goes into the
+        # record: a hand-edit to either would make the record cite a file that
+        # make_request.py no longer produces.
+        tmp = pathlib.Path(tempfile.mkdtemp(prefix="test-make-request-"))
+        self.addCleanup(lambda: shutil.rmtree(tmp, ignore_errors=True))
+        shutil.copy2(HERE / "comparator_decision.cir.tmpl", tmp)
+        with mock.patch.object(MR, "HERE", tmp), \
+                contextlib.redirect_stdout(io.StringIO()):
+            MR.build()
+        for v in RUNNER.VARIANTS:
+            for name in (f"comparator_decision_{v}.cir", f"request_{v}.json"):
+                self.assertEqual((tmp / name).read_bytes(), (HERE / name).read_bytes(),
+                                 f"{name} differs from make_request.py's output")
+
     def test_the_graded_rows_are_the_ones_the_record_claims(self):
         loop = {m["name"]: m.get("limits") for m in MR.VARIANTS["loop"]["measurements"]()}
         trip = {m["name"]: m.get("limits") for m in MR.VARIANTS["trip"]["measurements"]()}
@@ -290,8 +305,19 @@ class RunnerCase(unittest.TestCase):
         self.assertEqual(d["decision_time"]["limit_s"], 97.8e-9)
         self.assertEqual(d["decision_time"]["worst_clock"], 9)
         self.assertEqual(d["kickback"]["corner"], d["decision_time"]["corner"])
-        self.assertEqual(set(d["kickback"]["nodes"]),
-                         {t for t, _ in MR.KICK_NODES})
+        kb = d["kickback"]["nodes"]
+        # every sampled clock is kept, with the differential it saw, so the
+        # common-mode / differential split can be checked from the record
+        self.assertEqual(set(kb["by_clock"]), {str(k) for k in MR.LOOP_KICK_CLKS})
+        for k in MR.LOOP_KICK_CLKS:
+            row = kb["by_clock"][str(k)]
+            self.assertIn("differential_at_this_clock_V", row)
+            for tag, _s in MR.KICK_NODES:
+                self.assertIsNotNone(row[tag]["peak_deviation_V"])
+                self.assertIsNotNone(row[tag]["held_value_V"])
+            self.assertAlmostEqual(kb[f"worst_o2p_V"],
+                                   max(loop_corner()[f"kb_o2p_{j}"]
+                                       for j in MR.LOOP_KICK_CLKS))
 
     def test_the_binding_decision_corner_is_the_worst_fraction(self):
         loop = grid(loop_corner)

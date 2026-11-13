@@ -183,6 +183,26 @@ integrator holds its output across the non-overlap gap — and it is read late
 in phi1 rather than just before the edge because the gap is only ~0.6 ns wide,
 too narrow to sample reliably at every corner.
 
+**What the number is, exactly.** The phi1 edge carries two superposed
+disturbances, and this bench does not run the comparator's clock separately
+from the integrator's, so it reports their sum and the evidence for splitting
+it rather than a single unattributed figure:
+
+- the integrator's **own** phi2 → phi1 switch transition, which is symmetric
+  across the two sides and therefore essentially common-mode;
+- the comparator's **kickback**, which is driven by its input pair and
+  therefore scales with the differential that pair sees.
+
+Both the single-ended nodes and their differences are measured, at *two*
+clocks whose differentials differ (`make_request.LOOP_KICK_CLKS`), and the
+record keeps both clocks. On the development probe (tt / 27 °C / 1.8 V) the
+single-ended deviation was ~90 mV at both clocks — flat, as a signal-
+independent switch transition should be — while the differential deviation
+was 1.5 mV at a −78 mV input differential and 7.0 mV at +608 mV: it tracks
+the differential, as kickback should. **The differential numbers are
+therefore the ones that are about the comparator**, and they are the ones
+that matter to the integrator, whose common-mode feedback rejects the rest.
+
 **No pass limit is invented for kickback.** This repo has no kickback row of
 its own. The sibling's ratified 5 mV row is against *its* bench — ideal input
 sources through 1 kΩ, a different open_pdks pin — not this loading, so it is

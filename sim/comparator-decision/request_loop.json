@@ -568,7 +568,7 @@
     }
   ],
   "options": {
-    "timeout_s": 3600,
+    "timeout_s": 1700,
     "keep_artifacts": false,
     "ngspice_init": [
       "set numdgt=12",
