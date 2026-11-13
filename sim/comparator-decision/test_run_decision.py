@@ -307,7 +307,15 @@ class RunnerCase(unittest.TestCase):
         self.assertEqual(d["model_b_units"]["resolution_V"], 5e-4)
         self.assertEqual(len(d["per_corner"]), GRID_POINTS)
         self.assertEqual(d["decision_time"]["limit_s"], 97.8e-9)
-        self.assertEqual(d["decision_time"]["worst_clock"], 9)
+        # the intermediate crossings come from the same clock as the worst
+        # delay, not from whichever clock happened to be worst for each
+        at = d["decision_time"]["at_the_worst_clock"]
+        self.assertEqual(at["clock"], 9)
+        self.assertEqual(at["t_to_dp_dn_s"], d["decision_time"]["t_decision_to_dp_dn_s"])
+        self.assertEqual(at["t_to_comparator_outputs_s"], 0.8e-9)
+        self.assertEqual(at["t_to_sr_latch_s"], 1.2e-9)
+        self.assertEqual(d["decision_time"]["worst_over_all_graded_clocks"],
+                         {"t_to_comparator_outputs_s": 0.9e-9, "t_to_sr_latch_s": 1.5e-9})
         self.assertEqual(d["kickback"]["corner"], d["decision_time"]["corner"])
         kb = d["kickback"]["nodes"]
         # every sampled clock is kept, with the differential it saw, so the

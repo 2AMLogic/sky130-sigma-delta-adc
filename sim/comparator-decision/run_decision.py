@@ -143,14 +143,23 @@ def binding_decision(corners):
     hit = max(rows, key=lambda r: r["t_dp_dn_s"]) if rows else None
     return {"corner": cid, **parse_corner(cid),
             "t_decision_to_dp_dn_s": c.get("tdec_worst"),
-            "t_to_comparator_outputs_s": c.get("tcmp_worst"),
-            "t_to_sr_latch_s": c.get("tq_worst"),
             "phi1_width_s": c.get("phi1_width"),
             "limit_s": decision_limit(c.get("phi1_width")),
             "fraction_of_limit": frac,
-            "overdrive_at_worst_clock_V": hit["vod_V"] if hit else None,
-            "worst_clock": hit["clock"] if hit else None,
-            "flips_counted": c.get("n_flip")}
+            "flips_counted": c.get("n_flip"),
+            # The intermediate crossings are reported from the SAME clock as
+            # the worst delay. The corner-wide worsts below are each taken
+            # over a different clock, so they do not line up with it and must
+            # not be read as a breakdown of it.
+            "at_the_worst_clock": None if hit is None else {
+                "clock": hit["clock"],
+                "differential_V": hit["vod_V"],
+                "t_to_comparator_outputs_s": hit["t_outp_outn_s"],
+                "t_to_sr_latch_s": hit["t_q_qb_s"],
+                "t_to_dp_dn_s": hit["t_dp_dn_s"]},
+            "worst_over_all_graded_clocks": {
+                "t_to_comparator_outputs_s": c.get("tcmp_worst"),
+                "t_to_sr_latch_s": c.get("tq_worst")}}
 
 
 def kickback_at(corner, clocks=MR.LOOP_KICK_CLKS):
