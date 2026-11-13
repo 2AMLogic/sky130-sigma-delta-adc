@@ -93,6 +93,14 @@ jobs:
       - name: Behavioural model unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s sim/bmodel -p 'test_*.py'
 
+      # The gates that decide whether a settling record is written at all, and
+      # the runner paths that admit a result into one (issue #94). Fixtures
+      # only: no fleet, no ngspice, no klt.
+      - name: Settling record-admission unit tests (no EDA tools)
+        run: |
+          python3 -I -m unittest discover -s sim -p 'test_settling*.py'
+          python3 -I -m unittest discover -s sim/integrator-settling -p 'test_*.py'
+
       - name: Decimator whole-chain response, spec rows 8-9 (no EDA tools)
         working-directory: verification/decimator
         run: python3 response.py

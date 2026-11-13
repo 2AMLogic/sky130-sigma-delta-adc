@@ -79,7 +79,7 @@ def main():
     else:
         run = VARIANTS
 
-    results, failed = {}, []
+    results = {}
     for v in VARIANTS if not a.probe else run:
         if v not in run:                       # not asked for this time
             saved = load_partial(v)
@@ -90,13 +90,10 @@ def main():
         res = run_klt(HERE / f"request_{v}.json", bool(a.probe), tmp, v,
                       HERE / f"probe_request_{v}.json", artifacts_dir=None if a.probe else ARTIFACTS)
         if res is None:
+            # A variant requested this invocation is never taken from
+            # .partials/: a failed submit must not be reported as a result.
             print(f"{v}: no usable report (see .artifacts/klt-{v}.stderr.txt); "
-                  "not falling back to a local grid", file=sys.stderr)
-            failed.append(v)
-            saved = load_partial(v)
-            if saved:
-                print(f"{v}: falling back to the saved .partials/{v}.json from an earlier run")
-                results[v] = saved
+                  "not falling back to a local grid or to .partials/", file=sys.stderr)
             continue
         rep, corners = res
         summary = summarize(corners)
@@ -110,6 +107,9 @@ def main():
             save_partial(v, result)
 
     if a.probe:
+        if a.probe not in results:
+            print(f"REFUSE: no result for the {a.probe} probe; nothing printed.", file=sys.stderr)
+            return 1
         print(json.dumps(results[a.probe]["corners"], indent=2))
         return 0
     missing = [v for v in VARIANTS if v not in results]

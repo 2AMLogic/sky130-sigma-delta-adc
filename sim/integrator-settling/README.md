@@ -202,9 +202,12 @@ failing the run.
 `--variant` runs one variant; each completed variant is cached under
 `.partials/` (gitignored, keyed to the request and deck sha256) so a capacity
 refusal on one variant does not discard the other's 45 corners — re-run the
-missing variant and `--record` assembles both. The raw `klt` report, batch
-receipt and stderr land in `.artifacts/` (gitignored) *before* the completeness
-gate, so a failed or partial grid is still inspectable.
+missing variant and `--record` assembles both. A variant requested in *this*
+invocation is never taken from `.partials/`: if its submit fails, the run
+refuses with exit 1 and writes no record, so a failed submit can never be
+reported as a result. The raw `klt` report, batch receipt and stderr land in
+`.artifacts/` (gitignored) *before* the completeness gate, so a failed or
+partial grid is still inspectable.
 
 ## Limits
 
