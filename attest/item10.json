@@ -26,6 +26,36 @@
       "local_only": true
     },
     {
+      "name": "settling-common-unittests",
+      "argv": [
+        "python3",
+        "-I",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "sim",
+        "-p",
+        "test_settling*.py"
+      ],
+      "local_only": true
+    },
+    {
+      "name": "integrator-settling-unittests",
+      "argv": [
+        "python3",
+        "-I",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "sim/integrator-settling",
+        "-p",
+        "test_*.py"
+      ],
+      "local_only": true
+    },
+    {
       "name": "decimator-response",
       "argv": [
         "python3",
