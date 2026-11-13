@@ -697,10 +697,25 @@ class BmodelParams(unittest.TestCase):
         self.assertIn("worst raw sample",
                       s["provenance"]["worst_bound_ci_offset_from"])
 
-    def test_worst_bound_carries_the_gain_bound(self):
+    def test_worst_bound_carries_the_gain_bound_with_its_sign(self):
+        """A gain deficit shrinks both integrator coefficients; abs() would
+        silently turn it into an excess."""
         s = RUNNER.bmodel_params(self.NOM, self.MC)
-        self.assertAlmostEqual(s["worst_bound"]["ci_gain_error"], 0.54)
+        self.assertAlmostEqual(s["worst_bound"]["ci_gain_error"], -0.54)
         self.assertIn("nominal grid", s["provenance"]["worst_bound_ci_gain_error_from"])
+        self.assertIn("kept signed", s["provenance"]["worst_bound_ci_gain_error_sign"])
+
+    def test_a_positive_gain_bound_stays_positive(self):
+        nom = json.loads(json.dumps(self.NOM))
+        nom["derived"]["worst_slope_vs_drawn_cap_ratio_rel"]["value"] = +0.31
+        s = RUNNER.bmodel_params(nom, self.MC)
+        self.assertAlmostEqual(s["worst_bound"]["ci_gain_error"], +0.31)
+
+    def test_the_largest_magnitude_bound_wins_regardless_of_sign(self):
+        nom = json.loads(json.dumps(self.NOM))
+        nom["derived"]["worst_slope_vs_drawn_cap_ratio_rel"]["value"] = -0.9
+        s = RUNNER.bmodel_params(nom, self.MC)
+        self.assertAlmostEqual(s["worst_bound"]["ci_gain_error"], -0.9)
 
     def test_unseparable_anchors_are_named_in_the_provenance(self):
         s = RUNNER.bmodel_params(self.NOM, self.MC)

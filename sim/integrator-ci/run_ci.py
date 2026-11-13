@@ -687,7 +687,10 @@ def bmodel_params(nominal=None, mc=None):
                         f"nominal grid, {d['worst_ci_offset_fs']['corner']}"))
         if d.get("worst_slope_vs_drawn_cap_ratio_rel"):
             w = d["worst_slope_vs_drawn_cap_ratio_rel"]
-            bounds.append((abs(w["value"]), f"nominal grid, {w['corner']}"))
+            # Keyed on magnitude but kept SIGNED: model B applies ci_gain_error
+            # as (1 + g) on both integrator inputs, and a gain deficit is not
+            # interchangeable with a gain excess in a delta-sigma loop.
+            bounds.append((abs(w["value"]), w["value"], f"nominal grid, {w['corner']}"))
         prov["nominal_record"] = nominal.get("variants", {}).get(
             "post_v0", {}).get("remote", {}).get("job_id")
     if mc:
@@ -710,7 +713,7 @@ def bmodel_params(nominal=None, mc=None):
     if not inj:
         return None
     off, off_src = max(inj)
-    bnd, bnd_src = max(bounds) if bounds else (0.0, "not extracted")
+    _, bnd, bnd_src = max(bounds) if bounds else (0.0, 0.0, "not extracted")
     wst, wst_src = max(raw) if raw else (off, off_src)
     return {
         "injection": {**BMODEL_DEFAULTS, "ci_offset": off, "ci_gain_error": 0.0},
@@ -733,6 +736,11 @@ def bmodel_params(nominal=None, mc=None):
                 "the switches."),
             "worst_bound_ci_gain_error": bnd,
             "worst_bound_ci_gain_error_from": bnd_src,
+            "worst_bound_ci_gain_error_sign": (
+                "kept signed: a gain DEFICIT (negative) shrinks both integrator "
+                "coefficients and is not interchangeable with an excess. This "
+                "value is the incomplete input sampling of #106, not charge "
+                "injection -- see worst_bound_ci_offset_caveat."),
             "sigma_k": SIGMA_K,
             "records": prov,
             "sign": ("ci_offset is entered as a magnitude: model B shapes it "

@@ -1,0 +1,21 @@
+{
+  "injection_ci_offset_fs": 0.00022520058728456603,
+  "injection_ci_offset_from": "monte carlo, 3x the OTA-removed sigma at ss_mm/1.620V/125C",
+  "injection_ci_gain_error": 0.0,
+  "injection_ci_gain_error_why": "the signal-dependent part of charge injection came back below the bench's resolution; the slope the fit sees is accounted for by the drawn capacitor ratio, the finite-gain leak and, at the slow/cold corners, incomplete input sampling (#106)",
+  "worst_bound_ci_offset_fs": 0.011834983333333333,
+  "worst_bound_ci_offset_from": "monte carlo, worst raw sample at ff_mm/1.980V/125C",
+  "worst_bound_ci_offset_caveat": "NOT charge injection: the raw Monte Carlo spread is dominated by the OTA's own input-offset mismatch (r = 0.9999 against the measured vod_rst). It is carried because model B's ci_offset is any additive per-clock offset on integrator 1, so this is the honest worst case for that parameter -- its cause is simply not the switches.",
+  "worst_bound_ci_gain_error": -0.5395402783744864,
+  "worst_bound_ci_gain_error_from": "nominal grid, ss/1.620V/-40C",
+  "worst_bound_ci_gain_error_sign": "kept signed: a gain DEFICIT (negative) shrinks both integrator coefficients and is not interchangeable with an excess. This value is the incomplete input sampling of #106, not charge injection -- see worst_bound_ci_offset_caveat.",
+  "sigma_k": 3.0,
+  "records": {
+    "nominal_record": "klt-sim-a37919566973",
+    "mc_record": "klt-sim-2ab49566cc4d",
+    "mc_unseparable_anchors": [
+      "ss_mm/1.620V/-40C"
+    ]
+  },
+  "sign": "ci_offset is entered as a magnitude: model B shapes it through one integrator, so the sign moves the output mean and not the in-band noise"
+}
