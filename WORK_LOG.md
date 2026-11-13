@@ -4,6 +4,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-13
 
+- **PR #93**: feat(sim): record 45-corner integrator settling over PVT and extract the B-model settling budget
+- **Issue #53** (closed): Settling of the SC integrator with ota_fd over PVT (OTA gm margin at beta 0.50)
 - **PR #89**: docs: record klt netlist --check result for vendored comparator
 - **Issue #60** (closed): Close klt netlist --check for vendored comparator.sch (needs xschem >= 3.4.5)
 

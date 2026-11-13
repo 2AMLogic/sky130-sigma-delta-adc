@@ -21,6 +21,7 @@ _None._
 
 - **#27**: T1 item 1 (design sources, analog partition): xschem schematic and derived netlist of the 2nd-order switched-capacitor modulator
 - **#42**: T1 item 1 (analog 4/4): attestation inventory, manifest evidence, regenerated verdict
+- **#92**: Integrator cell does not settle at Vdda=1.62 V (0/15 corners, both load variants): diagnose, then fix the OTA or the switches
 
 ## Ready
 
@@ -32,7 +33,7 @@ _None._
 
 Issues currently being built (`loom:building`).
 
-- **#53**: Settling of the SC integrator with ota_fd over PVT (OTA gm margin at beta 0.50)
+- **#92**: Integrator cell does not settle at Vdda=1.62 V (0/15 corners, both load variants): diagnose, then fix the OTA or the switches
 
 ## PRs Awaiting Review
 
@@ -52,12 +53,15 @@ Issues carrying `loom:curated`.
 
 - **#3**: Track the gap to T1 (klayout-tools design-evidence-tiers.md) *(curated)*
 - **#42**: T1 item 1 (analog 4/4): attestation inventory, manifest evidence, regenerated verdict *(curated)*
-- **#53**: Settling of the SC integrator with ota_fd over PVT (OTA gm margin at beta 0.50) *(curated)*
+- **#92**: Integrator cell does not settle at Vdda=1.62 V (0/15 corners, both load variants): diagnose, then fix the OTA or the switches *(curated)*
 
 ## Proposed (Architect / Hermit)
 
 - **#43**: Deduplicate PDK-pin helpers copy-pasted across three runners *(hermit)*
 - **#81**: Consolidate 7 copies of the klt pdk find lookup into one helper *(hermit)*
+- **#91**: Fold attest/ and evidence/ into attestation/: three directory conventions for one kind of file *(hermit)*
+- **#95**: Share the settling measurement list between the OTA and integrator benches: two copies, one already out of step with its request *(hermit)*
+- **#96**: Remove sim/toolchain.json: a tool-version pin file that no code reads and that has gone stale *(hermit)*
 
 ## Epics
 
@@ -69,12 +73,12 @@ _None._
 |------|-------|
 | Operator merge-risk holds | 0 |
 | Very important | 0 |
-| Important | 2 |
+| Important | 3 |
 | Ready (`loom:issue`) | 0 |
 | In Progress (`loom:building`) | 1 |
 | PRs awaiting review | 0 |
 | Approved PRs awaiting merge | 0 |
 | Curated | 3 |
-| Architect / Hermit proposals | 2 |
+| Architect / Hermit proposals | 5 |
 | Active epics | 0 |
 <!-- guide:plan-body:end -->
