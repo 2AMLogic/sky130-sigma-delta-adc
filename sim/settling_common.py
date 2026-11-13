@@ -97,7 +97,7 @@ def _find_receipt(outdir):
 
 def run_klt(request_path, probe, tmpdir, tag, probe_path, *,
             capacity_wait_s=CAPACITY_WAIT_S, artifacts_dir=None, keys=KEYS,
-            hosts=None):
+            hosts=None, resume=False):
     """Run `klt sim` on request_path; with probe, on one local tt/27C/1.8V corner.
 
     Batch submits always pass --wait-for-capacity, so a refused launch waits
@@ -107,6 +107,14 @@ def run_klt(request_path, probe, tmpdir, tag, probe_path, *,
 
     `keys` selects which measurements are carried into the per-corner dict
     (default: the settling benches' KEYS).
+
+    `resume` adds `--resume`, which re-launches only the units a previous run
+    of the SAME request into the SAME `tmpdir` did not finish -- a shard the
+    fleet refused for capacity comes back `lost_shard`, and re-running the
+    whole grid to recover one corner wastes the shared quota. It needs a
+    persistent `tmpdir`: the shard map klt resumes from lives in
+    `tmpdir/out-<tag>/`, so a caller that passes a fresh `mkdtemp` each time
+    has nothing to resume.
 
     `hosts` shards the expanded unit list across that many fleet instances
     (`--hosts`). The fleet kills a job that is still running at its whole-job
@@ -135,6 +143,8 @@ def run_klt(request_path, probe, tmpdir, tag, probe_path, *,
         cmd += ["--wait-for-capacity", str(capacity_wait_s)]
         if hosts:
             cmd += ["--hosts", str(hosts)]
+        if resume:
+            cmd += ["--resume"]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if probe:
         probe_path.unlink()
