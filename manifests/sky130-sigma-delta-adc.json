@@ -18,7 +18,7 @@
     "8.digital": {"file": "attestation/item8-envelope.json", "content_hash": "sha256:08e0145202de09550e3d69c088cc64261d2a4feccce6dc131711aea3a5a26ce0"},
     "9": {"file": "attestation/item9-envelope.json", "content_hash": "sha256:b8d3bb89fc360daeb8a34750603f42f01c3e5695b70e3b2424064ac38f985774"},
     "10": {
-      "file": "evidence/item10.json",
+      "file": "attestation/item10-envelope.json",
       "content_hash": "sha256:02c59c092ccf82d8c16fe91d33b430d381d06a2275646b2901ccec8ce2d1eeac"
     }
   }

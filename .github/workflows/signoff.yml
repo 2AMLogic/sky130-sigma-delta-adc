@@ -35,7 +35,7 @@ jobs:
       - name: Validate committed JSON parses
         run: |
           set -euo pipefail
-          find manifests attest evidence -name '*.json' -print0 | sort -z |
+          find manifests attestation design/attest -name '*.json' -print0 | sort -z |
             while IFS= read -r -d '' f; do
               python3 -m json.tool "$f" > /dev/null || { echo "::error file=$f::not valid JSON"; exit 1; }
               echo "ok: $f"
@@ -87,8 +87,8 @@ jobs:
       # local_only checks are skipped here and run as explicit steps below.
       - name: Check the item-10 attestation is current
         run: |
-          klt signoff --attest 10 --inventory attest/item10.json \
-                      --check evidence/item10.json
+          klt signoff --attest 10 --inventory attestation/item10-inventory.json \
+                      --check attestation/item10-envelope.json
 
       - name: Behavioural model unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s sim/bmodel -p 'test_*.py'

@@ -153,7 +153,8 @@ The T1 item 10 (repo hygiene) attestation is derived, not asserted:
 
 ```
 uvx --from "klayout-tools==$(cat .github/klt-version)" klt signoff --attest 10 \
-    --inventory attest/item10.json --check evidence/item10.json
+    --inventory attestation/item10-inventory.json \
+    --check attestation/item10-envelope.json
 ```
 
 ## License
