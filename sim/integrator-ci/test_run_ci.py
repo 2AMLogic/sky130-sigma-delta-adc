@@ -449,6 +449,24 @@ class Derivations(unittest.TestCase):
         self.assertEqual(d["post_i92"][ANCHOR_IDS[0]]["sigma_dvod_V"], 0.0)
         self.assertIsNone(d["sigma_ratio"][ANCHOR_IDS[0]]["sigma_ratio_raw"])
 
+    def test_mismatch_coverage_names_families_that_are_not_active(self):
+        """A family klt does not report active is not inside the sigma."""
+        env = {"n": 100, "seed": 1, "vary": "mismatch", "seed_scope": "point",
+               "family_mismatch": [{"family": "mosfet", "active": True},
+                                   {"family": "capacitor", "active": None},
+                                   {"family": "resistor", "active": True}]}
+        cov = RUNNER.mismatch_coverage({"post_v0": {"monte_carlo_env": env},
+                                        "pre_v0": {"monte_carlo_env": env}})
+        self.assertEqual(cov["not_covered"], ["capacitor"])
+        self.assertEqual(cov["post_v0"]["family_active"]["mosfet"]["active"], True)
+        self.assertIn("capacitor mismatch remains a separate owed mechanism",
+                      cov["note"])
+
+    def test_mismatch_coverage_survives_a_missing_environment_block(self):
+        cov = RUNNER.mismatch_coverage({"post_v0": {}})
+        self.assertEqual(cov["not_covered"], [])
+        self.assertIsNone(cov["post_v0"]["n"])
+
     def test_ota_offset_is_regressed_out_and_the_residual_is_the_switch_part(self):
         """A step that is 0.5*offset plus a small independent term must come back
         as that small term, not as the offset spread."""

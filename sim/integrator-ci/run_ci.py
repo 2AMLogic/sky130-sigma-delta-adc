@@ -444,6 +444,41 @@ def mc_stats(corners):
     return out
 
 
+def mismatch_coverage(results):
+    """What `family_mismatch` says each run's mismatch actually covered.
+
+    Turning the deck's mismatch section on does not guarantee every device
+    family in the netlist gets per-instance variation. klt reports per family
+    whether it is structurally active in the selected deck; for sky130 MOS comes
+    back active and the MIM capacitors come back `null` (unverified), so
+    capacitor mismatch is NOT inside these numbers and stays a separate owed
+    mechanism. Recording it here means a later reader cannot mistake the sigma
+    for an all-mechanisms number.
+    """
+    out = {}
+    for v, r in results.items():
+        env = r.get("monte_carlo_env") or {}
+        fams = {f["family"]: {"active": f.get("active")}
+                for f in env.get("family_mismatch", [])}
+        out[v] = {
+            "n": env.get("n"), "seed": env.get("seed"), "vary": env.get("vary"),
+            "seed_scope": env.get("seed_scope"),
+            "family_active": fams,
+            "unseeded_sources": env.get("unseeded_sources"),
+        }
+    inactive = sorted({f for r in out.values()
+                       for f, d in r["family_active"].items() if d["active"] is not True})
+    out["not_covered"] = inactive
+    out["note"] = (
+        "Families whose per-instance mismatch klt does not report as active are "
+        "NOT inside these sigmas. For sky130 that includes the MIM capacitors "
+        "(reported `null`, i.e. unverified rather than off), so capacitor "
+        "mismatch remains a separate owed mechanism "
+        "(design/integrator/SIZING.md -> \"Not simulated (owed)\") and this "
+        "record must not be read as an all-mechanisms number.")
+    return out
+
+
 def mc_derivation(results, areas):
     # `results` is keyed by variant name in both modes; --mc only changes which
     # request each variant submits.
@@ -477,6 +512,7 @@ def mc_derivation(results, areas):
     worst = max(((v["max_abs_dvod_V"], c) for c, v in post.items()), default=(None, None))
     return {
         "post_i92": post, "pre_i92": pre, "sigma_ratio": ratios,
+        "mismatch_coverage": mismatch_coverage(results),
         "worst_abs_dvod_V": {"corner": worst[1], "value": worst[0]},
         "worst_abs_ci_offset_fs": fs(worst[0]),
         "sqrt_wl_prediction": areas,

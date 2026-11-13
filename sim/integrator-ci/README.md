@@ -125,8 +125,32 @@ Three things keep that honest rather than hidden:
    netlist. The *change* in sigma between them is attributable to the switches in
    a way neither run's absolute sigma is.
 
-The record therefore reports the total and names what is in it; it does not quote
-a switch-injection-only sigma that the bench cannot separate at a single cell.
+**Measured, over the committed Monte Carlo campaign: the OTA offset is almost all
+of it.** The raw per-clock differential sigma is 1.3–5.8 mV, and at six of the
+seven DR-002 anchors it correlates with the same sample's `vod_rst` at
+**r = 0.9999** with a slope of ~1.01. Regressing it out leaves:
+
+| anchor | σ raw | σ(OTA offset) | r | σ switch-attributable |
+|---|---|---|---|---|
+| `tt_mm`/1.800 V/27 °C | 4.794e-3 V | 4.725e-3 V | 0.9999 | **7.22e-5 V** |
+| `ff_mm`/1.980 V/−40 °C | 4.127e-3 | 4.067e-3 | 0.9999 | 5.93e-5 |
+| `ff_mm`/1.980 V/125 °C | 5.620e-3 | 5.563e-3 | 0.9999 | 7.50e-5 |
+| `fs_mm`/1.800 V/27 °C | 5.270e-3 | 5.195e-3 | 0.9999 | 6.13e-5 |
+| `sf_mm`/1.800 V/27 °C | 4.502e-3 | 4.453e-3 | 0.9999 | 7.67e-5 |
+| `ss_mm`/1.620 V/125 °C | 5.779e-3 | 5.675e-3 | 0.9999 | 9.01e-5 |
+| `ss_mm`/1.620 V/−40 °C | 1.271e-3 | 4.019e-3 | 0.614 | **not separable** |
+
+so the switch-attributable sigma is **59–90 µV per clock**, i.e. 4.9e-5 … 7.5e-5
+in `ci_offset` FS units — about 60× below the raw number. The regression is
+reported with its slope and `r` so the separation can be judged rather than
+trusted, and below `|r| = 0.95` **no** switch-only sigma is published: that is
+what happens at `ss_mm`/1.620 V/−40 °C, the anchor whose charge transfer is
+itself incomplete (#106).
+
+The record therefore reports the total, the measured offset, the regression, and
+the residual — and the post/pre ratio both ways. `sqrt(W L)` is a claim about the
+switches, so it is read against the **OTA-removed** ratio; the raw ratio would be
+near 1 at both cells simply because the same OTA dominates both.
 
 ## Variants
 
@@ -253,11 +277,24 @@ lands within about 10 % — enough to separate 1.33× from 1.93×. The record st
 `N`, the base seed, the estimator, and that standard error. A re-run at larger
 `N` is a new append-only record, not an edit of the old one.
 
-`family_mismatch` from the response is kept in the record: it states, per device
-family actually instantiated, whether that family's mismatch is structurally
-active in the selected deck. `cap_mim_*` is reported as a capacitor family, so
-capacitor mismatch is **not** part of these numbers — it is a separate mechanism
-and separately owed (`design/integrator/SIZING.md` → "Not simulated (owed)").
+`family_mismatch` from the response is kept in the record and summarised under
+`derived.mismatch_coverage`: it states, per device family actually instantiated,
+whether that family's mismatch is structurally active in the selected deck.
+Measured on the committed campaign:
+
+| family | reported | consequence |
+|---|---|---|
+| `mosfet` | `active: true` | the switches and the OTA do vary per instance |
+| `resistor` | `active: true` | — |
+| `capacitor` (`cap_mim_*`) | `active: null` | **unverified, not off** |
+| `other` | `active: null` | unverified |
+
+So **capacitor mismatch is not inside these sigmas** — `null` means klt does not
+independently verify that family for sky130, so any spread it contributes is
+unconfirmed. It stays a separate owed mechanism
+(`design/integrator/SIZING.md` → "Not simulated (owed)"), and
+`derived.mismatch_coverage.not_covered` lists it so the record cannot be read as
+an all-mechanisms number.
 
 ## Running it
 
