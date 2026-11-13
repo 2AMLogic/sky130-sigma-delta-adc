@@ -283,6 +283,16 @@ class AdmissionGates(RunnerCase):
         self.assertIn(f"returned no {SENTINEL}", err)
         self.assertNoRecord()
 
+    def test_record_states_it_has_no_pass_criterion(self):
+        """`pass` here means "no corner errored", never "the circuit is fine"."""
+        rc, _, err = self.run_main(["--record"], self.all_grid_submits())
+
+        self.assertEqual(rc, 0, f"stderr={err!r}")
+        rec = json.loads((self.here / "record.json").read_text())
+        self.assertIn("NONE", rec["pass_criterion"])
+        self.assertIn("not a spec check", rec["pass_criterion"])
+        self.assertIn("SIMULATED, NEVER MEASURED", rec["result_kind"])
+
     def test_complete_grid_without_record_flag_writes_nothing(self):
         rc, out, err = self.run_main([], self.all_grid_submits())
 

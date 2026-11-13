@@ -881,6 +881,14 @@ def main():
                            f"base seed {mk.MC_SEED}, vary=mismatch, seed_scope=point, "
                            "sky130 `_mm` .lib sections"
                            if a.mc else "DR-002 full grid, 5 process x 3 T x 3 Vdda"),
+            "pass_criterion": (
+                "NONE. This is an extraction, not a spec check: no measurement "
+                "here carries a limit, and no spec row bounds the integrator's "
+                "charge-injection residual. The `pass` field below means only "
+                "that every corner simulated without erroring -- it is not a "
+                "verdict on the circuit, and nothing in this record may be read "
+                "as one. The numbers' consumer is model B's ci_offset / "
+                "ci_gain_error."),
             "pdk_sources_stamp": stamp,
             "pdk_pin": {"file": "sim/pdk.json", "open_pdks_revision": pin["open_pdks_revision"]},
             "klt": subprocess.run(["klt", "--version"], capture_output=True,
