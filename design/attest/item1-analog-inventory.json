@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "kind": "t1-attestation-inventory",
+  "t1_item": 1,
+  "description": "Analog partition: committed xschem schematic and symbol sources for the clock generator, OTA, integrator and top-level modulator, plus the SPICE netlists derived from them. The quantizer comparator is adopted by pinned reference (DR-003): reuse.lock.json and this repo's local glue are listed, but the vendored comparator.sch and comparator_core.spice are not -- they are pinned upstream artifacts, not sources of this block.",
+  "sources": [
+    "design/attest/check_analog_netlists.py",
+    "design/clkgen/clkgen.sch",
+    "design/clkgen/clkgen.sym",
+    "design/integrator/integrator.sch",
+    "design/integrator/integrator.sym",
+    "design/modulator/comparator/comparator.sym",
+    "design/modulator/comparator/wrap_comparator.sh",
+    "design/modulator/modulator.sch",
+    "design/modulator/modulator.sym",
+    "design/ota/ota_fd.sch",
+    "design/ota/ota_fd.sym",
+    "design/xschemrc",
+    "reuse.lock.json"
+  ],
+  "derived": [
+    {
+      "path": "design/clkgen/clkgen.spice",
+      "generator": "klt netlist",
+      "check": {
+        "argv": [
+          "python3",
+          "-I",
+          "design/attest/check_analog_netlists.py",
+          "design/clkgen/clkgen.sch",
+          "design/clkgen/clkgen.spice"
+        ],
+        "local_only": true
+      }
+    },
+    {
+      "path": "design/ota/ota_fd.spice",
+      "generator": "klt netlist",
+      "check": {
+        "argv": [
+          "python3",
+          "-I",
+          "design/attest/check_analog_netlists.py",
+          "design/ota/ota_fd.sch",
+          "design/ota/ota_fd.spice"
+        ],
+        "local_only": true
+      }
+    },
+    {
+      "path": "design/integrator/integrator.spice",
+      "generator": "klt netlist",
+      "check": {
+        "argv": [
+          "python3",
+          "-I",
+          "design/attest/check_analog_netlists.py",
+          "design/integrator/integrator.sch",
+          "design/integrator/integrator.spice"
+        ],
+        "local_only": true
+      }
+    },
+    {
+      "path": "design/modulator/modulator.spice",
+      "generator": "klt netlist",
+      "check": {
+        "argv": [
+          "python3",
+          "-I",
+          "design/attest/check_analog_netlists.py",
+          "design/modulator/modulator.sch",
+          "design/modulator/modulator.spice"
+        ],
+        "local_only": true
+      }
+    },
+    {
+      "path": "design/modulator/comparator/comparator.spice",
+      "generator": "design/modulator/comparator/wrap_comparator.sh",
+      "check": {
+        "argv": [
+          "design/modulator/comparator/wrap_comparator.sh",
+          "--check"
+        ]
+      }
+    }
+  ]
+}
