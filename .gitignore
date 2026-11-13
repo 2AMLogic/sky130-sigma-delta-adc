@@ -8,7 +8,6 @@ __pycache__/
 # sim/ harness: per-corner ngspice logs under corners/ are committed evidence
 # (append-only record trail), so they escape the *.log rule.
 !sim/*/corners/**/*.log
-sim/build/
 # settling-bench scratch: per-variant partial results and the raw klt
 # report / batch receipt kept for debugging a failed or partial grid
 sim/*/.partials/
@@ -18,13 +17,14 @@ sim/*/.artifacts/
 sim/*/probe_request_*.json
 sim/*/.selftest*
 sim/*/.probe_step_*
-# synthesis / P&R scratch
-flow/build/
+# cocotb runner scratch: run_smoke.py and run_synth.py build beside
+# themselves and delete it on success, so it outlives a failed run only
+verification/*/build/
 # klt synthesize per-run scratch next to the request file
 verification/smoke/.klt/
 verification/decimator/.klt/
 layout/digital/.klt/
-# local klt install, created by the setup script
+# .venv/ comes from the uv venv step in the README's Reproduce section
 .venv/
 # >>> loom-managed (do not edit) >>>
 # Loom runtime state (don't commit these)
