@@ -95,7 +95,10 @@
     {
       "name": "step_up",
       "expr": "v_trip_up - v_prev_up",
-      "unit": "V"
+      "unit": "V",
+      "limits": {
+        "min": 2e-06
+      }
     },
     {
       "name": "tphi1_up",
@@ -120,7 +123,10 @@
     {
       "name": "step_dn",
       "expr": "v_trip_dn - v_prev_dn",
-      "unit": "V"
+      "unit": "V",
+      "limits": {
+        "max": -2e-06
+      }
     },
     {
       "name": "tphi1_dn",
@@ -137,7 +143,7 @@
       "expr": "mean((v(o2d))*((time ge 2.40385e-06)*(time le 2.43385e-06)))/mean((time ge 2.40385e-06)*(time le 2.43385e-06)) - mean((v(o2d))*((time ge 8.4135e-07)*(time le 8.7135e-07)))/mean((time ge 8.4135e-07)*(time le 8.7135e-07))",
       "unit": "V",
       "limits": {
-        "min": 0.0035
+        "min": 2e-06
       }
     },
     {
@@ -145,7 +151,7 @@
       "expr": "mean((v(o2d))*((time ge 4.5522875e-06)*(time le 4.5822875e-06)))/mean((time ge 4.5522875e-06)*(time le 4.5822875e-06)) - mean((v(o2d))*((time ge 2.794475e-06)*(time le 2.824475e-06)))/mean((time ge 2.794475e-06)*(time le 2.824475e-06))",
       "unit": "V",
       "limits": {
-        "max": -0.0035
+        "max": -2e-06
       }
     },
     {

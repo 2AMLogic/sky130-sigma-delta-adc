@@ -13,8 +13,23 @@ source over the same 45-point grid.
     python3 -I sim/comparator-decision/run_decision.py --record      # the 45-point grid
 
 `run_decision.py` submits through `klt sim`, which sends the grid to the batch
-fleet; it never falls back to a local grid. Unit tests (no EDA tools, no
-fleet):
+fleet; it never falls back to a local grid.
+
+The shared fleet loses shards routinely — a capacity refusal once its vCPU
+budget is spent, or a Spot reclaim — and a lost shard returns its corners as
+valueless `error` entries, which this bench refuses to write a record from
+(and, since that refusal is not a result, refuses to cache in `.partials/`).
+Finish such a grid without paying for the whole of it again:
+
+    python3 -I sim/comparator-decision/run_decision.py --work /tmp/cmpdec   # first run
+    python3 -I sim/comparator-decision/run_decision.py --work /tmp/cmpdec --resume --record
+
+`--resume` launches only the units the earlier run into that same `--work`
+left unrun, and needs the request to be unchanged. `--capacity-wait-s` raises
+the per-launch wait above the host rule's 600 s floor when the fleet is
+saturated.
+
+Unit tests (no EDA tools, no fleet):
 
     python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'
 
@@ -46,6 +61,7 @@ analog boundary stays fixed.
 | reference pair | 1.5 / 0.3 V (spec) | **nulled**: VREFP = VREFN = VCM = 0.9 V |
 | input | 0.06 V DC differential (0.05 FS) | staircase, below |
 | transient | 3.07 µs (16 clocks) | 4.83 µs (25 clocks) |
+| 45 corners cost | ~45 fleet units | ~45 fleet units |
 | gives | decision time, kickback | trip points → offset, hysteresis |
 
 **Why `trip` nulls the reference.** The two quantities model B wants are
@@ -87,11 +103,34 @@ would be a bench artefact rather than a measurement.
 Only the *targets* are designed here. The step the bench actually delivered is
 measured at the trip itself (`step_up`, `step_dn`, from the held value one
 clock earlier), so a `Cs/Ci` that is not exactly 0.5 changes the resolution
-and nothing else. Three bench-validity gates — not spec limits — make a sweep
-that failed to bracket the trip a graded failure rather than a quiet number:
+and nothing else. Bench-validity gates — not spec limits — make a sweep that
+failed to bracket the trip a graded failure rather than a quiet number:
 `flip_up`/`flip_dn` (the decision changed at all), `k_up`/`k_dn` (it changed
-*strictly inside* the staircase, not on its first clock), and
-`span_up`/`span_dn` (the sweep really covered ±3.5 mV).
+*strictly inside* the staircase, not on its first or last clock), and
+`span_up`/`span_dn`, `step_up`/`step_dn` (it moved, and in the intended
+direction).
+
+**The delivered step is not 500 µV at every corner, and that is not a
+failure.** The step is `(Cs/Ci)·o1d`, so it is only as large as the cell's
+charge transfer. At the low-supply, slow, cold corners that transfer
+collapses — the same corners `sim/integrator-settling` already records as
+unsettled at VDDA = 1.620 V — and the first fleet run measured a 5.6 µV step
+at `ss`/1.620 V/−40 °C against 500 µV at the fast corners, a factor of ~90.
+A narrower sweep in finer steps is a **finer** measurement inside a
+**narrower** bracket, not a wrong one, and what a trip point actually rests
+on is bracketing: `k_up`/`k_dn` say the decision changed strictly inside the
+swept clocks. So the direction gates are a floor at `SWEEP_FLOOR_V` = 2 µV —
+twice ngspice's default `vntol`, i.e. the smallest move that is a move rather
+than solver noise — and not an absolute span. An absolute span would have
+failed those corners for the *integrator's* behaviour rather than the
+comparator's.
+
+The record carries `staircase_step_V` per corner and a
+`resolution_range_V` naming the coarsest and finest corner, so no single
+resolution figure stands in for corners it was not measured at. Corners that
+also carry `singular_matrix` / `nonconvergence` diagnostics keep them in the
+record: at 1.620 V this hierarchy makes ngspice work for its operating
+point, and a reader should weigh those corners accordingly.
 
 ## Model-B units
 

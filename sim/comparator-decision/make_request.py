@@ -67,7 +67,11 @@ O1D_FINE = STEP_V / G              # integrator-1 output held here during a ramp
 # metastable, and a metastable clock in the middle of the ramp would be a
 # bench artefact, not a measurement.
 O1D_COARSE = -2.25e-3              # two-clock approach to the foot of the ramp
-RAMP_SPAN_V = 3.5e-3               # the sweep must cover at least this much
+# A sweep narrower than this at the trip is not a sweep. It is a direction
+# floor, not a span requirement: ngspice's default node-voltage tolerance
+# (`vntol`) is 1 uV, so 2 uV is the smallest move that is a move rather than
+# solver noise. See trip_measurements() for why no larger floor is imposed.
+SWEEP_FLOOR_V = 2e-6
 
 # Clock indices of the trip variant's phases (see README "Staircase").
 TRIP_UP_FIRST, TRIP_UP_LAST = 4, 12      # decisions on a rising staircase
@@ -289,7 +293,8 @@ def trip_measurements():
                 f"*(time le (t_{tag}-{TCLK - W_HOLD[1]:.9g}))")
         ms.append(e(f"v_trip_{tag}", f"mean(v(o2d)*({hold}))/mean({hold})", "V"))
         ms.append(e(f"v_prev_{tag}", f"mean(v(o2d)*({prev}))/mean({prev})", "V"))
-        ms.append(e(f"step_{tag}", f"v_trip_{tag} - v_prev_{tag}", "V"))
+        ms.append(e(f"step_{tag}", f"v_trip_{tag} - v_prev_{tag}", "V",
+                    {"min": SWEEP_FLOOR_V} if tag == "up" else {"max": -SWEEP_FLOOR_V}))
         # decision time at the trip itself: the smallest overdrive this bench
         # presents. Reported, never graded -- every latch is slow at its own
         # trip point, and inventing a limit there would be inventing a spec.
@@ -298,15 +303,27 @@ def trip_measurements():
         sent = tedge(k) + W_DEC
         ms.append(e(f"tphi1_{tag}", first_time(phi1_high(wd), sent), "s"))
         ms.append(e(f"tdec_{tag}", f"tflip_{tag} - tphi1_{tag}", "s"))
-    # span checks: that the staircase really swept, and in which direction
+    # Direction checks: the staircase has to move, and the right way.
+    #
+    # Deliberately NOT a check that it moved by the designed STEP_V. The step
+    # the cell delivers is (Cs/Ci) * o1d, and at the low-supply / slow / cold
+    # corners the switched-capacitor charge transfer collapses -- the same
+    # corners sim/integrator-settling already records as unsettled at
+    # VDDA = 1.620 V. There the staircase shrinks by orders of magnitude,
+    # which makes the sweep NARROWER and its resolution FINER; it does not
+    # make it wrong. What has to hold for a trip point to mean anything is
+    # that the decision changed (flip_*) strictly inside the swept clocks
+    # (k_*), which is bracketing, and those are graded above. Demanding an
+    # absolute span on top of that would have failed a corner for the
+    # integrator's behaviour rather than the comparator's.
     ms.append(e("span_up",
                 f"{held('v(o2d)', tedge(TRIP_UP_LAST) + W_HOLD[0], tedge(TRIP_UP_LAST) + W_HOLD[1])}"
                 f" - {held('v(o2d)', tedge(TRIP_UP_FIRST) + W_HOLD[0], tedge(TRIP_UP_FIRST) + W_HOLD[1])}",
-                "V", {"min": RAMP_SPAN_V}))
+                "V", {"min": SWEEP_FLOOR_V}))
     ms.append(e("span_dn",
                 f"{held('v(o2d)', tedge(TRIP_DN_LAST) + W_HOLD[0], tedge(TRIP_DN_LAST) + W_HOLD[1])}"
                 f" - {held('v(o2d)', tedge(TRIP_DN_FIRST) + W_HOLD[0], tedge(TRIP_DN_FIRST) + W_HOLD[1])}",
-                "V", {"max": -RAMP_SPAN_V}))
+                "V", {"max": -SWEEP_FLOOR_V}))
     # the two quantities model B wants, in volts at the integrator-2 output.
     # Model B trips to +1 at x2 = +h/2 - off and back to -1 at x2 = -h/2 - off,
     # so off = -(up + dn)/2 and h = up - dn. run_decision.py converts to FS.

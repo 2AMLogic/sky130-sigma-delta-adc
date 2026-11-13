@@ -10,6 +10,10 @@ falls back to a local grid.
   --probe V    one tt/27C/1.8V corner of one variant, run locally, no record
   --record     write record.json (refuses to overwrite: records are
                append-only; use --record-name for a re-run)
+  --work DIR   keep each variant's `klt sim` scratch under DIR instead of a
+               fresh temporary directory, so --resume can finish it
+  --resume     launch only the units a previous run into the same --work left
+               unrun (lost shards, Spot reclaims), instead of the whole grid
 
 Everything the record states beyond the raw per-corner measurements is
 derived by the pure functions below, so the fixture tests in
@@ -235,8 +239,22 @@ def trip_summary(corners):
         "comparator_hysteresis": None if hy_cid is None else {
             "binding_corner": hy_cid, **parse_corner(hy_cid),
             "V": hy_v, "FS": fs(hy_v)},
+        # The staircase step is the resolution of both trip points, and it is
+        # NOT the same at every corner: it is (Cs/Ci) * o1d, so where the
+        # switched-capacitor transfer collapses (low supply, slow, cold) the
+        # sweep narrows and its resolution sharpens. Both ends are reported,
+        # each with the corner it came from, because a single number here
+        # would be a claim about corners it was not measured at.
         "resolution_V": max(steps) if steps else None,
         "resolution_FS": fs(max(steps)) if steps else None,
+        "resolution_range_V": None if not steps else {
+            "coarsest": max(steps),
+            "coarsest_corner": max(per.items(), key=lambda kv: kv[1]["staircase_step_V"]
+                                   if kv[1]["staircase_step_V"] is not None else -1.0)[0],
+            "finest": min(steps),
+            "finest_corner": min((kv for kv in per.items()
+                                  if kv[1]["staircase_step_V"] is not None),
+                                 key=lambda kv: kv[1]["staircase_step_V"])[0]},
     }
 
 
@@ -315,6 +333,12 @@ def main():
     ap.add_argument("--record", action="store_true",
                     help="write record.json (refuses to overwrite: records are append-only)")
     ap.add_argument("--record-name", default="record.json")
+    ap.add_argument("--work", type=pathlib.Path,
+                    help="keep klt sim's scratch (shard map, checkpoint) here so "
+                         "--resume can finish a grid the fleet left incomplete")
+    ap.add_argument("--resume", action="store_true",
+                    help="with --work, launch only the units a previous run left "
+                         "unrun; requires an unchanged request")
     ap.add_argument("--capacity-wait-s", type=int, default=CAPACITY_WAIT_S,
                     help="seconds a refused batch launch waits for fleet capacity "
                          f"before the shard is lost (default {CAPACITY_WAIT_S}, the "
@@ -331,6 +355,10 @@ def main():
         print(f"REFUSE: {out.name} exists; records are append-only (use --record-name)",
               file=sys.stderr)
         return 2
+    if a.resume and not a.work:
+        print("REFUSE: --resume needs the --work directory the earlier run used",
+              file=sys.stderr)
+        return 2
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="comparator-decision-"))
     run = (a.probe,) if a.probe else tuple(dict.fromkeys(a.variant)) if a.variant else VARIANTS
 
@@ -345,7 +373,9 @@ def main():
         res = run_klt(HERE / f"request_{v}.json", bool(a.probe), tmp, v,
                       HERE / f"probe_request_{v}.json",
                       artifacts_dir=None if a.probe else ARTIFACTS,
-                      keys=keys_for(v), capacity_wait_s=a.capacity_wait_s)
+                      keys=keys_for(v), capacity_wait_s=a.capacity_wait_s,
+                      outdir=(a.work / f"out-{v}") if a.work else None,
+                      resume=a.resume)
         if res is None:
             print(f"{v}: no usable report (see .artifacts/klt-{v}.stderr.txt); "
                   "not falling back to a local grid or to .partials/", file=sys.stderr)
@@ -467,6 +497,7 @@ def build_record(results, pin, stamp):
                                "0.5*(x1 - y), and the two agree for 1 unit = 1.2 V. "
                                "Same factor sim/integrator-ci/README.md derives for x1."),
                 "resolution_V": tsum["resolution_V"], "resolution_FS": tsum["resolution_FS"],
+                "resolution_range_V": tsum["resolution_range_V"],
             },
             "per_corner": tsum["per_corner"],
             "kickback": {

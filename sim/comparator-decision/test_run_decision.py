@@ -145,14 +145,35 @@ class StaircaseCase(unittest.TestCase):
         for a, b in zip(ks, list(ks)[1:]):
             self.assertAlmostEqual(self.seen[b] - self.seen[a], -MR.STEP_V, places=12)
 
-    def test_both_sweeps_cover_the_graded_span_and_straddle_zero(self):
+    def test_both_sweeps_straddle_zero_by_several_steps(self):
+        # The designed sweep has to put the expected trip point well inside
+        # itself in both directions; whether the CELL delivers that span at a
+        # given corner is a separate question the graded rows handle (see
+        # make_request.trip_measurements, "Direction checks").
         up = [self.seen[n] for n in range(MR.TRIP_UP_FIRST, MR.TRIP_UP_LAST + 1)]
         dn = [self.seen[n] for n in range(MR.TRIP_DN_FIRST, MR.TRIP_DN_LAST + 1)]
-        self.assertGreaterEqual(up[-1] - up[0], MR.RAMP_SPAN_V)
-        self.assertLessEqual(dn[-1] - dn[0], -MR.RAMP_SPAN_V)
+        self.assertGreater(up[-1] - up[0], 0.0)
+        self.assertLess(dn[-1] - dn[0], 0.0)
         for seq in (up, dn):
-            self.assertLess(min(seq), 0.0)
-            self.assertGreater(max(seq), 0.0)
+            self.assertLessEqual(min(seq), -3 * MR.STEP_V)
+            self.assertGreaterEqual(max(seq), 3 * MR.STEP_V)
+
+    def test_the_sweep_direction_floor_is_a_floor_not_a_span_requirement(self):
+        # A corner whose charge transfer collapses (low supply, slow, cold --
+        # the corners sim/integrator-settling already records as unsettled)
+        # sweeps a much narrower range in much finer steps. That is a finer
+        # measurement inside a narrower bracket, not a broken one, so the
+        # graded floor must be near the solver's own voltage tolerance rather
+        # than anywhere near the designed step.
+        trip = {m["name"]: m.get("limits") for m in MR.VARIANTS["trip"]["measurements"]()}
+        self.assertEqual(trip["span_up"], {"min": MR.SWEEP_FLOOR_V})
+        self.assertEqual(trip["span_dn"], {"max": -MR.SWEEP_FLOOR_V})
+        self.assertEqual(trip["step_up"], {"min": MR.SWEEP_FLOOR_V})
+        self.assertEqual(trip["step_dn"], {"max": -MR.SWEEP_FLOOR_V})
+        self.assertLess(MR.SWEEP_FLOOR_V, MR.STEP_V / 100)
+        # bracketing is what the trip points actually rest on
+        self.assertEqual(trip["k_up"], {"min": MR.TRIP_UP_FIRST + 1, "max": MR.TRIP_UP_LAST})
+        self.assertEqual(trip["k_dn"], {"min": MR.TRIP_DN_FIRST + 1, "max": MR.TRIP_DN_LAST})
 
     def test_the_input_only_moves_while_the_input_switch_is_open(self):
         # Every PWL breakpoint has to sit inside a phi2, i.e. between the end
@@ -436,6 +457,34 @@ class RunnerCase(unittest.TestCase):
                                 ["--record"])
         self.assertEqual(rc, 2)
         self.assertIn("append-only", out)
+
+    def test_resume_without_a_work_directory_is_refused(self):
+        # --resume matches a previous run by its shard map and checkpoint,
+        # which live in the work directory; without one there is nothing to
+        # resume from and klt would re-run the whole grid instead.
+        rc, out = self.run_main({"loop": grid(loop_corner), "trip": grid(trip_corner)},
+                                ["--resume", "--record"])
+        self.assertEqual(rc, 2)
+        self.assertIn("REFUSE", out)
+        self.assertFalse((self.here / "record.json").exists())
+
+    def test_work_and_resume_reach_the_klt_runner(self):
+        seen = {}
+
+        def fake(request_path, probe, tmpdir, tag, probe_path, **kw):
+            seen[tag] = kw
+            return report(), grid(loop_corner if tag == "loop" else trip_corner)
+
+        work = self.tmp / "work-dir"
+        with mock.patch.object(RUNNER, "run_klt", fake), \
+                mock.patch.object(sys, "argv",
+                                  ["run_decision.py", "--work", str(work), "--resume"]), \
+                contextlib.redirect_stdout(io.StringIO()), \
+                contextlib.redirect_stderr(io.StringIO()):
+            RUNNER.main()
+        for v in RUNNER.VARIANTS:
+            self.assertEqual(seen[v]["outdir"], work / f"out-{v}")
+            self.assertTrue(seen[v]["resume"])
 
     def test_a_pdk_other_than_the_pin_is_refused_before_anything_runs(self):
         with mock.patch.object(RUNNER, "pdk_stamp",
