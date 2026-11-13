@@ -65,14 +65,63 @@ The grid separates cleanly by **supply**, not by process:
 | 1.800 V | 14/15 | 2/15 |
 | 1.980 V | 15/15 | 8/15 |
 
-At 1.620 V the cell does not settle at all: `t_1e4` sits at 300 ns (the whole
-transient window), `slew_frac` reaches 0.89, and the two validity gates are
-violated at the 8 worst corners per variant — so `err_phase` there reads "never
-settled", not a precise residual. Among the 37/45 corners per variant where
-both gates hold, the worst `err_phase` is 0.107 (int1) and 0.151 (int2).
+At 1.620 V every corner misses 1e-4, but the failure is not uniform across the
+supply corner. At the **8 worst corners per variant** the cell never settles:
+`t_1e4` sits at 299-300 ns (the whole transient window) and both validity gates
+are violated, so `err_phase` there reads "never settled", not a precise
+residual. Those 8 are all five process corners at -40 C, plus tt/ss/fs at 27 C.
+At the **remaining 7** both gates hold, `t_1e4` is 107-257 ns (int1) and
+148-273 ns (int2), and `err_phase` is 2.1e-4 to 0.107 (int1) and 2.5e-3 to
+0.151 (int2) — a real but bounded residual, not a dead cell. Across all 15,
+`err_phase` spans 2.1e-4 to 0.777 (int1) and 2.5e-3 to 0.784 (int2). Among the
+37/45 corners per variant where both gates hold at any supply, the worst
+`err_phase` is 0.107 (int1) and 0.151 (int2).
 
-**Versus the hand-calc** (`SIZING.md`, beta = 0.496, gm 302 uS at the smoke
-bias point), at the nominal tt/1.800 V/27 C corner:
+### Mechanism at 1.620 V — not established by this record
+
+The record shows *what* fails, not yet *why*. For the 8 non-settling corners
+per variant it reports:
+
+| Corner class | int1 `slew_frac` | int2 `slew_frac` | `step_dv` (V) | `slope_pk` (V/s) |
+|---|---|---|---|---|
+| fs, ss at -40 C | 0.82-0.89 | 0.82-0.88 | 0.066-0.111 | 2.6e5-4.1e5 |
+| tt at -40 C | 0.398 | 0.809 | 0.325-0.328 | 1.3e6-1.5e6 |
+| fs, ss at 27 C; ff, sf at -40 C | 0.015-0.022 | 0.15-0.67 | 0.56-0.82 | 2.3e6-1.0e7 |
+| tt at 27 C | 0.002 | 0.188 | 0.889 | 7.1e6-1.4e7 |
+
+Three observations the record supports, none of which identifies a mechanism on
+its own:
+
+- **Slew limiting is not the general explanation.** `slew_frac` exceeds 0.1 at
+  only 3 of the 8 non-settling `int1` corners; five sit at or below 0.022 —
+  below the 0.106 measured at `int2`'s fs/125 C corner, which passes both
+  validity gates. For `int2` every non-settling corner has `slew_frac` >= 0.15.
+  The quantity is therefore strongly load-dependent at fixed supply, not a
+  property of the step alone.
+- **The charge transfer itself collapses, not just its tail.** At
+  tt/1.620 V/-40 C `step_dv` is 0.328 V against 0.897 V at tt/1.800 V/-40 C,
+  and `slope_pk` falls from 5.08e8 to 1.46e6 V/s — a ~350x drop for a 10 %
+  supply change. At fs/-40 C `step_dv` is 0.067 V and `step_err_vs_ideal`
+  reaches 0.93. A beta/gm shortfall does not obviously produce that.
+- **The ordering is by supply and temperature, not process.** At 1.620 V, 125 C
+  holds both validity gates at all five process corners and -40 C violates them
+  at all five.
+
+*Suspected cause, unverified:* the twelve VCM-side and summing-node switches in
+`design/integrator/integrator.spice` (`XSbi_*`, `XSci_*`, `XSti_*`, `XSbr_*`,
+`XScr_*`, `XStr_*`) are NMOS-only (`sky130_fd_pr__nfet_01v8`, W=12, L=0.15),
+gated rail-to-rail on Vdda while passing VCM = 0.9 V — so at Vdda = 1.620 V
+their Vgs is about 0.72 V. The input and reference switches (`XSin_*`,
+`XSr_*`, `XMr[ab]_*`) are CMOS pairs by contrast. That would be consistent with
+the supply and cold-temperature ordering above, and with the OTA-only bench
+(ideal switches) passing at 1.620 V — but it is a reading of the netlist, not a
+measurement. A probe of switch Vds and summing-node voltage at tt/1.620 V/-40 C
+would confirm or refute it. Until then the mechanism is open.
+
+### Versus the hand-calc
+
+Against `SIZING.md` (beta = 0.496, gm 302 uS at the smoke bias point), at the
+nominal tt/1.800 V/27 C corner:
 
 | Case | Hand-calc | Measured | Verdict |
 |---|---|---|---|
@@ -82,8 +131,11 @@ bias point), at the nominal tt/1.800 V/27 C corner:
 The hand-calc is confirmed in structure and conservative in magnitude (7x on
 case A). The OTA alone passes all 45 corners on its own bench
 (`sim/ota-settling/record-i51-rcm2M-cff100f.json`, worst 6.8e-5, same
-`ota_fd.spice` sha256 `7f4724e9...` this run used): the loss is the integrator
-cell's beta = 0.496 loading, exactly the gap #53 was filed to measure.
+`ota_fd.spice` sha256 `7f4724e9...` this run used). At 1.800 V and above the
+int1-versus-int2 split is what beta = 0.496 loading predicts, and that is
+exactly the gap #53 was filed to measure. It does **not** follow that beta
+loading explains the 1.620 V failure: the OTA bench drives ideal switches, so
+the two benches differ in more than beta (see "Mechanism at 1.620 V" above).
 
 ## B-model comparison (`bmodel-threshold.json`)
 
@@ -103,18 +155,28 @@ a *linear* gain factor `(1 - settling_error)` applied equally to both integrator
 inputs and constant over the record, so it prices only the signal-independent
 part of incomplete settling — a second-order loop at OSR 128 absorbs a uniform
 loop-gain deficit very well, which is why the number is so large. The failures
-measured here are **slew-limited** (`slew_frac` up to 0.89), hence
-signal-dependent and distortion-generating, which this parameter cannot
-represent. Comparing the two:
+measured here are not a uniform linear deficit of that kind: at the 8
+non-settling corners per variant the charge transfer itself is incomplete
+(`step_err_vs_ideal` up to 0.93), and at fixed 1.620 V `err_phase` varies by
+more than three orders of magnitude across PVT — signal- and state-dependent in
+a way a constant gain factor cannot represent. Whether the dominant term there
+is slew limiting or incomplete switch conduction is **not** established by this
+record (above). Comparing the two:
 
 - At **1.800 V and above**, the measured error (1.9e-4 int1, 2.9e-3 int2 worst)
   sits far inside the 0.57 linear budget. This answers the open risk
   `SIZING.md` leaves to the B-model: case A's 1.6e-3 is **not** what limits
   SNDR at nominal supply. Necessary, not sufficient — the distortion term is
   not modelled.
-- At **1.620 V** the measured 0.37-0.78 exceeds even that loose linear budget,
-  and the settling is nonlinear there anyway. This is a hard failure on any
-  reading, and DR-005's 1e-4 criterion is unchanged by it.
+- At **1.620 V** the worst measured error — **0.777** (int1) and **0.784**
+  (int2), both at fs/-40 C — exceeds even that loose 0.57 linear budget. The
+  rest of the supply corner does not: 5 of the 15 corners per variant are above
+  0.57, and 7 sit at or below 0.16 (worst 0.107 int1, 0.151 int2). The
+  comparison is in any case not apples-to-apples, since at the 8 non-settling
+  corners the charge transfer is incomplete (above), which a constant linear
+  gain factor cannot represent. Against DR-005's 1e-4 criterion this is a hard
+  failure at **all 15** corners per variant regardless, and that criterion is
+  unchanged by the B-model threshold.
 
 ## Running
 
@@ -145,6 +207,7 @@ gate, so a failed or partial grid is still inspectable.
 Noise, charge injection, clock-generator timing, Monte Carlo, layout parasitics
 and the model-versus-transistor cross-check (DR-001) are not covered. `int2`'s
 1 pF is a bound, not an extracted comparator input capacitance. The B-model
-threshold covers the linear part of settling only (above). The remedy for the
-1.620 V failure is an OTA change, tracked in #92 — not a relaxation of DR-005
-or of the spec.
+threshold covers the linear part of settling only (above). The mechanism of the
+1.620 V failure is not established by this record, so its remedy is not yet
+determined; it is tracked in #92, which should start from that diagnosis. In no
+case is the remedy a relaxation of DR-005 or of the spec.
