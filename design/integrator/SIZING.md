@@ -141,17 +141,42 @@ not rescue that -- `probe-i92.json` shows an 8x width on a subthreshold NMOS
 buying 2.5x (456 k -> 180 k) -- which is the same argument that put a low-Vth
 NMOS plus a PMOS half on the phi2 switches in issue #92.
 
-**The transient consequence is measured, over the DR-002 full grid**, in
+**The transient consequence is simulated, over the DR-002 full grid**, in
 `sim/integrator-ci/record-i106.json`: at `ss`/1.620 V/-40 C a 0.2 V differential
 input is **54.3 % unsampled** when `phi1e` opens, and the error is strongly
-input-level dependent (0.8 % at a 0.6 V input at that same corner, while at
-`fs`/1.620 V/-40 C it is 13.4 % at 0.6 V against 8.7 % at 0.2 V). 8 of 45 grid
+input-level dependent (0.8 % at a 0.6 V input at that same corner). 8 of 45 grid
 points exceed 1e-4 at 0.2 V, 2 of 45 at 0.6 V, and every 1.980 V point is exact.
+
+**Not all of that headline error is this gate**, and the record separates the
+two. The headline is the differential across `Csi`; the bottom-plate-only
+reading (`error_rel_bpi_only`) isolates `Sin`, and the remainder
+(`top_plate_differential_V`) is the `Sci` top-plate hold:
+
+| corner | input | headline `error_rel` | `Sin` (bottom plate) | `Sci` (top-plate hold) |
+|---|---|---|---|---|
+| `ss`/1.620 V/-40 C | 0.2 V | 0.5432 | **0.5044** | 0.0388 |
+| `sf`/1.620 V/-40 C | 0.2 V | 0.2843 | **0.2833** | 0.0010 |
+| `fs`/1.620 V/-40 C | 0.6 V | 0.1340 | 0.0026 | **0.1315** |
+
+At 0.2 V the error is this gate, as filed — the top-plate term is at most
+0.039 anywhere on that grid. **At 0.6 V the binding corner is not.** At
+`fs`/1.620 V/-40 C the bottom plates settle to 1.19849 V / 0.60002 V against
+1.2 / 0.6 V targets (0.26 % short, which is what the ~1 kohm this sweep reads
+at 0.6 V and 1.2 V predicts); the 13.4 % is the p-side top plate sitting
+**78.9 mV above `vcm`** when `phi1e` opens. 98 % of that corner's error is the
+top-plate hold, so **`fs`/0.6 V is not a `Sin` result and a `Sin` remedy cannot
+move it.** The top-plate term is already 69 mV at cycle 1, when the output has
+only reached 0.298 V, so it is not the OTA range excursion either; the
+suspected cause is `XSci_*`'s missing PMOS half (see "`Sci`/`Scr` get no PMOS
+half" below), reasoned from the netlist and **not separately simulated**.
+
 **No spec row bounds input-sampling completeness, so none of this is a pass/fail
 result and no SNDR or resolution consequence is claimed** -- nothing here has
-been through model B. The cell is **unchanged** by that extraction; whether to
-give `Sin` the issue #92 treatment, lengthen `phi1`, or accept the error is
-deferred to **#129**, filed from these numbers.
+been through model B. The cell is **unchanged** by that extraction. The two
+mechanisms are deferred separately, because they are different switches with
+different remedies: whether to give `Sin` the issue #92 treatment, lengthen
+`phi1`, or accept the bottom-plate error is **#129**; the `Sci` top-plate hold
+is **#147**. Both were filed from these numbers.
 
 `phi2b`, the complement the PMOS halves need, is generated inside this cell by
 one inverter (`Iphi2b_n`/`Iphi2b_p`, NMOS W 2 / PMOS W 4, both m = 4) from the
@@ -265,6 +290,24 @@ during `phi1e`, and the probe shows the top plate already reaches 0.8993 V at
 1.620 V with the subthreshold NMOS alone (`tpi_smp` in `diag-i92.json`,
 as-built run) -- the sampling path never needed the charge the integrate path
 does, so a PMOS half there would be capacitance for nothing.
+
+> **Qualifier (issue #106, from `sim/integrator-ci/record-i106.json`): the
+> conclusion above is contradicted at the top of the input range.** On the
+> DR-002 grid with a 0.6 V differential input, the p-side top plate is
+> **78.9 mV above `vcm`** at `fs`/1.620 V/-40 C at the instant `phi1e` opens,
+> and that hold error -- not `Sin` -- is 98 % of that corner's sampling error
+> (see "`Sin` over PVT" above). So `Sci` does **not** always "already reach
+> 0.8993 V with the subthreshold NMOS alone".
+>
+> The two readings are not the same measurement, and this note does not claim
+> to reconcile them: `tpi_smp` is one point of `v(xint.tpi_p)` on the
+> *integrator-settling* deck with the DAC live (`vrefp`/`vrefn` 1.5/0.3,
+> `dn` 1), probed **20 ns** into the phase, while the #106 figure is on the
+> charge-injection deck with the DAC nulled, read at the **90.5 ns** `phi1e`
+> fall. Why the hold is intact at the first and 78.9 mV off at the second is
+> **not established** -- `Sci` has never been swept at any corner. The
+> sizing decision is therefore **bounded, not replaced**, and the decision is
+> **#147**.
 
 ## Settling in the 97.7 ns phase (hand-calc, not simulated)
 
@@ -455,8 +498,10 @@ mechanism from charge injection, found by the #102 bench -- is extracted over
 the DR-002 full grid at two input amplitudes in
 `sim/integrator-ci/record-i106.json`, with the switch mechanism swept over the
 five skews in `sim/switch-probe/probe-i106.json`. Still owed on it: Monte Carlo
-/ mismatch, layout parasitics, any model-B consequence, and the decision on
-whether to change the cell (**#129**, filed from those numbers).
+/ mismatch, layout parasitics, any model-B consequence, a direct `Sci` sweep,
+and the decision on whether to change the cell -- **#129** for the `Sin`
+bottom-plate term and **#147** for the `Sci` top-plate hold, both filed from
+those numbers.
 
 **No longer owed** (issue #102): charge injection and its mismatch-driven
 differential part, over the DR-002 full grid and a Monte Carlo campaign at the

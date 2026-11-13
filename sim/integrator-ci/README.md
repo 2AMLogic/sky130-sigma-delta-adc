@@ -352,12 +352,24 @@ is the differential across `Csi` at that instant.
 
 `sampling_measurements()` reads it as a mean over the last 0.8 ns of `phi1e`
 (not a point interpolated across the fall — that fall is a solver breakpoint,
-and ngspice emits duplicate timepoints at breakpoints). Because `Sci` holds both
-top plates at `vcm` right up to the fall, the across-`Csi` differential there is
-also `v(xint.bpi_p) − v(xint.bpi_n)`, the form issue #106 reported; both are
-recorded. Taking it across the capacitor removes any difference between the two
-sides' top-plate hold, so the number is the sampled charge and not a sum of the
-sampled charge and a top-plate offset.
+and ngspice emits duplicate timepoints at breakpoints). Taking it **across the
+capacitor** removes any difference between the two sides' top-plate hold, so the
+number is the sampled charge and not a sum of the sampled charge and a top-plate
+offset.
+
+**Do not assume `Sci` holds both top plates at `vcm`, because at some corners it
+does not.** It is tempting to read the across-`Csi` differential as equal to
+`v(xint.bpi_p) − v(xint.bpi_n)`, the bottom-plate-only form issue #106 reported,
+on the grounds that `Sci` pins both top plates to `vcm` right up to the fall.
+That holds to the reported precision over most of the grid but is **false at the
+slow/cold corners, and badly so at one of them**: at `fs`/1.620 V/−40 °C with a
+0.6 V input the p-side top plate sits **78.9 mV above `vcm`** when `phi1e` opens
+(`tpip_s4` 0.97866 V against `tpin_s4` 0.89978 V), so the two forms differ by
+that much. Both forms are recorded for exactly this reason — `sampled_V` /
+`error_rel` across `Csi`, `sampled_bpi_only_V` / `error_rel_bpi_only` on the
+bottom plates, and their difference as `top_plate_differential_V`. Read the pair
+as a **two-mechanism split**, not as a redundant check: see "Two mechanisms, not
+one" below.
 
 A **control** reads the same charge again in the 4.7 ns non-overlap gap after
 `phi1` opens and before `phi2` closes, where both plates float and nothing is
@@ -377,10 +389,26 @@ is a gain error while one that is not is distortion:
 Each is the DR-002 full 45-point grid, submitted to the batch fleet. With the
 DAC nulled nothing cancels the input, so at 0.6 V the differential output ramps
 0.3 V per clock and leaves the OTA's range before the last cycle. That is
-accepted deliberately and stated in the record: the sampled charge is set while
-`Sci` holds the top plate at `vcm` and `Sti` is open, so the bottom-plate
-measurement does not depend on the output — and **no output number from the
-`post_v0p6` variant is read or reported.**
+accepted deliberately, and **no output number from the `post_v0p6` variant is
+read or reported.**
+
+**The reading does not depend on the output, but not for the reason the frozen
+variant note gives.** That note — committed in the deck header
+(`integrator_ci_post_v0p6.cir` line 3) and in `record-i106.json` — says the
+sampled charge is set "while `Sci` holds the top plate at `vcm`", which the grid
+contradicts at `fs`/1.620 V/−40 °C by 78.9 mV (above). The *conclusion* still
+holds, on different evidence: the top-plate offset is already **69 mV at cycle 1**
+(`tpip_s1` 0.96898 V) when `vod` is only 0.298 V, and grows just ~10 mV by cycle 4
+while `vod` reaches 1.072 V. So it is a property of the hold itself, not of the
+OTA leaving its range, and the cycle-4 reading is not an artefact of the ramp.
+
+That note cannot be corrected in place. Its text is substituted into the deck
+header by `make_request.py`, and `record-i106.json` pins `deck_sha256`
+(`7b15f561…`); editing it would move that hash and break the record's
+provenance, and the record is append-only evidence. The correction therefore
+lives here and in `design/integrator/SIZING.md`; a future bench that re-cuts
+this deck (a changed cell needs a new deck and a new record anyway) should word
+the note as this section does.
 
 **The reference line is not a limit.** No ratified spec row bounds input-sampling
 completeness, and this change adds none. The record states the per-corner error
@@ -409,8 +437,16 @@ From `record-i106.json` (fleet jobs `klt-sim-b7f6bc6865de` and
 |---|---|---|
 | worst corner | **`ss`/1.620 V/−40 °C** | **`fs`/1.620 V/−40 °C** |
 | error `1 − sampled/ideal` there | **0.5432** (sampled 0.09135 V of 0.2 V) | **0.1340** (sampled 0.51959 V of 0.6 V) |
+| of which bottom-plate (`Sin`) | 0.5044 | **0.0026** |
+| of which top-plate hold (`Sci`) | 0.0388 | **0.1315** |
 | corners over the 1e-4 reference line | 8 of 45 | 2 of 45 |
 | every 1.980 V corner | exact to the reported precision | exact to the reported precision |
+
+**The two worst corners are not the same mechanism**, which the headline
+`error_rel` alone hides: at 0.2 V the error is overwhelmingly the `Sin` input
+gate failing to charge the bottom plates (93 % of it), while at 0.6 V it is
+overwhelmingly the `Sci` top-plate hold (98 % of it). The split is computed from
+`error_rel_bpi_only` and `top_plate_differential_V`, both already in the record.
 
 **The filing is confirmed.** It reported ~46 % of a ±0.1 V input sampled at
 `ss`/1.620 V/−40 °C; the grid gives 45.7 % complete (0.09135 V of 0.2 V) at that
@@ -419,29 +455,82 @@ corner, from a separate measurement on the same deck.
 **The error is input-level dependent, which is the new result.** Corner by
 corner:
 
-| corner | error at 0.2 V | error at 0.6 V |
-|---|---|---|
-| `ss`/1.620 V/−40 °C | 0.5432 | 0.00828 |
-| `sf`/1.620 V/−40 °C | 0.2843 | 0 |
-| `fs`/1.620 V/−40 °C | 0.0868 | **0.1340** |
-| `ss`/1.800 V/−40 °C | 0.0830 | 0 |
-| `tt`/1.620 V/−40 °C | 0.0165 | 0 |
-| `ss`/1.620 V/27 °C | 0.00516 | 1.7e-07 |
-| `tt`/1.800 V/−40 °C | 0.00058 | 0 |
-| `sf`/1.620 V/27 °C | 0.00056 | 0 |
+`error_rel` is the across-`Csi` headline; `bpi` is `error_rel_bpi_only`, the
+bottom-plate-only reading that isolates the `Sin` gate:
+
+| corner | 0.2 V: error | 0.2 V: `bpi` | 0.6 V: error | 0.6 V: `bpi` |
+|---|---|---|---|---|
+| `ss`/1.620 V/−40 °C | 0.5432 | 0.5044 | 0.00828 | 0.00192 |
+| `sf`/1.620 V/−40 °C | 0.2843 | 0.2833 | 0 | 0 |
+| `fs`/1.620 V/−40 °C | 0.0868 | 0.0549 | **0.1340** | **0.0026** |
+| `ss`/1.800 V/−40 °C | 0.0830 | 0.0826 | 0 | 0 |
+| `tt`/1.620 V/−40 °C | 0.0165 | 0.0138 | 0 | 0 |
+| `ss`/1.620 V/27 °C | 0.00516 | 0.00404 | 1.7e-07 | 0 |
+| `tt`/1.800 V/−40 °C | 0.00058 | 0.00057 | 0 | 0 |
+| `sf`/1.620 V/27 °C | 0.00056 | 0.00054 | 0 | 0 |
 
 At `ss`/1.620 V/−40 °C the error falls from 0.543 to 0.008 when the input grows
 three-fold. A pure gain error would hold the *fraction* constant; this does not,
 so the mechanism is **level-dependent**, consistent with a gate whose resistance
-peaks at `vcm` and falls away on both sides. That is the signature of
-distortion rather than a gain error — but this bench measures the level
-dependence only. **It does not convert it into a distortion, THD, SNDR or
-resolution figure, and none is claimed: nothing here has been through model B.**
+peaks at `vcm` and falls away on both sides. That reading holds on the
+bottom-plate column too (0.5044 → 0.0019), so at this corner it really is the
+`Sin` gate. It is the signature of distortion rather than a gain error — but
+this bench measures the level dependence only. **It does not convert it into a
+distortion, THD, SNDR or resolution figure, and none is claimed: nothing here
+has been through model B.**
 
-**The binding corner depends on the amplitude.** `ss` binds at the small
-amplitude, `fs` at the large one, and `fs` is the only corner where the error
-*grows* with amplitude. So neither skew can be called "the" worst case for this
-mechanism, and a fix cannot be graded at one of them alone.
+**The one corner where the error grows with amplitude — `fs`, 0.0868 → 0.1340 —
+is not this mechanism**, and its `bpi` column shows why: 0.0549 → 0.0026, i.e.
+the `Sin` error *falls* with amplitude there as it does everywhere else. The
+growth is entirely in the top-plate term. See "Two mechanisms, not one" below
+before reading `fs` as a `Sin` result.
+
+**Two mechanisms, not one — and the amplitudes bind on different ones.** The
+headline `error_rel` is the differential across `Csi`, which is the quantity
+`phi2` transfers and so the right headline. But it sums two independent
+failures, and the record separates them:
+
+| | what fails | read it from |
+|---|---|---|
+| **bottom-plate deficit** | `Sin` cannot charge `bpi_p`/`bpi_n` to `vinp`/`vinn` inside the 90.4 ns — the issue #106 mechanism, and what the `Ron` sweep explains | `error_rel_bpi_only`, `bpi_*_shortfall_V` |
+| **top-plate hold error** | `Sci` cannot hold `tpi_p`/`tpi_n` at `vcm` against the charge the rising bottom plate couples through `Csi` | `top_plate_differential_V` |
+
+Splitting the over-the-line corners by that:
+
+- **At 0.2 V the error is the `Sin` gate**, as filed. At `ss`/1.620 V/−40 °C,
+  0.5044 of the 0.5432 is bottom-plate; at `sf`/1.620 V/−40 °C, 0.2833 of
+  0.2843. The top-plate term is ≤ 0.039 everywhere on this grid.
+- **At 0.6 V the binding corner is *not* a `Sin` error.** At
+  `fs`/1.620 V/−40 °C the bottom plates **did** settle — `bpip_s4` 1.19849 V
+  and `bpin_s4` 0.60002 V against 1.2 / 0.6 V targets, 0.26 % short, which is
+  what a ~1 kΩ gate predicts (`probe-i106.json` reads 1.27 kΩ at 0.6 V and
+  0.73 kΩ at 1.2 V at this corner). The 13.4 % is `tpip_s4` 0.97866 V against
+  `tpin_s4` 0.89978 V: **the p-side top plate is 78.9 mV off `vcm`** when
+  `phi1e` opens. 98 % of that corner's error is the top-plate hold.
+
+So `fs` is *not* "the binding corner for this mechanism at the large
+amplitude", and the "error grows with amplitude at `fs`" observation is about a
+**different switch**. On the bottom-plate reading both `fs` and `ss` are
+0.2–0.3 % at 0.6 V, and no corner's `Sin` error grows with amplitude. A remedy
+aimed at `Sin` alone cannot move the `fs`/0.6 V number, because only 0.26 % of
+it is `Sin`.
+
+**The top-plate cause is not probed here — this bench names it, it does not
+explain it.** It is asymmetric (only the side whose bottom plate rises), and it
+is already 69 mV at cycle 1 (`tpip_s1` 0.96898 V) when `vod` is only 0.298 V,
+growing ~10 mV by cycle 4 as `vod` reaches 1.072 V. So it is **not** the
+late-cycle OTA range excursion the `post_v0p6` variant note discusses.
+*Suspected, reasoned from the netlist and not separately simulated:* `XSci_*` is
+a lone `nfet_01v8_lvt` with no PMOS half, and on the side pushed above `vcm` its
+source is the `vcm` terminal, leaving `Vgs` = 1.62 − 0.9 = 0.72 V — subthreshold
+at −40 °C, the same failure mode issue #92 found on the other `vcm` switches.
+`Sci` was not probed separately; doing so is **#147**, not a result here.
+
+So the two mechanisms are deferred to two issues, because a remedy for one does
+not move the other's number: **#129** owns the bottom-plate (`Sin`) term and is
+graded on `error_rel_bpi_only`; **#147** owns the top-plate (`Sci`) term and the
+`fs`/0.6 V figure. Neither skew can be called "the" worst case, and neither can
+be graded at one amplitude alone.
 
 **The per-side deficit is asymmetric, and differs by skew.** At
 `ss`/1.620 V/−40 °C and 0.2 V the bottom plate heading up to 1.0 V falls 36.2 mV
@@ -450,14 +539,20 @@ short while the one heading down to 0.8 V falls 64.7 mV short; at
 reaching its target). Each half of the gate is strong on one side of `vcm` and
 weak on the other, and which half is weaker moves with the skew.
 
-**Read `sampled_V`, not `sampled_bpi_only_V`.** The two are not the same number
-at a slow/cold corner: `Sci` is resistive there too, so the top plates are not
-exactly at `vcm` when `phi1e` opens, and the bottom-plate-only reading exceeds
-the across-`Csi` reading by exactly that top-plate differential — 0.09912 V
-against 0.09135 V at the binding corner, a 7.8 mV gap. What `phi2` transfers
-onto `Ci` is the charge on `Csi`, i.e. the across-plate value, and that is also
-the one that matches the ~46 % per-clock output step the filing measured. Both
-forms and their errors are in the record (`error_rel`, `error_rel_bpi_only`).
+**Read `sampled_V` for the headline, and the pair for the mechanism.** The two
+are not the same number at a slow/cold corner: `Sci` is resistive there too, so
+the top plates are not exactly at `vcm` when `phi1e` opens, and the
+bottom-plate-only reading exceeds the across-`Csi` reading by exactly that
+top-plate differential. At 0.2 V that gap is small — 0.09912 V against
+0.09135 V at `ss`/1.620 V/−40 °C, 7.8 mV, and at most 7.8 mV anywhere on that
+grid. At **0.6 V it is 78.9 mV** at `fs`/1.620 V/−40 °C and dominates the error
+there. What `phi2` transfers onto `Ci` is the charge on `Csi`, i.e. the
+across-plate value, so `sampled_V` / `error_rel` stays the headline — and it is
+the one that matches the ~46 % per-clock output step the filing measured. But
+the difference between the two forms is not noise to be ignored: it *is* the
+top-plate-hold error, and at the large amplitude it is the larger of the two
+mechanisms. The record carries both forms and the difference (`error_rel`,
+`error_rel_bpi_only`, `top_plate_differential_V`).
 
 **The turn-off control is small.** `frozen_minus_sampled_V` — the `phi1`/`Sin`
 turn-off injection on the floating bottom plate, read in the following
@@ -472,9 +567,13 @@ per-cycle error runs 0.5395 / 0.5398 / 0.5413 / 0.5432 / 0.5455 over cycles
 **The mechanism, separately.** `sim/switch-probe/probe-i106.json` sweeps the
 `Sin` pass gate's DC `Ron` against the voltage it passes, over the five process
 skews at `Vdda` = 1.620 V / −40 C, and reports each half's share of the current.
-That is the *mechanism* behind the sampling error; the magnitude over PVT is
-`record-i106.json`, measured on the cell. A DC `Ron` times `Cs` against a phase
-length is an order-of-magnitude argument, not a settling calculation.
+That is the *mechanism* behind the **bottom-plate** part of the sampling error
+(`error_rel_bpi_only`) — the part the issue #106 filing is about; the magnitude
+over PVT is `record-i106.json`, simulated on the cell. A DC `Ron` times `Cs`
+against a phase length is an order-of-magnitude argument, not a settling
+calculation. It says **nothing** about the top-plate hold term, which is a
+different switch (`Sci`) and is not probed by this sweep or any other record in
+this repo.
 
 ## Running it
 
@@ -597,8 +696,9 @@ fixture tests.
   `sim/switch-probe/probe-i106.json`. `record.json` itself is unchanged by that
   extraction, and neither record bounds the sampling error against a spec row —
   none exists. **Whether to change the cell, lengthen `phi1`, or accept and bound
-  the error is #129**, filed from those numbers; issue #106 deliberately did not
-  decide it.
+  the error is #129** (the `Sin` bottom-plate term) and **#147** (the `Sci`
+  top-plate term), filed from those numbers; issue #106 deliberately did not
+  decide either.
 - **Clocks are behavioural**, rail-to-rail with 200 ps edges and ≥ 4.7 ns
   non-overlap from `PULSE` shape sources. There is no non-overlap generator, so
   clock feedthrough from real `clkgen` skew — including a `Sti`/`Str` half left
