@@ -288,12 +288,23 @@ def trip_summary(corners):
     steps = [v["staircase_step_V"] for v in per.values() if v["staircase_step_V"] is not None]
     return {
         "per_corner": per,
+        # Each headline number carries the binding corner's own quantization,
+        # so the bound travels with the value instead of living only in the
+        # note above it.
         "comparator_offset": None if off_cid is None else {
             "binding_corner": off_cid, **parse_corner(off_cid),
-            "V": off_v, "FS": fs(off_v)},
+            "V": off_v, "FS": fs(off_v),
+            "half_width_V": (per[off_cid]["quantization"] or {}).get("offset_half_width_V"),
+            "half_width_FS": fs((per[off_cid]["quantization"] or {}).get("offset_half_width_V")),
+            "bracket_margin_clocks": per[off_cid]["bracket_margin_clocks"]},
         "comparator_hysteresis": None if hy_cid is None else {
             "binding_corner": hy_cid, **parse_corner(hy_cid),
-            "V": hy_v, "FS": fs(hy_v)},
+            "is": "an upper bound; see what_these_numbers_are",
+            "V": hy_v, "FS": fs(hy_v),
+            "lower_bound_V": (per[hy_cid]["quantization"] or {}).get("hysteresis_lower_bound_V"),
+            "lower_bound_FS": fs((per[hy_cid]["quantization"] or {}).get("hysteresis_lower_bound_V")),
+            "staircase_step_V": per[hy_cid]["staircase_step_V"],
+            "bracket_margin_clocks": per[hy_cid]["bracket_margin_clocks"]},
         # The staircase step is the resolution of both trip points, and it is
         # NOT the same at every corner: it is (Cs/Ci) * o1d, so where the
         # switched-capacitor transfer collapses (low supply, slow, cold) the

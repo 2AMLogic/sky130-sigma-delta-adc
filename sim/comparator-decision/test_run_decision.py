@@ -356,6 +356,10 @@ class RunnerCase(unittest.TestCase):
         self.assertAlmostEqual(d["comparator_offset"]["FS"], 1e-4 / 1.2)
         self.assertAlmostEqual(d["comparator_hysteresis"]["V"], 1e-3)
         self.assertAlmostEqual(d["comparator_hysteresis"]["FS"], 1e-3 / 1.2)
+        # the bound travels with the headline number, not just in the note
+        self.assertAlmostEqual(d["comparator_offset"]["half_width_V"], 2.5e-4)
+        self.assertEqual(d["comparator_hysteresis"]["lower_bound_V"], 0.0)
+        self.assertIn("upper bound", d["comparator_hysteresis"]["is"])
         self.assertEqual(d["model_b_units"]["resolution_V"], 5e-4)
         self.assertIn("UPPER BOUND", d["model_b_units"]["what_these_numbers_are"])
         a_corner = d["per_corner"]["tt/1.620V/-40C"]
