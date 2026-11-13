@@ -300,23 +300,60 @@ is out of scope for #92 by its own terms.
 Sampling-switch kT/C does not depend on the switch size; it is set by `Cs`
 above. The reset switches are tied to `vcm` and so inject independent of the
 signal; their size sets an offset term for model B's
-`ci_offset`/`ci_gain_error`, to be extracted, not estimated here.
+`ci_offset`/`ci_gain_error`.
 
-**Issue #92 increased that injected charge and it is still owed, not
-measured.** Per switch the channel area went from the NMOS half alone
-(12 x 0.15 = 1.8 um2, about 15 fF) to that plus a PMOS half of
-24 x 0.35 = 8.4 um2 on `Sbi`/`Sbr` and 4 x 0.35 = 1.4 um2 on `Sti`/`Str` --
-5.7x and 1.8x the channel area. Two things follow, neither
-simulated here:
+**Extracted (issue #102), no longer owed.** Bench `sim/integrator-ci`; records
+`sim/integrator-ci/record.json` (five variants x the DR-002 full 45-point grid,
+225 corners) and `record-mc.json` (7 DR-002 anchors x N=100 x two cells, 1400
+samples, sky130 `_mm` mismatch sections, base seed 20261113). Simulated on the
+batch fleet, never measured. Per switch the channel area did go from the NMOS
+half alone (12 x 0.15 = 1.8 um2) to that plus a PMOS half of 24 x 0.35 = 8.4 um2
+on `Sbi`/`Sbr` and 4 x 0.35 = 1.4 um2 on `Sti`/`Str`, and #92 also swapped
+`nfet_01v8` for `nfet_01v8_lvt` on all six. What that cost:
 
-- The *common-mode / offset* part grows with it, but these switches still
-  close on `vcm`, so it stays signal-independent to first order and lands in
-  `ci_offset`.
-- The *differential* part is set by p-to-n **mismatch** between the two sides,
-  which scales as 1/sqrt(W L) per device while the injected charge scales as
-  W L -- so the differential residual grows as sqrt(W L). This is the real cost
-  of the fix and it is charged to the charge-injection extraction (out of scope
-  for #92, which is a settling issue). Tracked as issue #102.
+| | result |
+|---|---|
+| Differential residual, nominal, zero input | <= 2.265e-07 V per clock over all 45 points (`ci_offset` 1.89e-07 FS); the pre-#92 cell gives 2.902e-07 V. Both sit at the bench's solver floor (`vntol` 1e-7 V), so **the nominal grid cannot distinguish the two cells** -- as a cell drawn symmetric should give |
+| Differential sigma under PDK mismatch, switch-attributable | **59 to 90 uV per clock** (4.9e-05 to 7.5e-05 FS) |
+| ... post/pre ratio | **1.84x to 3.61x**, mean 2.56, per-anchor standard errors 0.19 to 0.37 |
+| Signal-dependent part (`ci_gain_error`) | below the bench's resolution; the measured slope is the drawn `Cs/Ci` ratio (0.497557, not 0.5), the finite-gain leak, and at the slow/cold corners the incomplete *input* sampling of #102's spin-off #106 |
+| Cost in model B | **0.17 dB** of peak SNDR (86.00 dB against the 86.17 dB post-#107 ideal record), source B, uncross-checked, N = 2^16, 1.2207 Hz bins, 0-20 kHz, -6 dBFS |
+
+**Three things in the argument this section used to make are wrong, and the
+measurement is why:**
+
+- *"The common-mode part grows with it."* It does not, measurably. The
+  common-mode step is ~1e-06 V per clock at **both** cells and shows no
+  systematic growth post-#92 (per-anchor post/pre ratios scatter 0.47 to 2.13
+  about 1, nothing like the 5.7x area factor): the complementary NMOS + PMOS
+  halves inject opposite-sign channel charge and largely cancel. It also does
+  not accumulate at all -- the OTA's common-mode feedback pulls it back to an
+  equilibrium -- so it does **not** land in `ci_offset`, which model B shapes
+  through an integrator. Only the differential part accumulates.
+- *"The differential residual grows as sqrt(W L)."* It grows faster. Measured
+  1.84x to 3.61x against sqrt(W L) predictions of 1.333x (the `Sti`/`Str` pair,
+  see below) and 1.929x (all four switches). Three anchors sit within half a
+  standard error of 1.929x and three are 3 to 4.6 standard errors above it. The
+  term the area-only argument omits is the standard-Vth -> low-Vth swap, which
+  raises channel charge at equal area.
+- *"Per switch ... 5.7x and 1.8x"* conflates two pairs that do not both reach
+  the output. Only `Sti`/`Str` gate the **summing node**, where turn-off charge
+  lands on `Ci` and is output error; `Sbi`/`Sbr` gate the **bottom plate**, which
+  the next phi1 re-drives from `vinp`/`rsel`, discarding their charge before any
+  transfer. The 5.7x pair is the one whose charge is thrown away; the pair that
+  matters grew 1.78x.
+
+**The engineering conclusion is unchanged: the #92 fix was cheap.** 0.17 dB
+against an 80 dB target is not a reason to revisit the `W 24`/`W 4` sizing, and
+PR #99 establishes `W 4` as the floor for 1.620 V settling. (A deliberately
+over-stated bound run -- `ci_offset` from the OTA's offset mismatch and
+`ci_gain_error` from #106's input sampling, neither of them charge injection --
+lands at 79.22 dB, just under the target. That is an argument for fixing #106,
+not a cost of these switches.) Not covered by these
+numbers: capacitor mismatch (klt reports the `cap_mim_*` family's mismatch as
+unverified for sky130, so it is outside the sigma above), clock feedthrough from
+a real non-overlap generator, and post-layout extraction. See
+`sim/integrator-ci/README.md` -> "Limits".
 
 The off-state leakage this adds was simulated and is small: 129 pA per NMOS half
 (129.1 pA standard against 129.3 pA low-Vth, so the swap does not change it) and
@@ -331,10 +368,17 @@ the added junction leakage does not disturb it.
 
 ## Not simulated (owed)
 
-kT/C and switch noise, charge injection and clock feedthrough (and the
-mismatch-driven differential part of it, enlarged by #92 -- see above),
-capacitor mismatch, the reference-node settling through the mux, Monte Carlo,
-layout and parasitics.
+kT/C and switch noise, clock feedthrough from a real non-overlap generator,
+capacitor mismatch (klt reports the `cap_mim_*` family's mismatch as unverified
+for sky130, so it is outside the charge-injection sigma above), the
+reference-node settling through the mux, layout and parasitics. Monte Carlo is
+done for charge injection only (issue #102); every other mechanism here is still
+nominal-grid only. Incomplete *input* sampling at the slow/cold corners is owed
+as #106 -- a separate mechanism from charge injection, found by the #102 bench.
+
+**No longer owed** (issue #102): charge injection and its mismatch-driven
+differential part, over the DR-002 full grid and a Monte Carlo campaign at the
+anchors -- see "kT/C and charge injection" above.
 
 **No longer owed** (issue #53, then #92): transient charge transfer and
 settling, switch Ron across corners and temperature, and OTA loading in the

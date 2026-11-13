@@ -1,0 +1,69 @@
+* Integrator charge-injection bench (issue #102) -- circuit body for `klt sim`
+* (no .lib/.control/.end: klt sim owns those; corner = process/temp/Vdda).
+* Variant: @VARIANT@ -- @NOTE@
+* Cell under test: @CELLFILE@ (@CELLTAG@), with design/ota/ota_fd.spice.
+*
+* WHAT THIS MEASURES. The cell is clocked for @NCYC@ complete phi1/phi2 cycles
+* at the spec row-5 rate (5.12 MHz, T = 195.3125 ns). The differential and
+* common-mode output are sampled once per cycle at a fixed phase inside the
+* phi1 *hold* window, where every switch into the summing node is open, Ci
+* holds the charge and the output is settled. The change between two such
+* samples is the net charge delivered to Ci by one cycle: the ideal transfer
+* plus every switch-injection term (phi1e turn-off onto the floating top
+* plate, phi1 turn-off onto the floating bottom plate, and phi2 turn-on and
+* turn-off at the summing node). With the DAC and the input nulled the ideal
+* transfer is zero, so that change *is* the injection residual.
+*
+* Boundary (DR-005): VCM 0.9 V, ibias 5 uA, all ideal. VREFP/VREFN are
+* @VREFP@/@VREFN@ V here (see README.md "Nulling the DAC"); VINP/VINN are
+* @VINP@/@VINN@ V (differential @VINDIFF@ V).
+* Clocks are rail-to-rail on Vdda, 200 ps edges, built from PULSE shape
+* sources so the sequence is exactly periodic; no non-overlap generator
+* (clock generation is out of scope, as in sim/integrator-settling).
+*   per cycle: phi1e high [0, 90.5] ns, phi1 high [0, 92.5] ns,
+*              phi2 high [97.66, 189.96] ns  (>= 4.7 ns non-overlap both ways)
+*   read as the mean over [78, 88] ns of each cycle (phi1 hold, every switch
+*   into the summing node open, 2 ns clear of the phi1e fall)
+* A bench-only ideal reset switch pair (1 ohm, closed to 40 ns) puts the OTA
+* in unity feedback so Ci starts discharged; the cell has no reset.
+*
+* Tolerances are tightened below ngspice's defaults on purpose: the
+* differential residual sought here is tens of microvolts on a 0.9 V node, and
+* the default reltol=1e-3 vntol=1e-6 cannot resolve it. Measured noise floor on
+* the symmetric cell at tt/27C/1.80V with these values: 4e-5 uV per clock,
+* against 47 uV per clock for a single switch half 10% off (README.md
+* "Sensitivity"). `gmin` and `trtol` are left at their defaults -- overriding
+* them (1e-15 / 1) made the operating point singular and aborted the analysis.
+.options reltol=1e-5 vntol=1e-7 abstol=1e-13 chgtol=1e-16
+.include "../../design/ota/ota_fd.spice"
+@CELLINC@
+Vdda vdda 0 1.8
+Vvcm vcm 0 0.9
+Vrefp vrefp 0 @VREFP@
+Vrefn vrefn 0 @VREFN@
+Vinp vinp 0 @VINP@
+Vinn vinn 0 @VINN@
+Ibias vdda ibias 5u
+* clock shape sources (0..1), scaled to the rail by the B-sources below
+Vp1s  p1s  0 PULSE(0 1 0 0.2n 0.2n 92.3n 195.3125n)
+Vp1es p1es 0 PULSE(0 1 0 0.2n 0.2n 90.3n 195.3125n)
+Vp2s  p2s  0 PULSE(0 1 97.46n 0.2n 0.2n 92.3n 195.3125n)
+Bphi1  phi1  0 V='v(vdda)*v(p1s)'
+Bphi1b phi1b 0 V='v(vdda)-v(phi1)'
+Bphi1e phi1e 0 V='v(vdda)*v(p1es)'
+Bphi2  phi2  0 V='v(vdda)*v(p2s)'
+* DAC select: @DNNOTE@
+@DNS@
+Bdn dn 0 V='v(vdda)*v(dns)'
+Bdp dp 0 V='v(vdda)-v(dn)'
+@XINT@
+* output load per side: @LOADNOTE@
+Clp voutp 0 @LOAD@
+Cln voutn 0 @LOAD@
+* bench-only reset (not part of the cell): closes the OTA loop until 40 ns
+Brst rst 0 V='1 - min(max((time-39.9n)/0.2n,0),1)'
+Srp voutp xint.sump rst 0 swr
+Srn voutn xint.sumn rst 0 swr
+.model swr sw vt=0.5 vh=0.1 ron=1 roff=1e15
+Bvod vod 0 V='v(voutp)-v(voutn)'
+Bvoc voc 0 V='(v(voutp)+v(voutn))/2'

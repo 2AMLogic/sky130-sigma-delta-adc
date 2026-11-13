@@ -1,0 +1,241 @@
+{
+  "netlist": "integrator_ci_post_v0p1.cir",
+  "engine": "ngspice",
+  "backend": "batch",
+  "models": {
+    "pdk": "sky130A",
+    "lib": "libs.tech/ngspice/sky130.lib.spice"
+  },
+  "corners": {
+    "process": [
+      "tt",
+      "ss",
+      "ff",
+      "sf",
+      "fs"
+    ],
+    "supply_v": {
+      "vdda": [
+        1.62,
+        1.8,
+        1.98
+      ]
+    },
+    "temperature_c": [
+      -40,
+      27,
+      125
+    ]
+  },
+  "analysis": {
+    "kind": "tran",
+    "args": "50p 1.18e-06 0 50p"
+  },
+  "measurements": [
+    {
+      "name": "w_rst",
+      "expr": "mean((time ge 3e-08)*(time le 3.8e-08))"
+    },
+    {
+      "name": "vod_rst",
+      "expr": "mean(v(vod)*(time ge 3e-08)*(time le 3.8e-08))/w_rst",
+      "unit": "V"
+    },
+    {
+      "name": "voc_rst",
+      "expr": "mean(v(voc)*(time ge 3e-08)*(time le 3.8e-08))/w_rst",
+      "unit": "V"
+    },
+    {
+      "name": "w_d3",
+      "expr": "mean((time ge 6.359375e-07)*(time le 6.459375e-07))"
+    },
+    {
+      "name": "vod_d3",
+      "expr": "mean(v(vod)*(time ge 6.359375e-07)*(time le 6.459375e-07))/w_d3",
+      "unit": "V"
+    },
+    {
+      "name": "voc_d3",
+      "expr": "mean(v(voc)*(time ge 6.359375e-07)*(time le 6.459375e-07))/w_d3",
+      "unit": "V"
+    },
+    {
+      "name": "w_c0",
+      "expr": "mean((time ge 7.8e-08)*(time le 8.8e-08))"
+    },
+    {
+      "name": "vod_c0",
+      "expr": "mean(v(vod)*(time ge 7.8e-08)*(time le 8.8e-08))/w_c0",
+      "unit": "V"
+    },
+    {
+      "name": "voc_c0",
+      "expr": "mean(v(voc)*(time ge 7.8e-08)*(time le 8.8e-08))/w_c0",
+      "unit": "V"
+    },
+    {
+      "name": "w_c1",
+      "expr": "mean((time ge 2.733125e-07)*(time le 2.833125e-07))"
+    },
+    {
+      "name": "vod_c1",
+      "expr": "mean(v(vod)*(time ge 2.733125e-07)*(time le 2.833125e-07))/w_c1",
+      "unit": "V"
+    },
+    {
+      "name": "voc_c1",
+      "expr": "mean(v(voc)*(time ge 2.733125e-07)*(time le 2.833125e-07))/w_c1",
+      "unit": "V"
+    },
+    {
+      "name": "w_c2",
+      "expr": "mean((time ge 4.68625e-07)*(time le 4.78625e-07))"
+    },
+    {
+      "name": "vod_c2",
+      "expr": "mean(v(vod)*(time ge 4.68625e-07)*(time le 4.78625e-07))/w_c2",
+      "unit": "V"
+    },
+    {
+      "name": "voc_c2",
+      "expr": "mean(v(voc)*(time ge 4.68625e-07)*(time le 4.78625e-07))/w_c2",
+      "unit": "V"
+    },
+    {
+      "name": "w_c3",
+      "expr": "mean((time ge 6.639375e-07)*(time le 6.739375e-07))"
+    },
+    {
+      "name": "vod_c3",
+      "expr": "mean(v(vod)*(time ge 6.639375e-07)*(time le 6.739375e-07))/w_c3",
+      "unit": "V"
+    },
+    {
+      "name": "voc_c3",
+      "expr": "mean(v(voc)*(time ge 6.639375e-07)*(time le 6.739375e-07))/w_c3",
+      "unit": "V"
+    },
+    {
+      "name": "w_c4",
+      "expr": "mean((time ge 8.5925e-07)*(time le 8.6925e-07))"
+    },
+    {
+      "name": "vod_c4",
+      "expr": "mean(v(vod)*(time ge 8.5925e-07)*(time le 8.6925e-07))/w_c4",
+      "unit": "V"
+    },
+    {
+      "name": "voc_c4",
+      "expr": "mean(v(voc)*(time ge 8.5925e-07)*(time le 8.6925e-07))/w_c4",
+      "unit": "V"
+    },
+    {
+      "name": "w_c5",
+      "expr": "mean((time ge 1.0545625e-06)*(time le 1.0645625e-06))"
+    },
+    {
+      "name": "vod_c5",
+      "expr": "mean(v(vod)*(time ge 1.0545625e-06)*(time le 1.0645625e-06))/w_c5",
+      "unit": "V"
+    },
+    {
+      "name": "voc_c5",
+      "expr": "mean(v(voc)*(time ge 1.0545625e-06)*(time le 1.0645625e-06))/w_c5",
+      "unit": "V"
+    },
+    {
+      "name": "dvod_c1",
+      "expr": "vod_c1 - vod_c0",
+      "unit": "V"
+    },
+    {
+      "name": "dvoc_c1",
+      "expr": "voc_c1 - voc_c0",
+      "unit": "V"
+    },
+    {
+      "name": "dvod_c2",
+      "expr": "vod_c2 - vod_c1",
+      "unit": "V"
+    },
+    {
+      "name": "dvoc_c2",
+      "expr": "voc_c2 - voc_c1",
+      "unit": "V"
+    },
+    {
+      "name": "dvod_c3",
+      "expr": "vod_c3 - vod_c2",
+      "unit": "V"
+    },
+    {
+      "name": "dvoc_c3",
+      "expr": "voc_c3 - voc_c2",
+      "unit": "V"
+    },
+    {
+      "name": "dvod_c4",
+      "expr": "vod_c4 - vod_c3",
+      "unit": "V"
+    },
+    {
+      "name": "dvoc_c4",
+      "expr": "voc_c4 - voc_c3",
+      "unit": "V"
+    },
+    {
+      "name": "dvod_c5",
+      "expr": "vod_c5 - vod_c4",
+      "unit": "V"
+    },
+    {
+      "name": "dvoc_c5",
+      "expr": "voc_c5 - voc_c4",
+      "unit": "V"
+    },
+    {
+      "name": "dvod_mean",
+      "expr": "(vod_c5 - vod_c2)/3",
+      "unit": "V"
+    },
+    {
+      "name": "dvoc_mean",
+      "expr": "(voc_c5 - voc_c2)/3",
+      "unit": "V"
+    },
+    {
+      "name": "dvod_2clk",
+      "expr": "(vod_c5 - vod_c3)/2",
+      "unit": "V"
+    },
+    {
+      "name": "drift_hold",
+      "expr": "vod_c3 - vod_d3",
+      "unit": "V"
+    },
+    {
+      "name": "dvod_leak",
+      "expr": "(vod_c3 - vod_d3)*6.97544643",
+      "unit": "V"
+    },
+    {
+      "name": "dvoc_leak",
+      "expr": "(voc_c3 - voc_d3)*6.97544643",
+      "unit": "V"
+    },
+    {
+      "name": "voc_swing",
+      "expr": "vecmax(v(voc)*(time ge 3.90625e-07)*(time le 1.171875e-06) - 10*(1-(time ge 3.90625e-07)*(time le 1.171875e-06))) - vecmin(v(voc)*(time ge 3.90625e-07)*(time le 1.171875e-06) + 10*(1-(time ge 3.90625e-07)*(time le 1.171875e-06)))",
+      "unit": "V"
+    }
+  ],
+  "options": {
+    "timeout_s": 3600,
+    "keep_artifacts": false
+  },
+  "batch": {
+    "poll_timeout_s": 21600,
+    "capacity_wait_s": 600
+  }
+}

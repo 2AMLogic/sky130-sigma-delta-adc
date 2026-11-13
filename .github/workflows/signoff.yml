@@ -101,6 +101,13 @@ jobs:
           python3 -I -m unittest discover -s sim -p 'test_settling*.py'
           python3 -I -m unittest discover -s sim/integrator-settling -p 'test_*.py'
 
+      # The charge-injection bench's record-admission gates and derivations
+      # (issue #102), plus the checks that the committed decks/requests still
+      # match their generator and that the pre-#92 comparison fixture still
+      # matches the commit it names. Fixtures only: no fleet, no ngspice, no klt.
+      - name: Charge-injection record-admission unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'
+
       - name: Decimator whole-chain response, spec rows 8-9 (no EDA tools)
         working-directory: verification/decimator
         run: python3 response.py

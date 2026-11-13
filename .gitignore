@@ -13,6 +13,11 @@ sim/build/
 # report / batch receipt kept for debugging a failed or partial grid
 sim/*/.partials/
 sim/*/.artifacts/
+# probe scratch: single-corner request copies the runners write beside the
+# request file and delete again (left behind only if a probe crashes)
+sim/*/probe_request_*.json
+sim/*/.selftest*
+sim/*/.probe_step_*
 # synthesis / P&R scratch
 flow/build/
 # klt synthesize per-run scratch next to the request file

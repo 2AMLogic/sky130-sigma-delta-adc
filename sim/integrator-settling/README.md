@@ -368,13 +368,27 @@ file. `int2`'s
 threshold covers the linear part of settling only (above). Nothing here is
 measured and nothing relaxes DR-005 or the spec.
 
-**Charge injection is now a live owed item, not a neutral one.** The PMOS
-halves issue #92 added raise the channel area of the phi2-gated `vcm`
-switches by 1.8x (`Sti`/`Str`) and 5.7x (`Sbi`/`Sbr`). The
-common-mode part stays signal-independent, but the mismatch-driven
-*differential* part grows as sqrt(W L); that is the price of this fix and it is
-charged to the charge-injection extraction, not measured here. Tracked as
-issue #102. See `design/integrator/SIZING.md` -> "kT/C and charge injection".
+**Charge injection was a live owed item after the #92 fix; it has been extracted
+and it is cheap.** `sim/integrator-ci` (issue #102) measures the residual with
+the shipped switch sizes over the DR-002 full grid and a Monte Carlo campaign at
+the anchors: the switch-attributable differential sigma under PDK mismatch is
+59 to 90 uV per clock (4.9e-05 to 7.5e-05 in model-B `ci_offset` FS units), which
+costs **0.17 dB** of peak SNDR in model B (86.00 dB against the 86.17 dB
+post-#107 ideal record; source B, uncross-checked). The post/pre growth is
+1.84x to 3.61x --
+*faster* than the sqrt(W L) this file predicted, because #92 also swapped
+standard-Vth for low-Vth on those switches and the area-only argument omits that
+term. Records: `sim/integrator-ci/record.json`, `record-mc.json`; discussion and
+limits: `sim/integrator-ci/README.md`; the corrected argument:
+`design/integrator/SIZING.md` -> "kT/C and charge injection".
+
+That bench also found something this one cannot see: at `ss`/1.620 V/-40 C the
+**input** sampling switch `Sin` charges `Cs` to only ~46 % of a +/-0.1 V
+differential input in a full 90 ns phi1, while the integrate phase at that same
+corner settles exactly. This bench never saw it because its stimulus is the
+worst-case *large* step (`vinp` = 1.2 V), where `Sin`'s PMOS half has ~0.3 V of
+overdrive instead of ~0.1 V, and because it measures the integrate phase only --
+it does not check that the sampling phase completed. Tracked as #106.
 
 **Port-order drift in the committed netlists.** `klt netlist` (klt
 0.9.2.dev885, xschem 3.4.7) orders a subckt's ports by **pin type** --

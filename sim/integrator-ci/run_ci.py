@@ -1,0 +1,980 @@
+#!/usr/bin/env python3
+"""Integrator charge-injection runner (simulated, transistor-level). See README.md.
+
+Default: submit every nominal-grid request (DR-002 full 45-point grid per
+variant) through `klt sim`, which sends them to the batch fleet; never falls
+back to a local grid. `--mc` submits the two Monte Carlo requests instead (DR-002
+anchor set, PDK `_mm` mismatch sections, N stated in the record).
+
+    python3 -I sim/integrator-ci/run_ci.py --probe post_v0     # 1 local corner
+    python3 -I sim/integrator-ci/run_ci.py --self-test         # sensitivity check
+    python3 -I sim/integrator-ci/run_ci.py --probe-step post_v0  # step independence
+    python3 -I sim/integrator-ci/run_ci.py                     # nominal grids
+    python3 -I sim/integrator-ci/run_ci.py --mc                # Monte Carlo
+    python3 -I sim/integrator-ci/run_ci.py --record            # write record.json
+
+Each completed variant is saved under .partials/, so a fleet capacity refusal on
+one variant does not discard another's corners: re-run the missing variant later
+and --record assembles the record from all of them. A variant requested in this
+invocation is NEVER served from .partials/ -- a failed submit must not be
+reported as a result (issue #94's rule, same as run_settling.py).
+"""
+import argparse
+import json
+import math
+import pathlib
+import re
+import shutil
+import statistics
+import subprocess
+import sys
+import tempfile
+
+HERE = pathlib.Path(__file__).resolve().parent
+REPO = HERE.parents[1]
+sys.path.insert(0, str(HERE.parent))
+from settling_common import (ANCHOR_SUBSET_NOTE, CAPACITY_WAIT_S,  # noqa: E402
+                             grid_complete, measurements_present, pdk_stamp,
+                             run_klt, sha256, summarize)
+
+sys.path.insert(0, str(HERE))
+import make_request as mk  # noqa: E402
+
+PARTIALS = HERE / ".partials"      # per-variant results, gitignored
+ARTIFACTS = HERE / ".artifacts"    # raw klt report / batch receipt, gitignored
+SENTINEL = mk.SENTINEL
+GRID_VARIANTS = tuple(mk.VARIANTS)
+MC_VARIANTS = mk.MC_VARIANTS
+
+# The switch halves whose turn-off charge reaches the summing node, and so the
+# output: Sti/Str gate sump directly. Sbi/Sbr gate the *bottom* plate, which the
+# next phi1 re-drives from vinp/rsel, so their turn-off charge is discarded
+# before it can be transferred -- see README.md "Which switches actually land
+# on Ci". design/integrator/SIZING.md frames the sqrt(W L) growth over all four,
+# which is why the record carries both predictions.
+SUMMING_SWITCHES = ("Sti", "Str")
+VCM_SWITCHES = ("Sbi", "Sbr", "Sti", "Str")
+
+
+# --------------------------------------------------- netlist device areas ---
+def _join_continuations(text):
+    out = []
+    for line in text.splitlines():
+        if line.startswith("+") and out:
+            out[-1] += " " + line[1:].strip()
+        else:
+            out.append(line)
+    return out
+
+
+def switch_areas(netlist):
+    """{switch_base: {"nmos": [(W, L)...], "pmos": [...]}} from a cell netlist.
+
+    Reads W/L off the instance lines rather than taking them from a comment, so
+    the sqrt(W L) prediction in the record is derived from the netlist that was
+    simulated and cannot drift from it.
+    """
+    areas = {}
+    for line in _join_continuations(pathlib.Path(netlist).read_text()):
+        m = re.match(r"^X(S[a-z]{2})_([pn])(_p)?\s", line)
+        if not m:
+            continue
+        base, half = m.group(1), ("pmos" if m.group(3) else "nmos")
+        w = re.search(r"\bW=([0-9.eE+-]+)", line)
+        ln = re.search(r"\bL=([0-9.eE+-]+)", line)
+        if not (w and ln):
+            continue
+        # A `_p`-suffixed instance is only the PMOS half if it really is a pfet;
+        # the pre-#92 cell has no such halves at all.
+        if half == "pmos" and "pfet" not in line:
+            half = "nmos"
+        areas.setdefault(base, {"nmos": [], "pmos": []})[half].append(
+            (float(w.group(1)), float(ln.group(1))))
+    return areas
+
+
+def cap_ratio(netlist):
+    """Drawn Cs/Ci from the cell's MIM capacitor geometry.
+
+    Model B's C1 = 0.5 is the nominal coefficient; the drawn caps are not in
+    exactly that ratio, and the difference lands in the same slope the
+    `ci_gain_error` fit reads. Reporting the drawn ratio next to the measured
+    slope is what keeps a capacitor-ratio effect from being booked as charge
+    injection.
+    """
+    out = {}
+    for line in _join_continuations(pathlib.Path(netlist).read_text()):
+        m = re.match(r"^X(Csi|Csr|Ci)_([pn])\s+.*\bW=([0-9.eE+-]+)\s+L=([0-9.eE+-]+)", line)
+        if m:
+            out.setdefault(m.group(1), []).append(float(m.group(3)) * float(m.group(4)))
+    cs = sum(out.get("Csi", [])) / max(len(out.get("Csi", [])), 1)
+    ci = sum(out.get("Ci", [])) / max(len(out.get("Ci", [])), 1)
+    return {
+        "cs_drawn_area_um2": round(cs, 4),
+        "ci_drawn_area_um2": round(ci, 4),
+        "drawn_area_ratio_cs_over_ci": (cs / ci) if ci else None,
+        "model_b_c1": mk.C1,
+        "drawn_vs_model_b_c1_rel": ((cs / ci) / mk.C1 - 1.0) if ci else None,
+        "note": ("Area ratio of the drawn sky130_fd_pr__cap_mim_m3_1 devices, not "
+                 "an extracted capacitance: fringe and perimeter terms differ "
+                 "between the two sizes, so the real Cs/Ci is near this but not "
+                 "equal to it. It is here so a capacitor-ratio contribution to the "
+                 "measured slope is visible instead of being attributed to charge "
+                 "injection."),
+    }
+
+
+def area_prediction(pre_netlist, post_netlist):
+    """Channel area per switch, pre vs post, and the sqrt(W L) growth factors."""
+    pre, post = switch_areas(pre_netlist), switch_areas(post_netlist)
+
+    def per_side(areas, names):
+        # One side (the `_p` side) of each named switch: its halves' total
+        # channel area. Both sides are drawn identically, so one is enough.
+        tot = 0.0
+        for n in names:
+            halves = areas.get(n, {"nmos": [], "pmos": []})
+            # Halves are listed per side; take the mean over sides so a cell
+            # with p and n sides does not double-count.
+            for kind in ("nmos", "pmos"):
+                if halves[kind]:
+                    tot += sum(w * ln for w, ln in halves[kind]) / 2.0
+        return tot
+
+    out = {}
+    for tag, names in (("summing_node_switches", SUMMING_SWITCHES),
+                       ("all_phi2_vcm_switches", VCM_SWITCHES)):
+        a_pre, a_post = per_side(pre, names), per_side(post, names)
+        out[tag] = {
+            "switches": list(names),
+            "channel_area_um2_per_side_pre": round(a_pre, 4),
+            "channel_area_um2_per_side_post": round(a_post, 4),
+            "area_ratio": round(a_post / a_pre, 4) if a_pre else None,
+            "sqrt_area_ratio": round(math.sqrt(a_post / a_pre), 4) if a_pre else None,
+        }
+    out["note"] = (
+        "The sqrt(W L) argument in design/integrator/SIZING.md predicts the "
+        "differential residual grows as sqrt of the channel-area ratio. "
+        "`summing_node_switches` is the prediction that applies to the output: "
+        "only Sti/Str inject into the summing node, and Sbi/Sbr turn-off charge "
+        "lands on the bottom plate, which the next phi1 re-drives from "
+        "vinp/rsel before any transfer. `all_phi2_vcm_switches` is SIZING.md's "
+        "own framing, kept for comparison. Areas are read from the simulated "
+        "netlists; `nfet_01v8` -> `nfet_01v8_lvt` is part of the #92 delta and "
+        "changes the charge at equal area, so neither factor is a complete "
+        "prediction.")
+    return out
+
+
+# ------------------------------------------------------------- plumbing -----
+def shas(v):
+    return {"request_sha256": sha256(HERE / f"request_{v}.json"),
+            "deck_sha256": sha256(HERE / mk.deck_name(v))}
+
+
+def mc_shas(v):
+    return {"request_sha256": sha256(HERE / f"request_mc_{v}.json"),
+            "deck_sha256": sha256(HERE / mk.deck_name(v))}
+
+
+def partial_path(v, mc):
+    return PARTIALS / (f"mc-{v}.json" if mc else f"{v}.json")
+
+
+def load_partial(v, mc):
+    """A previously-run variant, if it matches the current request and deck."""
+    p = partial_path(v, mc)
+    if not p.exists():
+        return None
+    try:
+        d = json.loads(p.read_text())
+    except ValueError:
+        return None
+    cur = mc_shas(v) if mc else shas(v)
+    if {k: d.get(k) for k in cur} != cur:
+        print(f"NOTE: ignoring stale .partials/{p.name} (request or deck changed "
+              "since it ran)", file=sys.stderr)
+        return None
+    return d
+
+
+def save_partial(v, mc, result):
+    PARTIALS.mkdir(exist_ok=True)
+    partial_path(v, mc).write_text(json.dumps(result, indent=2) + "\n")
+
+
+def submit(v, mc, tmp, probe=False, probe_path=None, hosts=None,
+           capacity_wait_s=CAPACITY_WAIT_S):
+    req = HERE / (f"request_mc_{v}.json" if mc else f"request_{v}.json")
+    tag = f"mc-{v}" if mc else v
+    res = run_klt(req, probe, tmp, tag, probe_path or (HERE / f"probe_request_{tag}.json"),
+                  artifacts_dir=None if probe else ARTIFACTS, keys=mk.KEYS,
+                  hosts=None if probe else hosts, capacity_wait_s=capacity_wait_s)
+    if res is None:
+        print(f"{tag}: no usable report (see .artifacts/klt-{tag}.stderr.txt); not "
+              "falling back to a local grid or to .partials/", file=sys.stderr)
+        return None
+    rep, corners = res
+    e = rep.get("environment", {})
+    result = {"summary": summarize(corners, SENTINEL), "corners": corners,
+              "pass": rep.get("status") == "pass",
+              "ngspice": e.get("engine_version", "unknown"),
+              "engine_host": e.get("engine_host"), "remote": e.get("remote"),
+              "monte_carlo_env": e.get("monte_carlo"),
+              **(mc_shas(v) if mc else shas(v))}
+    return result
+
+
+# ---------------------------------------------------------- derivations -----
+def fs(volts):
+    """Differential output volts -> model-B FS units (see make_request.py)."""
+    return None if volts is None else volts / mk.VFS_DIFF_V
+
+
+def nominal_derivation(results, caps=None):
+    """ci_offset / ci_gain_error over the nominal grid, per corner and worst-case."""
+    base = results["post_v0"]["corners"]
+    per_corner = {}
+    for cid, c in base.items():
+        row = {"dvod_mean_V": c[SENTINEL], "dvoc_mean_V": c.get("dvoc_mean"),
+               "ci_offset_fs": fs(c[SENTINEL]),
+               "dvod_leak_V": c.get("dvod_leak"), "voc_swing_V": c.get("voc_swing"),
+               "vod_rst_V": c.get("vod_rst")}
+        # Signal dependence: fit dvod_mean against vin_diff over the three
+        # nulled-DAC amplitudes. slope = (Cs/Ci)*(1+gain error) = 0.5*(1+g).
+        pts = []
+        for v in ("post_v0", "post_v0p1", "post_v0p2"):
+            cc = results.get(v, {}).get("corners", {}).get(cid)
+            if cc and cc.get(SENTINEL) is not None:
+                pts.append((mk.VARIANTS[v]["vin_diff"], cc[SENTINEL]))
+        if len(pts) >= 2:
+            n = len(pts)
+            mx = sum(x for x, _ in pts) / n
+            my = sum(y for _, y in pts) / n
+            den = sum((x - mx) ** 2 for x, _ in pts)
+            slope = sum((x - mx) * (y - my) for x, y in pts) / den
+            row["step_slope_v_per_v"] = slope
+            row["ci_gain_error_bound"] = slope / mk.C1 - 1.0
+            if caps and caps.get("drawn_area_ratio_cs_over_ci"):
+                row["slope_vs_drawn_cap_ratio_rel"] = (
+                    slope / caps["drawn_area_ratio_cs_over_ci"] - 1.0)
+            # Departure from the straight line: a gain error cannot represent
+            # it, so it is the distortion indicator.
+            row["fit_max_residual_V"] = max(
+                abs(y - (my + slope * (x - mx))) for x, y in pts)
+            row["fit_points_vin_diff_V"] = [x for x, _ in pts]
+        per_corner[cid] = row
+
+    def worst(key):
+        vals = [(abs(r[key]), cid) for cid, r in per_corner.items() if r.get(key) is not None]
+        if not vals:
+            return None
+        _, cid = max(vals)
+        return {"corner": cid, "value": per_corner[cid][key]}
+
+    return {
+        "per_corner": per_corner,
+        "dac_crosscheck": dac_crosscheck(results),
+        "worst_ci_offset_fs": worst("ci_offset_fs"),
+        "worst_dvod_mean_V": worst("dvod_mean_V"),
+        "worst_ci_gain_error_bound": worst("ci_gain_error_bound"),
+        "worst_fit_max_residual_V": worst("fit_max_residual_V"),
+        "worst_slope_vs_drawn_cap_ratio_rel": worst("slope_vs_drawn_cap_ratio_rel"),
+        "drawn_cap_ratio": caps,
+        "ci_gain_error_caveat": (
+            "step_slope_v_per_v is the whole input-to-output gain of one charge "
+            "transfer, so ci_gain_error_bound lumps charge-injection gain error "
+            "together with incomplete settling and finite DC gain, which "
+            "sim/integrator-settling and the DC-gain extraction own separately. "
+            "It is an UPPER BOUND on the charge-injection part, never an "
+            "attribution of all of it to charge injection. Measured at "
+            "tt/1.800V/27C while building the bench, three of those mechanisms "
+            "account for the whole deficit with nothing left for injection: the "
+            "drawn capacitor ratio (see drawn_cap_ratio), a finite-DC-gain leak "
+            "whose per-clock droop fits A = 672 against the 667 the independent "
+            "dac_crosscheck gives, and -- at the slow/cold corners only -- "
+            "incomplete INPUT sampling, which is a separate mechanism from "
+            "charge injection and is tracked separately (see README.md "
+            "\"Limits\")."),
+    }
+
+
+def dac_crosscheck(results):
+    """What the real-DAC variant says about nulling the reference branch.
+
+    With `dn` toggled every clock the DAC's +/-1.2 V transfer cancels over two
+    clocks *in a linear circuit*, so `dvod_2clk` was intended to show the
+    injection residual with the references live. It does not: the integrator's
+    finite DC gain leaks the large intermediate state, and that leak dominates.
+    Reading it the other way round makes the variant useful -- the residual is
+    1/A times the transfer it leaked from, an independent estimate of the OTA's
+    DC gain, which design/ota/SIZING.md records as ~55 dB from a different
+    measurement entirely.
+
+    With `vod[n+1] = p*vod[n] + s[n]` and `s` alternating +/-S,
+
+        vod[k+2] - vod[k] = -(1-p) * [ (1+p)*vod[k] + s[k] ]
+
+    and the bracket is ~S whichever state cycle k happens to be -- S when
+    vod[k] ~ 0 and s[k] = +S, and 2S - S = S when vod[k] = S and s[k] = -S. So
+    the divisor is the per-clock TRANSFER magnitude, not a particular cycle's
+    output: dividing by one cycle's `vod` lands on the small state half the
+    time and reads A two orders of magnitude low.
+    """
+    out = {}
+    for cid, c in results.get("post_dac", {}).get("corners", {}).items():
+        res2 = c.get("dvod_2clk")
+        steps = [abs(c[f"dvod_c{k}"]) for k in range(1, mk.N_CYC)
+                 if c.get(f"dvod_c{k}") is not None]
+        transfer = (sum(steps) / len(steps)) if steps else None
+        row = {"dvod_2clk_V": res2, "transfer_per_clock_V": transfer}
+        if res2 and transfer and transfer > 1e-3:
+            inv_a = abs(2 * res2) / transfer
+            row["implied_inv_dc_gain"] = inv_a
+            row["implied_dc_gain"] = 1.0 / inv_a
+            row["implied_dc_gain_db"] = 20.0 * math.log10(1.0 / inv_a)
+        out[cid] = row
+    gains = [r["implied_dc_gain_db"] for r in out.values() if "implied_dc_gain_db" in r]
+    return {
+        "per_corner": out,
+        "implied_dc_gain_db_range": [min(gains), max(gains)] if gains else None,
+        "interpretation": (
+            "dvod_2clk on the `alternating` variant is NOT an injection residual: "
+            "it is the finite-gain leak of the +/-0.6 V intermediate state, and it "
+            "is orders of magnitude above the nulled-DAC bench's noise floor. That "
+            "is the measured justification for nulling the reference branch -- with "
+            "the spec references live, injection is unobservable here. Read as a "
+            "gain measurement instead, it is an independent check of the OTA DC "
+            "gain against the ~55 dB in design/ota/SIZING.md."),
+    }
+
+
+# A Monte Carlo campaign returns anchors x N samples; carrying all of
+# make_request.KEYS for each would make the record megabytes of JSON for no
+# gain. These are the per-sample values the record actually reasons about: the
+# step itself, the confounders named in README.md "What else is in the step",
+# and enough provenance to find the sample again.
+MC_SAMPLE_KEYS = ("status", "dvod_mean", "dvoc_mean", "vod_rst", "dvod_leak",
+                  "voc_swing", "w_c3", "diagnostics", "monte_carlo")
+
+
+def trim_mc_samples(corners):
+    return {cid: {k: v for k, v in c.items() if k in MC_SAMPLE_KEYS}
+            for cid, c in corners.items()}
+
+
+# Below this |r| between the per-clock step and the measured OTA offset, the
+# regression cannot separate them and the residual is not reported as a
+# switch-injection estimate.
+OTA_SEPARATION_MIN_R = 0.95
+
+
+def _regress(y, x):
+    """Least squares y = a + b*x. Returns (slope, intercept, r, residual sigma).
+
+    Residual sigma uses n-2 degrees of freedom: two were spent on the fit.
+    Hand-rolled rather than numpy so the runner stays stdlib-only.
+    """
+    n = len(x)
+    mx, my = statistics.fmean(x), statistics.fmean(y)
+    sxx = sum((v - mx) ** 2 for v in x)
+    syy = sum((v - my) ** 2 for v in y)
+    sxy = sum((a - mx) * (b - my) for a, b in zip(x, y))
+    if sxx <= 0.0 or syy <= 0.0 or n < 3:
+        return None, None, None, None
+    b = sxy / sxx
+    a = my - b * mx
+    r = sxy / math.sqrt(sxx * syy)
+    ss = sum((yy - (a + b * xx)) ** 2 for xx, yy in zip(x, y))
+    return b, a, r, math.sqrt(ss / (n - 2))
+
+
+def mc_stats(corners):
+    """Per base corner: the differential step's distribution over the samples,
+    and the part of it left after the measured OTA offset is regressed out.
+
+    Monte Carlo sample `corner_id`s are the base point plus a `/mc<i>` suffix,
+    so the base point is the id with that suffix stripped.
+
+    Under mismatch the per-clock differential step contains the OTA's own input
+    offset referred through Cs/Ci as well as switch injection (README.md "What
+    else is in the step"). `vod_rst` measures that offset on the same sample, so
+    regressing the step on it and keeping the residual is a *measured*
+    separation rather than an assumed one -- and the correlation is reported so
+    the separation can be judged instead of trusted.
+    """
+    groups = {}
+    for cid, c in corners.items():
+        base = cid.rsplit("/mc", 1)[0] if "/mc" in cid else cid
+        if c.get(SENTINEL) is not None:
+            groups.setdefault(base, []).append((c[SENTINEL], c.get("vod_rst")))
+    out = {}
+    for base, rows in sorted(groups.items()):
+        vals = [v for v, _ in rows]
+        n = len(vals)
+        sd = statistics.stdev(vals) if n > 1 else 0.0
+        row = {
+            "n": n,
+            "mean_dvod_V": statistics.fmean(vals),
+            "sigma_dvod_V": sd,
+            "max_abs_dvod_V": max(abs(v) for v in vals),
+            "mean_ci_offset_fs": fs(statistics.fmean(vals)),
+            "sigma_ci_offset_fs": fs(sd),
+            # 1-sigma relative standard error of a Gaussian sigma estimate.
+            "sigma_rel_standard_error": (1.0 / math.sqrt(2 * (n - 1))) if n > 1 else None,
+        }
+        off = [o for _, o in rows if o is not None]
+        if len(off) == n and n >= 3:
+            row["sigma_ota_offset_meas_V"] = statistics.stdev(off)
+            b, _, r, resid = _regress(vals, off)
+            if r is not None:
+                row["ota_regress_slope"] = b
+                row["ota_regress_r"] = r
+                if abs(r) >= OTA_SEPARATION_MIN_R:
+                    row["sigma_dvod_ota_removed_V"] = resid
+                    row["sigma_ci_offset_ota_removed_fs"] = fs(resid)
+                    # n-2 dof on the residual sigma.
+                    row["sigma_removed_rel_standard_error"] = 1.0 / math.sqrt(2 * (n - 2))
+                else:
+                    row["ota_separation"] = (
+                        f"NOT separable: |r| = {abs(r):.3f} < {OTA_SEPARATION_MIN_R}; "
+                        "the step does not track the measured OTA offset here, so "
+                        "no switch-only sigma is reported for this point")
+        out[base] = row
+    return out
+
+
+def mismatch_coverage(results):
+    """What `family_mismatch` says each run's mismatch actually covered.
+
+    Turning the deck's mismatch section on does not guarantee every device
+    family in the netlist gets per-instance variation. klt reports per family
+    whether it is structurally active in the selected deck; for sky130 MOS comes
+    back active and the MIM capacitors come back `null` (unverified), so
+    capacitor mismatch is NOT inside these numbers and stays a separate owed
+    mechanism. Recording it here means a later reader cannot mistake the sigma
+    for an all-mechanisms number.
+    """
+    out = {}
+    for v, r in results.items():
+        env = r.get("monte_carlo_env") or {}
+        fams = {f["family"]: {"active": f.get("active")}
+                for f in env.get("family_mismatch", [])}
+        out[v] = {
+            "n": env.get("n"), "seed": env.get("seed"), "vary": env.get("vary"),
+            "seed_scope": env.get("seed_scope"),
+            "family_active": fams,
+            "unseeded_sources": env.get("unseeded_sources"),
+        }
+    inactive = sorted({f for r in out.values()
+                       for f, d in r["family_active"].items() if d["active"] is not True})
+    out["not_covered"] = inactive
+    out["note"] = (
+        "Families whose per-instance mismatch klt does not report as active are "
+        "NOT inside these sigmas. For sky130 that includes the MIM capacitors "
+        "(reported `null`, i.e. unverified rather than off), so capacitor "
+        "mismatch remains a separate owed mechanism "
+        "(design/integrator/SIZING.md -> \"Not simulated (owed)\") and this "
+        "record must not be read as an all-mechanisms number.")
+    return out
+
+
+def mc_derivation(results, areas):
+    # `results` is keyed by variant name in both modes; --mc only changes which
+    # request each variant submits.
+    post = mc_stats(results["post_v0"]["corners"])
+    pre = mc_stats(results["pre_v0"]["corners"])
+    # The two runs name different .lib sections per point (tt_mm etc.) but the
+    # same anchors, so the base ids match; pair them by id.
+    ratios = {}
+    for cid in sorted(set(post) & set(pre)):
+        row = {}
+        # Two ratios: the raw one, and -- where the OTA offset was separable at
+        # both cells -- the switch-attributable one. The sqrt(W L) prediction is
+        # about the switches, so the second is the one it should be read against.
+        for tag, key, sekey in (
+                ("raw", "sigma_dvod_V", "sigma_rel_standard_error"),
+                ("ota_removed", "sigma_dvod_ota_removed_V",
+                 "sigma_removed_rel_standard_error")):
+            s_pre, s_post = pre[cid].get(key), post[cid].get(key)
+            if not s_pre or s_post is None:
+                row[f"sigma_ratio_{tag}"] = None
+                continue
+            r = s_post / s_pre
+            se = None
+            if pre[cid].get(sekey) and post[cid].get(sekey):
+                se = r * math.hypot(post[cid][sekey], pre[cid][sekey])
+            row[f"sigma_pre_{tag}_V"] = s_pre
+            row[f"sigma_post_{tag}_V"] = s_post
+            row[f"sigma_ratio_{tag}"] = r
+            row[f"sigma_ratio_{tag}_standard_error"] = se
+        ratios[cid] = row
+    worst = max(((v["max_abs_dvod_V"], c) for c, v in post.items()), default=(None, None))
+    return {
+        "post_i92": post, "pre_i92": pre, "sigma_ratio": ratios,
+        "mismatch_coverage": mismatch_coverage(results),
+        "worst_abs_dvod_V": {"corner": worst[1], "value": worst[0]},
+        "worst_abs_ci_offset_fs": fs(worst[0]),
+        "sqrt_wl_prediction": areas,
+        "verdict_inputs": (
+            "Read `sigma_ratio_ota_removed` (with its standard error) against "
+            "`sqrt_area_ratio` for `summing_node_switches` -- the pair that "
+            "injects into the summing node -- and against "
+            "`all_phi2_vcm_switches`, which is design/integrator/SIZING.md's own "
+            "framing. Use the OTA-removed ratio, not the raw one: the raw "
+            "per-clock differential step under mismatch is dominated by the "
+            "OTA's own input offset, and sqrt(W L) is a claim about the "
+            "switches. The #92 delta also swaps nfet_01v8 for nfet_01v8_lvt on "
+            "those switches, which neither sqrt(W L) factor accounts for."),
+        "estimator": (
+            "sigma is the sample standard deviation (statistics.stdev, n-1) of "
+            "dvod_mean over the Monte Carlo samples at each anchor point. "
+            "sigma_dvod_ota_removed_V is the residual standard deviation (n-2 "
+            "dof) after least-squares regressing dvod_mean on the same sample's "
+            "measured OTA offset `vod_rst`; it is reported only where "
+            f"|r| >= {OTA_SEPARATION_MIN_R}, and the slope and r are always "
+            "reported so the separation can be judged. No distribution is "
+            "assumed beyond quoting the usual 1/sqrt(2*dof) relative standard "
+            "error."),
+    }
+
+
+# ------------------------------------------------------------ local modes ---
+SKEW_RE = re.compile(r"^(XSti_p_p\s+tpi_p\s+phi2b\s+sump\s+vdda\s+\S+\s+L=\S+\s+W=)([0-9.]+)")
+SKEW_FACTOR = 1.10
+
+
+def write_skewed_cell(dst):
+    """The shipped cell with Sti_p's PMOS half 10% wider: a known asymmetry.
+
+    Used only by --self-test, to show a zero differential residual on the
+    symmetric cell is a measurement and not a dead bench. Generated from the
+    shipped netlist on every run, so there is no committed copy to drift.
+    """
+    src = (REPO / "design/integrator/integrator.spice").read_text()
+    out, hits = [], 0
+    for line in src.splitlines():
+        m = SKEW_RE.match(line)
+        if m:
+            w = float(m.group(2)) * SKEW_FACTOR
+            line = SKEW_RE.sub(lambda _: f"{m.group(1)}{w:g}", line, count=1)
+            hits += 1
+        out.append(line)
+    if hits != 1:
+        raise SystemExit(f"REFUSE: expected exactly 1 XSti_p_p line to skew, found {hits}; "
+                         "the netlist changed and --self-test needs updating")
+    pathlib.Path(dst).write_text("\n".join(out) + "\n")
+    return SKEW_FACTOR
+
+
+def self_test(tmp):
+    """One local corner of the shipped cell and of a 10%-skewed copy.
+
+    Asserts the bench resolves an asymmetry it was built to find: the skewed
+    cell's differential step must be orders of magnitude above the symmetric
+    cell's, which is the bench's own noise floor.
+    """
+    cell = HERE / ".selftest_cell.spice"
+    deck = HERE / ".selftest.cir"
+    req = HERE / ".selftest_request.json"
+    try:
+        factor = write_skewed_cell(cell)
+        body = (HERE / mk.deck_name("post_v0")).read_text().replace(
+            '.include "../../design/integrator/integrator.spice"',
+            f'.include "{cell.name}"')
+        deck.write_text(body)
+        r = json.loads((HERE / "request_post_v0.json").read_text())
+        r["netlist"] = deck.name
+        req.write_text(json.dumps(r, indent=2))
+        res = run_klt(req, True, tmp, "selftest", HERE / ".selftest_probe.json", keys=mk.KEYS)
+    finally:
+        for f in (cell, deck, req):
+            f.unlink(missing_ok=True)
+    if res is None:
+        print("REFUSE: the self-test probe returned no report", file=sys.stderr)
+        return 1
+    skewed = next(iter(res[1].values()))[SENTINEL]
+    base = submit("post_v0", False, tmp, probe=True,
+                  probe_path=HERE / ".selftest_probe_base.json")
+    if base is None:
+        return 1
+    floor = next(iter(base["corners"].values()))[SENTINEL]
+    if skewed is None or floor is None:
+        print("REFUSE: self-test produced no dvod_mean", file=sys.stderr)
+        return 1
+    ratio = abs(skewed) / abs(floor) if floor else float("inf")
+    print(json.dumps({
+        "symmetric_dvod_mean_V": floor,
+        f"skewed_dvod_mean_V (Sti_p PMOS half W x{factor})": skewed,
+        "skewed_over_symmetric": ratio,
+        "skewed_ci_offset_fs": fs(skewed),
+        "corner": "tt/1.800V/27C, local",
+    }, indent=2))
+    if ratio < 100:
+        print(f"REFUSE: a {factor}x width skew on one switch half moved the "
+              f"differential step by only {ratio:.3g}x the symmetric cell's "
+              "residual; the bench is not resolving the asymmetry it exists to "
+              "measure, so a zero result from it would mean nothing", file=sys.stderr)
+        return 1
+    print(f"OK: the skew is {ratio:.3g}x the symmetric cell's residual "
+          "(>= 100x required)")
+    return 0
+
+
+def probe_step(variant, tmp):
+    """The same local corner at two internal step sizes, for step independence."""
+    rows = {}
+    for step in ("50p", "20p"):
+        r = json.loads((HERE / f"request_{variant}.json").read_text())
+        r["analysis"]["args"] = f"50p {mk.T_END:.6g} 0 {step}"
+        p = HERE / f".probe_step_{step}.json"
+        p.write_text(json.dumps(r, indent=2))
+        try:
+            res = run_klt(p, True, tmp, f"step-{step}", HERE / f".probe_step_pr_{step}.json",
+                          keys=mk.KEYS)
+        finally:
+            p.unlink(missing_ok=True)
+        if res is None:
+            print(f"REFUSE: no report at max step {step}", file=sys.stderr)
+            return 1
+        c = next(iter(res[1].values()))
+        rows[step] = {k: c.get(k) for k in (SENTINEL, "dvoc_mean", "voc_swing", "w_c3")}
+    a, b = rows["50p"][SENTINEL], rows["20p"][SENTINEL]
+    rows["abs_change_V"] = None if None in (a, b) else abs(b - a)
+    print(json.dumps(rows, indent=2))
+    return 0
+
+
+# ------------------------------------------------- model-B parameter files --
+BMODEL_DEFAULTS = {"dc_gain": None, "settling_error": 0.0, "ci_offset": 0.0,
+                   "ci_gain_error": 0.0, "ktc_noise_var": 0.0,
+                   "comparator_offset": 0.0, "comparator_hysteresis": 0.0,
+                   "jitter_rms_s": 0.0, "seed": 1}
+
+
+# A sample at 3 sigma stands in for the worst die of a population this size:
+# with N = 100 per anchor, |z| > 3 is expected in well under one sample.
+SIGMA_K = 3.0
+
+
+def bmodel_params(nominal=None, mc=None):
+    """Model-B parameter sets from the records -- derived, never hand-typed.
+
+    `ci_offset` in model B is "additive offset per clock on integrator 1", so
+    BOTH of these are legitimate values for it -- they answer different
+    questions, and the difference between them is the whole point of the
+    Monte Carlo regression:
+
+    - `injection`: the part this bench attributes to switch charge injection.
+      `ci_offset` is `SIGMA_K` x the worst OTA-removed sigma over the anchors
+      (the mean is ~0, so a k-sigma sample is the worst-die figure), falling back
+      to the worst nominal-grid residual if no Monte Carlo record exists.
+      `ci_gain_error` is 0: the signal-dependent part came back below the
+      bench's resolution (README.md "Limits"), and a number the bench cannot
+      resolve must not be invented.
+    - `worst_bound`: the largest per-clock integrator-1 offset anything in the
+      records supports -- the worst raw Monte Carlo sample, which is dominated
+      by the OTA's own input-offset mismatch and NOT by charge injection -- plus
+      the worst slope departure from the drawn capacitor ratio as
+      `ci_gain_error`. Both terms over-state charge injection deliberately, so
+      this set answers "even at the bound, does integrator-1 offset cost SNDR?".
+    """
+    inj, bounds, raw, prov = [], [], [], {}
+    if nominal:
+        d = nominal["derived"]
+        if d.get("worst_ci_offset_fs"):
+            inj.append((abs(d["worst_ci_offset_fs"]["value"]),
+                        f"nominal grid, {d['worst_ci_offset_fs']['corner']}"))
+        if d.get("worst_slope_vs_drawn_cap_ratio_rel"):
+            w = d["worst_slope_vs_drawn_cap_ratio_rel"]
+            # Keyed on magnitude but kept SIGNED: model B applies ci_gain_error
+            # as (1 + g) on both integrator inputs, and a gain deficit is not
+            # interchangeable with a gain excess in a delta-sigma loop.
+            bounds.append((abs(w["value"]), w["value"], f"nominal grid, {w['corner']}"))
+        prov["nominal_record"] = nominal.get("variants", {}).get(
+            "post_v0", {}).get("remote", {}).get("job_id")
+    if mc:
+        d = mc["derived"]
+        sep = [(v["sigma_ci_offset_ota_removed_fs"], c)
+               for c, v in d.get("post_i92", {}).items()
+               if v.get("sigma_ci_offset_ota_removed_fs") is not None]
+        if sep:
+            sd, cid = max(sep)
+            inj.append((SIGMA_K * abs(sd),
+                        f"monte carlo, {SIGMA_K:g}x the OTA-removed sigma at {cid}"))
+        if d.get("worst_abs_ci_offset_fs") is not None:
+            raw.append((abs(d["worst_abs_ci_offset_fs"]),
+                        f"monte carlo, worst raw sample at "
+                        f"{d['worst_abs_dvod_V']['corner']}"))
+        prov["mc_record"] = mc.get("variants", {}).get(
+            "post_v0", {}).get("remote", {}).get("job_id")
+        prov["mc_unseparable_anchors"] = sorted(
+            c for c, v in d.get("post_i92", {}).items() if v.get("ota_separation"))
+    if not inj:
+        return None
+    off, off_src = max(inj)
+    _, bnd, bnd_src = max(bounds) if bounds else (0.0, 0.0, "not extracted")
+    wst, wst_src = max(raw) if raw else (off, off_src)
+    return {
+        "injection": {**BMODEL_DEFAULTS, "ci_offset": off, "ci_gain_error": 0.0},
+        "worst_bound": {**BMODEL_DEFAULTS, "ci_offset": wst, "ci_gain_error": bnd},
+        "provenance": {
+            "injection_ci_offset_fs": off, "injection_ci_offset_from": off_src,
+            "injection_ci_gain_error": 0.0,
+            "injection_ci_gain_error_why": (
+                "the signal-dependent part of charge injection came back below "
+                "the bench's resolution; the slope the fit sees is accounted for "
+                "by the drawn capacitor ratio, the finite-gain leak and, at the "
+                "slow/cold corners, incomplete input sampling (#106)"),
+            "worst_bound_ci_offset_fs": wst, "worst_bound_ci_offset_from": wst_src,
+            "worst_bound_ci_offset_caveat": (
+                "NOT charge injection: the raw Monte Carlo spread is dominated by "
+                "the OTA's own input-offset mismatch (r = 0.9999 against the "
+                "measured vod_rst). It is carried because model B's ci_offset is "
+                "any additive per-clock offset on integrator 1, so this is the "
+                "honest worst case for that parameter -- its cause is simply not "
+                "the switches."),
+            "worst_bound_ci_gain_error": bnd,
+            "worst_bound_ci_gain_error_from": bnd_src,
+            "worst_bound_ci_gain_error_sign": (
+                "kept signed: a gain DEFICIT (negative) shrinks both integrator "
+                "coefficients and is not interchangeable with an excess. This "
+                "value is the incomplete input sampling of #106, not charge "
+                "injection -- see worst_bound_ci_offset_caveat."),
+            "sigma_k": SIGMA_K,
+            "records": prov,
+            "sign": ("ci_offset is entered as a magnitude: model B shapes it "
+                     "through one integrator, so the sign moves the output mean "
+                     "and not the in-band noise"),
+        },
+    }
+
+
+def write_bmodel_params(outdir):
+    nom = HERE / "record.json"
+    mc = HERE / "record-mc.json"
+    sets = bmodel_params(
+        json.loads(nom.read_text()) if nom.exists() else None,
+        json.loads(mc.read_text()) if mc.exists() else None)
+    if sets is None:
+        print("REFUSE: no record.json or record-mc.json to derive parameters from; "
+              "run the grids first", file=sys.stderr)
+        return 1
+    outdir = pathlib.Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    for name in ("injection", "worst_bound"):
+        f = outdir / f"bmodel-ci-{name.replace('_', '-')}.json"
+        f.write_text(json.dumps(sets[name], indent=2) + "\n")
+        print(f"wrote {f}")
+    (outdir / "bmodel-ci-provenance.json").write_text(
+        json.dumps(sets["provenance"], indent=2) + "\n")
+    print(json.dumps(sets["provenance"], indent=2))
+    return 0
+
+
+# ----------------------------------------------------------------- main -----
+def conditions():
+    return {
+        "ibias_uA": 5, "vcm_V": 0.9,
+        "clock_mhz": mk.FS_HZ / 1e6, "clock_period_ns": mk.T_CLK * 1e9,
+        "cycles_simulated": mk.N_CYC,
+        "read_window_ns": [mk.W_READ[0] * 1e9, mk.W_READ[1] * 1e9],
+        "drift_window_ns": [mk.W_DRIFT[0] * 1e9, mk.W_DRIFT[1] * 1e9],
+        "reset_window_ns": [mk.W_RESET[0] * 1e9, mk.W_RESET[1] * 1e9],
+        "step_cycles_averaged": [mk.STEADY_FROM, mk.STEADY_TO],
+        "reset": "bench-only ideal 1 ohm switches across Ci until 40 ns (cell has none)",
+        "clocks": ("behavioural rail-to-rail on Vdda from PULSE shape sources, "
+                   "200 ps edges, >= 4.7 ns non-overlap, no non-overlap generator"),
+        "load_per_side": mk.LOADNOTE,
+        "spice_options": "reltol=1e-5 vntol=1e-7 abstol=1e-13 chgtol=1e-16 (in the deck)",
+        "dac": {k: v["note"] for k, v in mk.DACS.items()},
+        "variants": {k: {"cell": v["cell"], "vin_diff_V": v["vin_diff"],
+                         "dac": v["dac"], "note": v["note"]}
+                     for k, v in mk.VARIANTS.items()},
+        "fs_unit_mapping": (
+            f"model-B ci_offset [FS] = differential output step [V] / "
+            f"{mk.VFS_DIFF_V} V, because one x1 unit is (VREFP-VREFN) = "
+            f"{mk.VFS_DIFF_V} V of differential output at Cs/Ci = {mk.C1}"),
+    }
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--pdk-root")
+    ap.add_argument("--variant", action="append", choices=GRID_VARIANTS,
+                    help="run only this variant (repeatable); default: all")
+    ap.add_argument("--mc", action="store_true",
+                    help="submit the Monte Carlo requests instead of the nominal grids")
+    ap.add_argument("--probe", choices=GRID_VARIANTS,
+                    help="one tt/27C/1.8V corner of a variant, local, no record")
+    ap.add_argument("--probe-step", choices=GRID_VARIANTS,
+                    help="one local corner at two internal step sizes, no record")
+    ap.add_argument("--bmodel-params", metavar="DIR",
+                    help="derive model-B parameter files from the committed "
+                         "records and write them to DIR; run them through "
+                         "sim/bmodel/run.py. Nothing is simulated here.")
+    ap.add_argument("--self-test", action="store_true",
+                    help="local sensitivity check against a deliberately skewed cell")
+    ap.add_argument("--from-partials", action="store_true",
+                    help="assemble the record from the cached .partials/ only, "
+                         "submitting nothing. Every variant must already have a "
+                         "non-stale partial or the run refuses. Safe because a "
+                         "partial exists only where a submit SUCCEEDED -- it "
+                         "cannot backfill a failed submit, which is the issue #94 "
+                         "rule -- and it is how a record is regenerated after a "
+                         "derivation changes without re-running the fleet.")
+    ap.add_argument("--record", action="store_true",
+                    help="write the record (refuses to overwrite: records are append-only)")
+    ap.add_argument("--record-name", help="record file name (default: record.json / record-mc.json)")
+    ap.add_argument("--capacity-wait", type=int, default=CAPACITY_WAIT_S, metavar="S",
+                    help=f"seconds to wait for fleet capacity before giving up "
+                         f"(default {CAPACITY_WAIT_S}, the host-rule floor). The "
+                         "fleet's vCPU budget is shared, so a busy period refuses "
+                         "a launch with `batch_no_capacity`; raise this for a "
+                         "retry. A refused submit is never backfilled from "
+                         ".partials/ and never falls back to a local grid.")
+    ap.add_argument("--hosts", type=int, metavar="N",
+                    help="shard each submission across N fleet instances. A Monte "
+                         "Carlo campaign is anchors x N units in ONE job, and the "
+                         "fleet kills a job still running at its whole-job ceiling "
+                         "(reporting every unit batch_job_timeout), so split it if "
+                         "the receipt's job_ceiling warns. Sharding does not change "
+                         "the request file, so a partial from an unsharded run of "
+                         "the same request stays valid.")
+    a = ap.parse_args()
+
+    if a.bmodel_params:          # reads records only: no klt, no PDK, no fleet
+        return write_bmodel_params(a.bmodel_params)
+    pin = json.load(open(REPO / "sim/pdk.json"))
+    root, stamp = pdk_stamp(pin["variant"], a.pdk_root)
+    if stamp != pin["sources_stamp"]:
+        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'",
+              file=sys.stderr)
+        return 2
+    out = HERE / (a.record_name or ("record-mc.json" if a.mc else "record.json"))
+    if a.record and out.exists():
+        print(f"REFUSE: {out.name} exists; records are append-only (use --record-name)",
+              file=sys.stderr)
+        return 2
+    tmp = pathlib.Path(tempfile.mkdtemp(prefix="integrator-ci-"))
+    try:
+        if a.self_test:
+            return self_test(tmp)
+        if a.probe_step:
+            return probe_step(a.probe_step, tmp)
+        if a.probe:
+            res = submit(a.probe, False, tmp, probe=True)
+            if res is None:
+                print(f"REFUSE: no result for the {a.probe} probe; nothing printed.",
+                      file=sys.stderr)
+                return 1
+            print(json.dumps(res["corners"], indent=2))
+            return 0
+
+        want = MC_VARIANTS if a.mc else GRID_VARIANTS
+        if a.from_partials:
+            if a.variant:
+                print("REFUSE: --from-partials submits nothing, so --variant has "
+                      "no meaning with it", file=sys.stderr)
+                return 2
+            run = ()
+        else:
+            run = tuple(dict.fromkeys(a.variant)) if a.variant else want
+            run = tuple(v for v in run if v in want)
+        if a.variant and not run:
+            print(f"REFUSE: --variant names nothing in this mode ({', '.join(want)})",
+                  file=sys.stderr)
+            return 2
+
+        results = {}
+        for v in want:
+            if v not in run:
+                saved = load_partial(v, a.mc)
+                if saved:
+                    print(f"{v}: reusing {partial_path(v, a.mc).name} ({saved['summary']})")
+                    results[v] = saved
+                continue
+            res = submit(v, a.mc, tmp, hosts=a.hosts,
+                         capacity_wait_s=a.capacity_wait)
+            if res is None:
+                continue
+            print(v, json.dumps(res["summary"], indent=2))
+            results[v] = res
+            save_partial(v, a.mc, res)
+
+        missing = [v for v in want if v not in results]
+        if missing:
+            how = ("no cached partial for" if a.from_partials else "no result for")
+            print(f"REFUSE: {how} {', '.join(missing)}; no record written. "
+                  f"Re-run with --variant {missing[0]} when the fleet has capacity.",
+                  file=sys.stderr)
+            return 1
+
+        corner_sets = [results[v]["corners"] for v in want]
+        expected = (len(mk.ANCHOR_POINTS) * mk.MC_N) if a.mc else 45
+        if not grid_complete(corner_sets, expected):
+            return 1
+        if not measurements_present(corner_sets, SENTINEL):
+            return 1
+        if not a.record:
+            print("all variants complete; re-run with --record to write the record")
+            return 0
+
+        post_cell = REPO / "design/integrator/integrator.spice"
+        areas = area_prediction(HERE / mk.PRE_CELL, post_cell)
+        caps = cap_ratio(post_cell)
+        rec = {
+            "fixture": ("Integrator charge-injection bench (issue #102): the full "
+                        "integrator cell + ota_fd clocked for "
+                        f"{mk.N_CYC} complete phi1/phi2 cycles; the differential and "
+                        "common-mode output step per clock, read in the phi1 hold"),
+            "result_kind": ("simulated (ngspice, transistor-level netlists of "
+                            "design/integrator + design/ota/ota_fd; not the "
+                            "behavioural model). SIMULATED, NEVER MEASURED."),
+            "run_kind": "monte_carlo_mismatch" if a.mc else "nominal_corner_grid",
+            "assembled_from": ("cached .partials/ (fleet results from an earlier "
+                               "invocation; nothing was submitted for this record)"
+                               if a.from_partials else "this invocation's submissions"),
+            "conditions": conditions(),
+            "corner_set": (f"{ANCHOR_SUBSET_NOTE}; N = {mk.MC_N} per point, "
+                           f"base seed {mk.MC_SEED}, vary=mismatch, seed_scope=point, "
+                           "sky130 `_mm` .lib sections"
+                           if a.mc else "DR-002 full grid, 5 process x 3 T x 3 Vdda"),
+            "pass_criterion": (
+                "NONE. This is an extraction, not a spec check: no measurement "
+                "here carries a limit, and no spec row bounds the integrator's "
+                "charge-injection residual. The `pass` field below means only "
+                "that every corner simulated without erroring -- it is not a "
+                "verdict on the circuit, and nothing in this record may be read "
+                "as one. The numbers' consumer is model B's ci_offset / "
+                "ci_gain_error."),
+            "pdk_sources_stamp": stamp,
+            "pdk_pin": {"file": "sim/pdk.json", "open_pdks_revision": pin["open_pdks_revision"]},
+            "klt": subprocess.run(["klt", "--version"], capture_output=True,
+                                  text=True).stdout.strip(),
+            "integrator_netlist_sha256": sha256(REPO / "design/integrator/integrator.spice"),
+            "pre_i92_fixture_sha256": sha256(HERE / mk.PRE_CELL),
+            "pre_i92_fixture_commit": "e310b5f (first parent of the #92 merge 31c2da9)",
+            "ota_netlist_sha256": sha256(REPO / "design/ota/ota_fd.spice"),
+            "variants": results,
+            "pass": all(r["pass"] for r in results.values()),
+        }
+        rec["derived"] = (mc_derivation(results, areas) if a.mc
+                          else {**nominal_derivation(results, caps),
+                                "sqrt_wl_prediction": areas})
+        if a.mc:
+            # Derivations above read the full corner sets; the record keeps the
+            # trimmed per-sample rows (.partials/ still holds everything).
+            for v in want:
+                rec["variants"][v] = {**results[v],
+                                      "corners": trim_mc_samples(results[v]["corners"]),
+                                      "corner_keys_kept": list(MC_SAMPLE_KEYS)}
+        out.write_text(json.dumps(rec, indent=2) + "\n")
+        print(f"wrote {out.name}: pass={rec['pass']}")
+        return 0 if rec["pass"] else 1
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
