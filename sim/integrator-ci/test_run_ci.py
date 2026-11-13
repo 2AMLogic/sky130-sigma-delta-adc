@@ -614,23 +614,41 @@ class BmodelParams(unittest.TestCase):
                        "worst_slope_vs_drawn_cap_ratio_rel": {"corner": "ss/1.620V/-40C",
                                                               "value": -0.54}},
            "variants": {"post_v0": {"remote": {"job_id": "job-nom"}}}}
-    MC = {"derived": {"worst_abs_ci_offset_fs": 4.2e-05,
-                      "worst_abs_dvod_V": {"corner": "ss/1.620_125", "value": 5.04e-05}},
+    MC = {"derived": {"worst_abs_ci_offset_fs": 1.18e-02,
+                      "worst_abs_dvod_V": {"corner": "ff_mm/1.980V/125C", "value": 1.42e-02},
+                      "post_i92": {
+                          "tt_mm/1.800V/27C": {"sigma_ci_offset_ota_removed_fs": 6.0e-05},
+                          "ss_mm/1.620V/125C": {"sigma_ci_offset_ota_removed_fs": 7.5e-05},
+                          "ss_mm/1.620V/-40C": {"ota_separation": "NOT separable: ..."}}},
           "variants": {"post_v0": {"remote": {"job_id": "job-mc"}}}}
 
-    def test_worst_ci_offset_is_taken_across_both_records(self):
+    def test_injection_offset_is_k_sigma_of_the_ota_removed_spread(self):
         s = RUNNER.bmodel_params(self.NOM, self.MC)
-        self.assertAlmostEqual(s["injection"]["ci_offset"], 4.2e-05)
-        self.assertIn("monte carlo", s["provenance"]["ci_offset_from"])
-        self.assertEqual(s["provenance"]["records"],
-                         {"nominal_record": "job-nom", "mc_record": "job-mc"})
-
-    def test_injection_set_leaves_gain_error_at_zero(self):
-        """A value the bench cannot resolve must not be invented."""
-        s = RUNNER.bmodel_params(self.NOM, self.MC)
+        self.assertAlmostEqual(s["injection"]["ci_offset"], 3.0 * 7.5e-05)
+        self.assertIn("OTA-removed sigma at ss_mm/1.620V/125C",
+                      s["provenance"]["injection_ci_offset_from"])
         self.assertEqual(s["injection"]["ci_gain_error"], 0.0)
+
+    def test_injection_offset_is_not_the_raw_ota_dominated_worst(self):
+        """The regression this fixes: feeding model B the raw MC worst would
+        over-state charge injection by ~60x."""
+        s = RUNNER.bmodel_params(self.NOM, self.MC)
+        self.assertLess(s["injection"]["ci_offset"], 1e-03)
+        self.assertAlmostEqual(s["worst_bound"]["ci_offset"], 1.18e-02)
+        self.assertIn("NOT charge injection",
+                      s["provenance"]["worst_bound_ci_offset_caveat"])
+        self.assertIn("worst raw sample",
+                      s["provenance"]["worst_bound_ci_offset_from"])
+
+    def test_worst_bound_carries_the_gain_bound(self):
+        s = RUNNER.bmodel_params(self.NOM, self.MC)
         self.assertAlmostEqual(s["worst_bound"]["ci_gain_error"], 0.54)
-        self.assertEqual(s["injection"]["ci_offset"], s["worst_bound"]["ci_offset"])
+        self.assertIn("nominal grid", s["provenance"]["worst_bound_ci_gain_error_from"])
+
+    def test_unseparable_anchors_are_named_in_the_provenance(self):
+        s = RUNNER.bmodel_params(self.NOM, self.MC)
+        self.assertEqual(s["provenance"]["records"]["mc_unseparable_anchors"],
+                         ["ss_mm/1.620V/-40C"])
 
     def test_both_sets_validate_against_the_real_model_b_schema(self):
         """model.validate_params is the schema: unknown or missing keys are errors."""
@@ -643,10 +661,12 @@ class BmodelParams(unittest.TestCase):
         for name in ("injection", "worst_bound"):
             model.validate_params(s[name])
 
-    def test_nominal_record_alone_is_enough(self):
+    def test_nominal_record_alone_falls_back_to_the_grid_residual(self):
         s = RUNNER.bmodel_params(self.NOM, None)
         self.assertAlmostEqual(s["injection"]["ci_offset"], 1.9e-07)
-        self.assertIn("nominal grid", s["provenance"]["ci_offset_from"])
+        self.assertIn("nominal grid", s["provenance"]["injection_ci_offset_from"])
+        # With no Monte Carlo record the worst bound falls back to the same value.
+        self.assertAlmostEqual(s["worst_bound"]["ci_offset"], 1.9e-07)
 
     def test_no_records_yields_nothing_rather_than_zeros(self):
         self.assertIsNone(RUNNER.bmodel_params(None, None))

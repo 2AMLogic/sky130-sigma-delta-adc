@@ -652,28 +652,39 @@ BMODEL_DEFAULTS = {"dc_gain": None, "settling_error": 0.0, "ci_offset": 0.0,
                    "jitter_rms_s": 0.0, "seed": 1}
 
 
+# A sample at 3 sigma stands in for the worst die of a population this size:
+# with N = 100 per anchor, |z| > 3 is expected in well under one sample.
+SIGMA_K = 3.0
+
+
 def bmodel_params(nominal=None, mc=None):
     """Model-B parameter sets from the records -- derived, never hand-typed.
 
-    Two sets, because "the worst extracted value" has two honest readings:
+    `ci_offset` in model B is "additive offset per clock on integrator 1", so
+    BOTH of these are legitimate values for it -- they answer different
+    questions, and the difference between them is the whole point of the
+    Monte Carlo regression:
 
-    - `injection`: what the bench attributes to charge injection. `ci_offset` is
-      the worst differential residual over everything recorded; `ci_gain_error`
-      is 0 because the signal-dependent part came back below the bench's
-      resolution (README.md "Limits"), and a number the bench cannot resolve
-      must not be invented.
-    - `worst_bound`: the same `ci_offset` with `ci_gain_error` set to the worst
-      slope departure from the drawn capacitor ratio. That bound still contains
-      incomplete input sampling (#106), charge transfer and finite gain, so it
-      over-states charge injection on purpose -- it answers "even at the bound,
-      does this cost SNDR?".
+    - `injection`: the part this bench attributes to switch charge injection.
+      `ci_offset` is `SIGMA_K` x the worst OTA-removed sigma over the anchors
+      (the mean is ~0, so a k-sigma sample is the worst-die figure), falling back
+      to the worst nominal-grid residual if no Monte Carlo record exists.
+      `ci_gain_error` is 0: the signal-dependent part came back below the
+      bench's resolution (README.md "Limits"), and a number the bench cannot
+      resolve must not be invented.
+    - `worst_bound`: the largest per-clock integrator-1 offset anything in the
+      records supports -- the worst raw Monte Carlo sample, which is dominated
+      by the OTA's own input-offset mismatch and NOT by charge injection -- plus
+      the worst slope departure from the drawn capacitor ratio as
+      `ci_gain_error`. Both terms over-state charge injection deliberately, so
+      this set answers "even at the bound, does integrator-1 offset cost SNDR?".
     """
-    offsets, bounds, prov = [], [], {}
+    inj, bounds, raw, prov = [], [], [], {}
     if nominal:
         d = nominal["derived"]
         if d.get("worst_ci_offset_fs"):
-            offsets.append((abs(d["worst_ci_offset_fs"]["value"]),
-                            f"nominal grid, {d['worst_ci_offset_fs']['corner']}"))
+            inj.append((abs(d["worst_ci_offset_fs"]["value"]),
+                        f"nominal grid, {d['worst_ci_offset_fs']['corner']}"))
         if d.get("worst_slope_vs_drawn_cap_ratio_rel"):
             w = d["worst_slope_vs_drawn_cap_ratio_rel"]
             bounds.append((abs(w["value"]), f"nominal grid, {w['corner']}"))
@@ -681,27 +692,48 @@ def bmodel_params(nominal=None, mc=None):
             "post_v0", {}).get("remote", {}).get("job_id")
     if mc:
         d = mc["derived"]
+        sep = [(v["sigma_ci_offset_ota_removed_fs"], c)
+               for c, v in d.get("post_i92", {}).items()
+               if v.get("sigma_ci_offset_ota_removed_fs") is not None]
+        if sep:
+            sd, cid = max(sep)
+            inj.append((SIGMA_K * abs(sd),
+                        f"monte carlo, {SIGMA_K:g}x the OTA-removed sigma at {cid}"))
         if d.get("worst_abs_ci_offset_fs") is not None:
-            offsets.append((abs(d["worst_abs_ci_offset_fs"]),
-                            f"monte carlo, {d['worst_abs_dvod_V']['corner']}"))
+            raw.append((abs(d["worst_abs_ci_offset_fs"]),
+                        f"monte carlo, worst raw sample at "
+                        f"{d['worst_abs_dvod_V']['corner']}"))
         prov["mc_record"] = mc.get("variants", {}).get(
             "post_v0", {}).get("remote", {}).get("job_id")
-    if not offsets:
+        prov["mc_unseparable_anchors"] = sorted(
+            c for c, v in d.get("post_i92", {}).items() if v.get("ota_separation"))
+    if not inj:
         return None
-    off, off_src = max(offsets)
+    off, off_src = max(inj)
     bnd, bnd_src = max(bounds) if bounds else (0.0, "not extracted")
+    wst, wst_src = max(raw) if raw else (off, off_src)
     return {
         "injection": {**BMODEL_DEFAULTS, "ci_offset": off, "ci_gain_error": 0.0},
-        "worst_bound": {**BMODEL_DEFAULTS, "ci_offset": off, "ci_gain_error": bnd},
+        "worst_bound": {**BMODEL_DEFAULTS, "ci_offset": wst, "ci_gain_error": bnd},
         "provenance": {
-            "ci_offset_fs": off, "ci_offset_from": off_src,
-            "ci_gain_error_bound": bnd, "ci_gain_error_bound_from": bnd_src,
-            "ci_gain_error_injection": 0.0,
-            "ci_gain_error_injection_why": (
+            "injection_ci_offset_fs": off, "injection_ci_offset_from": off_src,
+            "injection_ci_gain_error": 0.0,
+            "injection_ci_gain_error_why": (
                 "the signal-dependent part of charge injection came back below "
                 "the bench's resolution; the slope the fit sees is accounted for "
                 "by the drawn capacitor ratio, the finite-gain leak and, at the "
                 "slow/cold corners, incomplete input sampling (#106)"),
+            "worst_bound_ci_offset_fs": wst, "worst_bound_ci_offset_from": wst_src,
+            "worst_bound_ci_offset_caveat": (
+                "NOT charge injection: the raw Monte Carlo spread is dominated by "
+                "the OTA's own input-offset mismatch (r = 0.9999 against the "
+                "measured vod_rst). It is carried because model B's ci_offset is "
+                "any additive per-clock offset on integrator 1, so this is the "
+                "honest worst case for that parameter -- its cause is simply not "
+                "the switches."),
+            "worst_bound_ci_gain_error": bnd,
+            "worst_bound_ci_gain_error_from": bnd_src,
+            "sigma_k": SIGMA_K,
             "records": prov,
             "sign": ("ci_offset is entered as a magnitude: model B shapes it "
                      "through one integrator, so the sign moves the output mean "
