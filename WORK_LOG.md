@@ -4,6 +4,13 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-13
 
+- **Issue #27** (closed): T1 item 1 (design sources, analog partition): xschem schematic and derived netlist of the 2nd-order switched-capacitor modulator
+- **PR #116**: feat(attest): attest the analog design sources for T1 item 1
+- **Issue #42** (closed): T1 item 1 (analog 4/4): attestation inventory, manifest evidence, regenerated verdict
+- **PR #112**: feat(bmodel): stamp a code_sha256 map in every B-model evidence writer
+- **Issue #110** (closed): B-model records stamp a dirty base commit, not the code that produced the number
+- **PR #111**: feat(sim): extract the integrator charge-injection residual and correct the sqrt(W L) argument
+- **Issue #102** (closed): Extract integrator charge injection after the #92 PMOS switch halves
 - **PR #109**: fix(bmodel): drop the ENBW factor from sndr_db and regenerate the B evidence
 - **Issue #107** (closed): B-model SNDR estimator reads 3.0 dB high: sndr_db applies an ENBW factor to a lobe-summed signal
 - **PR #100**: refactor(attest): move item-10 inventory and envelope under attestation/
