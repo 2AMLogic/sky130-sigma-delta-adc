@@ -27,33 +27,44 @@ corner in the cited record, or the only one it has.
 
 | Row | Parameter | Verdict | Binding corner | Evidence | Remaining |
 |---|---|---|---|---|---|
-| 1 | Signal bandwidth 20 kHz | partial | none (ideal B parameters) | `sim/bmodel/records/20261023T172440Z-f8b2fa44.json` (B; band 0-20 kHz) | T-level and post-layout: pending (#33) |
-| 2 | Peak SNDR >= 80 dB | partial | none (ideal B parameters) | `sim/bmodel/records/20261023T172440Z-f8b2fa44.json` | cross-check, T-extracted non-idealities, corners: pending (#33) |
+| 1 | Signal bandwidth 20 kHz | partial | none (ideal B parameters) | `sim/bmodel/records/20261113T142853Z-f8b2fa44.json` (B; band 0-20 kHz) | T-level and post-layout: pending (#33) |
+| 2 | Peak SNDR >= 80 dB | partial | none (ideal B parameters) | `sim/bmodel/records/20261113T142853Z-f8b2fa44.json` | cross-check, T-extracted non-idealities, corners: pending (#33) |
 | 3 | 2nd-order single-bit SC modulator | partial | tt/27C/1.80V (load check only) | `design/modulator/modulator.spice`, `sim/bmodel/model.py` | transistor-level behaviour of the assembled modulator: pending (#33) |
-| 4 | OSR 128 | evidenced | none (arithmetic and B config) | `sim/bmodel/records/20261023T172440Z-f8b2fa44.json` | none |
+| 4 | OSR 128 | evidenced | none (arithmetic and B config) | `sim/bmodel/records/20261113T142853Z-f8b2fa44.json` | none |
 | 5 | Modulator clock 5.12 MHz | partial | sf/1.62V/125C (OTA only) | `sim/ota-settling/record-i51-rcm2M-cff100f.json` | integrator-cell and comparator-decision settling over the grid: pending (#33) |
 | 6 | Output rate 80 kSps | evidenced | tt/27C/1.80V (RTL sim) | `verification/decimator/record.json` | none for function; corner timing: pending (#33) |
 | 7 | 16-bit two's complement word | evidenced | tt/27C/1.80V (RTL sim) | `verification/decimator/record.json` | none |
 | 8 | Passband ripple <= 0.1 dB | evidenced | analytic (0.0401 dB peak-to-peak) | `verification/decimator/record.json` | none |
 | 9 | Stopband >= 90 dB | partial | analytic (93.91 dB at 300 kHz, alias-band reading) | `verification/decimator/record.json` | row reading unconfirmed: pending (#18) |
 | 10 | CIC order >= 3, then FIR | evidenced | none (structure; CIC order 4, 41-tap FIR) | `rtl/decimator.v` | none |
-| 11 | Differential input <= 0.5 VREF | partial | none (ideal B parameters, -6 dBFS) | `sim/bmodel/records/20261023T172440Z-f8b2fa44.json` | T-level swing over corners: pending (#33) |
+| 11 | Differential input <= 0.5 VREF | partial | none (ideal B parameters, -6 dBFS) | `sim/bmodel/records/20261113T142853Z-f8b2fa44.json` | T-level swing over corners: pending (#33) |
 | 12 | Supply 1.62-1.98 V | partial | sf/1.62V/125C (OTA only) | `sim/ota-settling/record-i51-rcm2M-cff100f.json` | assembled modulator and decimator over the supply range: pending (#33) |
 | 13 | P_ana <= 1 mW, P_dig reported | pending | none | none | no block power record: pending (#33) |
 | 14 | DRC + LVS clean, post-layout | pending | none | none | DRC pending (#31), LVS pending (#32), post-layout pending (#35) |
 
 ### Notes on the cited records
 
-- **Rows 1, 2, 4, 11 (B).** `sim/bmodel/records/20261023T172440Z-f8b2fa44.json`:
+- **Rows 1, 2, 4, 11 (B).** `sim/bmodel/records/20261113T142853Z-f8b2fa44.json`:
   source B, ideal parameters (no finite gain, settling, charge injection, kT/C
   noise or comparator offset), uncross-checked against transistor level. Record
   65 536 output samples, Blackman-Harris 4-term window, coherent tone (1639
   cycles, 2000.73 Hz), bin bandwidth 1.2207 Hz, band 0-20 kHz with the DC bins
   0-4 and tone-lobe bins 1635-1643 excluded, OSR 128, fs 5.12 MHz, input
-  -6 dBFS. Peak SNDR 89.19 dB, at the top of the amplitude sweep. That is a
-  quantization-limited ideal-model number, not a claim that row 2 is met: DR-001
-  and spec §1.2 require the T-extracted non-idealities and the cross-check at
-  every DR-002 corner.
+  -6 dBFS. Peak SNDR **86.17 dB** (simulated), at the top of the amplitude
+  sweep. That is a quantization-limited ideal-model number, not a claim that
+  row 2 is met: DR-001 and spec §1.2 require the T-extracted non-idealities and
+  the cross-check at every DR-002 corner.
+
+  **Supersedes 89.19 dB** from `sim/bmodel/records/20261023T172440Z-f8b2fa44.json`
+  (kept as evidence, not cited as a result). `sim/bmodel/sndr.py` multiplied the
+  lobe-summed signal-to-noise ratio by the window's equivalent noise bandwidth,
+  so every behavioural-model SNDR read 10*log10(2.004) = 3.02 dB high; issue
+  #107 removed the factor. The parameters are unchanged (same `params_sha256`
+  `f8b2fa44...`) — only the estimator moved. Margin to the 80 dB target of
+  row 2 is correspondingly 3.02 dB smaller than previously recorded wherever B
+  is cited. The corrected figure sits 8.03 dB below the spec §5.1 ideal
+  quantization-noise ceiling of 94.2 dB; that gap is unexplained and tracked in
+  #108.
 - **Rows 5, 12 (T).** `sim/ota-settling/record-i51-rcm2M-cff100f.json`: ngspice,
   `design/ota/ota_fd`, DR-002 full grid (45 corners), 45 of 45 pass
   `err_phase <= 1e-4`, worst 6.84e-05 at sf/1.620V/125C. The bench uses ideal

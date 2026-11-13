@@ -283,8 +283,11 @@ about it and none of them make it acceptable:
   residual, not a "never settled" reading.
 - It is still **14x over** the DR-005 1e-4 level at its worst corner, and
   **must not** be argued away with the B-model `settling_error` threshold of
-  0.57: that threshold is a linear gain factor and does not price a
+  0.49: that threshold is a linear gain factor and does not price a
   signal-dependent settling shortfall (`sim/integrator-settling/README.md`).
+  (That threshold was quoted as 0.57 until issue #107 corrected a 3.02 dB ENBW
+  error in the B-model SNDR estimator; the argument it must not be used for is
+  unaffected by which number it is.)
 
 Closing `int2` needs the comparator input capacitance first -- if the real load
 is nearer case B, the question dissolves; if it is nearer case A, the OTA needs
