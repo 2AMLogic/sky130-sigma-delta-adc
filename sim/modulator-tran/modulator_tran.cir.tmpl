@@ -1,0 +1,57 @@
+* Short full-modulator transient bench (issue #125) -- circuit body for `klt sim`
+* (no .lib/.control/.end: klt sim owns those; corner = process/temp/Vdda).
+* Generated from this template by make_request.py -- edit the template, not the deck.
+*
+* Circuit under test: design/modulator/modulator.spice (clkgen + 2x integrator
+* + comparator + SR latch) with design/ota/ota_fd.spice and
+* design/modulator/comparator/comparator.spice, exactly the include list
+* design/modulator/README.md "Consuming the netlists" prescribes. The
+* standalone integrator/clkgen netlists are deliberately NOT included: the
+* top-level netlist already defines both subcircuits.
+*
+* Boundary (DR-005, all ideal): VCM 0.9 V, VREFP/VREFN 1.5/0.3 V (VREF =
+* 1.2 V differential), ibias 5 uA. VCM is held at 0.9 V on every corner, as
+* the other transistor-level benches in this repo do; it does not track Vdda.
+*
+* Stimulus: a single coherent tone, @AMP@ V peak per side about VCM, so the
+* differential input peak is twice that, which is @DBFS@ dBFS against the
+* 1.2 V differential reference (model B's full scale; spec row 11 and sec 5.4
+* both put the peak differential input at 0.5*VREF = 0.6 V). Tone frequency
+* @FIN@ Hz is @CYCLES@ whole cycles over the @NREC@ recorded modulator
+* clocks, so the record is coherent. The sine runs from t = 0 with zero
+* phase, so u(t) = 2*@AMP@*sin(2*pi*@FIN@*t) volts differential exactly --
+* the input sequence is reproducible without any waveform file.
+*
+* Clock: @FS@ Hz, 50 % duty, 0.2 ns edges, first rising 50 % crossing at
+* @TRISE0@ s. `Vclk` is declared as a corners.supply_v key and listed in
+* corners.supply_waveforms, so klt rescales its PULSE levels per corner and
+* the clock swings to that corner's Vdda instead of a fixed 1.8 V. A clock
+* that did not track the supply would leave the clkgen input inverter
+* partially on at Vdda = 1.98 V and pollute the row 13 power number.
+.options gmin=1e-9
+.include "../../design/ota/ota_fd.spice"
+.include "../../design/modulator/comparator/comparator.spice"
+.include "../../design/modulator/modulator.spice"
+Vdda vdda 0 1.8
+Vvcm vcm 0 0.9
+Vrefp vrefp 0 1.5
+Vrefn vrefn 0 0.3
+Ibias vdda ibias 5u
+Vclk clk 0 PULSE(0 1.8 @TCLK0@ 0.2n 0.2n @PW@ @TPER@)
+Vinp vinp 0 SIN(0.9 @AMP@ @FIN@ 0 0 0)
+Vinn vinn 0 SIN(0.9 @AMP@ @FIN@ 0 0 180)
+Xmod vdda 0 vinp vinn vrefp vrefn vcm ibias clk bs modulator
+* Differential integrator outputs, as model B's x1 and x2 appear in volts.
+Bo1d o1d 0 V='v(xmod.o1p)-v(xmod.o1n)'
+Bo2d o2d 0 V='v(xmod.o2p)-v(xmod.o2n)'
+* Instantaneous power delivered by each ideal boundary source, in watts
+* carried on a voltage node (SPICE has no power node). SPICE reports a
+* source's current as positive into its positive terminal, so the power the
+* source delivers is -v*i.
+Bpvdda pvdda 0 V='-v(vdda)*i(vdda)'
+Bpref  pref  0 V='-(v(vrefp)*i(vrefp)+v(vrefn)*i(vrefn))'
+Bpvcm  pvcm  0 V='-v(vcm)*i(vvcm)'
+* P_ana as spec row 13 is graded here: the VDDA rail (which already carries
+* the 5 uA bias current, since Ibias is fed from vdda) plus the reference
+* current. The vcm source is reported separately and is NOT in this sum.
+Bpana  pana  0 V='v(pvdda)+v(pref)'

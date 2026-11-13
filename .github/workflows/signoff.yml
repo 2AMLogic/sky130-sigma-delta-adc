@@ -112,6 +112,15 @@ jobs:
       - name: Charge-injection record-admission unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'
 
+      # The short full-modulator transient's record-admission gates (issue
+      # #125): a partial grid, a missing measurement, a short per-clock sample
+      # set, a clock that did not run at fs, or two power routes that
+      # disagree must each refuse the record. Also checks the committed deck
+      # and request still match their generator. Fixtures only: no fleet, no
+      # ngspice, no klt.
+      - name: Full-modulator transient record-admission unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s sim/modulator-tran -p 'test_*.py'
+
       - name: Decimator whole-chain response, spec rows 8-9 (no EDA tools)
         working-directory: verification/decimator
         run: python3 response.py
