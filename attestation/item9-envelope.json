@@ -24,7 +24,7 @@
         "role": "testbench",
         "path": "sim/bmodel/test_bmodel.py",
         "passed": true,
-        "content_hash": "sha256:42e3a1f1338a10e76d678f8c587eafb11e92575355f06e86ac9ffb274a0ae053"
+        "content_hash": "sha256:184136c8953e83e330644a013b906df52cd778110e6be5b81430f1a42bd8bb32"
       },
       {
         "check": "present",
@@ -45,7 +45,7 @@
         "role": "testbench",
         "path": "verification/decimator/bmodel_xcheck.py",
         "passed": true,
-        "content_hash": "sha256:7ee6d4eb95edcdd91b7b42c4d0ecc32522fbb5aa81c8792c7723161357ec1f0b"
+        "content_hash": "sha256:0e814b3ebaf7fd8aeaa242be387761ae7ffd2b18402e40ed08619ab11a5c413f"
       },
       {
         "check": "present",

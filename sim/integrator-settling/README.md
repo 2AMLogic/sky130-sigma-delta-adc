@@ -234,18 +234,29 @@ exactly the gap #53 was filed to measure. It does **not** follow that beta
 loading explains the 1.620 V failure: the OTA bench drives ideal switches, so
 the two benches differ in more than beta (see "Mechanism at 1.620 V" above).
 
-## B-model comparison (`bmodel-threshold.json`)
+## B-model comparison (`bmodel-threshold-i107.json`)
 
     python3 -I sim/integrator-settling/bmodel_threshold.py --records
 
 Largest behavioural-model `settling_error` keeping peak SNDR >= 80 dB:
-**0.57** (peak 80.06 dB at -6 dBFS; 0.58 gives 79.57 dB and fails), quoted to a
+**0.49** (peak 80.48 dB at -6 dBFS; 0.50 gives 79.95 dB and fails), quoted to a
 0.01 grid. Record length 2^16 output samples, Blackman-Harris 4-term window,
 bin bandwidth 1.2207 Hz, band 0-20 kHz, OSR 128. Behavioural model B,
-uncross-checked. Canonical records: `sim/bmodel/records/20261113T094826Z-1e74d78e.json`
-(0.57) and `20261113T094837Z-aa4731a8.json` (0.58). The sweep is deterministic:
-with every noise parameter zero the result is seed-independent (verified over
-seeds 1-5).
+simulated, uncross-checked. Canonical records:
+`sim/bmodel/records/20261113T143238Z-bd79c8f1.json` (0.49) and
+`20261113T143255Z-7a30291f.json` (0.50). The sweep is deterministic: with every
+noise parameter zero the result is seed-independent (verified over seeds 1-5).
+
+> **Superseded: the threshold was quoted as 0.57 (peak 80.06 dB, 0.58 giving
+> 79.57 dB) until issue #107.** `sim/bmodel/sndr.py` multiplied the lobe-summed
+> signal-to-noise ratio by the window's ENBW, so every behavioural-model SNDR
+> read 10*log10(2.004) = 3.02 dB high. The superseded scan is kept unmodified in
+> `bmodel-threshold.json`, and the records that bracketed the old threshold
+> (`sim/bmodel/records/20261113T094826Z-1e74d78e.json` at 0.57 and
+> `20261113T094837Z-aa4731a8.json` at 0.58) are kept as evidence, not cited as a
+> result. The fix is a uniform shift: every point in the re-scan is the old
+> value minus 3.02 dB, so the curve's shape is unchanged and only the 80 dB
+> crossing moves, from 0.57 to 0.49.
 
 **This threshold does not license a 57 % settling error.** `settling_error` is
 a *linear* gain factor `(1 - settling_error)` applied equally to both integrator
@@ -261,14 +272,20 @@ is slew limiting or incomplete switch conduction is **not** established by this
 record (above). Comparing the two:
 
 - At **1.800 V and above**, the measured error (1.9e-4 int1, 2.9e-3 int2 worst)
-  sits far inside the 0.57 linear budget. This answers the open risk
-  `SIZING.md` leaves to the B-model: case A's 1.6e-3 is **not** what limits
-  SNDR at nominal supply. Necessary, not sufficient — the distortion term is
-  not modelled.
+  sits far inside the 0.49 linear budget — by more than two orders of
+  magnitude, so the 0.57 -> 0.49 correction does not touch this conclusion.
+  This answers the open risk `SIZING.md` leaves to the B-model: case A's 1.6e-3
+  is **not** what limits SNDR at nominal supply. Necessary, not sufficient —
+  the distortion term is not modelled.
 - At **1.620 V** the worst measured error — **0.777** (int1) and **0.784**
-  (int2), both at fs/-40 C — exceeds even that loose 0.57 linear budget. The
-  rest of the supply corner does not: 5 of the 15 corners per variant are above
-  0.57, and 7 sit at or below 0.16 (worst 0.107 int1, 0.151 int2). The
+  (int2), both at fs/-40 C — exceeds even that loose 0.49 linear budget. The
+  rest of the supply corner does not: **6 of the 15** corners per variant for
+  `int1` and **7 of 15** for `int2` are above 0.49, and 7 sit at or below 0.16
+  (worst 0.107 int1, 0.151 int2). Against the superseded 0.57 budget the count
+  was 5 per variant; the corners that change sides are ff/-40 C (0.551 int1,
+  0.562 int2) and, for `int2` only, sf/-40 C at 0.497 — which lies inside the
+  0.49-0.50 grid bracket, so that one is marginal rather than cleanly failing.
+  The
   comparison is in any case not apples-to-apples, since at 7 of the 8
   non-settling corners the charge transfer is incomplete (above), which a constant linear
   gain factor cannot represent. Against DR-005's 1e-4 criterion this is a hard

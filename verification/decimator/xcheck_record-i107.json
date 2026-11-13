@@ -1,0 +1,56 @@
+{
+  "source": "B + bit-exact RTL model",
+  "result_kind": "simulated (behavioural model B bitstream through bit-exact decimator model); not measured",
+  "check": "in-band SNDR/noise of rtl/decimator chain vs float64 sinc^3 reference on the same bitstream",
+  "record_len": 65536,
+  "modulator_clocks": 4194304,
+  "window": "Blackman-Harris 4-term",
+  "bin_bw_hz": 1.2207403790398876,
+  "band_hz": [
+    0,
+    20000.0
+  ],
+  "excluded_bins": {
+    "dc": [
+      0,
+      4
+    ],
+    "tone_lobe": [
+      1635,
+      1643
+    ]
+  },
+  "tone_cycles": 1639,
+  "tone_hz": 2000.732421875,
+  "params": "sim/bmodel/ideal.json (ideal parameters, no corner)",
+  "params_sha256": "f8b2fa44f7ab91cbffac235018d883bd5baca7b7c03269f392980945a1249811",
+  "tolerance_db": {
+    "rtl_below_sinc3": 3.0,
+    "rtl_above_sinc3": 1.0
+  },
+  "points": [
+    {
+      "amplitude_dbfs": -6,
+      "sndr_sinc3_db": 86.17050637350252,
+      "sndr_rtl_model_db": 84.61392139399486,
+      "rtl_minus_sinc3_db": -1.5565849795076616,
+      "in_band_noise_rtl_minus_sinc3_db": 1.5565849795076616,
+      "pass": true
+    },
+    {
+      "amplitude_dbfs": -12,
+      "sndr_sinc3_db": 81.86394559856404,
+      "sndr_rtl_model_db": 80.10137077026192,
+      "rtl_minus_sinc3_db": -1.762574828302121,
+      "in_band_noise_rtl_minus_sinc3_db": 1.762574828302121,
+      "pass": true
+    }
+  ],
+  "pass": true,
+  "rtl_sha256": {
+    "decimator.v": "2a77b51270910bdee6cfa421af221768bbd1dc0d9ca1afd69580b2f9c69b7376",
+    "decimator_coef.v": "a792c78fb3579d16505aed79b388db3460150af396794ed63a1707d07ddb85b6"
+  },
+  "numpy": "1.26.4",
+  "utc": "20261113T143318Z"
+}

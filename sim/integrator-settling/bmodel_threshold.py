@@ -10,7 +10,9 @@ this gives the budget to compare it against. Behavioural model B
     python3 -I sim/integrator-settling/bmodel_threshold.py            # scan + summary
     python3 -I sim/integrator-settling/bmodel_threshold.py --records  # + canonical run.py records
 
-Writes bmodel-threshold.json (committed evidence). --records additionally runs
+Writes bmodel-threshold-i107.json (committed evidence). The superseded
+bmodel-threshold.json, taken before the issue #107 estimator fix, is kept in the
+tree unmodified: every peak_sndr_db in it reads 3.02 dB high. --records additionally runs
 `sim/bmodel/run.py` on the bracketing points so a canonical append-only record
 lands in sim/bmodel/records/.
 """
@@ -29,6 +31,9 @@ TARGET_DB = 80.0      # spec: 80 dB in 20 kHz (CLAUDE.md); 70 dB fallback, 90 dB
 N_OUT = 2 ** 16       # >= 2^16 for evidence (CLAUDE.md record-length rule)
 COARSE = [0.0, 0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7]
 STEP = 0.01           # resolution the threshold is quoted to
+# Issue #107 fixed a 3.02 dB ENBW error in sndr_db. Results are append-only, so
+# this writes a new file and leaves the superseded bmodel-threshold.json alone.
+OUT_NAME = "bmodel-threshold-i107.json"
 
 
 def peak_sndr(settling_error, n_out=N_OUT):
@@ -107,10 +112,10 @@ def main():
         "generated_at_utc": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         **bmodel_run.git_state(),
     }
-    (HERE / "bmodel-threshold.json").write_text(json.dumps(out, indent=2) + "\n")
+    (HERE / OUT_NAME).write_text(json.dumps(out, indent=2) + "\n")
     print(f"\nthreshold settling_error = {threshold} "
           f"(peak SNDR {thr_best['sndr_db']:.2f} dB); first failing = {first_fail}")
-    print(f"wrote {HERE.name}/bmodel-threshold.json")
+    print(f"wrote {HERE.name}/{OUT_NAME}")
 
     if a.records:
         with tempfile.TemporaryDirectory() as td:
