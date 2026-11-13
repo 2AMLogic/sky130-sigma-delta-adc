@@ -423,7 +423,7 @@ class Derivations(unittest.TestCase):
         row = RUNNER.nominal_derivation(results)["per_corner"][cid]
         self.assertAlmostEqual(row["ci_gain_error_bound"], 0.02, places=10)
 
-    def test_mc_sigma_and_ratio_are_the_sample_statistics(self):
+    def test_mc_sigma_and_raw_ratio_are_the_sample_statistics(self):
         post = {ANCHOR_IDS[0]: [1.0, 2.0, 3.0, 4.0]}
         pre = {ANCHOR_IDS[0]: [1.0, 1.5, 2.0, 2.5]}
         results = {"post_v0": {"corners": mc_grid(post)},
@@ -436,8 +436,8 @@ class Derivations(unittest.TestCase):
         self.assertAlmostEqual(p["sigma_ci_offset_fs"], 1.2909944487358056 / 1.2)
         self.assertAlmostEqual(p["sigma_rel_standard_error"], 1 / math.sqrt(6))
         r = d["sigma_ratio"][ANCHOR_IDS[0]]
-        self.assertAlmostEqual(r["sigma_ratio_post_over_pre"], 2.0)
-        self.assertAlmostEqual(r["sigma_ratio_standard_error"],
+        self.assertAlmostEqual(r["sigma_ratio_raw"], 2.0)
+        self.assertAlmostEqual(r["sigma_ratio_raw_standard_error"],
                                2.0 * math.sqrt(2) / math.sqrt(6))
         self.assertEqual(d["worst_abs_dvod_V"]["value"], 4.0)
 
@@ -447,7 +447,59 @@ class Derivations(unittest.TestCase):
         d = RUNNER.mc_derivation({"post_v0": {"corners": mc_grid(flat)},
                                   "pre_v0": {"corners": mc_grid(flat)}}, {})
         self.assertEqual(d["post_i92"][ANCHOR_IDS[0]]["sigma_dvod_V"], 0.0)
-        self.assertIsNone(d["sigma_ratio"][ANCHOR_IDS[0]]["sigma_ratio_post_over_pre"])
+        self.assertIsNone(d["sigma_ratio"][ANCHOR_IDS[0]]["sigma_ratio_raw"])
+
+    def test_ota_offset_is_regressed_out_and_the_residual_is_the_switch_part(self):
+        """A step that is 0.5*offset plus a small independent term must come back
+        as that small term, not as the offset spread."""
+        import random
+        rng = random.Random(7)
+        off = [rng.gauss(0.0, 5e-3) for _ in range(100)]
+        sw = [rng.gauss(0.0, 7e-5) for _ in range(100)]
+        rows = {ANCHOR_IDS[0]: [(0.5 * o + s, o) for o, s in zip(off, sw)]}
+        corners = {}
+        for base, vals in rows.items():
+            for i, (dv, o) in enumerate(vals):
+                corners[f"{base}/mc{i}"] = corner(dv, vod_rst=o)
+        st = RUNNER.mc_stats(corners)[ANCHOR_IDS[0]]
+        self.assertGreater(st["sigma_dvod_V"], 1e-3, "raw sigma is offset-dominated")
+        self.assertAlmostEqual(st["ota_regress_slope"], 0.5, delta=0.02)
+        self.assertGreater(abs(st["ota_regress_r"]), 0.99)
+        self.assertAlmostEqual(st["sigma_dvod_ota_removed_V"], 7e-5, delta=1.5e-5)
+        self.assertAlmostEqual(st["sigma_ci_offset_ota_removed_fs"],
+                               st["sigma_dvod_ota_removed_V"] / 1.2)
+
+    def test_an_unseparable_point_reports_no_switch_only_sigma(self):
+        """Below the |r| floor the residual must be withheld, not published."""
+        import random
+        rng = random.Random(11)
+        corners = {}
+        for i in range(100):
+            corners[f"{ANCHOR_IDS[0]}/mc{i}"] = corner(
+                rng.gauss(0.0, 1e-3), vod_rst=rng.gauss(0.0, 4e-3))
+        st = RUNNER.mc_stats(corners)[ANCHOR_IDS[0]]
+        self.assertLess(abs(st["ota_regress_r"]), RUNNER.OTA_SEPARATION_MIN_R)
+        self.assertNotIn("sigma_dvod_ota_removed_V", st)
+        self.assertIn("NOT separable", st["ota_separation"])
+
+    def test_ratio_prefers_the_ota_removed_sigma_and_omits_it_when_unseparable(self):
+        import random
+        rng = random.Random(3)
+        def mk_corners(sw_sigma):
+            out = {}
+            for i in range(100):
+                o = rng.gauss(0.0, 5e-3)
+                out[f"{ANCHOR_IDS[0]}/mc{i}"] = corner(
+                    0.5 * o + rng.gauss(0.0, sw_sigma), vod_rst=o)
+            return out
+        d = RUNNER.mc_derivation({"post_v0": {"corners": mk_corners(1.4e-4)},
+                                  "pre_v0": {"corners": mk_corners(7e-5)}}, {})
+        r = d["sigma_ratio"][ANCHOR_IDS[0]]
+        # The raw ratio is ~1 (both dominated by the same offset spread) while
+        # the switch-attributable ratio is ~2: this is the whole point.
+        self.assertAlmostEqual(r["sigma_ratio_raw"], 1.0, delta=0.15)
+        self.assertAlmostEqual(r["sigma_ratio_ota_removed"], 2.0, delta=0.4)
+        self.assertIsNotNone(r["sigma_ratio_ota_removed_standard_error"])
 
     def test_dac_crosscheck_reads_the_leak_as_a_dc_gain(self):
         """Built by running the alternating model forward, so the test cannot be

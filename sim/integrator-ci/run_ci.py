@@ -363,22 +363,57 @@ def trim_mc_samples(corners):
             for cid, c in corners.items()}
 
 
+# Below this |r| between the per-clock step and the measured OTA offset, the
+# regression cannot separate them and the residual is not reported as a
+# switch-injection estimate.
+OTA_SEPARATION_MIN_R = 0.95
+
+
+def _regress(y, x):
+    """Least squares y = a + b*x. Returns (slope, intercept, r, residual sigma).
+
+    Residual sigma uses n-2 degrees of freedom: two were spent on the fit.
+    Hand-rolled rather than numpy so the runner stays stdlib-only.
+    """
+    n = len(x)
+    mx, my = statistics.fmean(x), statistics.fmean(y)
+    sxx = sum((v - mx) ** 2 for v in x)
+    syy = sum((v - my) ** 2 for v in y)
+    sxy = sum((a - mx) * (b - my) for a, b in zip(x, y))
+    if sxx <= 0.0 or syy <= 0.0 or n < 3:
+        return None, None, None, None
+    b = sxy / sxx
+    a = my - b * mx
+    r = sxy / math.sqrt(sxx * syy)
+    ss = sum((yy - (a + b * xx)) ** 2 for xx, yy in zip(x, y))
+    return b, a, r, math.sqrt(ss / (n - 2))
+
+
 def mc_stats(corners):
-    """Per base corner: mean/sigma/extremes of the differential step, over samples.
+    """Per base corner: the differential step's distribution over the samples,
+    and the part of it left after the measured OTA offset is regressed out.
 
     Monte Carlo sample `corner_id`s are the base point plus a `/mc<i>` suffix,
     so the base point is the id with that suffix stripped.
+
+    Under mismatch the per-clock differential step contains the OTA's own input
+    offset referred through Cs/Ci as well as switch injection (README.md "What
+    else is in the step"). `vod_rst` measures that offset on the same sample, so
+    regressing the step on it and keeping the residual is a *measured*
+    separation rather than an assumed one -- and the correlation is reported so
+    the separation can be judged instead of trusted.
     """
     groups = {}
     for cid, c in corners.items():
         base = cid.rsplit("/mc", 1)[0] if "/mc" in cid else cid
         if c.get(SENTINEL) is not None:
-            groups.setdefault(base, []).append(c[SENTINEL])
+            groups.setdefault(base, []).append((c[SENTINEL], c.get("vod_rst")))
     out = {}
-    for base, vals in sorted(groups.items()):
+    for base, rows in sorted(groups.items()):
+        vals = [v for v, _ in rows]
         n = len(vals)
         sd = statistics.stdev(vals) if n > 1 else 0.0
-        out[base] = {
+        row = {
             "n": n,
             "mean_dvod_V": statistics.fmean(vals),
             "sigma_dvod_V": sd,
@@ -388,6 +423,24 @@ def mc_stats(corners):
             # 1-sigma relative standard error of a Gaussian sigma estimate.
             "sigma_rel_standard_error": (1.0 / math.sqrt(2 * (n - 1))) if n > 1 else None,
         }
+        off = [o for _, o in rows if o is not None]
+        if len(off) == n and n >= 3:
+            row["sigma_ota_offset_meas_V"] = statistics.stdev(off)
+            b, _, r, resid = _regress(vals, off)
+            if r is not None:
+                row["ota_regress_slope"] = b
+                row["ota_regress_r"] = r
+                if abs(r) >= OTA_SEPARATION_MIN_R:
+                    row["sigma_dvod_ota_removed_V"] = resid
+                    row["sigma_ci_offset_ota_removed_fs"] = fs(resid)
+                    # n-2 dof on the residual sigma.
+                    row["sigma_removed_rel_standard_error"] = 1.0 / math.sqrt(2 * (n - 2))
+                else:
+                    row["ota_separation"] = (
+                        f"NOT separable: |r| = {abs(r):.3f} < {OTA_SEPARATION_MIN_R}; "
+                        "the step does not track the measured OTA offset here, so "
+                        "no switch-only sigma is reported for this point")
+        out[base] = row
     return out
 
 
@@ -400,15 +453,27 @@ def mc_derivation(results, areas):
     # same anchors, so the base ids match; pair them by id.
     ratios = {}
     for cid in sorted(set(post) & set(pre)):
-        s_pre, s_post = pre[cid]["sigma_dvod_V"], post[cid]["sigma_dvod_V"]
-        r = (s_post / s_pre) if s_pre else None
-        se = None
-        if r is not None and post[cid]["n"] > 1 and pre[cid]["n"] > 1:
-            se = r * math.hypot(post[cid]["sigma_rel_standard_error"],
-                                pre[cid]["sigma_rel_standard_error"])
-        ratios[cid] = {"sigma_pre_V": s_pre, "sigma_post_V": s_post,
-                       "sigma_ratio_post_over_pre": r,
-                       "sigma_ratio_standard_error": se}
+        row = {}
+        # Two ratios: the raw one, and -- where the OTA offset was separable at
+        # both cells -- the switch-attributable one. The sqrt(W L) prediction is
+        # about the switches, so the second is the one it should be read against.
+        for tag, key, sekey in (
+                ("raw", "sigma_dvod_V", "sigma_rel_standard_error"),
+                ("ota_removed", "sigma_dvod_ota_removed_V",
+                 "sigma_removed_rel_standard_error")):
+            s_pre, s_post = pre[cid].get(key), post[cid].get(key)
+            if not s_pre or s_post is None:
+                row[f"sigma_ratio_{tag}"] = None
+                continue
+            r = s_post / s_pre
+            se = None
+            if pre[cid].get(sekey) and post[cid].get(sekey):
+                se = r * math.hypot(post[cid][sekey], pre[cid][sekey])
+            row[f"sigma_pre_{tag}_V"] = s_pre
+            row[f"sigma_post_{tag}_V"] = s_post
+            row[f"sigma_ratio_{tag}"] = r
+            row[f"sigma_ratio_{tag}_standard_error"] = se
+        ratios[cid] = row
     worst = max(((v["max_abs_dvod_V"], c) for c, v in post.items()), default=(None, None))
     return {
         "post_i92": post, "pre_i92": pre, "sigma_ratio": ratios,
@@ -416,16 +481,25 @@ def mc_derivation(results, areas):
         "worst_abs_ci_offset_fs": fs(worst[0]),
         "sqrt_wl_prediction": areas,
         "verdict_inputs": (
-            "Compare sigma_ratio_post_over_pre (with its standard error) against "
-            "sqrt_area_ratio for `summing_node_switches` (the pair that injects "
-            "into the summing node) and for `all_phi2_vcm_switches` "
-            "(design/integrator/SIZING.md's framing). The #92 delta also swaps "
-            "nfet_01v8 for nfet_01v8_lvt on those switches, which neither "
-            "sqrt(W L) factor accounts for."),
-        "estimator": ("sigma is the sample standard deviation (statistics.stdev, "
-                      "n-1) of dvod_mean over the Monte Carlo samples at each "
-                      "anchor point; no distribution is assumed beyond quoting "
-                      "the usual 1/sqrt(2(n-1)) relative standard error."),
+            "Read `sigma_ratio_ota_removed` (with its standard error) against "
+            "`sqrt_area_ratio` for `summing_node_switches` -- the pair that "
+            "injects into the summing node -- and against "
+            "`all_phi2_vcm_switches`, which is design/integrator/SIZING.md's own "
+            "framing. Use the OTA-removed ratio, not the raw one: the raw "
+            "per-clock differential step under mismatch is dominated by the "
+            "OTA's own input offset, and sqrt(W L) is a claim about the "
+            "switches. The #92 delta also swaps nfet_01v8 for nfet_01v8_lvt on "
+            "those switches, which neither sqrt(W L) factor accounts for."),
+        "estimator": (
+            "sigma is the sample standard deviation (statistics.stdev, n-1) of "
+            "dvod_mean over the Monte Carlo samples at each anchor point. "
+            "sigma_dvod_ota_removed_V is the residual standard deviation (n-2 "
+            "dof) after least-squares regressing dvod_mean on the same sample's "
+            "measured OTA offset `vod_rst`; it is reported only where "
+            f"|r| >= {OTA_SEPARATION_MIN_R}, and the slope and r are always "
+            "reported so the separation can be judged. No distribution is "
+            "assumed beyond quoting the usual 1/sqrt(2*dof) relative standard "
+            "error."),
     }
 
 
