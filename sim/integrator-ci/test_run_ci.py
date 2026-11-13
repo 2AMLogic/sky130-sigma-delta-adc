@@ -368,6 +368,17 @@ class MonteCarloMode(RunnerCase):
         self.assertEqual(rc, 0, f"stderr={err!r}")
         self.assertEqual([k.get("hosts") for k in self.kwargs], [4, 4])
 
+    def test_capacity_wait_defaults_to_the_host_rule_floor_and_is_raisable(self):
+        rc, _, _ = self.run_main(["--mc"], self.mc_submits())
+        self.assertEqual(rc, 0)
+        self.assertEqual([k.get("capacity_wait_s") for k in self.kwargs],
+                         [RUNNER.CAPACITY_WAIT_S] * 2)
+        self.assertGreaterEqual(RUNNER.CAPACITY_WAIT_S, 600,
+                                "the host rule floor for a batch submit is 600s")
+        self.kwargs.clear()
+        self.run_main(["--mc", "--capacity-wait", "1800"], self.mc_submits())
+        self.assertEqual([k.get("capacity_wait_s") for k in self.kwargs], [1800, 1800])
+
     def test_hosts_does_not_change_the_request_files(self):
         """A sharded re-run must still match an unsharded partial's sha."""
         before = {v: (self.here / f"request_mc_{v}.json").read_bytes() for v in MCV}
@@ -446,6 +457,46 @@ class Derivations(unittest.TestCase):
         d = RUNNER.dac_crosscheck({"post_dac": {"corners": {cid: c}}})
         self.assertAlmostEqual(d["per_corner"][cid]["implied_dc_gain"], 1000.0)
         self.assertAlmostEqual(d["per_corner"][cid]["implied_dc_gain_db"], 60.0, places=6)
+
+
+class DrawnCapRatio(unittest.TestCase):
+    """Cs/Ci comes off the drawn MIM geometry, so a capacitor-ratio slope
+    contribution is visible instead of being booked as charge injection."""
+
+    def setUp(self):
+        self.c = RUNNER.cap_ratio(RUNNER.REPO / "design/integrator/integrator.spice")
+
+    def test_ratio_is_the_drawn_area_ratio_not_the_nominal_one_half(self):
+        self.assertAlmostEqual(self.c["cs_drawn_area_um2"], 22.17 ** 2, places=3)
+        self.assertAlmostEqual(self.c["ci_drawn_area_um2"], 31.43 ** 2, places=3)
+        self.assertAlmostEqual(self.c["drawn_area_ratio_cs_over_ci"],
+                               22.17 ** 2 / 31.43 ** 2, places=9)
+        self.assertNotAlmostEqual(self.c["drawn_area_ratio_cs_over_ci"], 0.5, places=4,
+                                  msg="if the drawn ratio were exactly 0.5 there "
+                                      "would be nothing to separate")
+        self.assertLess(self.c["drawn_vs_model_b_c1_rel"], 0.0)
+
+    def test_the_slope_is_reported_against_both_references(self):
+        cid = CORNER_IDS[0]
+        ratio = self.c["drawn_area_ratio_cs_over_ci"]
+        # A cell whose slope is exactly the drawn capacitor ratio has no gain
+        # error to attribute to injection, but a nonzero bound against C1 = 0.5.
+        results = {v: {"corners": {cid: corner(ratio * MK.VARIANTS[v]["vin_diff"])}}
+                   for v in ("post_v0", "post_v0p1", "post_v0p2")}
+        results["post_dac"] = {"corners": {}}
+        row = RUNNER.nominal_derivation(results, self.c)["per_corner"][cid]
+        self.assertAlmostEqual(row["slope_vs_drawn_cap_ratio_rel"], 0.0, places=12)
+        self.assertAlmostEqual(row["ci_gain_error_bound"],
+                               self.c["drawn_vs_model_b_c1_rel"], places=12)
+
+    def test_derivation_without_caps_still_reports_the_c1_bound(self):
+        cid = CORNER_IDS[0]
+        results = {v: {"corners": {cid: corner(0.5 * MK.VARIANTS[v]["vin_diff"])}}
+                   for v in ("post_v0", "post_v0p1", "post_v0p2")}
+        results["post_dac"] = {"corners": {}}
+        row = RUNNER.nominal_derivation(results)["per_corner"][cid]
+        self.assertAlmostEqual(row["ci_gain_error_bound"], 0.0, places=12)
+        self.assertNotIn("slope_vs_drawn_cap_ratio_rel", row)
 
 
 class AreaPrediction(unittest.TestCase):

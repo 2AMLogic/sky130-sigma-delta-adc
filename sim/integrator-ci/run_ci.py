@@ -33,9 +33,9 @@ import tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import (ANCHOR_SUBSET_NOTE, grid_complete,  # noqa: E402
-                             measurements_present, pdk_stamp, run_klt, sha256,
-                             summarize)
+from settling_common import (ANCHOR_SUBSET_NOTE, CAPACITY_WAIT_S,  # noqa: E402
+                             grid_complete, measurements_present, pdk_stamp,
+                             run_klt, sha256, summarize)
 
 sys.path.insert(0, str(HERE))
 import make_request as mk  # noqa: E402
@@ -91,6 +91,37 @@ def switch_areas(netlist):
         areas.setdefault(base, {"nmos": [], "pmos": []})[half].append(
             (float(w.group(1)), float(ln.group(1))))
     return areas
+
+
+def cap_ratio(netlist):
+    """Drawn Cs/Ci from the cell's MIM capacitor geometry.
+
+    Model B's C1 = 0.5 is the nominal coefficient; the drawn caps are not in
+    exactly that ratio, and the difference lands in the same slope the
+    `ci_gain_error` fit reads. Reporting the drawn ratio next to the measured
+    slope is what keeps a capacitor-ratio effect from being booked as charge
+    injection.
+    """
+    out = {}
+    for line in _join_continuations(pathlib.Path(netlist).read_text()):
+        m = re.match(r"^X(Csi|Csr|Ci)_([pn])\s+.*\bW=([0-9.eE+-]+)\s+L=([0-9.eE+-]+)", line)
+        if m:
+            out.setdefault(m.group(1), []).append(float(m.group(3)) * float(m.group(4)))
+    cs = sum(out.get("Csi", [])) / max(len(out.get("Csi", [])), 1)
+    ci = sum(out.get("Ci", [])) / max(len(out.get("Ci", [])), 1)
+    return {
+        "cs_drawn_area_um2": round(cs, 4),
+        "ci_drawn_area_um2": round(ci, 4),
+        "drawn_area_ratio_cs_over_ci": (cs / ci) if ci else None,
+        "model_b_c1": mk.C1,
+        "drawn_vs_model_b_c1_rel": ((cs / ci) / mk.C1 - 1.0) if ci else None,
+        "note": ("Area ratio of the drawn sky130_fd_pr__cap_mim_m3_1 devices, not "
+                 "an extracted capacitance: fringe and perimeter terms differ "
+                 "between the two sizes, so the real Cs/Ci is near this but not "
+                 "equal to it. It is here so a capacitor-ratio contribution to the "
+                 "measured slope is visible instead of being attributed to charge "
+                 "injection."),
+    }
 
 
 def area_prediction(pre_netlist, post_netlist):
@@ -172,12 +203,13 @@ def save_partial(v, mc, result):
     partial_path(v, mc).write_text(json.dumps(result, indent=2) + "\n")
 
 
-def submit(v, mc, tmp, probe=False, probe_path=None, hosts=None):
+def submit(v, mc, tmp, probe=False, probe_path=None, hosts=None,
+           capacity_wait_s=CAPACITY_WAIT_S):
     req = HERE / (f"request_mc_{v}.json" if mc else f"request_{v}.json")
     tag = f"mc-{v}" if mc else v
     res = run_klt(req, probe, tmp, tag, probe_path or (HERE / f"probe_request_{tag}.json"),
                   artifacts_dir=None if probe else ARTIFACTS, keys=mk.KEYS,
-                  hosts=None if probe else hosts)
+                  hosts=None if probe else hosts, capacity_wait_s=capacity_wait_s)
     if res is None:
         print(f"{tag}: no usable report (see .artifacts/klt-{tag}.stderr.txt); not "
               "falling back to a local grid or to .partials/", file=sys.stderr)
@@ -199,7 +231,7 @@ def fs(volts):
     return None if volts is None else volts / mk.VFS_DIFF_V
 
 
-def nominal_derivation(results):
+def nominal_derivation(results, caps=None):
     """ci_offset / ci_gain_error over the nominal grid, per corner and worst-case."""
     base = results["post_v0"]["corners"]
     per_corner = {}
@@ -223,6 +255,9 @@ def nominal_derivation(results):
             slope = sum((x - mx) * (y - my) for x, y in pts) / den
             row["step_slope_v_per_v"] = slope
             row["ci_gain_error_bound"] = slope / mk.C1 - 1.0
+            if caps and caps.get("drawn_area_ratio_cs_over_ci"):
+                row["slope_vs_drawn_cap_ratio_rel"] = (
+                    slope / caps["drawn_area_ratio_cs_over_ci"] - 1.0)
             # Departure from the straight line: a gain error cannot represent
             # it, so it is the distortion indicator.
             row["fit_max_residual_V"] = max(
@@ -244,13 +279,23 @@ def nominal_derivation(results):
         "worst_dvod_mean_V": worst("dvod_mean_V"),
         "worst_ci_gain_error_bound": worst("ci_gain_error_bound"),
         "worst_fit_max_residual_V": worst("fit_max_residual_V"),
+        "worst_slope_vs_drawn_cap_ratio_rel": worst("slope_vs_drawn_cap_ratio_rel"),
+        "drawn_cap_ratio": caps,
         "ci_gain_error_caveat": (
             "step_slope_v_per_v is the whole input-to-output gain of one charge "
             "transfer, so ci_gain_error_bound lumps charge-injection gain error "
             "together with incomplete settling and finite DC gain, which "
             "sim/integrator-settling and the DC-gain extraction own separately. "
             "It is an UPPER BOUND on the charge-injection part, never an "
-            "attribution of all of it to charge injection."),
+            "attribution of all of it to charge injection. Measured at "
+            "tt/1.800V/27C while building the bench, three of those mechanisms "
+            "account for the whole deficit with nothing left for injection: the "
+            "drawn capacitor ratio (see drawn_cap_ratio), a finite-DC-gain leak "
+            "whose per-clock droop fits A = 672 against the 667 the independent "
+            "dac_crosscheck gives, and -- at the slow/cold corners only -- "
+            "incomplete INPUT sampling, which is a separate mechanism from "
+            "charge injection and is tracked separately (see README.md "
+            "\"Limits\")."),
     }
 
 
@@ -521,6 +566,13 @@ def main():
     ap.add_argument("--record", action="store_true",
                     help="write the record (refuses to overwrite: records are append-only)")
     ap.add_argument("--record-name", help="record file name (default: record.json / record-mc.json)")
+    ap.add_argument("--capacity-wait", type=int, default=CAPACITY_WAIT_S, metavar="S",
+                    help=f"seconds to wait for fleet capacity before giving up "
+                         f"(default {CAPACITY_WAIT_S}, the host-rule floor). The "
+                         "fleet's vCPU budget is shared, so a busy period refuses "
+                         "a launch with `batch_no_capacity`; raise this for a "
+                         "retry. A refused submit is never backfilled from "
+                         ".partials/ and never falls back to a local grid.")
     ap.add_argument("--hosts", type=int, metavar="N",
                     help="shard each submission across N fleet instances. A Monte "
                          "Carlo campaign is anchors x N units in ONE job, and the "
@@ -573,7 +625,8 @@ def main():
                     print(f"{v}: reusing {partial_path(v, a.mc).name} ({saved['summary']})")
                     results[v] = saved
                 continue
-            res = submit(v, a.mc, tmp, hosts=a.hosts)
+            res = submit(v, a.mc, tmp, hosts=a.hosts,
+                         capacity_wait_s=a.capacity_wait)
             if res is None:
                 continue
             print(v, json.dumps(res["summary"], indent=2))
@@ -597,7 +650,9 @@ def main():
             print("all variants complete; re-run with --record to write the record")
             return 0
 
-        areas = area_prediction(HERE / mk.PRE_CELL, REPO / "design/integrator/integrator.spice")
+        post_cell = REPO / "design/integrator/integrator.spice"
+        areas = area_prediction(HERE / mk.PRE_CELL, post_cell)
+        caps = cap_ratio(post_cell)
         rec = {
             "fixture": ("Integrator charge-injection bench (issue #102): the full "
                         "integrator cell + ota_fd clocked for "
@@ -624,7 +679,8 @@ def main():
             "pass": all(r["pass"] for r in results.values()),
         }
         rec["derived"] = (mc_derivation(results, areas) if a.mc
-                          else {**nominal_derivation(results), "sqrt_wl_prediction": areas})
+                          else {**nominal_derivation(results, caps),
+                                "sqrt_wl_prediction": areas})
         if a.mc:
             # Derivations above read the full corner sets; the record keeps the
             # trimmed per-sample rows (.partials/ still holds everything).

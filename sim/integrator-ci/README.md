@@ -305,11 +305,36 @@ fixture tests.
   contains the OTA input offset referred through `Cs/Ci` as well as switch
   injection; only the pre/post comparison isolates the switch change. See "What
   else is in the step".
-- **`ci_gain_error_bound` is an upper bound.** The fitted slope is the whole
-  input-to-output gain of one charge transfer, so it lumps charge-injection gain
-  error together with incomplete settling and finite DC gain, which
-  `sim/integrator-settling` and the DC-gain extraction own separately. It is not
-  an attribution of all of it to charge injection.
+- **`ci_gain_error_bound` is an upper bound**, and at `tt`/27 °C/1.80 V three
+  other mechanisms account for the whole of it with nothing left for injection:
+
+  | mechanism | size at `tt`/27 °C/1.80 V | where it is recorded |
+  |---|---|---|
+  | drawn capacitor ratio `Cs/Ci` = 0.497557, not model B's 0.5 | −0.489 % | `derived.drawn_cap_ratio` |
+  | finite-DC-gain leak over the measurement window | fits A = 672 | per-clock droop; `dac_crosscheck` gives 667 independently |
+  | everything else (real vs drawn cap ratio, fringe, transfer, injection) | +0.104 % | `slope_vs_drawn_cap_ratio_rel` |
+
+  The measured transfer coefficient is 0.498075 V/V against a drawn ratio of
+  0.497557. For injection to be producing a gain error of order 1e-3 it would
+  have to vary the injected charge by ~1e-4 V per 0.1 V of input, which is three
+  orders of magnitude above the 2.3e-7 V absolute residual measured at zero
+  input — and the switches that reach `Ci` turn off with their terminals at the
+  summing node (≈ `vcm`) whatever the input is. So the signal-dependent part of
+  charge injection is **below this bench's resolution**, which is what the record
+  states; the slope is not reported as `ci_gain_error`.
+
+- **Input sampling, not charge transfer, is what limits the slow/cold corners —
+  and it is a different mechanism.** At `ss`/1.620 V/−40 °C the bottom plate
+  reaches only 0.968 V of its 1.0 V target in 90 ns of phi1, so a ±0.1 V
+  differential input is sampled ~46 % complete, while the *integrate* phase at
+  that same corner settles exactly (`tpi_p` = `sump` to 6 digits well before
+  phi2 falls). The cause is the `Sin` switch near `vcm`: at 1.62 V its NMOS half
+  is off and its PMOS half has ~0.1 V of overdrive. At `tt`/27 °C/1.80 V the same
+  sampling is exact to six digits, so this is corner-specific and not a property
+  of the bench. It is **not** charge injection, it is out of scope for this
+  issue, and it is filed separately — a per-corner `ci_gain_error_bound` from the
+  slow/cold corners is dominated by it and must not be read as a gain error of
+  the charge-transfer path.
 - **Clocks are behavioural**, rail-to-rail with 200 ps edges and ≥ 4.7 ns
   non-overlap from `PULSE` shape sources. There is no non-overlap generator, so
   clock feedthrough from real `clkgen` skew — including a `Sti`/`Str` half left
