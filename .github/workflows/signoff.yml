@@ -108,6 +108,13 @@ jobs:
       - name: Charge-injection record-admission unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'
 
+      # The switch probes' pure parts: that the issue #106 pass-gate sweep still
+      # covers the spec row 11 input range at the resolution it claims, and that
+      # the probed device pair still matches design/integrator/integrator.spice.
+      # Fixtures only: no fleet, no ngspice, no klt.
+      - name: Switch-probe sweep-coverage unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s sim/switch-probe -p 'test_*.py'
+
       - name: Decimator whole-chain response, spec rows 8-9 (no EDA tools)
         working-directory: verification/decimator
         run: python3 response.py

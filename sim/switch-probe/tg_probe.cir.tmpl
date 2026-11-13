@@ -1,0 +1,47 @@
+* Transmission-gate DC probe (issue #106) -- ONE operating point, local.
+* NOT a performance claim and NOT a record. This deck measures the on-state
+* resistance of a COMPLEMENTARY PASS GATE -- both halves in parallel, as the
+* cell builds them -- against the voltage it is passing, at one corner.
+* Simulated (ngspice, sky130 device models); nothing here is measured.
+*
+* It exists because the `Sin_*` / `Sr_*` / `Mra_*` / `Mrb_*` gates in
+* design/integrator/integrator.spice have no low-Vth half, so near vcm at a low
+* supply neither half has overdrive: the NMOS half sees Vgs = Vdda - Vin and the
+* PMOS half |Vgs| = Vin. The single-device `ron` kind in switch_probe.cir.tmpl
+* cannot show that, because the quantity that matters is the PARALLEL
+* conductance of the pair as the passed voltage moves across the input range.
+*
+* Van/Vap are 0 V ammeters, not circuit elements: each half still sits directly
+* between the probe's drain node `d` and its source node `s`, so the operating
+* point is identical to wiring both drains to `d` (checked: total current agrees
+* to 7 digits). They make each half's share of the current readable, which is
+* what says whether a remedy should widen the PMOS half or add a low-Vth NMOS.
+*
+* run_probe.py substitutes the doubled-brace placeholders: PDK library and
+* corner, temperature, supply, the two device models and their geometries, the
+* two gate biases, and the two terminal voltages.
+.lib {{PDK_LIB}} {{CORNER}}
+.temp {{TEMP}}
+Vdda vdda 0 {{VDDA}}
+* Source sits at the voltage being passed; drain is offset by the probe bias.
+* The current through Vd is the whole gate current, so Ron = bias / I(Vd).
+* NMOS half: bulk in the p-substrate at vssa. PMOS half: bulk in its n-well at
+* vdda. Both are the static rails the committed netlist ties them to.
+Vs s 0 {{VS}}
+Vd d 0 {{VD}}
+Vgn gn 0 {{VGN}}
+Vgp gp 0 {{VGP}}
+Van dn d 0
+Vap dp d 0
+X1 dn gn s 0 {{NMODEL}} {{NGEOM}}
+X2 dp gp s vdda {{PMODEL}} {{PGEOM}}
+.control
+option gmin=1e-15
+op
+let i_dev = abs(i(vd))
+let i_nmos = abs(i(van))
+let i_pmos = abs(i(vap))
+let r_on = {{BIAS}}/i_dev
+print i_dev i_nmos i_pmos r_on
+.endc
+.end

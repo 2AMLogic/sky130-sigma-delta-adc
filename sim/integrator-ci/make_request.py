@@ -6,6 +6,14 @@
 Writes one deck per variant plus a nominal-grid request (DR-002 full 45-point
 grid) for every variant, and a Monte Carlo request (DR-002 anchor set, PDK
 mismatch models) for the two zero-input variants. See README.md.
+
+It also writes the issue #106 **input-sampling** requests, which reuse the same
+decks and clocks but add the bottom- and top-plate measurements at the phi1e
+fall (`sampling_measurements()`). Those are separate request files on purpose:
+the issue #102 requests and their committed `record.json` provenance
+(`request_sha256`, `deck_sha256`) must not move because a later issue added a
+measurement. `request_i106_post_v0p2.json` reuses the existing `post_v0p2`
+deck byte-for-byte; only the large-amplitude `post_v0p6` deck is new.
 """
 import json
 import pathlib
@@ -106,6 +114,31 @@ VARIANTS = {
 }
 MC_VARIANTS = ("post_v0", "pre_v0")     # criteria 4 and 5: the mismatch pair
 
+# --------------------------------------- issue #106: input-sampling variants --
+# The two input amplitudes issue #106 asks for, as explicit vinp/vinn voltages
+# so "+/-0.1 V" cannot be read two ways:
+#   post_v0p2  vinp/vinn = 1.0/0.8 V (vin_diff 0.2 V) -- each side +/-0.1 V of
+#              vcm, the point the filing measured 46 % complete at ss/1.620
+#              V/-40 C. This is the EXISTING post_v0p2 deck, reused unchanged.
+#   post_v0p6  vinp/vinn = 1.2/0.6 V (vin_diff 0.6 V) -- each side +/-0.3 V of
+#              vcm, the full spec input range and the large step
+#              sim/integrator-settling drives, where the PMOS half of the gate
+#              has ~0.3 V of overdrive. New deck.
+I106_VARIANTS = ("post_v0p2", "post_v0p6")
+I106_EXTRA_VARIANTS = {
+    "post_v0p6": {
+        "cell": "post", "vin_diff": 0.6, "dac": "nulled",
+        "note": "shipped cell, +0.6 V differential input (vinp/vinn = 1.2/0.6 V), DAC "
+                "nulled: the large-signal end of the issue #106 input-sampling sweep. "
+                "With the DAC nulled nothing cancels the input, so the differential "
+                "output ramps 0.3 V per clock and leaves the OTA's range before the "
+                "last cycle. That is accepted deliberately: the sampled charge is set "
+                "on Csi while Sci holds the top plate at vcm and Sti is open, so the "
+                "bottom-plate measurement does not depend on the output, and no output "
+                "number from this variant is read or reported.",
+    },
+}
+
 CELLS = {
     "post": {"file": POST_CELL, "inc": f'.include "{POST_CELL}"', "xint": POST_XINT},
     "pre": {"file": PRE_CELL, "inc": f'.include "{PRE_CELL}"', "xint": PRE_XINT},
@@ -202,6 +235,104 @@ KEYS = tuple(m["name"] for m in MEASUREMENTS if not m["name"].startswith("k_"))
 SENTINEL = "dvod_mean"
 
 
+# ------------------------------- issue #106: input-sampling measurements -----
+# Clock edges inside one cycle, read off the PULSE shape sources in the deck:
+#   phi1e  0 -> 0.2 ns rise, plateau to 90.5 ns, 90.5 -> 90.7 ns fall
+#   phi1   0 -> 0.2 ns rise, plateau to 92.5 ns, 92.5 -> 92.7 ns fall
+#   phi2   97.46 -> 97.66 ns rise, plateau to 189.96 ns, fall to 190.16 ns
+# The phi1e fall is the instant the sampled charge is frozen: Sci stops holding
+# the top plate at vcm, so from then on whatever the input path managed to
+# deliver onto Csi is what gets integrated. phi1 stays closed for a further
+# 2 ns, which moves BOTH plates of Csi together and so cannot change that
+# charge. Hence "the sampled differential at the instant phi1e falls".
+#
+# A mean over the last 0.8 ns of phi1e, not a point interpolated between two
+# stored timepoints: ngspice emits duplicate timepoints at breakpoints, and the
+# phi1e fall IS a breakpoint, so interpolating across it can divide by a
+# zero-width bracket. 0.8 ns ends 0.2 ns before the fall begins and holds ~17
+# stored points at the request's 50 ps output step.
+W_SAMP = (89.5e-9, 90.3e-9)
+# The non-overlap gap after phi1 opens (92.7 ns) and before phi2 closes (97.46
+# ns): both plates of Csi float, so the differential ACROSS Csi here is the
+# charge frozen at the phi1e fall, read where nothing is moving at all. It is
+# the cross-check on W_SAMP; their difference is the phi1/Sin turn-off
+# injection onto the floating bottom plate (issue #102's mechanism, not this
+# one), which is why the headline number is W_SAMP and this one is a control.
+W_FROZEN = (93.2e-9, 97.2e-9)
+# Cycle 0's bottom plates were never phi2-reset to vcm (the bench reset holds
+# until 40 ns, inside cycle 0), so sampling is only read from cycle 1 on.
+SAMP_CYCLES = (1, 2, 3, 4, 5)
+SAMP_REPORT = 4                  # the cycle the headline per-corner error uses
+# phi1 rise (0.1 ns) to phi1e fall (90.5 ns): the time the input path actually
+# has to charge Csi. Recorded in the record, as issue #106 requires.
+SAMP_PHI1_NS = 90.4
+SAMP_PHI1_HIGH_NS = 92.3         # phi1 pulse width; phi1e's is 90.3 ns
+# DR-005's settling bench grades its starting level at 1e-4 relative, so that
+# number is the only comparable scale this repo already uses for "complete
+# enough". The sampling error is reported against it as a REFERENCE LINE so it
+# can be read on a scale. It is NOT a limit and NOT a pass/fail criterion: no
+# spec row bounds sampling completeness, this change adds none, and no
+# `limits` key is attached to any measurement built below -- deliberately, so
+# the fleet cannot return a "fail" status that would read as a verdict.
+SAMP_REFERENCE_LINE = 1e-4
+
+
+def _plates(tag, a, b, cyc):
+    """Bottom- and top-plate means over [a, b] within cycle `cyc`.
+
+    Same windowed-mean construction as `_window`, and `w_<tag>` is likewise
+    recorded so a record cannot hide an empty window.
+    """
+    t0, t1 = cyc * T_CLK + a, cyc * T_CLK + b
+    mask = f"(time ge {t0:.9g})*(time le {t1:.9g})"
+    out = [e(f"w_{tag}", f"mean({mask})")]
+    for name, node in (("bpip", "xint.bpi_p"), ("bpin", "xint.bpi_n"),
+                       ("tpip", "xint.tpi_p"), ("tpin", "xint.tpi_n")):
+        out.append(e(f"{name}_{tag}", f"mean(v({node})*{mask})/w_{tag}", "V"))
+    return out
+
+
+def sampling_measurements():
+    """Issue #106: what the input path delivered onto Csi by the phi1e fall.
+
+    `samp_<tag>` is the differential voltage ACROSS Csi. Sci holds both top
+    plates at vcm right up to the phi1e fall, so inside W_SAMP that is equal to
+    `v(xint.bpi_p) - v(xint.bpi_n)` -- the form issue #106 reported, carried
+    separately as `samp_bpi_<tag>`. Taking it across the capacitor rather than
+    on the bottom plates alone removes any difference between the two sides'
+    Sci holding the top plate, so the number is the sampled charge and not a
+    sum of the sampled charge and a top-plate offset.
+
+    No measurement here carries `limits`: see SAMP_REFERENCE_LINE.
+    """
+    m = []
+    for k in SAMP_CYCLES:
+        tag = f"s{k}"
+        m += _plates(tag, *W_SAMP, k)
+        m.append(e(f"samp_{tag}",
+                   f"(bpip_{tag} - tpip_{tag}) - (bpin_{tag} - tpin_{tag})", "V"))
+        m.append(e(f"samp_bpi_{tag}", f"bpip_{tag} - bpin_{tag}", "V"))
+    tag = f"f{SAMP_REPORT}"
+    m += _plates(tag, *W_FROZEN, SAMP_REPORT)
+    m.append(e(f"samp_{tag}",
+               f"(bpip_{tag} - tpip_{tag}) - (bpin_{tag} - tpin_{tag})", "V"))
+    return m
+
+
+SAMPLING_MEASUREMENTS = sampling_measurements()
+# The issue #106 requests measure everything #102's do, plus the sampling rows:
+# the output-side numbers cost nothing extra on the same transient and keep the
+# two campaigns comparable corner by corner.
+I106_MEASUREMENTS = MEASUREMENTS + SAMPLING_MEASUREMENTS
+I106_KEYS = tuple(m["name"] for m in I106_MEASUREMENTS if not m["name"].startswith("k_"))
+# A corner with no sampled differential simulated nothing.
+I106_SENTINEL = f"samp_s{SAMP_REPORT}"
+# The window-occupancy keys the runner refuses an empty value on: each is the
+# divisor that turns a masked sum into a mean, so a zero there is a 0/0.
+I106_WINDOW_KEYS = tuple(m["name"] for m in SAMPLING_MEASUREMENTS
+                         if m["name"].startswith("w_"))
+
+
 # ------------------------------------------------------------- requests -----
 def deck_name(v):
     return f"integrator_ci_{v}.cir"
@@ -240,6 +371,19 @@ def nominal_request(v):
     return r
 
 
+def i106_request(v):
+    """The issue #106 request: the same deck and timing, more measurements."""
+    r = request(deck_name(v), I106_MEASUREMENTS, T_END, timeout_s=3600,
+                poll_timeout_s=21600)
+    r["analysis"]["args"] = f"50p {T_END:.6g} 0 50p"
+    return r
+
+
+def i106_variant(v):
+    """The variant dict for an issue #106 amplitude, old or new."""
+    return VARIANTS.get(v) or I106_EXTRA_VARIANTS[v]
+
+
 def mc_request(v):
     r = nominal_request(v)
     # An explicit `corners.units` point list, so the 7 DR-002 anchors stay 7
@@ -265,5 +409,11 @@ if __name__ == "__main__":
         if v in MC_VARIANTS:
             (HERE / f"request_mc_{v}.json").write_text(
                 json.dumps(mc_request(v), indent=2) + "\n")
-    print(f"wrote {len(VARIANTS)} decks, {len(VARIANTS)} nominal and "
-          f"{len(MC_VARIANTS)} Monte Carlo requests; {len(KEYS)} measurement keys")
+    for v, d in I106_EXTRA_VARIANTS.items():
+        (HERE / deck_name(v)).write_text(render(v, d))
+    for v in I106_VARIANTS:
+        (HERE / f"request_i106_{v}.json").write_text(
+            json.dumps(i106_request(v), indent=2) + "\n")
+    print(f"wrote {len(VARIANTS) + len(I106_EXTRA_VARIANTS)} decks, {len(VARIANTS)} "
+          f"nominal, {len(MC_VARIANTS)} Monte Carlo and {len(I106_VARIANTS)} "
+          f"input-sampling requests; {len(KEYS)} / {len(I106_KEYS)} measurement keys")

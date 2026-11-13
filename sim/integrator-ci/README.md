@@ -24,6 +24,7 @@ sqrt(W L) growth the design notes predicted is not what dominates it.**
 | … post/pre ratio of that σ | **1.84× – 3.61×** (mean 2.56, per-anchor SE 0.19–0.37) — *faster* than either sqrt(W L) prediction (1.333× / 1.929×) | `record-mc.json` |
 | Signal-dependent part (`ci_gain_error`) | **below this bench's resolution**; the measured slope is accounted for by the drawn capacitor ratio, the finite-gain leak and, at the slow/cold corners, incomplete *input* sampling (#106) | `record.json` |
 | **Cost in model B** | **0.17 dB** of peak SNDR: 86.00 dB against the 86.17 dB ideal record | `sim/bmodel/records/20261113T145641Z-a793a24d.json` |
+| *Input* sampling completeness (a **different** mechanism, issue #106) | worst **0.5432** of a 0.2 V differential input unsampled at `ss`/1.620 V/−40 °C, and strongly **input-level dependent** (0.0083 at 0.6 V); no SNDR consequence claimed | `record-i106.json` |
 
 Everything here is **simulated**, never measured, and the records carry no
 pass/fail criterion: no spec row bounds this residual. **Read "Limits" at the
@@ -331,6 +332,150 @@ unconfirmed. It stays a separate owed mechanism
 `derived.mismatch_coverage.not_covered` lists it so the record cannot be read as
 an all-mechanisms number.
 
+## Input sampling completeness (issue #106)
+
+The sections above read the integrator's **output** in the phi1 hold. Issue #106
+asked the opposite-side question: how much of the differential input did the
+`Sin` pass gate actually deliver onto `Csi` before the sample was frozen? That
+is a different mechanism from charge injection, and this bench's decks already
+contain everything needed to see it, so the measurement lives here rather than
+in a bench of its own.
+
+**Where the sample is frozen.** `Sci` (gated by `phi1e`) holds the top plate at
+`vcm` until `phi1e` falls 90.5 ns into the cycle; `Sin` (gated by `phi1`) drives
+the bottom plate from `vinp`/`vinn` until `phi1` falls at 92.5 ns. The charge on
+`Csi` stops changing at the **`phi1e`** fall: the 2 ns that follow move both
+plates of `Csi` together, which cannot change the charge between them. So the
+input path has **90.4 ns** (phi1 closing `Sin` at 0.1 ns to `phi1e` opening
+`Sci` at 90.5 ns), not the full 92.3 ns `phi1` is high, and the quantity to read
+is the differential across `Csi` at that instant.
+
+`sampling_measurements()` reads it as a mean over the last 0.8 ns of `phi1e`
+(not a point interpolated across the fall — that fall is a solver breakpoint,
+and ngspice emits duplicate timepoints at breakpoints). Because `Sci` holds both
+top plates at `vcm` right up to the fall, the across-`Csi` differential there is
+also `v(xint.bpi_p) − v(xint.bpi_n)`, the form issue #106 reported; both are
+recorded. Taking it across the capacitor removes any difference between the two
+sides' top-plate hold, so the number is the sampled charge and not a sum of the
+sampled charge and a top-plate offset.
+
+A **control** reads the same charge again in the 4.7 ns non-overlap gap after
+`phi1` opens and before `phi2` closes, where both plates float and nothing is
+moving. Its difference from the headline reading is the `phi1`/`Sin` turn-off
+injection onto the floating bottom plate — *this* bench's own mechanism, not
+#106's — so the record carries `frozen_minus_sampled_V` and the two cannot be
+confused.
+
+**Two amplitudes**, because a sampling error that is the same *fraction* at both
+is a gain error while one that is not is distortion:
+
+| request | `vinp`/`vinn` | differential | deck |
+|---|---|---|---|
+| `request_i106_post_v0p2.json` | 1.0 / 0.8 V | 0.2 V | the existing `post_v0p2` deck, reused unchanged |
+| `request_i106_post_v0p6.json` | 1.2 / 0.6 V | 0.6 V | `integrator_ci_post_v0p6.cir` (new) — spec row 11's full input range |
+
+Each is the DR-002 full 45-point grid, submitted to the batch fleet. With the
+DAC nulled nothing cancels the input, so at 0.6 V the differential output ramps
+0.3 V per clock and leaves the OTA's range before the last cycle. That is
+accepted deliberately and stated in the record: the sampled charge is set while
+`Sci` holds the top plate at `vcm` and `Sti` is open, so the bottom-plate
+measurement does not depend on the output — and **no output number from the
+`post_v0p6` variant is read or reported.**
+
+**The reference line is not a limit.** No ratified spec row bounds input-sampling
+completeness, and this change adds none. The record states the per-corner error
+`1 − sampled/ideal` and compares it against **1e-4 relative** — the starting
+level `sim/integrator-settling` grades DR-005 settling against — purely so the
+number has a scale this repo already uses. Accordingly **no measurement in either
+`request_i106_*.json` carries `limits`**: the fleet is never asked to return a
+pass/fail on this quantity, because a "fail" status would read as a verdict the
+spec does not support. A corner listed in `corners_over_reference_line` has not
+failed anything.
+
+**Why the issue #102 requests were not simply extended.** `record.json` records
+the `request_sha256` and `deck_sha256` it was produced from. Adding measurements
+to `request_post_*.json` would move those hashes and break that record's
+provenance, so the sampling measurements live in separate request files over the
+**same** decks. `make_request.py` regenerates every issue #102 deck and request
+byte-for-byte; `test_run_sampling.py` pins both facts.
+
+### What it measured
+
+From `record-i106.json` (fleet jobs `klt-sim-b7f6bc6865de` and
+`klt-sim-c515728d5338`, ngspice-47, pinned sky130A, 45 corners each, cycle 4 of
+6). **Simulated, never measured. No spec row is graded here and none exists.**
+
+| | ±0.1 V per side (0.2 V diff) | ±0.3 V per side (0.6 V diff) |
+|---|---|---|
+| worst corner | **`ss`/1.620 V/−40 °C** | **`fs`/1.620 V/−40 °C** |
+| error `1 − sampled/ideal` there | **0.5432** (sampled 0.09135 V of 0.2 V) | **0.1340** (sampled 0.51959 V of 0.6 V) |
+| corners over the 1e-4 reference line | 8 of 45 | 2 of 45 |
+| every 1.980 V corner | exact to the reported precision | exact to the reported precision |
+
+**The filing is confirmed.** It reported ~46 % of a ±0.1 V input sampled at
+`ss`/1.620 V/−40 °C; the grid gives 45.7 % complete (0.09135 V of 0.2 V) at that
+corner, from a separate measurement on the same deck.
+
+**The error is input-level dependent, which is the new result.** Corner by
+corner:
+
+| corner | error at 0.2 V | error at 0.6 V |
+|---|---|---|
+| `ss`/1.620 V/−40 °C | 0.5432 | 0.00828 |
+| `sf`/1.620 V/−40 °C | 0.2843 | 0 |
+| `fs`/1.620 V/−40 °C | 0.0868 | **0.1340** |
+| `ss`/1.800 V/−40 °C | 0.0830 | 0 |
+| `tt`/1.620 V/−40 °C | 0.0165 | 0 |
+| `ss`/1.620 V/27 °C | 0.00516 | 1.7e-07 |
+| `tt`/1.800 V/−40 °C | 0.00058 | 0 |
+| `sf`/1.620 V/27 °C | 0.00056 | 0 |
+
+At `ss`/1.620 V/−40 °C the error falls from 0.543 to 0.008 when the input grows
+three-fold. A pure gain error would hold the *fraction* constant; this does not,
+so the mechanism is **level-dependent**, consistent with a gate whose resistance
+peaks at `vcm` and falls away on both sides. That is the signature of
+distortion rather than a gain error — but this bench measures the level
+dependence only. **It does not convert it into a distortion, THD, SNDR or
+resolution figure, and none is claimed: nothing here has been through model B.**
+
+**The binding corner depends on the amplitude.** `ss` binds at the small
+amplitude, `fs` at the large one, and `fs` is the only corner where the error
+*grows* with amplitude. So neither skew can be called "the" worst case for this
+mechanism, and a fix cannot be graded at one of them alone.
+
+**The per-side deficit is asymmetric, and differs by skew.** At
+`ss`/1.620 V/−40 °C and 0.2 V the bottom plate heading up to 1.0 V falls 36.2 mV
+short while the one heading down to 0.8 V falls 64.7 mV short; at
+`sf`/1.620 V/−40 °C only the upward side misses (56.7 mV, the downward side
+reaching its target). Each half of the gate is strong on one side of `vcm` and
+weak on the other, and which half is weaker moves with the skew.
+
+**Read `sampled_V`, not `sampled_bpi_only_V`.** The two are not the same number
+at a slow/cold corner: `Sci` is resistive there too, so the top plates are not
+exactly at `vcm` when `phi1e` opens, and the bottom-plate-only reading exceeds
+the across-`Csi` reading by exactly that top-plate differential — 0.09912 V
+against 0.09135 V at the binding corner, a 7.8 mV gap. What `phi2` transfers
+onto `Ci` is the charge on `Csi`, i.e. the across-plate value, and that is also
+the one that matches the ~46 % per-clock output step the filing measured. Both
+forms and their errors are in the record (`error_rel`, `error_rel_bpi_only`).
+
+**The turn-off control is small.** `frozen_minus_sampled_V` — the `phi1`/`Sin`
+turn-off injection on the floating bottom plate, read in the following
+non-overlap gap — is 7.4e-05 V at the binding corner against a 0.109 V sampling
+deficit, and at most 1.8e-03 V anywhere on either grid. The headline numbers are
+not an artefact of the turn-off edge.
+
+**The deficit is steady, not a start-up transient.** At the binding corner the
+per-cycle error runs 0.5395 / 0.5398 / 0.5413 / 0.5432 / 0.5455 over cycles
+1–5 — every cycle, not a settling tail (`error_rel_by_cycle`).
+
+**The mechanism, separately.** `sim/switch-probe/probe-i106.json` sweeps the
+`Sin` pass gate's DC `Ron` against the voltage it passes, over the five process
+skews at `Vdda` = 1.620 V / −40 C, and reports each half's share of the current.
+That is the *mechanism* behind the sampling error; the magnitude over PVT is
+`record-i106.json`, measured on the cell. A DC `Ron` times `Cs` against a phase
+length is an order-of-magnitude argument, not a settling calculation.
+
 ## Running it
 
 ```bash
@@ -343,6 +488,10 @@ python3 -I sim/integrator-ci/run_ci.py --probe-step post_v0
 # the recorded runs; both go to the batch fleet (never a local grid):
 python3 -I sim/integrator-ci/run_ci.py --record         # 5 variants x 45 DR-002 points
 python3 -I sim/integrator-ci/run_ci.py --mc --record    # 2 cells x 7 anchors x N=100
+
+# input sampling (issue #106): same decks, same grid, the phi1e-fall measurement
+python3 -I sim/integrator-ci/run_sampling.py --probe post_v0p2  # 1 local corner
+python3 -I sim/integrator-ci/run_sampling.py --record   # 2 amplitudes x 45 points
 
 # record-admission unit tests (no fleet, no ngspice, no klt):
 python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'
@@ -372,13 +521,25 @@ inspectable.
 
 ## Records
 
-Append-only JSON, one file per campaign. Each names the bench, the netlist
-sha256s (shipped cell, pre-#92 fixture, `ota_fd`), the PDK `SOURCES` stamp and
-pin, the `klt` version, the corner set or seed set, and the fleet job id; and
-each is refused unless
+Append-only JSON, one file per campaign:
+
+| file | campaign | runner |
+|---|---|---|
+| `record.json` | nominal grid, 5 variants × 45 DR-002 points | `run_ci.py --record` |
+| `record-mc.json` | Monte Carlo mismatch, 2 cells × 7 anchors × N = 100 | `run_ci.py --mc --record` |
+| `record-i106.json` | input sampling, 2 amplitudes × 45 DR-002 points | `run_sampling.py --record` |
+
+Each names the bench, the netlist sha256s (shipped cell, pre-#92 fixture,
+`ota_fd`), the PDK `SOURCES` stamp and pin, the `klt` version, the corner set or
+seed set, and the fleet job id; and each is refused unless
 
 - **every** grid point came back (45 nominal, `anchors × N` for Monte Carlo), and
-- **every** point actually produced a `dvod_mean`.
+- **every** point actually produced the campaign's sentinel measurement
+  (`dvod_mean`; `samp_s4` for the sampling record), and
+- *(sampling record only)* **every** window-occupancy divisor is a positive
+  fraction of the stored timepoints — a window with no stored point in it makes
+  each plate reading a 0/0 rather than a measurement, which the sentinel gate
+  alone cannot catch.
 
 A fleet job that dies still returns one entry per point, so the count gate alone
 would turn an empty grid into a "record"; the second gate is what separates
@@ -428,10 +589,16 @@ fixture tests.
   phi2 falls). The cause is the `Sin` switch near `vcm`: at 1.62 V its NMOS half
   is off and its PMOS half has ~0.1 V of overdrive. At `tt`/27 °C/1.80 V the same
   sampling is exact to six digits, so this is corner-specific and not a property
-  of the bench. It is **not** charge injection, it is out of scope for this
-  issue, and it is filed as **#106** — a per-corner `ci_gain_error_bound` from
-  the slow/cold corners is dominated by it and must not be read as a gain error
-  of the charge-transfer path.
+  of the bench. It is **not** charge injection: a per-corner
+  `ci_gain_error_bound` from the slow/cold corners is dominated by it and must
+  not be read as a gain error of the charge-transfer path. It is now extracted
+  over the full grid at two input amplitudes in `record-i106.json` (issue #106,
+  see "Input sampling completeness" above), with the switch mechanism in
+  `sim/switch-probe/probe-i106.json`. `record.json` itself is unchanged by that
+  extraction, and neither record bounds the sampling error against a spec row —
+  none exists. **Whether to change the cell, lengthen `phi1`, or accept and bound
+  the error is #129**, filed from those numbers; issue #106 deliberately did not
+  decide it.
 - **Clocks are behavioural**, rail-to-rail with 200 ps edges and ≥ 4.7 ns
   non-overlap from `PULSE` shape sources. There is no non-overlap generator, so
   clock feedthrough from real `clkgen` skew — including a `Sti`/`Str` half left
