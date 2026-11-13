@@ -62,9 +62,17 @@ corner in the cited record, or the only one it has.
   #107 removed the factor. The parameters are unchanged (same `params_sha256`
   `f8b2fa44...`) — only the estimator moved. Margin to the 80 dB target of
   row 2 is correspondingly 3.02 dB smaller than previously recorded wherever B
-  is cited. The corrected figure sits 8.03 dB below the spec §5.1 ideal
-  quantization-noise ceiling of 94.2 dB; that gap is unexplained and tracked in
-  #108.
+  is cited. The corrected figure sits 8.08 dB below the spec §5.1 ideal
+  quantization-noise ceiling **as that section read before
+  [DR-007](../spec/decisions/DR-007-single-bit-ideal-ceiling.md)** (94.2 dB at
+  -6 dBFS). DR-007 attributes that gap and corrects the section: 6.02 dB of it
+  was the formula's full-scale convention for a single-bit quantizer, 3.20 dB
+  is the real single-bit loop against the corrected bound, and the sinc^3
+  decimator gives 1.15 dB back. The corrected ceiling at this operating point
+  is 88.2 dB, so 86.17 dB sits 2.1 dB below it and the margin to the 80 dB
+  target of row 2 is about 6 dB. The decomposition is recorded under
+  `sim/bmodel/records/` by `sim/bmodel/ceiling_gap.py` (source B, simulated,
+  issue #108).
 - **Rows 5, 12 (T).** `sim/ota-settling/record-i51-rcm2M-cff100f.json`: ngspice,
   `design/ota/ota_fd`, DR-002 full grid (45 corners), 45 of 45 pass
   `err_phase <= 1e-4`, worst 6.84e-05 at sf/1.620V/125C. The bench uses ideal

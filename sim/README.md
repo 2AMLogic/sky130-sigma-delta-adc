@@ -6,6 +6,15 @@ PDK and tool pins (`pdk.json`, `toolchain.json`) and the analog smoke fixture in
 `bmodel/` is the behavioural modulator model B (DR-001): `python3 -I sim/bmodel/run.py --params sim/bmodel/ideal.json`
 writes an append-only SNDR record to `bmodel/records/`; unit tests: `python3 -I -m unittest discover -s sim/bmodel -p 'test_*.py'` (needs `bmodel/requirements.txt`).
 
+`bmodel/ceiling_gap.py` is the bench behind
+[DR-007](../spec/decisions/DR-007-single-bit-ideal-ceiling.md): one bitstream at
+the row-11 operating point read three ways (committed sinc^3 path, brick-wall
+FFT at the modulator rate, corrected closed-form spec §5.1 bound), splitting the
+gap between the §5.1 ceiling and model B into named terms.
+`python3 -I sim/bmodel/ceiling_gap.py --params sim/bmodel/ideal.json` appends one
+record to `bmodel/records/`; add `--no-record` to print the decomposition
+without writing one.
+
 `integrator-ci/` is the integrator charge-injection extraction (issue #102,
 DR-001 item 2): the cell is clocked for six complete phi1/phi2 cycles with the
 input and the reference branch held at `vcm`, so the per-clock change in the

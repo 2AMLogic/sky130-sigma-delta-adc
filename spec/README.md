@@ -20,6 +20,9 @@ delta-sigma ADC.
     bias boundary
   - [DR-006](decisions/DR-006-decimation-stopband-reading.md) — decimation
     stopband (row 9) graded in the alias bands, with a gap floor
+  - [DR-007](decisions/DR-007-single-bit-ideal-ceiling.md) — §5.1 ideal
+    quantization-noise ceiling corrected for the single-bit full-scale
+    convention, with the measured split of the gap to behavioural model B
 
 Pinned sibling references live in [`../reuse.lock.json`](../reuse.lock.json).
 

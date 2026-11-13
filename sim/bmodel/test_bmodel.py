@@ -12,6 +12,7 @@ import unittest
 
 import numpy as np
 
+import ceiling_gap
 import model
 import run
 import sndr
@@ -84,41 +85,132 @@ class KnownSnrEstimator(unittest.TestCase):
 
 
 class IdealVsFormula(unittest.TestCase):
-    """The ideal model reads ~8 dB BELOW the spec section 5.1 ceiling.
+    """The ideal model's SNDR against the *corrected* section 5.1 ceiling.
 
-    Section 5.1 derives 94.2 dB at -6 dBFS for L = 2, N = 1, OSR = 128 assuming
-    an unscaled (1-z^-1)^2 NTF and brick-wall decimation. The model runs
-    Boser-Wooley 0.5/0.5 coefficients through a sinc^3 decimator with no droop
-    compensation or FIR, and measures 86.26 dB (N = 2^13) -- a deficit of
-    7.98 dB.
+    Issue #108 / DR-007. Section 5.1 used to write the quantizer term as
+    `6.02*N + 1.76`, which assumes a full-scale sine half a step beyond the
+    outermost quantizer level. For a single-bit quantizer whose feedback is
+    +/-1 that is 6.02 dB too high, and the section reported 94.2 dB at
+    -6 dBFS where the level-count form gives 88.2 dB. The remaining gap to
+    ideal model B is measured and split by `ceiling_gap.py`:
 
-    That deficit is real, unexplained, and NOT closed here: issue #108 owns it.
-    Until it is explained this test pins the measured relationship instead of
-    asserting agreement, so a move in either direction fails. Before issue #107
-    the same assertion read "within 6 dB" and passed only because the estimator
-    was 3.02 dB optimistic; widening the tolerance again would hide #108 rather
-    than resolve it.
+        spec 5.1 as written       94.25 dB  (closed form, superseded)
+        level-count corrected     88.23 dB  (closed form)
+        brick-wall bitstream      85.02 dB  (measured)  -> single-bit loop
+        committed sinc^3 path     86.17 dB  (measured)  -> decimator, +ve
+
+    So the deficit is NOT the decimator and NOT the Boser-Wooley coefficients
+    as such -- the sinc^3 path reads *higher* than a brick wall, because its
+    passband droop attenuates more shaped noise than its finite stopband
+    aliases back in. These tests assert that explained relationship. Widening
+    a tolerance here hides a regression; the figures are pinned to the
+    committed record, not chosen.
     """
 
-    DEFICIT_DB = 7.98   # measured, N = 2^13, -6 dBFS, fixed estimator (issue #107)
-    TOL_DB = 0.5
+    # Committed decomposition record, N = 2^16 (ceiling_gap.py). The tests
+    # below run at N = 2^13 for speed.
+    CORRECTED_BOUND_DB = 88.23
+    BRICK_WALL_DB = 85.02
+    SINC3_DB = 86.17
+    TERMS_DB = {"formula_full_scale_convention": 6.02,
+                "single_bit_loop": 3.21,
+                "sinc3_decimator": -1.15}
 
-    def test_section_5_1_bound_is_94_2_db(self):
-        bound = 7.78 - 12.90 + 50 * np.log10(OSR) - 6  # spec 5.1, computed at -6 dBFS
-        self.assertAlmostEqual(bound, 94.2, delta=0.1)
+    # Tolerance against those N = 2^16 figures. The spread of the measured
+    # terms between N = 2^13 and N = 2^16 is 0.09 dB (decimator) and 0.01 dB
+    # (single-bit loop); 0.2 dB covers it with margin and is the same figure
+    # the record's own record-length check uses. Not chosen to pass.
+    TOL_DB = 0.2
 
-    def test_deficit_to_section_5_1_is_as_recorded(self):
-        amp = -6
-        bound = 7.78 - 12.90 + 50 * np.log10(OSR) + amp  # spec 5.1, computed
-        measured = sndr_at(ideal(), amp)
+    def test_quantizer_term_convention_costs_6_02_db_at_one_bit(self):
+        """The correction is exactly 20*log10(2^N/(2^N - 1)), and only bites at N = 1."""
+        as_written = ceiling_gap.quantizer_term_db(1, level_count=False)
+        corrected = ceiling_gap.quantizer_term_db(1, level_count=True)
+        self.assertAlmostEqual(as_written, 7.78, delta=0.01)   # 6.02*1 + 1.76
+        self.assertAlmostEqual(corrected, 1.76, delta=0.01)    # 10*log10(1.5)
+        self.assertAlmostEqual(as_written - corrected, 6.02, delta=0.01)
+        for n_bits in (13, 16):
+            self.assertAlmostEqual(
+                ceiling_gap.quantizer_term_db(n_bits, level_count=False),
+                ceiling_gap.quantizer_term_db(n_bits, level_count=True), delta=0.002,
+                msg=f"at N = {n_bits} the two conventions must agree: spec 5.5 is unaffected")
+
+    def test_corrected_section_5_1_table(self):
+        """Spec 5.1 as corrected: 79.2 / 94.2 / 109.3 dB full scale, 88.2 dB at -6 dBFS."""
+        for osr, full_scale in ((64, 79.2), (128, 94.2), (256, 109.3)):
+            self.assertAlmostEqual(ceiling_gap.bound_db(0, osr=osr), full_scale, delta=0.05)
+        self.assertAlmostEqual(ceiling_gap.bound_db(-6, osr=OSR),
+                               self.CORRECTED_BOUND_DB, delta=0.01)
+        # The superseded form, kept only to pin the size of the correction:
+        # 94.2 dB is now the FULL-SCALE ceiling, not the -6 dBFS one.
+        self.assertAlmostEqual(ceiling_gap.bound_db(-6, osr=OSR, level_count=False),
+                               94.25, delta=0.01)
+
+    def test_closed_form_is_not_the_small_angle_approximation(self):
+        """Rules out the formula's small-angle noise integral as a contributor."""
+        self.assertAlmostEqual(ceiling_gap.exact_ntf_bound_db(-6, osr=OSR),
+                               ceiling_gap.bound_db(-6, osr=OSR), delta=0.01)
+
+    def test_ideal_b_sits_below_the_corrected_bound_by_the_explained_terms(self):
+        """The model's own figure, against the corrected bound, is fully accounted for."""
+        measured = sndr_at(ideal(), -6)
+        bound = ceiling_gap.bound_db(-6, osr=OSR)
         self.assertLess(measured, bound,
-                        "the ideal model is not expected to beat the section 5.1 ceiling")
+                        "the ideal model is not expected to beat the corrected ceiling")
+        explained = self.TERMS_DB["single_bit_loop"] + self.TERMS_DB["sinc3_decimator"]
         self.assertAlmostEqual(
-            bound - measured, self.DEFICIT_DB, delta=self.TOL_DB,
-            msg=(f"ideal B reads {measured:.2f} dB against the section 5.1 bound of "
-                 f"{bound:.2f} dB: deficit {bound - measured:.2f} dB, recorded as "
-                 f"{self.DEFICIT_DB} dB. A change here is either progress on issue #108 "
-                 f"(update DEFICIT_DB and #108) or a regression -- do not widen TOL_DB."))
+            bound - measured, explained, delta=self.TOL_DB,
+            msg=(f"ideal B reads {measured:.2f} dB against the corrected section 5.1 "
+                 f"bound of {bound:.2f} dB: {bound - measured:.2f} dB, explained as "
+                 f"{explained:.2f} dB (single-bit loop {self.TERMS_DB['single_bit_loop']} dB "
+                 f"+ sinc^3 decimator {self.TERMS_DB['sinc3_decimator']} dB) by DR-007. "
+                 f"A change here is either new work on the decomposition -- rerun "
+                 f"ceiling_gap.py, commit the record, update these constants and "
+                 f"DR-007 -- or a regression. Do not widen TOL_DB."))
+
+    def test_decomposition_terms_reproduce(self):
+        """Each of DR-007's three terms, re-measured, against the committed record."""
+        d = ceiling_gap.decompose(ideal(), N)
+        self.assertAlmostEqual(d["paths"]["brick_wall"]["sndr_db"],
+                               self.BRICK_WALL_DB, delta=self.TOL_DB)
+        self.assertAlmostEqual(d["paths"]["sinc3"]["sndr_db"],
+                               self.SINC3_DB, delta=self.TOL_DB)
+        for name, expect in self.TERMS_DB.items():
+            self.assertAlmostEqual(d["terms_db"][name], expect, delta=self.TOL_DB, msg=name)
+        self.assertAlmostEqual(d["closure_db"], 0.0, delta=1e-9,
+                               msg="the three terms are successive differences; "
+                                   "closure is algebraic and must be exact")
+        self.assertGreater(d["terms_db"]["sinc3_decimator"] * -1, 0.0,
+                           "the sinc^3 path must read HIGHER than a brick wall: its "
+                           "droop beats its aliasing (DR-007). A sign change here "
+                           "revives the hypothesis #108 refuted.")
+
+    def test_sinc3_path_is_exactly_run_pys_committed_path(self):
+        """The decomposition must explain the *committed* figure, not a variant.
+
+        `ceiling_gap.sinc3_path` inlines `run.run_point` so it can reuse the one
+        bitstream for both readings; if the two ever diverge, the decomposition
+        stops being about the number `run.py` records.
+        """
+        cycles = sndr.odd_cycles(N)
+        y, _u, _skip, _n_clk = ceiling_gap.bitstream(ideal(), -6, N, cycles)
+        self.assertEqual(ceiling_gap.sinc3_path(y, N, cycles)[0],
+                         run.run_point(ideal(), -6, N, cycles)[0])
+
+    def test_sinc3_figure_is_predicted_by_folding_the_full_rate_spectrum(self):
+        """Independent cross-check: the decimator's own response explains its figure."""
+        d = ceiling_gap.decompose(ideal(), N)
+        self.assertAlmostEqual(d["cross_checks"]["sinc3_prediction_error_db"], 0.0,
+                               delta=self.TOL_DB,
+                               msg="folding the full-rate spectrum through the sinc^3 "
+                                   "response must reproduce the measured sinc^3 figure")
+
+    def test_effective_quantizer_gain_is_not_the_unscaled_ntf_value(self):
+        """Why the single-bit term exists at all (indicative, per DR-007)."""
+        eq = ceiling_gap.decompose(ideal(), N)["cross_checks"]["effective_quantizer"]
+        self.assertAlmostEqual(eq["gain"], 2.51, delta=0.05)
+        self.assertAlmostEqual(eq["gain_for_unscaled_ntf"], 4.0, delta=1e-12)
+        self.assertAlmostEqual(eq["err_var"], 0.306, delta=0.005)
 
 
 class Monotone(unittest.TestCase):
