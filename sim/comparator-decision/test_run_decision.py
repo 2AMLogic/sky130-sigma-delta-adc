@@ -367,6 +367,24 @@ class RunnerCase(unittest.TestCase):
         self.assertIn("v_trip_up", out)
         self.assertFalse((self.here / "record.json").exists())
 
+    def test_a_lost_shard_result_is_reported_but_never_cached(self):
+        # A fleet shard that never gets capacity comes back as one valueless
+        # `error` entry per corner, so the grid is complete but empty there.
+        # That is a legitimate thing to re-run and an illegitimate thing to
+        # cache: a later invocation that did not ask for this variant would
+        # otherwise reuse it and keep refusing for a reason it cannot see.
+        loop = grid(loop_corner)
+        for cid in list(loop)[:8]:
+            loop[cid] = {"status": "error", "diagnostics": ["lost_shard"],
+                         **{k: None for k in RUNNER.keys_for("loop")}}
+        rc, out = self.run_main({"loop": loop, "trip": grid(trip_corner)},
+                                ["--record"], status="error")
+        self.assertEqual(rc, 1)
+        self.assertIn("lost_shard", out)
+        self.assertFalse((self.here / ".partials/loop.json").exists())
+        self.assertTrue((self.here / ".partials/trip.json").exists())
+        self.assertFalse((self.here / "record.json").exists())
+
     def test_a_failed_submit_is_never_served_from_partials(self):
         # Pin the sibling benches' rule (#94): a variant asked for in THIS
         # invocation whose submit fails is a refusal, not a reused partial.

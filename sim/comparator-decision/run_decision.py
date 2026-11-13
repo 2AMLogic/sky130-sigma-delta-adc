@@ -25,8 +25,8 @@ import tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import (grid_complete, measurements_present,  # noqa: E402
-                             pdk_stamp, run_klt, sha256)
+from settling_common import (CAPACITY_WAIT_S, grid_complete,  # noqa: E402
+                             measurements_present, pdk_stamp, run_klt, sha256)
 sys.path.insert(0, str(HERE))
 import make_request as MR  # noqa: E402
 
@@ -250,6 +250,19 @@ def load_partial(v):
     return d
 
 
+def usable(v, corners):
+    """True if this variant's corners could stand in a record on their own.
+
+    A fleet run can come back with every grid point present but some of them
+    `error` -- a shard that never got Spot capacity returns one valueless
+    entry per corner (`lost_shard`). Such a result is a legitimate thing to
+    report and a legitimate thing to re-run, but it is NOT a thing to cache:
+    a partial saved from it would be silently reused by a later invocation
+    that did not ask for this variant.
+    """
+    return grid_complete([corners]) and measurements_present([corners], key=ADMIT_KEY[v])
+
+
 def save_partial(v, result):
     PARTIALS.mkdir(exist_ok=True)
     (PARTIALS / f"{v}.json").write_text(json.dumps(result, indent=2) + "\n")
@@ -273,6 +286,10 @@ def main():
     ap.add_argument("--record", action="store_true",
                     help="write record.json (refuses to overwrite: records are append-only)")
     ap.add_argument("--record-name", default="record.json")
+    ap.add_argument("--capacity-wait-s", type=int, default=CAPACITY_WAIT_S,
+                    help="seconds a refused batch launch waits for fleet capacity "
+                         f"before the shard is lost (default {CAPACITY_WAIT_S}, the "
+                         "host rule's floor; raise it when the fleet is saturated)")
     a = ap.parse_args()
 
     pin = json.load(open(REPO / "sim/pdk.json"))
@@ -299,7 +316,7 @@ def main():
         res = run_klt(HERE / f"request_{v}.json", bool(a.probe), tmp, v,
                       HERE / f"probe_request_{v}.json",
                       artifacts_dir=None if a.probe else ARTIFACTS,
-                      keys=keys_for(v))
+                      keys=keys_for(v), capacity_wait_s=a.capacity_wait_s)
         if res is None:
             print(f"{v}: no usable report (see .artifacts/klt-{v}.stderr.txt); "
                   "not falling back to a local grid or to .partials/", file=sys.stderr)
@@ -314,7 +331,11 @@ def main():
                       "engine_host": e.get("engine_host"), "remote": e.get("remote"),
                       **shas(v)}
         if not a.probe:
-            save_partial(v, results[v])
+            if usable(v, corners):
+                save_partial(v, results[v])
+            else:
+                print(f"{v}: not cached in .partials/ -- this result cannot stand "
+                      "in a record on its own; re-run this variant", file=sys.stderr)
 
     if a.probe:
         if a.probe not in results:
@@ -327,12 +348,8 @@ def main():
         print(f"REFUSE: no result for {', '.join(missing)}; no record written. "
               f"Re-run with --variant {missing[0]} when the fleet has capacity.", file=sys.stderr)
         return 1
-    corner_sets = [results[v]["corners"] for v in VARIANTS]
-    if not grid_complete(corner_sets):
+    if not all(usable(v, results[v]["corners"]) for v in VARIANTS):
         return 1
-    for v in VARIANTS:
-        if not measurements_present([results[v]["corners"]], key=ADMIT_KEY[v]):
-            return 1
     if not a.record:
         print("both variants complete; re-run with --record to write the record")
         return 0
