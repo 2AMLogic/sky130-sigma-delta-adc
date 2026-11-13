@@ -1,0 +1,583 @@
+{
+  "netlist": "comparator_decision_loop.cir",
+  "engine": "ngspice",
+  "backend": "batch",
+  "models": {
+    "pdk": "sky130A",
+    "lib": "libs.tech/ngspice/sky130.lib.spice"
+  },
+  "corners": {
+    "process": [
+      "tt",
+      "ss",
+      "ff",
+      "sf",
+      "fs"
+    ],
+    "supply_v": {
+      "vdda": [
+        1.62,
+        1.8,
+        1.98
+      ]
+    },
+    "temperature_c": [
+      -40,
+      27,
+      125
+    ]
+  },
+  "analysis": {
+    "kind": "tran",
+    "args": "0.05n 3.0697875e-06 0 5n"
+  },
+  "measurements": [
+    {
+      "name": "tphi1_4",
+      "expr": "vecmin(time*(((time ge 7.8935e-07)*(time le 9.0135e-07))*(v(xmod.phi1) ge 0.5*v(vdda))) + 9.0135e-07*(1-(((time ge 7.8935e-07)*(time le 9.0135e-07))*(v(xmod.phi1) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "vod_4",
+      "expr": "mean((v(o2d))*((time ge 8.4135e-07)*(time le 8.7135e-07)))/mean((time ge 8.4135e-07)*(time le 8.7135e-07))",
+      "unit": "V"
+    },
+    {
+      "name": "sgn_4",
+      "expr": "2*(vod_4 ge 0) - 1"
+    },
+    {
+      "name": "ddpre_4",
+      "expr": "mean((v(dd))*((time ge 7.7935e-07)*(time le 7.8835e-07)))/mean((time ge 7.7935e-07)*(time le 7.8835e-07))",
+      "unit": "V"
+    },
+    {
+      "name": "flip_4",
+      "expr": "(ddpre_4*sgn_4 lt 0)"
+    },
+    {
+      "name": "tdec_4",
+      "expr": "vecmin(time*(((time ge 7.8935e-07)*(time le 9.0135e-07))*(v(dd)*sgn_4 ge 0.5*v(vdda))) + 9.0135e-07*(1-(((time ge 7.8935e-07)*(time le 9.0135e-07))*(v(dd)*sgn_4 ge 0.5*v(vdda))))) - tphi1_4",
+      "unit": "s"
+    },
+    {
+      "name": "tcmp_4",
+      "expr": "vecmin(time*(((time ge 7.8935e-07)*(time le 9.0135e-07))*(v(cmpd)*sgn_4 ge 0.5*v(vdda))) + 9.0135e-07*(1-(((time ge 7.8935e-07)*(time le 9.0135e-07))*(v(cmpd)*sgn_4 ge 0.5*v(vdda))))) - tphi1_4",
+      "unit": "s"
+    },
+    {
+      "name": "tq_4",
+      "expr": "vecmin(time*(((time ge 7.8935e-07)*(time le 9.0135e-07))*(v(qd)*sgn_4 ge 0.5*v(vdda))) + 9.0135e-07*(1-(((time ge 7.8935e-07)*(time le 9.0135e-07))*(v(qd)*sgn_4 ge 0.5*v(vdda))))) - tphi1_4",
+      "unit": "s"
+    },
+    {
+      "name": "tphi1_5",
+      "expr": "vecmin(time*(((time ge 9.846625e-07)*(time le 1.0966625e-06))*(v(xmod.phi1) ge 0.5*v(vdda))) + 1.0966625e-06*(1-(((time ge 9.846625e-07)*(time le 1.0966625e-06))*(v(xmod.phi1) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "vod_5",
+      "expr": "mean((v(o2d))*((time ge 1.0366625e-06)*(time le 1.0666625e-06)))/mean((time ge 1.0366625e-06)*(time le 1.0666625e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "sgn_5",
+      "expr": "2*(vod_5 ge 0) - 1"
+    },
+    {
+      "name": "ddpre_5",
+      "expr": "mean((v(dd))*((time ge 9.746625e-07)*(time le 9.836625e-07)))/mean((time ge 9.746625e-07)*(time le 9.836625e-07))",
+      "unit": "V"
+    },
+    {
+      "name": "flip_5",
+      "expr": "(ddpre_5*sgn_5 lt 0)"
+    },
+    {
+      "name": "tdec_5",
+      "expr": "vecmin(time*(((time ge 9.846625e-07)*(time le 1.0966625e-06))*(v(dd)*sgn_5 ge 0.5*v(vdda))) + 1.0966625e-06*(1-(((time ge 9.846625e-07)*(time le 1.0966625e-06))*(v(dd)*sgn_5 ge 0.5*v(vdda))))) - tphi1_5",
+      "unit": "s"
+    },
+    {
+      "name": "tcmp_5",
+      "expr": "vecmin(time*(((time ge 9.846625e-07)*(time le 1.0966625e-06))*(v(cmpd)*sgn_5 ge 0.5*v(vdda))) + 1.0966625e-06*(1-(((time ge 9.846625e-07)*(time le 1.0966625e-06))*(v(cmpd)*sgn_5 ge 0.5*v(vdda))))) - tphi1_5",
+      "unit": "s"
+    },
+    {
+      "name": "tq_5",
+      "expr": "vecmin(time*(((time ge 9.846625e-07)*(time le 1.0966625e-06))*(v(qd)*sgn_5 ge 0.5*v(vdda))) + 1.0966625e-06*(1-(((time ge 9.846625e-07)*(time le 1.0966625e-06))*(v(qd)*sgn_5 ge 0.5*v(vdda))))) - tphi1_5",
+      "unit": "s"
+    },
+    {
+      "name": "tphi1_6",
+      "expr": "vecmin(time*(((time ge 1.179975e-06)*(time le 1.291975e-06))*(v(xmod.phi1) ge 0.5*v(vdda))) + 1.291975e-06*(1-(((time ge 1.179975e-06)*(time le 1.291975e-06))*(v(xmod.phi1) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "vod_6",
+      "expr": "mean((v(o2d))*((time ge 1.231975e-06)*(time le 1.261975e-06)))/mean((time ge 1.231975e-06)*(time le 1.261975e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "sgn_6",
+      "expr": "2*(vod_6 ge 0) - 1"
+    },
+    {
+      "name": "ddpre_6",
+      "expr": "mean((v(dd))*((time ge 1.169975e-06)*(time le 1.178975e-06)))/mean((time ge 1.169975e-06)*(time le 1.178975e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "flip_6",
+      "expr": "(ddpre_6*sgn_6 lt 0)"
+    },
+    {
+      "name": "tdec_6",
+      "expr": "vecmin(time*(((time ge 1.179975e-06)*(time le 1.291975e-06))*(v(dd)*sgn_6 ge 0.5*v(vdda))) + 1.291975e-06*(1-(((time ge 1.179975e-06)*(time le 1.291975e-06))*(v(dd)*sgn_6 ge 0.5*v(vdda))))) - tphi1_6",
+      "unit": "s"
+    },
+    {
+      "name": "tcmp_6",
+      "expr": "vecmin(time*(((time ge 1.179975e-06)*(time le 1.291975e-06))*(v(cmpd)*sgn_6 ge 0.5*v(vdda))) + 1.291975e-06*(1-(((time ge 1.179975e-06)*(time le 1.291975e-06))*(v(cmpd)*sgn_6 ge 0.5*v(vdda))))) - tphi1_6",
+      "unit": "s"
+    },
+    {
+      "name": "tq_6",
+      "expr": "vecmin(time*(((time ge 1.179975e-06)*(time le 1.291975e-06))*(v(qd)*sgn_6 ge 0.5*v(vdda))) + 1.291975e-06*(1-(((time ge 1.179975e-06)*(time le 1.291975e-06))*(v(qd)*sgn_6 ge 0.5*v(vdda))))) - tphi1_6",
+      "unit": "s"
+    },
+    {
+      "name": "tphi1_7",
+      "expr": "vecmin(time*(((time ge 1.3752875e-06)*(time le 1.4872875e-06))*(v(xmod.phi1) ge 0.5*v(vdda))) + 1.4872875e-06*(1-(((time ge 1.3752875e-06)*(time le 1.4872875e-06))*(v(xmod.phi1) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "vod_7",
+      "expr": "mean((v(o2d))*((time ge 1.4272875e-06)*(time le 1.4572875e-06)))/mean((time ge 1.4272875e-06)*(time le 1.4572875e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "sgn_7",
+      "expr": "2*(vod_7 ge 0) - 1"
+    },
+    {
+      "name": "ddpre_7",
+      "expr": "mean((v(dd))*((time ge 1.3652875e-06)*(time le 1.3742875e-06)))/mean((time ge 1.3652875e-06)*(time le 1.3742875e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "flip_7",
+      "expr": "(ddpre_7*sgn_7 lt 0)"
+    },
+    {
+      "name": "tdec_7",
+      "expr": "vecmin(time*(((time ge 1.3752875e-06)*(time le 1.4872875e-06))*(v(dd)*sgn_7 ge 0.5*v(vdda))) + 1.4872875e-06*(1-(((time ge 1.3752875e-06)*(time le 1.4872875e-06))*(v(dd)*sgn_7 ge 0.5*v(vdda))))) - tphi1_7",
+      "unit": "s"
+    },
+    {
+      "name": "tcmp_7",
+      "expr": "vecmin(time*(((time ge 1.3752875e-06)*(time le 1.4872875e-06))*(v(cmpd)*sgn_7 ge 0.5*v(vdda))) + 1.4872875e-06*(1-(((time ge 1.3752875e-06)*(time le 1.4872875e-06))*(v(cmpd)*sgn_7 ge 0.5*v(vdda))))) - tphi1_7",
+      "unit": "s"
+    },
+    {
+      "name": "tq_7",
+      "expr": "vecmin(time*(((time ge 1.3752875e-06)*(time le 1.4872875e-06))*(v(qd)*sgn_7 ge 0.5*v(vdda))) + 1.4872875e-06*(1-(((time ge 1.3752875e-06)*(time le 1.4872875e-06))*(v(qd)*sgn_7 ge 0.5*v(vdda))))) - tphi1_7",
+      "unit": "s"
+    },
+    {
+      "name": "tphi1_8",
+      "expr": "vecmin(time*(((time ge 1.5706e-06)*(time le 1.6826e-06))*(v(xmod.phi1) ge 0.5*v(vdda))) + 1.6826e-06*(1-(((time ge 1.5706e-06)*(time le 1.6826e-06))*(v(xmod.phi1) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "vod_8",
+      "expr": "mean((v(o2d))*((time ge 1.6226e-06)*(time le 1.6526e-06)))/mean((time ge 1.6226e-06)*(time le 1.6526e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "sgn_8",
+      "expr": "2*(vod_8 ge 0) - 1"
+    },
+    {
+      "name": "ddpre_8",
+      "expr": "mean((v(dd))*((time ge 1.5606e-06)*(time le 1.5696e-06)))/mean((time ge 1.5606e-06)*(time le 1.5696e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "flip_8",
+      "expr": "(ddpre_8*sgn_8 lt 0)"
+    },
+    {
+      "name": "tdec_8",
+      "expr": "vecmin(time*(((time ge 1.5706e-06)*(time le 1.6826e-06))*(v(dd)*sgn_8 ge 0.5*v(vdda))) + 1.6826e-06*(1-(((time ge 1.5706e-06)*(time le 1.6826e-06))*(v(dd)*sgn_8 ge 0.5*v(vdda))))) - tphi1_8",
+      "unit": "s"
+    },
+    {
+      "name": "tcmp_8",
+      "expr": "vecmin(time*(((time ge 1.5706e-06)*(time le 1.6826e-06))*(v(cmpd)*sgn_8 ge 0.5*v(vdda))) + 1.6826e-06*(1-(((time ge 1.5706e-06)*(time le 1.6826e-06))*(v(cmpd)*sgn_8 ge 0.5*v(vdda))))) - tphi1_8",
+      "unit": "s"
+    },
+    {
+      "name": "tq_8",
+      "expr": "vecmin(time*(((time ge 1.5706e-06)*(time le 1.6826e-06))*(v(qd)*sgn_8 ge 0.5*v(vdda))) + 1.6826e-06*(1-(((time ge 1.5706e-06)*(time le 1.6826e-06))*(v(qd)*sgn_8 ge 0.5*v(vdda))))) - tphi1_8",
+      "unit": "s"
+    },
+    {
+      "name": "tphi1_9",
+      "expr": "vecmin(time*(((time ge 1.7659125e-06)*(time le 1.8779125e-06))*(v(xmod.phi1) ge 0.5*v(vdda))) + 1.8779125e-06*(1-(((time ge 1.7659125e-06)*(time le 1.8779125e-06))*(v(xmod.phi1) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "vod_9",
+      "expr": "mean((v(o2d))*((time ge 1.8179125e-06)*(time le 1.8479125e-06)))/mean((time ge 1.8179125e-06)*(time le 1.8479125e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "sgn_9",
+      "expr": "2*(vod_9 ge 0) - 1"
+    },
+    {
+      "name": "ddpre_9",
+      "expr": "mean((v(dd))*((time ge 1.7559125e-06)*(time le 1.7649125e-06)))/mean((time ge 1.7559125e-06)*(time le 1.7649125e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "flip_9",
+      "expr": "(ddpre_9*sgn_9 lt 0)"
+    },
+    {
+      "name": "tdec_9",
+      "expr": "vecmin(time*(((time ge 1.7659125e-06)*(time le 1.8779125e-06))*(v(dd)*sgn_9 ge 0.5*v(vdda))) + 1.8779125e-06*(1-(((time ge 1.7659125e-06)*(time le 1.8779125e-06))*(v(dd)*sgn_9 ge 0.5*v(vdda))))) - tphi1_9",
+      "unit": "s"
+    },
+    {
+      "name": "tcmp_9",
+      "expr": "vecmin(time*(((time ge 1.7659125e-06)*(time le 1.8779125e-06))*(v(cmpd)*sgn_9 ge 0.5*v(vdda))) + 1.8779125e-06*(1-(((time ge 1.7659125e-06)*(time le 1.8779125e-06))*(v(cmpd)*sgn_9 ge 0.5*v(vdda))))) - tphi1_9",
+      "unit": "s"
+    },
+    {
+      "name": "tq_9",
+      "expr": "vecmin(time*(((time ge 1.7659125e-06)*(time le 1.8779125e-06))*(v(qd)*sgn_9 ge 0.5*v(vdda))) + 1.8779125e-06*(1-(((time ge 1.7659125e-06)*(time le 1.8779125e-06))*(v(qd)*sgn_9 ge 0.5*v(vdda))))) - tphi1_9",
+      "unit": "s"
+    },
+    {
+      "name": "tphi1_10",
+      "expr": "vecmin(time*(((time ge 1.961225e-06)*(time le 2.073225e-06))*(v(xmod.phi1) ge 0.5*v(vdda))) + 2.073225e-06*(1-(((time ge 1.961225e-06)*(time le 2.073225e-06))*(v(xmod.phi1) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "vod_10",
+      "expr": "mean((v(o2d))*((time ge 2.013225e-06)*(time le 2.043225e-06)))/mean((time ge 2.013225e-06)*(time le 2.043225e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "sgn_10",
+      "expr": "2*(vod_10 ge 0) - 1"
+    },
+    {
+      "name": "ddpre_10",
+      "expr": "mean((v(dd))*((time ge 1.951225e-06)*(time le 1.960225e-06)))/mean((time ge 1.951225e-06)*(time le 1.960225e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "flip_10",
+      "expr": "(ddpre_10*sgn_10 lt 0)"
+    },
+    {
+      "name": "tdec_10",
+      "expr": "vecmin(time*(((time ge 1.961225e-06)*(time le 2.073225e-06))*(v(dd)*sgn_10 ge 0.5*v(vdda))) + 2.073225e-06*(1-(((time ge 1.961225e-06)*(time le 2.073225e-06))*(v(dd)*sgn_10 ge 0.5*v(vdda))))) - tphi1_10",
+      "unit": "s"
+    },
+    {
+      "name": "tcmp_10",
+      "expr": "vecmin(time*(((time ge 1.961225e-06)*(time le 2.073225e-06))*(v(cmpd)*sgn_10 ge 0.5*v(vdda))) + 2.073225e-06*(1-(((time ge 1.961225e-06)*(time le 2.073225e-06))*(v(cmpd)*sgn_10 ge 0.5*v(vdda))))) - tphi1_10",
+      "unit": "s"
+    },
+    {
+      "name": "tq_10",
+      "expr": "vecmin(time*(((time ge 1.961225e-06)*(time le 2.073225e-06))*(v(qd)*sgn_10 ge 0.5*v(vdda))) + 2.073225e-06*(1-(((time ge 1.961225e-06)*(time le 2.073225e-06))*(v(qd)*sgn_10 ge 0.5*v(vdda))))) - tphi1_10",
+      "unit": "s"
+    },
+    {
+      "name": "tphi1_11",
+      "expr": "vecmin(time*(((time ge 2.1565375e-06)*(time le 2.2685375e-06))*(v(xmod.phi1) ge 0.5*v(vdda))) + 2.2685375e-06*(1-(((time ge 2.1565375e-06)*(time le 2.2685375e-06))*(v(xmod.phi1) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "vod_11",
+      "expr": "mean((v(o2d))*((time ge 2.2085375e-06)*(time le 2.2385375e-06)))/mean((time ge 2.2085375e-06)*(time le 2.2385375e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "sgn_11",
+      "expr": "2*(vod_11 ge 0) - 1"
+    },
+    {
+      "name": "ddpre_11",
+      "expr": "mean((v(dd))*((time ge 2.1465375e-06)*(time le 2.1555375e-06)))/mean((time ge 2.1465375e-06)*(time le 2.1555375e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "flip_11",
+      "expr": "(ddpre_11*sgn_11 lt 0)"
+    },
+    {
+      "name": "tdec_11",
+      "expr": "vecmin(time*(((time ge 2.1565375e-06)*(time le 2.2685375e-06))*(v(dd)*sgn_11 ge 0.5*v(vdda))) + 2.2685375e-06*(1-(((time ge 2.1565375e-06)*(time le 2.2685375e-06))*(v(dd)*sgn_11 ge 0.5*v(vdda))))) - tphi1_11",
+      "unit": "s"
+    },
+    {
+      "name": "tcmp_11",
+      "expr": "vecmin(time*(((time ge 2.1565375e-06)*(time le 2.2685375e-06))*(v(cmpd)*sgn_11 ge 0.5*v(vdda))) + 2.2685375e-06*(1-(((time ge 2.1565375e-06)*(time le 2.2685375e-06))*(v(cmpd)*sgn_11 ge 0.5*v(vdda))))) - tphi1_11",
+      "unit": "s"
+    },
+    {
+      "name": "tq_11",
+      "expr": "vecmin(time*(((time ge 2.1565375e-06)*(time le 2.2685375e-06))*(v(qd)*sgn_11 ge 0.5*v(vdda))) + 2.2685375e-06*(1-(((time ge 2.1565375e-06)*(time le 2.2685375e-06))*(v(qd)*sgn_11 ge 0.5*v(vdda))))) - tphi1_11",
+      "unit": "s"
+    },
+    {
+      "name": "tphi1_12",
+      "expr": "vecmin(time*(((time ge 2.35185e-06)*(time le 2.46385e-06))*(v(xmod.phi1) ge 0.5*v(vdda))) + 2.46385e-06*(1-(((time ge 2.35185e-06)*(time le 2.46385e-06))*(v(xmod.phi1) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "vod_12",
+      "expr": "mean((v(o2d))*((time ge 2.40385e-06)*(time le 2.43385e-06)))/mean((time ge 2.40385e-06)*(time le 2.43385e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "sgn_12",
+      "expr": "2*(vod_12 ge 0) - 1"
+    },
+    {
+      "name": "ddpre_12",
+      "expr": "mean((v(dd))*((time ge 2.34185e-06)*(time le 2.35085e-06)))/mean((time ge 2.34185e-06)*(time le 2.35085e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "flip_12",
+      "expr": "(ddpre_12*sgn_12 lt 0)"
+    },
+    {
+      "name": "tdec_12",
+      "expr": "vecmin(time*(((time ge 2.35185e-06)*(time le 2.46385e-06))*(v(dd)*sgn_12 ge 0.5*v(vdda))) + 2.46385e-06*(1-(((time ge 2.35185e-06)*(time le 2.46385e-06))*(v(dd)*sgn_12 ge 0.5*v(vdda))))) - tphi1_12",
+      "unit": "s"
+    },
+    {
+      "name": "tcmp_12",
+      "expr": "vecmin(time*(((time ge 2.35185e-06)*(time le 2.46385e-06))*(v(cmpd)*sgn_12 ge 0.5*v(vdda))) + 2.46385e-06*(1-(((time ge 2.35185e-06)*(time le 2.46385e-06))*(v(cmpd)*sgn_12 ge 0.5*v(vdda))))) - tphi1_12",
+      "unit": "s"
+    },
+    {
+      "name": "tq_12",
+      "expr": "vecmin(time*(((time ge 2.35185e-06)*(time le 2.46385e-06))*(v(qd)*sgn_12 ge 0.5*v(vdda))) + 2.46385e-06*(1-(((time ge 2.35185e-06)*(time le 2.46385e-06))*(v(qd)*sgn_12 ge 0.5*v(vdda))))) - tphi1_12",
+      "unit": "s"
+    },
+    {
+      "name": "tphi1_13",
+      "expr": "vecmin(time*(((time ge 2.5471625e-06)*(time le 2.6591625e-06))*(v(xmod.phi1) ge 0.5*v(vdda))) + 2.6591625e-06*(1-(((time ge 2.5471625e-06)*(time le 2.6591625e-06))*(v(xmod.phi1) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "vod_13",
+      "expr": "mean((v(o2d))*((time ge 2.5991625e-06)*(time le 2.6291625e-06)))/mean((time ge 2.5991625e-06)*(time le 2.6291625e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "sgn_13",
+      "expr": "2*(vod_13 ge 0) - 1"
+    },
+    {
+      "name": "ddpre_13",
+      "expr": "mean((v(dd))*((time ge 2.5371625e-06)*(time le 2.5461625e-06)))/mean((time ge 2.5371625e-06)*(time le 2.5461625e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "flip_13",
+      "expr": "(ddpre_13*sgn_13 lt 0)"
+    },
+    {
+      "name": "tdec_13",
+      "expr": "vecmin(time*(((time ge 2.5471625e-06)*(time le 2.6591625e-06))*(v(dd)*sgn_13 ge 0.5*v(vdda))) + 2.6591625e-06*(1-(((time ge 2.5471625e-06)*(time le 2.6591625e-06))*(v(dd)*sgn_13 ge 0.5*v(vdda))))) - tphi1_13",
+      "unit": "s"
+    },
+    {
+      "name": "tcmp_13",
+      "expr": "vecmin(time*(((time ge 2.5471625e-06)*(time le 2.6591625e-06))*(v(cmpd)*sgn_13 ge 0.5*v(vdda))) + 2.6591625e-06*(1-(((time ge 2.5471625e-06)*(time le 2.6591625e-06))*(v(cmpd)*sgn_13 ge 0.5*v(vdda))))) - tphi1_13",
+      "unit": "s"
+    },
+    {
+      "name": "tq_13",
+      "expr": "vecmin(time*(((time ge 2.5471625e-06)*(time le 2.6591625e-06))*(v(qd)*sgn_13 ge 0.5*v(vdda))) + 2.6591625e-06*(1-(((time ge 2.5471625e-06)*(time le 2.6591625e-06))*(v(qd)*sgn_13 ge 0.5*v(vdda))))) - tphi1_13",
+      "unit": "s"
+    },
+    {
+      "name": "kbref_o2p_6",
+      "expr": "mean((v(xmod.o2p))*((time ge 1.231975e-06)*(time le 1.261975e-06)))/mean((time ge 1.231975e-06)*(time le 1.261975e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "kb_o2p_6",
+      "expr": "vecmax(abs((v(xmod.o2p)) - kbref_o2p_6)*((time ge 1.181975e-06)*(time le 1.221975e-06)))",
+      "unit": "V"
+    },
+    {
+      "name": "kbref_o2n_6",
+      "expr": "mean((v(xmod.o2n))*((time ge 1.231975e-06)*(time le 1.261975e-06)))/mean((time ge 1.231975e-06)*(time le 1.261975e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "kb_o2n_6",
+      "expr": "vecmax(abs((v(xmod.o2n)) - kbref_o2n_6)*((time ge 1.181975e-06)*(time le 1.221975e-06)))",
+      "unit": "V"
+    },
+    {
+      "name": "kbref_o2diff_6",
+      "expr": "mean((v(o2d))*((time ge 1.231975e-06)*(time le 1.261975e-06)))/mean((time ge 1.231975e-06)*(time le 1.261975e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "kb_o2diff_6",
+      "expr": "vecmax(abs((v(o2d)) - kbref_o2diff_6)*((time ge 1.181975e-06)*(time le 1.221975e-06)))",
+      "unit": "V"
+    },
+    {
+      "name": "kbref_sump2_6",
+      "expr": "mean((v(xmod.xi2.sump))*((time ge 1.231975e-06)*(time le 1.261975e-06)))/mean((time ge 1.231975e-06)*(time le 1.261975e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "kb_sump2_6",
+      "expr": "vecmax(abs((v(xmod.xi2.sump)) - kbref_sump2_6)*((time ge 1.181975e-06)*(time le 1.221975e-06)))",
+      "unit": "V"
+    },
+    {
+      "name": "kbref_sumn2_6",
+      "expr": "mean((v(xmod.xi2.sumn))*((time ge 1.231975e-06)*(time le 1.261975e-06)))/mean((time ge 1.231975e-06)*(time le 1.261975e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "kb_sumn2_6",
+      "expr": "vecmax(abs((v(xmod.xi2.sumn)) - kbref_sumn2_6)*((time ge 1.181975e-06)*(time le 1.221975e-06)))",
+      "unit": "V"
+    },
+    {
+      "name": "kbref_sumdiff2_6",
+      "expr": "mean((v(s2d))*((time ge 1.231975e-06)*(time le 1.261975e-06)))/mean((time ge 1.231975e-06)*(time le 1.261975e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "kb_sumdiff2_6",
+      "expr": "vecmax(abs((v(s2d)) - kbref_sumdiff2_6)*((time ge 1.181975e-06)*(time le 1.221975e-06)))",
+      "unit": "V"
+    },
+    {
+      "name": "kbref_o2p_7",
+      "expr": "mean((v(xmod.o2p))*((time ge 1.4272875e-06)*(time le 1.4572875e-06)))/mean((time ge 1.4272875e-06)*(time le 1.4572875e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "kb_o2p_7",
+      "expr": "vecmax(abs((v(xmod.o2p)) - kbref_o2p_7)*((time ge 1.3772875e-06)*(time le 1.4172875e-06)))",
+      "unit": "V"
+    },
+    {
+      "name": "kbref_o2n_7",
+      "expr": "mean((v(xmod.o2n))*((time ge 1.4272875e-06)*(time le 1.4572875e-06)))/mean((time ge 1.4272875e-06)*(time le 1.4572875e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "kb_o2n_7",
+      "expr": "vecmax(abs((v(xmod.o2n)) - kbref_o2n_7)*((time ge 1.3772875e-06)*(time le 1.4172875e-06)))",
+      "unit": "V"
+    },
+    {
+      "name": "kbref_o2diff_7",
+      "expr": "mean((v(o2d))*((time ge 1.4272875e-06)*(time le 1.4572875e-06)))/mean((time ge 1.4272875e-06)*(time le 1.4572875e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "kb_o2diff_7",
+      "expr": "vecmax(abs((v(o2d)) - kbref_o2diff_7)*((time ge 1.3772875e-06)*(time le 1.4172875e-06)))",
+      "unit": "V"
+    },
+    {
+      "name": "kbref_sump2_7",
+      "expr": "mean((v(xmod.xi2.sump))*((time ge 1.4272875e-06)*(time le 1.4572875e-06)))/mean((time ge 1.4272875e-06)*(time le 1.4572875e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "kb_sump2_7",
+      "expr": "vecmax(abs((v(xmod.xi2.sump)) - kbref_sump2_7)*((time ge 1.3772875e-06)*(time le 1.4172875e-06)))",
+      "unit": "V"
+    },
+    {
+      "name": "kbref_sumn2_7",
+      "expr": "mean((v(xmod.xi2.sumn))*((time ge 1.4272875e-06)*(time le 1.4572875e-06)))/mean((time ge 1.4272875e-06)*(time le 1.4572875e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "kb_sumn2_7",
+      "expr": "vecmax(abs((v(xmod.xi2.sumn)) - kbref_sumn2_7)*((time ge 1.3772875e-06)*(time le 1.4172875e-06)))",
+      "unit": "V"
+    },
+    {
+      "name": "kbref_sumdiff2_7",
+      "expr": "mean((v(s2d))*((time ge 1.4272875e-06)*(time le 1.4572875e-06)))/mean((time ge 1.4272875e-06)*(time le 1.4572875e-06))",
+      "unit": "V"
+    },
+    {
+      "name": "kb_sumdiff2_7",
+      "expr": "vecmax(abs((v(s2d)) - kbref_sumdiff2_7)*((time ge 1.3772875e-06)*(time le 1.4172875e-06)))",
+      "unit": "V"
+    },
+    {
+      "name": "phi1_width",
+      "expr": "vecmax(time*(((time ge 1.5706e-06)*(time le 1.7226e-06))*(v(xmod.phi1) ge 0.5*v(vdda)))) - vecmin(time*(((time ge 1.5706e-06)*(time le 1.7226e-06))*(v(xmod.phi1) ge 0.5*v(vdda))) + 1.7226e-06*(1-(((time ge 1.5706e-06)*(time le 1.7226e-06))*(v(xmod.phi1) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "n_flip",
+      "expr": "flip_4 + flip_5 + flip_6 + flip_7 + flip_8 + flip_9 + flip_10 + flip_11 + flip_12 + flip_13",
+      "limits": {
+        "min": 2
+      }
+    },
+    {
+      "name": "tdec_worst",
+      "expr": "max(max(max(max(max(max(max(max(max(max((tdec_4*flip_4), (tdec_5*flip_5)), (tdec_6*flip_6)), (tdec_7*flip_7)), (tdec_8*flip_8)), (tdec_9*flip_9)), (tdec_10*flip_10)), (tdec_11*flip_11)), (tdec_12*flip_12)), (tdec_13*flip_13)), 0)",
+      "unit": "s"
+    },
+    {
+      "name": "tcmp_worst",
+      "expr": "max(max(max(max(max(max(max(max(max(tcmp_4, tcmp_5), tcmp_6), tcmp_7), tcmp_8), tcmp_9), tcmp_10), tcmp_11), tcmp_12), tcmp_13)",
+      "unit": "s"
+    },
+    {
+      "name": "tq_worst",
+      "expr": "max(max(max(max(max(max(max(max(max(max((tq_4*flip_4), (tq_5*flip_5)), (tq_6*flip_6)), (tq_7*flip_7)), (tq_8*flip_8)), (tq_9*flip_9)), (tq_10*flip_10)), (tq_11*flip_11)), (tq_12*flip_12)), (tq_13*flip_13)), 0)",
+      "unit": "s"
+    },
+    {
+      "name": "tdec_frac",
+      "expr": "tdec_worst/phi1_width",
+      "limits": {
+        "max": 1.0
+      }
+    }
+  ],
+  "options": {
+    "timeout_s": 3600,
+    "keep_artifacts": false,
+    "ngspice_init": [
+      "set numdgt=12",
+      "set measureprec=12"
+    ]
+  },
+  "batch": {
+    "poll_timeout_s": 21600,
+    "capacity_wait_s": 600,
+    "job_ceiling_check": "split"
+  }
+}
