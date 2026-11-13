@@ -1,6 +1,7 @@
 """Shared `klt sim` plumbing for the transistor-level benches.
 
-Used by ota-settling, integrator-settling and integrator-ci. Toolchain only:
+Used by ota-settling, integrator-settling, integrator-ci, ota-gain and
+integrator-noise. Toolchain only:
 submits a `klt sim` request, parses the report into per-corner measurements,
 summarizes it, and builds the common DR-002 request. Each bench keeps its own
 fixture, measurements and record metadata.
@@ -67,7 +68,24 @@ def anchor_units(process_map=None):
             for p, v, t in ANCHOR_POINTS]
 
 
-def request(deck, measurements, t_end, timeout_s, poll_timeout_s):
+def request(deck, measurements, t_end=None, timeout_s=None, poll_timeout_s=None, *,
+            analysis=None, options=None):
+    """The common DR-002 full-grid batch request for `deck`.
+
+    Exactly one of `t_end` (a transient, the historical form: the analysis is
+    `tran 10p <t_end> 0 0.1n`) or `analysis` (a ready-made analysis object, for
+    a bench that measures something a transient cannot reach -- the `ac` gain
+    bench and the `noise` bench of issue #126) must be given. With `t_end` the
+    result is byte-identical to the pre-#126 form, so the settling benches'
+    committed requests and their sha256 do not move.
+
+    `options` adds keys to the `options` block (e.g. `ngspice_init`);
+    `timeout_s` and `keep_artifacts` stay under this function's control.
+    """
+    if (t_end is None) == (analysis is None):
+        raise ValueError("request() takes exactly one of t_end (a transient) or analysis")
+    if timeout_s is None or poll_timeout_s is None:
+        raise ValueError("request() needs timeout_s and poll_timeout_s")
     return {
         "netlist": deck,
         "engine": "ngspice",
@@ -78,9 +96,10 @@ def request(deck, measurements, t_end, timeout_s, poll_timeout_s):
             "supply_v": {"vdda": [1.62, 1.80, 1.98]},
             "temperature_c": [-40, 27, 125],
         },
-        "analysis": {"kind": "tran", "args": f"10p {t_end:.6g} 0 0.1n"},
+        "analysis": analysis if analysis is not None
+        else {"kind": "tran", "args": f"10p {t_end:.6g} 0 0.1n"},
         "measurements": measurements,
-        "options": {"timeout_s": timeout_s, "keep_artifacts": False},
+        "options": {**(options or {}), "timeout_s": timeout_s, "keep_artifacts": False},
         "batch": {"poll_timeout_s": poll_timeout_s, "capacity_wait_s": CAPACITY_WAIT_S},
     }
 

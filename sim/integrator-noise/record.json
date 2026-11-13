@@ -1,0 +1,3085 @@
+{
+  "fixture": "First-integrator thermal-noise bench (issue #126): design/integrator's full cell held in one clock phase per variant, small-signal .noise over 1 Hz - 1e+11 Hz. ktc = the four sampling capacitors in phi1; amp = the OTA with its phi2 switches, at the differential output.",
+  "source": "T",
+  "result_kind": "simulated (ngspice .noise, transistor-level netlists of design/integrator/integrator.spice and design/ota/ota_fd.spice; not the behavioural model). A simulated number is never called measured.",
+  "model_b_parameter": "ktc_noise_var (sim/bmodel/model.py): per-sampling-event variance in FS^2, added to integrator 1's state increment",
+  "method": {
+    "analysis": {
+      "ktc": {
+        "kind": "noise",
+        "args": "v(nqp,nqn) Vinp dec 20 1 1e+11"
+      },
+      "amp": {
+        "kind": "noise",
+        "args": "v(vod) Vinp dec 20 1 1e+11"
+      }
+    },
+    "chosen": "`.noise` on the real cell, one of the three forms issue #126 allows and the one DR-001 item 2 names. Not kT/C arithmetic: the simulated variance carries each corner's own capacitance, its switch noise at the bias that phase gives it, and the plate and switch parasitics that arithmetic from the drawn value alone would miss (cs_eff_F below is 15% above the drawn Cs for exactly that reason).",
+    "why_two_requests": "a small-signal .noise run needs a static clock state and one corner runs one analysis with one output, so the two halves of spec 5.3's thermal share are two requests over the same 45-point grid, as sim/integrator-settling does with int1/int2",
+    "variants": {
+      "ktc": {
+        "what": "switch kT/C: the sampled voltage on the four input- and reference-branch sampling capacitors, differentially summed",
+        "referred_to": "integrator input",
+        "clock_state": {
+          "PHI1": "1",
+          "PHI1B": "0",
+          "PHI1E": "1",
+          "PHI2": "0"
+        },
+        "output": "v(nqp,nqn)"
+      },
+      "amp": {
+        "what": "integrate phase: the OTA together with the phi2 switches that are in its loop -- spec 5.3's thermal share is 'sampling switches and amplifier', and the phi2 switches belong to the amplifier half of that split",
+        "referred_to": "integrator differential output",
+        "clock_state": {
+          "PHI1": "0",
+          "PHI1B": "1",
+          "PHI1E": "0",
+          "PHI2": "1"
+        },
+        "output": "v(vod)"
+      }
+    },
+    "integration_band_Hz": [
+      1.0,
+      100000000000.0
+    ],
+    "lower_edge": "every band integral starts at 1 Hz. Flicker noise diverges logarithmically downward, so this edge is a choice, not a property of the circuit: var_audio_band_V2 repeats the baseband integral from 20 Hz so the sensitivity is visible rather than hidden.",
+    "convergence": "klt_vs_ngspice_integral_rel compares klt's trapezoid over the swept grid against ngspice's own onoise_total over the same range; agreement within 0.01 is gated per corner and is also the evidence that the upper edge is far enough out."
+  },
+  "unit_conversions": {
+    "osr": 128,
+    "bandwidth_Hz": 20000.0,
+    "per_event_to_inband": "the sampled sequence is white across fs/2, so the share of a WHITE per-event variance that lands in BW is 1/OSR = 1/128. This is the link spec 5.3 assumes and the one model B's i.i.d. Gaussian draw reproduces: inband_white_V2 = var_total_V2 / OSR.",
+    "non_white_correction": "the measured spectra are not white, so inband_V2 splits them: the baseband share (below BW) reaches the band with no aliasing and is NOT divided by OSR, and only the share above BW folds. inband_V2 = var_baseband_V2 + var_aliased_V2 / OSR. For the switches the two links agree to a part in 1e4 (white); for the amplifier they do not, and the difference is its flicker content.",
+    "volts_to_fs": "1 FS = VREFP - VREFN = 1.2 V of differential integrator output, and model B's integrator-1 coefficient is C1 = 0.5, so a variance referred to the integrator input in V^2 becomes (C1/1.2)^2 = 0.173611 times that in FS^2. Same convention as sim/integrator-ci's ci_offset.",
+    "model_b_equivalent": "model_b_equiv_ktc_noise_var_fs2 is the WHITE per-event variance that reproduces inband_V2 through model B's own 1/OSR link, i.e. inband_V2 * OSR converted to FS^2. That, not var_total_fs2, is the number to load into ktc_noise_var, because model B draws i.i.d. per clock and would otherwise under-count the flicker share."
+  },
+  "budget": {
+    "from": "spec/modulator-adc.md 5.3 (kT/C budget, target column)",
+    "ktc_share_V2": 4.5e-10,
+    "total_thermal_share_V2": 9e-10,
+    "unchanged": "both budgets are the ratified planning allocation and are reported against, not adjusted. A corner that misses is recorded as a miss and filed; resizing the OTA or the capacitors is out of scope here.",
+    "flicker_caveat": "5.3 allocates a THERMAL share. The amplifier part measured here is flicker-dominated across the whole closed-loop band, and ngspice's .noise gives no thermal/flicker split through any klt measurement form, so amp's inband_V2 is thermal PLUS flicker compared against a thermal-only line. The comparison is therefore conservative for the amplifier and exact for the switches -- and 5.3 carries no 1/f allocation at all, which is itself a finding, not a bench defect."
+  },
+  "leaves_out": [
+    "flicker/thermal separation. ngspice's integrated-noise plot does carry a per-device, per-mechanism decomposition, but it has no aggregate: a mechanism total needs every flattened instance name enumerated and summed by hand in the request, and klt sim has no measurement form for it. Filed under the friction protocol as 2AMLogic/klayout-tools#5553.",
+    "correlation of the sampled noise between consecutive clocks: both parts are reported as i.i.d. per event, which over-counts the in-band effect of the amplifier's 1/f and ignores any correlated-double-sampling benefit",
+    "the finite duration of the integrate phase: the amplifier integral is taken over the circuit's own noise bandwidth, not truncated to the 97.66 ns phase",
+    "reference and bias noise (DR-005: inputs at the boundary, ideal and noiseless here)",
+    "clock-jitter-induced noise (model B's jitter_rms_s, not extracted from this block)",
+    "mismatch (this is the nominal grid, no Monte Carlo) and layout parasitics (DR-001 item 4, post-layout)"
+  ],
+  "conditions": {
+    "vcm_V": 0.9,
+    "vrefp_V": 1.5,
+    "vrefn_V": 0.3,
+    "vin_diff_V": 0.6,
+    "ibias_uA": 5,
+    "load_pF_per_side": 0.1,
+    "corner_set": "DR-002 full grid, 5 process x 3 T x 3 Vdda"
+  },
+  "drawn_capacitors": {
+    "cs_drawn_F": 9.976322500000004e-13,
+    "ci_drawn_F": 1.9964158500000005e-12,
+    "cs_drawn_geometry_um": [
+      22.17,
+      22.17
+    ],
+    "ci_drawn_geometry_um": [
+      31.43,
+      31.43
+    ],
+    "drawn_ratio_cs_over_ci": 0.4997116457475531,
+    "planning_values_not_used": {
+      "cs_pF": 1.0,
+      "ci_pF": 2.0,
+      "from": "spec/modulator-adc.md 5.3 planning values"
+    },
+    "method": "drawn W/L of the cell's sky130_fd_pr__cap_mim_m3_1 devices through the PDK's own area/perimeter model (camimc 2e-15 F/um^2, cpmimc 1.9e-16 F/um, m3_dw -0.025 um) at the TYPICAL cap section. The cap_low/cap_high sections move camimc by -11%/+12%, so this single number is a reference, not a per-corner value -- the per-corner cs_eff_F below is derived from each corner's own simulated variance and does carry that spread, plus the switch and plate parasitics the drawn capacitance alone does not."
+  },
+  "pdk_sources_stamp": "open_pdks f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+  "pdk_pin": {
+    "file": "sim/pdk.json",
+    "open_pdks_revision": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7"
+  },
+  "ngspice": "47",
+  "klt": "klt 0.9.2.dev887+gec7400b7d8e5",
+  "engine_host": "worker",
+  "remote": {
+    "ktc": {
+      "provider": "aws-batch-fleet",
+      "job_id": "klt-sim-9c46c25853b3",
+      "region": "us-east-1",
+      "instance_id": "i-08bc42999dbcce0a3",
+      "instance_type": "m7i.4xlarge",
+      "availability_zone": "us-east-1c",
+      "ami_id": "ami-0f6bb304291339ed0",
+      "lifecycle": "spot",
+      "spot": true,
+      "state": "done",
+      "exit_code": "0",
+      "concurrency": "1",
+      "physical_cores": "8",
+      "elapsed_seconds": 69,
+      "client_submitted_at": "2026-11-13T17:04:36.686411Z",
+      "client_launched_at": "2026-11-13T17:05:23.224887Z",
+      "client_status_terminal_at": "2026-11-13T17:07:00.101569Z",
+      "client_collected_at": "2026-11-13T17:07:01.580199Z",
+      "runner_klt_version": "0.9.0",
+      "client_klt_version": "0.9.2.dev887+gec7400b7d8e5",
+      "runner_compatibility": "match",
+      "runner_request_features": {
+        "required": [
+          "measurements[].expr",
+          "options.ngspice_init"
+        ],
+        "missing": [],
+        "status": "supported"
+      },
+      "worker_environment": {
+        "capture": "ok",
+        "simulator": {
+          "requested_binary": "ngspice",
+          "binary_source": "PATH",
+          "selected_path": "/usr/local/bin/ngspice",
+          "version_banner": "******\n** ngspice-47 : Circuit level simulation program\n** Compiled with KLU Direct Linear Solver\n** The U. C. Berkeley CAD Group\n** Copyright 1985-1994, Regents of the University of California.\n** Copyright 2001-2026, The ngspice team.\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\n** Creation Date: Thu Nov 12 22:47:40 UTC 2026\n******\n",
+          "version_probe": "ok"
+        },
+        "pdk": {
+          "variant": "sky130A",
+          "root": "/opt/pdk",
+          "stamp_scheme": "sources-sha256",
+          "stamp_sha256": "4ca10280ae9f293aa1ff69f0060a52e0026929111bda881503717469b429ce67",
+          "stamp_text": "open_pdks f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+          "models_staged": false,
+          "stamp_scope": "executed"
+        },
+        "cpu_model": "Intel(R) Xeon(R) Platinum 8488C",
+        "omp_num_threads": null,
+        "image_manifest": null,
+        "model_inputs": null,
+        "diagnostics": [],
+        "pdk_stamp_comparison": {
+          "status": "not_comparable",
+          "reason": "client_stamp_unavailable"
+        },
+        "engine_build_comparison": {
+          "status": "match"
+        }
+      },
+      "runner_model_inputs": null,
+      "runner_models_lib_sha256": "17c208a699228f5acb87bf59c09c22a4c4d3937b6766b4957737d34e8e075f64",
+      "job_ceiling": {
+        "basis": "conservative_serial_bound",
+        "unit_count": 45,
+        "per_unit_timeout_s": 600,
+        "overhead_s": 120.0,
+        "job_bound_s": 27120.0,
+        "max_job_seconds": 3600.0,
+        "max_job_seconds_source": "fleet_config",
+        "exceeds_ceiling": true,
+        "check": "warn",
+        "max_units_per_job": 5,
+        "recommended_hosts": 9,
+        "warning": "batch job bound 27120s (options.timeout_s 600s x 45 units + 120s; a conservative fully-serial upper bound, not a runtime estimate) exceeds the fleet's whole-job ceiling of 3600s (max_job_seconds from fleet_config); a job still running at the ceiling is killed and every unit is reported batch_job_timeout. Set request.remote.hosts to at least 9 to run one job per shard of at most 5 units, each within the ceiling"
+      },
+      "models_lib_comparison": {
+        "status": "match"
+      }
+    },
+    "amp": {
+      "provider": "aws-batch-fleet",
+      "job_id": "klt-sim-decbb2cdd59f",
+      "region": "us-east-1",
+      "instance_id": "i-056f599560e41e5ce",
+      "instance_type": "c7i.8xlarge",
+      "availability_zone": "us-east-1f",
+      "ami_id": "ami-0f6bb304291339ed0",
+      "lifecycle": "spot",
+      "spot": true,
+      "state": "done",
+      "exit_code": "0",
+      "concurrency": "2",
+      "physical_cores": "16",
+      "elapsed_seconds": 43,
+      "client_submitted_at": "2026-11-13T17:07:02.486314Z",
+      "client_launched_at": "2026-11-13T17:07:38.772881Z",
+      "client_status_terminal_at": "2026-11-13T17:08:42.097537Z",
+      "client_collected_at": "2026-11-13T17:08:43.409370Z",
+      "runner_klt_version": "0.9.0",
+      "client_klt_version": "0.9.2.dev887+gec7400b7d8e5",
+      "runner_compatibility": "match",
+      "runner_request_features": {
+        "required": [
+          "measurements[].expr",
+          "options.ngspice_init"
+        ],
+        "missing": [],
+        "status": "supported"
+      },
+      "worker_environment": {
+        "capture": "ok",
+        "simulator": {
+          "requested_binary": "ngspice",
+          "binary_source": "PATH",
+          "selected_path": "/usr/local/bin/ngspice",
+          "version_banner": "******\n** ngspice-47 : Circuit level simulation program\n** Compiled with KLU Direct Linear Solver\n** The U. C. Berkeley CAD Group\n** Copyright 1985-1994, Regents of the University of California.\n** Copyright 2001-2026, The ngspice team.\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\n** Creation Date: Thu Nov 12 22:47:40 UTC 2026\n******\n",
+          "version_probe": "ok"
+        },
+        "pdk": {
+          "variant": "sky130A",
+          "root": "/opt/pdk",
+          "stamp_scheme": "sources-sha256",
+          "stamp_sha256": "4ca10280ae9f293aa1ff69f0060a52e0026929111bda881503717469b429ce67",
+          "stamp_text": "open_pdks f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+          "models_staged": false,
+          "stamp_scope": "executed"
+        },
+        "cpu_model": "Intel(R) Xeon(R) Platinum 8488C",
+        "omp_num_threads": null,
+        "image_manifest": null,
+        "model_inputs": null,
+        "diagnostics": [],
+        "pdk_stamp_comparison": {
+          "status": "not_comparable",
+          "reason": "client_stamp_unavailable"
+        },
+        "engine_build_comparison": {
+          "status": "match"
+        }
+      },
+      "runner_model_inputs": null,
+      "runner_models_lib_sha256": "17c208a699228f5acb87bf59c09c22a4c4d3937b6766b4957737d34e8e075f64",
+      "job_ceiling": {
+        "basis": "conservative_serial_bound",
+        "unit_count": 45,
+        "per_unit_timeout_s": 600,
+        "overhead_s": 120.0,
+        "job_bound_s": 27120.0,
+        "max_job_seconds": 3600.0,
+        "max_job_seconds_source": "fleet_config",
+        "exceeds_ceiling": true,
+        "check": "warn",
+        "max_units_per_job": 5,
+        "recommended_hosts": 9,
+        "warning": "batch job bound 27120s (options.timeout_s 600s x 45 units + 120s; a conservative fully-serial upper bound, not a runtime estimate) exceeds the fleet's whole-job ceiling of 3600s (max_job_seconds from fleet_config); a job still running at the ceiling is killed and every unit is reported batch_job_timeout. Set request.remote.hosts to at least 9 to run one job per shard of at most 5 units, each within the ceiling"
+      },
+      "models_lib_comparison": {
+        "status": "match"
+      }
+    }
+  },
+  "batch_receipt": {
+    "ktc": {
+      "completed_at": "2026-11-13T17:07:00.101604+00:00",
+      "job_id": "klt-sim-9c46c25853b3",
+      "jobs_prefix": "jobs",
+      "launched_at": "2026-11-13T17:05:23.225017+00:00",
+      "profile": "batch-runner-submit",
+      "region": "us-east-1",
+      "request_sha256": "2f98f683379cf0c369bb36d4cc20e0141461823a4a160aa2739cf2a1ab59d3e0",
+      "state": "done",
+      "unit_count": 45
+    },
+    "amp": {
+      "completed_at": "2026-11-13T17:08:42.097572+00:00",
+      "job_id": "klt-sim-decbb2cdd59f",
+      "jobs_prefix": "jobs",
+      "launched_at": "2026-11-13T17:07:38.773002+00:00",
+      "profile": "batch-runner-submit",
+      "region": "us-east-1",
+      "request_sha256": "f79b48e5020c06ef3a85245e784b9e1e2893ba02d32cb527434307500827eba4",
+      "state": "done",
+      "unit_count": 45
+    }
+  },
+  "request_sha256": {
+    "ktc": "e8f72ea42f5d5ecdc95d2712c523e88d758fa2aa4702b116f3fd55dbb86eb81b",
+    "amp": "aeabf7dfa833d024f85ba53934ead0a3e2536d13124f92dd2a84db860bcc8b84"
+  },
+  "deck_sha256": {
+    "ktc": "f03d2a846464eaed3240ee19d98aed7d819049787ab23b7a33562149251ed234",
+    "amp": "e72c9e7b0211ace0abd66c6712b612845042752d9f99c5b2a73706b6087c6d39"
+  },
+  "deck_template_sha256": "934f583fd2a695083fdfcabe20a907f4e9fb057e164592568e2392e3cdc5a40e",
+  "integrator_netlist_sha256": "18fc51475f667eea993fbef4e9a3abe7eaa35863ae88f86c25bfb56bc4074d53",
+  "ota_netlist_sha256": "7f4724e9631c05760bc98d161100c41b06928b98e0526c027e6a9271d70f7977",
+  "summary": {
+    "corner_count": 45,
+    "binding_ktc_corner": {
+      "corner_id": "fs/1.800V/125C",
+      "value": 1.568158731665958e-10
+    },
+    "binding_total_thermal_corner": {
+      "corner_id": "fs/1.980V/125C",
+      "value": 6.241408027004005e-08
+    },
+    "ktc_budget_V2": 4.5e-10,
+    "ktc_fail_corners": [],
+    "ktc_pass_count": 45,
+    "total_thermal_budget_V2": 9e-10,
+    "total_thermal_fail_corners": [
+      "ff/1.620V/-40C",
+      "ff/1.620V/125C",
+      "ff/1.620V/27C",
+      "ff/1.800V/-40C",
+      "ff/1.800V/125C",
+      "ff/1.800V/27C",
+      "ff/1.980V/-40C",
+      "ff/1.980V/125C",
+      "ff/1.980V/27C",
+      "fs/1.620V/-40C",
+      "fs/1.620V/125C",
+      "fs/1.620V/27C",
+      "fs/1.800V/-40C",
+      "fs/1.800V/125C",
+      "fs/1.800V/27C",
+      "fs/1.980V/-40C",
+      "fs/1.980V/125C",
+      "fs/1.980V/27C",
+      "sf/1.620V/-40C",
+      "sf/1.620V/125C",
+      "sf/1.620V/27C",
+      "sf/1.800V/-40C",
+      "sf/1.800V/125C",
+      "sf/1.800V/27C",
+      "sf/1.980V/-40C",
+      "sf/1.980V/125C",
+      "sf/1.980V/27C",
+      "ss/1.620V/-40C",
+      "ss/1.620V/125C",
+      "ss/1.620V/27C",
+      "ss/1.800V/-40C",
+      "ss/1.800V/125C",
+      "ss/1.800V/27C",
+      "ss/1.980V/-40C",
+      "ss/1.980V/125C",
+      "ss/1.980V/27C",
+      "tt/1.620V/-40C",
+      "tt/1.620V/125C",
+      "tt/1.620V/27C",
+      "tt/1.800V/-40C",
+      "tt/1.800V/125C",
+      "tt/1.800V/27C",
+      "tt/1.980V/-40C",
+      "tt/1.980V/125C",
+      "tt/1.980V/27C"
+    ],
+    "total_thermal_pass_count": 0,
+    "cs_eff_F_range": [
+      {
+        "corner_id": "fs/1.800V/125C",
+        "value": 1.1076261328541366e-12
+      },
+      {
+        "corner_id": "fs/1.620V/-40C",
+        "value": 1.2850012531374118e-12
+      }
+    ],
+    "worst_klt_vs_ngspice_integral_rel": 0.001489388147352
+  },
+  "corners": {
+    "ff/1.620V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001033055535952,
+        "input_referral": 1.0,
+        "var_total_V2": 1.067203740361074e-08,
+        "var_baseband_V2": 1.3932613270388494e-12,
+        "var_audio_band_V2": 1.3919376625739718e-12,
+        "var_aliased_V2": 1.06706441422837e-08,
+        "inband_V2": 8.475766868863026e-11,
+        "inband_white_V2": 8.33752922157089e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 8.346649073014e-09,
+          "1kHz": 8.346649072359e-09,
+          "20kHz": 8.346648881641e-09,
+          "1MHz": 8.346171387397e-09,
+          "100MHz": 5.744865301635e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001354136662737,
+        "diagnostics": [],
+        "var_total_fs2": 1.852784271460198e-09,
+        "model_b_equiv_var_V2": 1.0848981592144674e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 1.8835037486362285e-09,
+        "cs_eff_F": 1.2065111924779802e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003096271717453,
+        "input_referral": 2.0,
+        "var_total_V2": 3.83475941931974e-07,
+        "var_baseband_V2": 3.348045073818886e-08,
+        "var_audio_band_V2": 2.792301941437158e-08,
+        "var_aliased_V2": 3.4999549119378514e-07,
+        "inband_V2": 3.6214790513140305e-08,
+        "inband_white_V2": 2.9959057963435467e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.30534262438e-06,
+          "1kHz": 1.015059704739e-06,
+          "20kHz": 2.880930760055e-07,
+          "1MHz": 6.078571769067e-08,
+          "100MHz": 9.328613389829e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001323337540301,
+        "diagnostics": [],
+        "var_total_fs2": 6.657568436318993e-08,
+        "model_b_equiv_var_V2": 4.635493185681959e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 8.047731225142291e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 8.475766868863026e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 7.250335111068997,
+        "total_thermal_inband_V2": 3.629954818182893e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.056587099945922
+      }
+    },
+    "ff/1.620V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001400396503072,
+        "input_referral": 1.0,
+        "var_total_V2": 1.961110365816286e-08,
+        "var_baseband_V2": 1.9382838180178697e-12,
+        "var_audio_band_V2": 1.935484527347991e-12,
+        "var_aliased_V2": 1.960916537434484e-08,
+        "inband_V2": 1.5513488830508695e-10,
+        "inband_white_V2": 1.5321174732939734e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 1.075508554361e-08,
+          "1kHz": 9.862557086154e-09,
+          "20kHz": 9.8341671888e-09,
+          "1MHz": 9.831734565686e-09,
+          "100MHz": 7.668710766492e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001338880307203,
+        "diagnostics": [],
+        "var_total_fs2": 3.4047054962088304e-09,
+        "model_b_equiv_var_V2": 1.985726570305113e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.447441962335266e-09,
+        "cs_eff_F": 1.121212572085289e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003917252703332,
+        "input_referral": 2.0,
+        "var_total_V2": 6.137947496704745e-07,
+        "var_baseband_V2": 4.146179077409592e-08,
+        "var_audio_band_V2": 3.4478342500779414e-08,
+        "var_aliased_V2": 5.723329588963786e-07,
+        "inband_V2": 4.593314201547388e-08,
+        "inband_white_V2": 4.795271481800582e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.926246137196e-06,
+          "1kHz": 1.126930890613e-06,
+          "20kHz": 3.202392051781e-07,
+          "1MHz": 7.370897539675e-08,
+          "100MHz": 1.204775472637e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001324840446617,
+        "diagnostics": [],
+        "var_total_fs2": 1.065615884844574e-07,
+        "model_b_equiv_var_V2": 5.879442177980657e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.020736489232753e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.5513488830508695e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.625030364355651,
+        "total_thermal_inband_V2": 4.6088276903778964e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.093479620792227
+      }
+    },
+    "ff/1.620V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.000119871453346,
+        "input_referral": 1.0,
+        "var_total_V2": 1.4369165327282254e-08,
+        "var_baseband_V2": 1.5120268579760957e-12,
+        "var_audio_band_V2": 1.5105903244472987e-12,
+        "var_aliased_V2": 1.4367653300424278e-08,
+        "inband_V2": 1.1375931826754076e-10,
+        "inband_white_V2": 1.1225910411939261e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 8.695161442317e-09,
+          "1kHz": 8.695121458439e-09,
+          "20kHz": 8.695120113769e-09,
+          "1MHz": 8.694798559028e-09,
+          "100MHz": 6.615037589071e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001347814598279,
+        "diagnostics": [],
+        "var_total_fs2": 2.494646758208725e-09,
+        "model_b_equiv_var_V2": 1.4561192738245217e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.527984850389795e-09,
+        "cs_eff_F": 1.1535862742512654e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003435427664695,
+        "input_referral": 2.0,
+        "var_total_V2": 4.720865295740697e-07,
+        "var_baseband_V2": 3.61569783741011e-08,
+        "var_audio_band_V2": 3.011961710002742e-08,
+        "var_aliased_V2": 4.3592955119996857e-07,
+        "inband_V2": 3.9562677992850855e-08,
+        "inband_white_V2": 3.6881760122974195e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.521671303326e-06,
+          "1kHz": 1.053864785567e-06,
+          "20kHz": 2.99239605693e-07,
+          "1MHz": 6.541917122224e-08,
+          "100MHz": 1.068540185077e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001320462143913,
+        "diagnostics": [],
+        "var_total_fs2": 8.195946693994266e-08,
+        "model_b_equiv_var_V2": 5.0640227830849094e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 8.791706220633525e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.1375931826754076e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 5.972255330050915,
+        "total_thermal_inband_V2": 3.96764373111184e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.442901589423432
+      }
+    },
+    "ff/1.800V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001045025774077,
+        "input_referral": 1.0,
+        "var_total_V2": 1.0920788684852332e-08,
+        "var_baseband_V2": 5.938925560057067e-13,
+        "var_audio_band_V2": 5.933283298639486e-13,
+        "var_aliased_V2": 1.0920194792296327e-08,
+        "inband_V2": 8.590791437082075e-11,
+        "inband_white_V2": 8.531866160040885e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.449413979704e-09,
+          "1kHz": 5.449413979618e-09,
+          "20kHz": 5.449413947762e-09,
+          "1MHz": 5.449334180627e-09,
+          "100MHz": 4.828024274967e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001349016750174,
+        "diagnostics": [],
+        "var_total_fs2": 1.8959702577868633e-09,
+        "model_b_equiv_var_V2": 1.0996213039465056e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 1.909064763796017e-09,
+        "cs_eff_F": 1.1790295504810516e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003012402898081,
+        "input_referral": 2.0,
+        "var_total_V2": 3.6298284881467236e-07,
+        "var_baseband_V2": 3.414543518530128e-08,
+        "var_audio_band_V2": 2.847495124273963e-08,
+        "var_aliased_V2": 3.288374136293711e-07,
+        "inband_V2": 3.671447747928074e-08,
+        "inband_white_V2": 2.835803506364628e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.358620381264e-06,
+          "1kHz": 1.0250561543e-06,
+          "20kHz": 2.908750482697e-07,
+          "1MHz": 6.122418018262e-08,
+          "100MHz": 1.02419663093e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001297419792446,
+        "diagnostics": [],
+        "var_total_fs2": 6.301785569699173e-08,
+        "model_b_equiv_var_V2": 4.699453117347935e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 8.158772773173498e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 8.590791437082075e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 7.191793381950476,
+        "total_thermal_inband_V2": 3.680038539365156e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.116098574260356
+      }
+    },
+    "ff/1.800V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001399085669774,
+        "input_referral": 1.0,
+        "var_total_V2": 1.9574407113669626e-08,
+        "var_baseband_V2": 1.1771422543522224e-12,
+        "var_audio_band_V2": 1.1760237343012698e-12,
+        "var_aliased_V2": 1.9573229971415275e-08,
+        "inband_V2": 1.5409300140603406e-10,
+        "inband_white_V2": 1.5292505557554395e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 7.67225469505e-09,
+          "1kHz": 7.672034743853e-09,
+          "20kHz": 7.672028278579e-09,
+          "1MHz": 7.671922843718e-09,
+          "100MHz": 6.822215174275e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001335507160412,
+        "diagnostics": [],
+        "var_total_fs2": 3.3983345683454217e-09,
+        "model_b_equiv_var_V2": 1.972390417997236e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.4242889201340906e-09,
+        "cs_eff_F": 1.1233145324051583e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003870713925419,
+        "input_referral": 2.0,
+        "var_total_V2": 5.992970516973025e-07,
+        "var_baseband_V2": 4.221682885727121e-08,
+        "var_audio_band_V2": 3.5106408343244784e-08,
+        "var_aliased_V2": 5.570802228400313e-07,
+        "inband_V2": 4.6569018098208955e-08,
+        "inband_white_V2": 4.682008216385176e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.980099577118e-06,
+          "1kHz": 1.137177928339e-06,
+          "20kHz": 3.231061368709e-07,
+          "1MHz": 7.416304692501e-08,
+          "100MHz": 1.245383672736e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001319454799193,
+        "diagnostics": [],
+        "var_total_fs2": 1.040446270307817e-07,
+        "model_b_equiv_var_V2": 5.960834316570746e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.034867068849088e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.5409300140603406e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.654295993902294,
+        "total_thermal_inband_V2": 4.6723111099614985e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.152892435094365
+      }
+    },
+    "ff/1.800V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001201873963246,
+        "input_referral": 1.0,
+        "var_total_V2": 1.4445010235286474e-08,
+        "var_baseband_V2": 8.009498427373407e-13,
+        "var_audio_band_V2": 8.001889023368972e-13,
+        "var_aliased_V2": 1.4444209285443736e-08,
+        "inband_V2": 1.1364633488526653e-10,
+        "inband_white_V2": 1.1285164246317558e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.328467014393e-09,
+          "1kHz": 6.328467014103e-09,
+          "20kHz": 6.328466981529e-09,
+          "1MHz": 6.328385428842e-09,
+          "100MHz": 5.66911231492e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001343456390414,
+        "diagnostics": [],
+        "var_total_fs2": 2.5078142769594577e-09,
+        "model_b_equiv_var_V2": 1.4546730865314116e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.525474108561479e-09,
+        "cs_eff_F": 1.1475292591699062e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003373328752442,
+        "input_referral": 2.0,
+        "var_total_V2": 4.55173874882076e-07,
+        "var_baseband_V2": 3.683074497320247e-08,
+        "var_audio_band_V2": 3.067946135598962e-08,
+        "var_aliased_V2": 4.1834312990887355e-07,
+        "inband_V2": 4.0099050675615545e-08,
+        "inband_white_V2": 3.556045897516219e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.573426290365e-06,
+          "1kHz": 1.063633122435e-06,
+          "20kHz": 3.019641684521e-07,
+          "1MHz": 6.58478631172e-08,
+          "100MHz": 1.133583818858e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001309105184232,
+        "diagnostics": [],
+        "var_total_fs2": 7.90232421670271e-08,
+        "model_b_equiv_var_V2": 5.13267848647879e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 8.910900150136789e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.1364633488526653e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 5.9765707956363645,
+        "total_thermal_inband_V2": 4.021269701050081e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.501206921763597
+      }
+    },
+    "ff/1.980V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001029404811764,
+        "input_referral": 1.0,
+        "var_total_V2": 1.0596742664828761e-08,
+        "var_baseband_V2": 5.080323109608033e-13,
+        "var_audio_band_V2": 5.075496561308987e-13,
+        "var_aliased_V2": 1.05962346325178e-08,
+        "inband_V2": 8.329111537750611e-11,
+        "inband_white_V2": 8.27870520689747e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.040127556427e-09,
+          "1kHz": 5.040127556355e-09,
+          "20kHz": 5.040127528883e-09,
+          "1MHz": 5.040058737458e-09,
+          "100MHz": 4.494389061299e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001344868086219,
+        "diagnostics": [],
+        "var_total_fs2": 1.839712268199438e-09,
+        "model_b_equiv_var_V2": 1.0661262768320782e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 1.8509136750556915e-09,
+        "cs_eff_F": 1.2150840103663185e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003005980650193,
+        "input_referral": 2.0,
+        "var_total_V2": 3.614367867733893e-07,
+        "var_baseband_V2": 3.4741365745091176e-08,
+        "var_audio_band_V2": 2.8969615929123804e-08,
+        "var_aliased_V2": 3.266954210282981e-07,
+        "inband_V2": 3.729367372187476e-08,
+        "inband_white_V2": 2.8237248966671038e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.405628902493e-06,
+          "1kHz": 1.033928933224e-06,
+          "20kHz": 2.933606255107e-07,
+          "1MHz": 6.165915929377e-08,
+          "100MHz": 1.049771034672e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001294341989252,
+        "diagnostics": [],
+        "var_total_fs2": 6.274944214815787e-08,
+        "model_b_equiv_var_V2": 4.773590236399969e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 8.287483049305503e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 8.329111537750611e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 7.326138358776797,
+        "total_thermal_inband_V2": 3.7376964837252264e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.1836152254326
+      }
+    },
+    "ff/1.980V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001391065203518,
+        "input_referral": 1.0,
+        "var_total_V2": 1.935062400438575e-08,
+        "var_baseband_V2": 9.653865834271562e-13,
+        "var_audio_band_V2": 9.644694201961073e-13,
+        "var_aliased_V2": 1.934965861780232e-08,
+        "inband_V2": 1.521345945350078e-10,
+        "inband_white_V2": 1.5117675003426367e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.947787016956e-09,
+          "1kHz": 6.94778690694e-09,
+          "20kHz": 6.947786875579e-09,
+          "1MHz": 6.947712095833e-09,
+          "100MHz": 6.329367719871e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.00133292875641,
+        "diagnostics": [],
+        "var_total_fs2": 3.3594833340947486e-09,
+        "model_b_equiv_var_V2": 1.9473228100481e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.3807687674446184e-09,
+        "cs_eff_F": 1.1363052669007702e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003862979576235,
+        "input_referral": 2.0,
+        "var_total_V2": 5.969044482563495e-07,
+        "var_baseband_V2": 4.289818197952528e-08,
+        "var_audio_band_V2": 3.56732105147707e-08,
+        "var_aliased_V2": 5.540062662768242e-07,
+        "inband_V2": 4.722635593481297e-08,
+        "inband_white_V2": 4.663316002002731e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.028126850908e-06,
+          "1kHz": 1.146343687637e-06,
+          "20kHz": 3.256805935683e-07,
+          "1MHz": 7.459731480043e-08,
+          "100MHz": 1.266125053631e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001317343174254,
+        "diagnostics": [],
+        "var_total_fs2": 1.0362924448894959e-07,
+        "model_b_equiv_var_V2": 6.04497355965606e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.0494745763291773e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.521345945350078e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.709845324158487,
+        "total_thermal_inband_V2": 4.737849052934798e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.21338710619486
+      }
+    },
+    "ff/1.980V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001191285801234,
+        "input_referral": 1.0,
+        "var_total_V2": 1.4191618602217335e-08,
+        "var_baseband_V2": 6.687149256356429e-13,
+        "var_audio_band_V2": 6.68079614688899e-13,
+        "var_aliased_V2": 1.41909498872917e-08,
+        "inband_V2": 1.1153551092010205e-10,
+        "inband_white_V2": 1.1087202032982293e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.782509684476e-09,
+          "1kHz": 5.782509684409e-09,
+          "20kHz": 5.782509659009e-09,
+          "1MHz": 5.78244605331e-09,
+          "100MHz": 5.258734626631e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001340186461008,
+        "diagnostics": [],
+        "var_total_fs2": 2.4638226739960653e-09,
+        "model_b_equiv_var_V2": 1.4276545397773063e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.4785669093356016e-09,
+        "cs_eff_F": 1.1680184169697256e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003365596928269,
+        "input_referral": 2.0,
+        "var_total_V2": 4.5308970734294917e-07,
+        "var_baseband_V2": 3.743452248569822e-08,
+        "var_audio_band_V2": 3.1181498098948516e-08,
+        "var_aliased_V2": 4.15655184857251e-07,
+        "inband_V2": 4.068182861739549e-08,
+        "inband_white_V2": 3.5397633386167904e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.61920957343e-06,
+          "1kHz": 1.072313580235e-06,
+          "20kHz": 3.043979975668e-07,
+          "1MHz": 6.626458938513e-08,
+          "100MHz": 1.157484401793e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001306290177627,
+        "diagnostics": [],
+        "var_total_fs2": 7.866140752481758e-08,
+        "model_b_equiv_var_V2": 5.207274063026623e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 9.040406359421221e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.1153551092010205e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 6.057993527471223,
+        "total_thermal_inband_V2": 4.0793364128315595e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.56347012551434
+      }
+    },
+    "fs/1.620V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001001008052901,
+        "input_referral": 1.0,
+        "var_total_V2": 1.0020171219726514e-08,
+        "var_baseband_V2": 1.2997531016414898e-11,
+        "var_audio_band_V2": 1.298518272474674e-11,
+        "var_aliased_V2": 1.0007173688710099e-08,
+        "inband_V2": 9.117857545946254e-11,
+        "inband_white_V2": 7.828258765411339e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 2.549333289541e-08,
+          "1kHz": 2.549333237171e-08,
+          "20kHz": 2.549327633609e-08,
+          "1MHz": 2.535413064141e-08,
+          "100MHz": 2.422098807671e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001352436155232,
+        "diagnostics": [],
+        "var_total_fs2": 1.7396130589802978e-09,
+        "model_b_equiv_var_V2": 1.1670857658811205e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.0261905657658344e-09,
+        "cs_eff_F": 1.2850012531374118e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003545735162323,
+        "input_referral": 2.0,
+        "var_total_V2": 5.028895136533485e-07,
+        "var_baseband_V2": 4.833961009215419e-08,
+        "var_audio_band_V2": 4.036644943185326e-08,
+        "var_aliased_V2": 4.5454990356119434e-07,
+        "inband_V2": 5.189078121372602e-08,
+        "inband_white_V2": 3.9288243254167855e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.363805927176e-06,
+          "1kHz": 1.220605746858e-06,
+          "20kHz": 3.467058673043e-07,
+          "1MHz": 7.260043564857e-08,
+          "100MHz": 9.569187144349e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001369051662712,
+        "diagnostics": [],
+        "var_total_fs2": 8.730720723148414e-08,
+        "model_b_equiv_var_V2": 6.64201999535693e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.1531284714161338e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 9.117857545946254e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 6.9331971111369475,
+        "total_thermal_inband_V2": 5.198195978918548e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.616101395152892
+      }
+    },
+    "fs/1.620V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001393172403003,
+        "input_referral": 1.0,
+        "var_total_V2": 1.9409293444891535e-08,
+        "var_baseband_V2": 4.850902596613236e-12,
+        "var_audio_band_V2": 4.8413620391668185e-12,
+        "var_aliased_V2": 1.9404442542294923e-08,
+        "inband_V2": 1.564481099582923e-10,
+        "inband_white_V2": 1.5163510503821512e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 1.841082670644e-08,
+          "1kHz": 1.563183745647e-08,
+          "20kHz": 1.553990864012e-08,
+          "1MHz": 1.552988101002e-08,
+          "100MHz": 6.896503071802e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001339217684127,
+        "diagnostics": [],
+        "var_total_fs2": 3.369669000849225e-09,
+        "model_b_equiv_var_V2": 2.0025358074661415e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.4766246657398294e-09,
+        "cs_eff_F": 1.132870500228705e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0004320625832219,
+        "input_referral": 2.0,
+        "var_total_V2": 7.467123032815251e-07,
+        "var_baseband_V2": 5.6592998352827864e-08,
+        "var_audio_band_V2": 4.712883251893149e-08,
+        "var_aliased_V2": 6.901193049286972e-07,
+        "inband_V2": 6.198455542258332e-08,
+        "inband_white_V2": 5.833689869386915e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.910281244306e-06,
+          "1kHz": 1.317792830552e-06,
+          "20kHz": 3.747397150677e-07,
+          "1MHz": 8.524179878559e-08,
+          "100MHz": 1.230024738349e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.00134053853661,
+        "diagnostics": [],
+        "var_total_fs2": 1.2963755265304258e-07,
+        "model_b_equiv_var_V2": 7.934023094090665e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.377434564946296e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.564481099582923e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.58842192951121,
+        "total_thermal_inband_V2": 6.214100353254162e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -18.39135753079986
+      }
+    },
+    "fs/1.620V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001176743140165,
+        "input_referral": 1.0,
+        "var_total_V2": 1.3847244179253849e-08,
+        "var_baseband_V2": 6.210171846019571e-12,
+        "var_audio_band_V2": 6.204271193883544e-12,
+        "var_aliased_V2": 1.384103400740783e-08,
+        "inband_V2": 1.1434325002889324e-10,
+        "inband_white_V2": 1.0818159515042069e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 1.762208050889e-08,
+          "1kHz": 1.762170325918e-08,
+          "20kHz": 1.762168717376e-08,
+          "1MHz": 1.761005508626e-08,
+          "100MHz": 4.682324224804e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001346751807877,
+        "diagnostics": [],
+        "var_total_fs2": 2.404035447787127e-09,
+        "model_b_equiv_var_V2": 1.4635936003698335e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.5409611117531833e-09,
+        "cs_eff_F": 1.197066483368187e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003869062379075,
+        "input_referral": 2.0,
+        "var_total_V2": 5.987857477269398e-07,
+        "var_baseband_V2": 5.070044480663632e-08,
+        "var_audio_band_V2": 4.229123275386396e-08,
+        "var_aliased_V2": 5.480853029203036e-07,
+        "inband_V2": 5.498236123570119e-08,
+        "inband_white_V2": 4.6780136541167174e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.526821445717e-06,
+          "1kHz": 1.248964589793e-06,
+          "20kHz": 3.549015504162e-07,
+          "1MHz": 7.685065215079e-08,
+          "100MHz": 1.084011307831e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001355795267478,
+        "diagnostics": [],
+        "var_total_fs2": 1.039558589803715e-07,
+        "model_b_equiv_var_V2": 7.037742238169753e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.2218302496822489e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.1434325002889324e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 5.950019815770378,
+        "total_thermal_inband_V2": 5.509670448573009e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.86883113614553
+      }
+    },
+    "fs/1.800V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001056424510101,
+        "input_referral": 1.0,
+        "var_total_V2": 1.1160327455421378e-08,
+        "var_baseband_V2": 8.865099370705989e-13,
+        "var_audio_band_V2": 8.856677105141955e-13,
+        "var_aliased_V2": 1.1159440945484307e-08,
+        "inband_V2": 8.806964232366675e-11,
+        "inband_white_V2": 8.719005824547951e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.657906089556e-09,
+          "1kHz": 6.657906089394e-09,
+          "20kHz": 6.657906031524e-09,
+          "1MHz": 6.65776113065e-09,
+          "100MHz": 5.578878106412e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.00135367487746,
+        "diagnostics": [],
+        "var_total_fs2": 1.937556849899545e-09,
+        "model_b_equiv_var_V2": 1.1272914217429344e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 1.9571031627481502e-09,
+        "cs_eff_F": 1.1537235466818876e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003355409773985,
+        "input_referral": 2.0,
+        "var_total_V2": 4.5035099005416267e-07,
+        "var_baseband_V2": 4.830641665950771e-08,
+        "var_audio_band_V2": 4.033232796190163e-08,
+        "var_aliased_V2": 4.02044573394655e-07,
+        "inband_V2": 5.144738988915345e-08,
+        "inband_white_V2": 3.518367109798146e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.363176942778e-06,
+          "1kHz": 1.220100291526e-06,
+          "20kHz": 3.46480238737e-07,
+          "1MHz": 7.240377966768e-08,
+          "100MHz": 1.015088381333e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001295690660259,
+        "diagnostics": [],
+        "var_total_fs2": 7.818593577329214e-08,
+        "model_b_equiv_var_V2": 6.585265905811642e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.143275330870077e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 8.806964232366675e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 7.083862812242617,
+        "total_thermal_inband_V2": 5.153545953147712e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.578636434777707
+      }
+    },
+    "fs/1.800V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001408959144748,
+        "input_referral": 1.0,
+        "var_total_V2": 1.9851658715690154e-08,
+        "var_baseband_V2": 1.7383704695599327e-12,
+        "var_audio_band_V2": 1.7367170923806455e-12,
+        "var_aliased_V2": 1.9849920345220593e-08,
+        "inband_V2": 1.568158731665958e-10,
+        "inband_white_V2": 1.5509108371632933e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 9.325097555031e-09,
+          "1kHz": 9.323274520548e-09,
+          "20kHz": 9.323223775277e-09,
+          "1MHz": 9.322981550321e-09,
+          "100MHz": 7.590354998792e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001338702730564,
+        "diagnostics": [],
+        "var_total_fs2": 3.446468527029541e-09,
+        "model_b_equiv_var_V2": 2.0072431765324262e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.4847971814799072e-09,
+        "cs_eff_F": 1.1076261328541366e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0004199998877448,
+        "input_referral": 2.0,
+        "var_total_V2": 7.055996228225783e-07,
+        "var_baseband_V2": 5.694674240421598e-08,
+        "var_audio_band_V2": 4.741947269120551e-08,
+        "var_aliased_V2": 6.486528804183624e-07,
+        "inband_V2": 6.201434303248443e-08,
+        "inband_white_V2": 5.512497053301393e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.932730873894e-06,
+          "1kHz": 1.321873162987e-06,
+          "20kHz": 3.758289499879e-07,
+          "1MHz": 8.529430298095e-08,
+          "100MHz": 1.246969269187e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001316802557817,
+        "diagnostics": [],
+        "var_total_fs2": 1.2249993451780875e-07,
+        "model_b_equiv_var_V2": 7.937835908158007e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.3780965118329876e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.568158731665958e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.578224931835645,
+        "total_thermal_inband_V2": 6.217115890565103e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -18.39346453499658
+      }
+    },
+    "fs/1.800V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001211953606116,
+        "input_referral": 1.0,
+        "var_total_V2": 1.4688315433775763e-08,
+        "var_baseband_V2": 1.1923645095534188e-12,
+        "var_audio_band_V2": 1.1912317066193516e-12,
+        "var_aliased_V2": 1.468712306926621e-08,
+        "inband_V2": 1.1593551348819568e-10,
+        "inband_white_V2": 1.1475246432637315e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 7.72147699408e-09,
+          "1kHz": 7.721476988631e-09,
+          "20kHz": 7.72147692091e-09,
+          "1MHz": 7.721307736272e-09,
+          "100MHz": 6.447723712302e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.0013472992187,
+        "diagnostics": [],
+        "var_total_fs2": 2.5500547628082927e-09,
+        "model_b_equiv_var_V2": 1.4839745726489047e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.5763447441821266e-09,
+        "cs_eff_F": 1.128520964077565e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003701709636182,
+        "input_referral": 2.0,
+        "var_total_V2": 5.481061692241071e-07,
+        "var_baseband_V2": 5.085852428912092e-08,
+        "var_audio_band_V2": 4.241767089748614e-08,
+        "var_aliased_V2": 4.972476449349861e-07,
+        "inband_V2": 5.4743271515175497e-08,
+        "inband_white_V2": 4.282079447063336e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.538252062531e-06,
+          "1kHz": 1.250846227257e-06,
+          "20kHz": 3.553587888435e-07,
+          "1MHz": 7.677821223117e-08,
+          "100MHz": 1.126455711318e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001306611417259,
+        "diagnostics": [],
+        "var_total_fs2": 9.515732104585193e-08,
+        "model_b_equiv_var_V2": 7.0071387539424636e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.2165171447816779e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.1593551348819568e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 5.88996023890499,
+        "total_thermal_inband_V2": 5.485920702866369e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.850070162942856
+      }
+    },
+    "fs/1.980V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.000105558655335,
+        "input_referral": 1.0,
+        "var_total_V2": 1.1142629716133324e-08,
+        "var_baseband_V2": 5.972652940435172e-13,
+        "var_audio_band_V2": 5.966978636407245e-13,
+        "var_aliased_V2": 1.1142032450839282e-08,
+        "inband_V2": 8.764439381622541e-11,
+        "inband_white_V2": 8.70517946572916e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.464865784192e-09,
+          "1kHz": 5.464865784118e-09,
+          "20kHz": 5.464865757033e-09,
+          "1MHz": 5.464797935511e-09,
+          "100MHz": 4.914296338794e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001349726814862,
+        "diagnostics": [],
+        "var_total_fs2": 1.9344843257175914e-09,
+        "model_b_equiv_var_V2": 1.1218482408476852e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 1.9476531959161206e-09,
+        "cs_eff_F": 1.1555559954897396e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003318077726902,
+        "input_referral": 2.0,
+        "var_total_V2": 4.4038559207052575e-07,
+        "var_baseband_V2": 4.834925984988099e-08,
+        "var_audio_band_V2": 4.036394510087867e-08,
+        "var_aliased_V2": 3.9203633222064477e-07,
+        "inband_V2": 5.141204369535478e-08,
+        "inband_white_V2": 3.4405124380509824e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.36706260408e-06,
+          "1kHz": 1.220579971102e-06,
+          "20kHz": 3.465688052665e-07,
+          "1MHz": 7.235077648748e-08,
+          "100MHz": 1.059699864406e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001290612698475,
+        "diagnostics": [],
+        "var_total_fs2": 7.645583195668851e-08,
+        "model_b_equiv_var_V2": 6.580741593005412e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.142489859896773e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 8.764439381622541e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 7.10488372153804,
+        "total_thermal_inband_V2": 5.1499688089171e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.57562089280272
+      }
+    },
+    "fs/1.980V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001406923794895,
+        "input_referral": 1.0,
+        "var_total_V2": 1.979434564641748e-08,
+        "var_baseband_V2": 1.250290969301994e-12,
+        "var_audio_band_V2": 1.2491031327468766e-12,
+        "var_aliased_V2": 1.979309535544818e-08,
+        "inband_V2": 1.558838484337409e-10,
+        "inband_white_V2": 1.5464332536263657e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 7.906812608912e-09,
+          "1kHz": 7.906811916086e-09,
+          "20kHz": 7.906811859363e-09,
+          "1MHz": 7.90670010138e-09,
+          "100MHz": 6.995657267037e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001336422734111,
+        "diagnostics": [],
+        "var_total_fs2": 3.436518341391924e-09,
+        "model_b_equiv_var_V2": 1.9953132599518835e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.4640855207497984e-09,
+        "cs_eff_F": 1.1108331827063745e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.00041675446381,
+        "input_referral": 2.0,
+        "var_total_V2": 6.947371324222423e-07,
+        "var_baseband_V2": 5.727804731923909e-08,
+        "var_audio_band_V2": 4.769321610986244e-08,
+        "var_aliased_V2": 6.374590851030033e-07,
+        "inband_V2": 6.22581964216063e-08,
+        "inband_white_V2": 5.427633847048768e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.953504787477e-06,
+          "1kHz": 1.325697461937e-06,
+          "20kHz": 3.768700829732e-07,
+          "1MHz": 8.540002543012e-08,
+          "100MHz": 1.270675250798e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001314439739414,
+        "diagnostics": [],
+        "var_total_fs2": 1.2061408548997265e-07,
+        "model_b_equiv_var_V2": 7.969049141965607e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.3835154760356959e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.558838484337409e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.60411394734583,
+        "total_thermal_inband_V2": 6.241408027004005e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -18.410400657202956
+      }
+    },
+    "fs/1.980V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001210472201078,
+        "input_referral": 1.0,
+        "var_total_V2": 1.465242949582618e-08,
+        "var_baseband_V2": 8.310766971579131e-13,
+        "var_audio_band_V2": 8.302871348150053e-13,
+        "var_aliased_V2": 1.4651598419129022e-08,
+        "inband_V2": 1.152966893466034e-10,
+        "inband_white_V2": 1.1447210543614203e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.44638757665e-09,
+          "1kHz": 6.446387576564e-09,
+          "20kHz": 6.446387545338e-09,
+          "1MHz": 6.446309354756e-09,
+          "100MHz": 5.799727479892e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001344269178811,
+        "diagnostics": [],
+        "var_total_fs2": 2.5438245652476008e-09,
+        "model_b_equiv_var_V2": 1.4757976236365235e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.5621486521467424e-09,
+        "cs_eff_F": 1.1312848765948188e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003666512841545,
+        "input_referral": 2.0,
+        "var_total_V2": 5.377326566885757e-07,
+        "var_baseband_V2": 5.1035003992769046e-08,
+        "var_audio_band_V2": 4.2561290207975374e-08,
+        "var_aliased_V2": 4.866976526958066e-07,
+        "inband_V2": 5.4837329404455035e-08,
+        "inband_white_V2": 4.2010363803794974e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.550455258509e-06,
+          "1kHz": 1.252968296298e-06,
+          "20kHz": 3.559154131843e-07,
+          "1MHz": 7.680500419182e-08,
+          "100MHz": 1.161713211334e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001303002099061,
+        "diagnostics": [],
+        "var_total_fs2": 9.335636400843329e-08,
+        "model_b_equiv_var_V2": 7.0191781637702445e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.218607320099001e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.152966893466034e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 5.913956767247389,
+        "total_thermal_inband_V2": 5.4952626093801635e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.857459420207363
+      }
+    },
+    "sf/1.620V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001035646459462,
+        "input_referral": 1.0,
+        "var_total_V2": 1.0725635889961759e-08,
+        "var_baseband_V2": 1.9370775898604062e-12,
+        "var_audio_band_V2": 1.9352372740052545e-12,
+        "var_aliased_V2": 1.0723698812371898e-08,
+        "inband_V2": 8.571597456151586e-11,
+        "inband_white_V2": 8.379403039032624e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 9.841683252339e-09,
+          "1kHz": 9.841683249564e-09,
+          "20kHz": 9.841682216464e-09,
+          "1MHz": 9.839097270955e-09,
+          "100MHz": 5.339918955997e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.00135316798607,
+        "diagnostics": [],
+        "var_total_fs2": 1.8620895642294723e-09,
+        "model_b_equiv_var_V2": 1.097164474387403e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 1.9047994347003525e-09,
+        "cs_eff_F": 1.2004819766491167e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003059120953837,
+        "input_referral": 2.0,
+        "var_total_V2": 3.7432884040818387e-07,
+        "var_baseband_V2": 3.0026435759200094e-08,
+        "var_audio_band_V2": 2.49947959472807e-08,
+        "var_aliased_V2": 3.443024046489838e-07,
+        "inband_V2": 3.271629829552028e-08,
+        "inband_white_V2": 2.9244440656889365e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.037520475375e-06,
+          "1kHz": 9.602338799766e-07,
+          "20kHz": 2.721212660323e-07,
+          "1MHz": 5.76048586036e-08,
+          "100MHz": 9.456059212068e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001329417324493,
+        "diagnostics": [],
+        "var_total_fs2": 6.49876459041986e-08,
+        "model_b_equiv_var_V2": 4.187686181826596e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 7.270288510115619e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 8.571597456151586e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 7.201507464915396,
+        "total_thermal_inband_V2": 3.28020142700818e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -15.616580037699785
+      }
+    },
+    "sf/1.620V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001399761629444,
+        "input_referral": 1.0,
+        "var_total_V2": 1.9593326192637216e-08,
+        "var_baseband_V2": 2.167985228305514e-12,
+        "var_audio_band_V2": 2.1659254380196686e-12,
+        "var_aliased_V2": 1.9591158207408912e-08,
+        "inband_V2": 1.5522390872368764e-10,
+        "inband_white_V2": 1.5307286087997825e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 1.041185196465e-08,
+          "1kHz": 1.041175873621e-08,
+          "20kHz": 1.041175570879e-08,
+          "1MHz": 1.041126038803e-08,
+          "100MHz": 7.615517985054e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001337814605152,
+        "diagnostics": [],
+        "var_total_fs2": 3.4016191306661837e-09,
+        "model_b_equiv_var_V2": 1.9868660316632018e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.4494201938597257e-09,
+        "cs_eff_F": 1.1222298734689946e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003903160388566,
+        "input_referral": 2.0,
+        "var_total_V2": 6.093864407548275e-07,
+        "var_baseband_V2": 3.8328518589602135e-08,
+        "var_audio_band_V2": 3.180531990834967e-08,
+        "var_aliased_V2": 5.710579221652254e-07,
+        "inband_V2": 4.278990860651796e-08,
+        "inband_white_V2": 4.7608315683970896e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.714691121062e-06,
+          "1kHz": 1.082147931448e-06,
+          "20kHz": 3.070676348115e-07,
+          "1MHz": 7.13039275083e-08,
+          "100MHz": 1.237977194914e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001325075745637,
+        "diagnostics": [],
+        "var_total_fs2": 1.057962570754909e-07,
+        "model_b_equiv_var_V2": 5.477108301634299e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 9.508868579226215e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.5522390872368764e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.622538984829415,
+        "total_thermal_inband_V2": 4.2945132515241646e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.786714377369055
+      }
+    },
+    "sf/1.620V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001199183704273,
+        "input_referral": 1.0,
+        "var_total_V2": 1.4380415565939138e-08,
+        "var_baseband_V2": 1.801284041695151e-12,
+        "var_audio_band_V2": 1.7995727362570597e-12,
+        "var_aliased_V2": 1.4378614281897442e-08,
+        "inband_V2": 1.1413420811901892e-10,
+        "inband_white_V2": 1.1234699660889952e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 9.490453481292e-09,
+          "1kHz": 9.49045348049e-09,
+          "20kHz": 9.490453203712e-09,
+          "1MHz": 9.489760278145e-09,
+          "100MHz": 6.434152509518e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001346692577969,
+        "diagnostics": [],
+        "var_total_fs2": 2.496599924642212e-09,
+        "model_b_equiv_var_V2": 1.4609178639234422e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.5363157359781985e-09,
+        "cs_eff_F": 1.1526837884477695e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003400695038316,
+        "input_referral": 2.0,
+        "var_total_V2": 4.6258906974508245e-07,
+        "var_baseband_V2": 3.296965065815741e-08,
+        "var_audio_band_V2": 2.7409811686330595e-08,
+        "var_aliased_V2": 4.29619419086925e-07,
+        "inband_V2": 3.6326052369774014e-08,
+        "inband_white_V2": 3.6139771073834566e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.287550581685e-06,
+          "1kHz": 1.00518374835e-06,
+          "20kHz": 2.849761017282e-07,
+          "1MHz": 6.261160923096e-08,
+          "100MHz": 1.091561665827e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001320568707318,
+        "diagnostics": [],
+        "var_total_fs2": 8.031060238629905e-08,
+        "model_b_equiv_var_V2": 4.649734703331074e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 8.072456082172005e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.1413420811901892e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 5.957966838116764,
+        "total_thermal_inband_V2": 3.644018657789303e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.073380825043895
+      }
+    },
+    "sf/1.800V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001034734759323,
+        "input_referral": 1.0,
+        "var_total_V2": 1.0706760221512269e-08,
+        "var_baseband_V2": 1.7019708953809295e-12,
+        "var_audio_band_V2": 1.7003539419856803e-12,
+        "var_aliased_V2": 1.0705058250616888e-08,
+        "inband_V2": 8.533523847832537e-11,
+        "inband_white_V2": 8.36465642305646e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 9.225118444271e-09,
+          "1kHz": 9.225118439747e-09,
+          "20kHz": 9.225116756371e-09,
+          "1MHz": 9.220906188149e-09,
+          "100MHz": 4.476980700201e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001347781272906,
+        "diagnostics": [],
+        "var_total_fs2": 1.8588125384569914e-09,
+        "model_b_equiv_var_V2": 1.0922910525225648e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 1.8963386328516754e-09,
+        "cs_eff_F": 1.2025983871507069e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0002963728700284,
+        "input_referral": 2.0,
+        "var_total_V2": 3.5134751235548354e-07,
+        "var_baseband_V2": 3.079558550825043e-08,
+        "var_audio_band_V2": 2.5634103850027473e-08,
+        "var_aliased_V2": 3.205519268472331e-07,
+        "inband_V2": 3.329989743674444e-08,
+        "inband_white_V2": 2.744902440277215e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.101992109137e-06,
+          "1kHz": 9.724551187414e-07,
+          "20kHz": 2.755436161447e-07,
+          "1MHz": 5.817176525267e-08,
+          "100MHz": 1.050569423689e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001302576598667,
+        "diagnostics": [],
+        "var_total_fs2": 6.099783200616034e-08,
+        "model_b_equiv_var_V2": 4.262386871903288e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 7.399977208165431e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 8.533523847832537e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 7.220841072684545,
+        "total_thermal_inband_V2": 3.338523267522276e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -15.693118979150558
+      }
+    },
+    "sf/1.800V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001395885723166,
+        "input_referral": 1.0,
+        "var_total_V2": 1.9484969521386666e-08,
+        "var_baseband_V2": 1.5775977580842296e-12,
+        "var_audio_band_V2": 1.5760989650402522e-12,
+        "var_aliased_V2": 1.948339192362858e-08,
+        "inband_V2": 1.5379159716143252e-10,
+        "inband_white_V2": 1.5222632438583333e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 8.881657256419e-09,
+          "1kHz": 8.881657098784e-09,
+          "20kHz": 8.881656975768e-09,
+          "1MHz": 8.881353414198e-09,
+          "100MHz": 7.027980901258e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001334523195158,
+        "diagnostics": [],
+        "var_total_fs2": 3.3828072085740742e-09,
+        "model_b_equiv_var_V2": 1.9685324436663363e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.417591048031834e-09,
+        "cs_eff_F": 1.1284706373220535e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003855127773508,
+        "input_referral": 2.0,
+        "var_total_V2": 5.9448040600291e-07,
+        "var_baseband_V2": 3.911087313805259e-08,
+        "var_audio_band_V2": 3.2457379589961163e-08,
+        "var_aliased_V2": 5.553695328648574e-07,
+        "inband_V2": 4.344969761355929e-08,
+        "inband_white_V2": 4.644378171897735e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.772102204636e-06,
+          "1kHz": 1.093220829968e-06,
+          "20kHz": 3.10187401066e-07,
+          "1MHz": 7.181308106652e-08,
+          "100MHz": 1.282210311855e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001323181536708,
+        "diagnostics": [],
+        "var_total_fs2": 1.0320840381994968e-07,
+        "model_b_equiv_var_V2": 5.561561294535589e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 9.655488358568733e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.5379159716143252e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.662799065681593,
+        "total_thermal_inband_V2": 4.360348921072072e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.852787340570273
+      }
+    },
+    "sf/1.800V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001197003729368,
+        "input_referral": 1.0,
+        "var_total_V2": 1.4328179281209001e-08,
+        "var_baseband_V2": 1.3503681136410782e-12,
+        "var_audio_band_V2": 1.3490851997655966e-12,
+        "var_aliased_V2": 1.432682891309536e-08,
+        "inband_V2": 1.1327871899719857e-10,
+        "inband_white_V2": 1.1193890063444532e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 8.217163925877e-09,
+          "1kHz": 8.217163925308e-09,
+          "20kHz": 8.217163704745e-09,
+          "1MHz": 8.216611491059e-09,
+          "100MHz": 5.771995048641e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.00134249947287,
+        "diagnostics": [],
+        "var_total_fs2": 2.487531125209896e-09,
+        "model_b_equiv_var_V2": 1.4499676031641417e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.5173048666044132e-09,
+        "cs_eff_F": 1.1568861310759174e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003336341896101,
+        "input_referral": 2.0,
+        "var_total_V2": 4.452470899071526e-07,
+        "var_baseband_V2": 3.371496839273425e-08,
+        "var_audio_band_V2": 2.8030081513910625e-08,
+        "var_aliased_V2": 4.1153212151441835e-07,
+        "inband_V2": 3.693006309206564e-08,
+        "inband_white_V2": 3.47849288989963e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.346840269624e-06,
+          "1kHz": 1.016518561449e-06,
+          "20kHz": 2.881610489501e-07,
+          "1MHz": 6.313815054793e-08,
+          "100MHz": 1.163094112554e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001313486721668,
+        "diagnostics": [],
+        "var_total_fs2": 7.729984199776956e-08,
+        "model_b_equiv_var_V2": 4.727048075784402e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 8.2066806871257e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.1327871899719857e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 5.990641845842541,
+        "total_thermal_inband_V2": 3.704334181106284e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.144676495813
+      }
+    },
+    "sf/1.980V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001015247259788,
+        "input_referral": 1.0,
+        "var_total_V2": 1.0307269985070427e-08,
+        "var_baseband_V2": 1.5470676474201071e-12,
+        "var_audio_band_V2": 1.5455978595122493e-12,
+        "var_aliased_V2": 1.0305722917423007e-08,
+        "inband_V2": 8.206052793978735e-11,
+        "inband_white_V2": 8.052554675836271e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 8.79529750925e-09,
+          "1kHz": 8.795297504856e-09,
+          "20kHz": 8.79529614186e-09,
+          "1MHz": 8.791886396773e-09,
+          "100MHz": 4.215386694015e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001343603820298,
+        "diagnostics": [],
+        "var_total_fs2": 1.7894565946302827e-09,
+        "model_b_equiv_var_V2": 1.050374757629278e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 1.8235672875508301e-09,
+        "cs_eff_F": 1.2492088198572614e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.000295677600126,
+        "input_referral": 2.0,
+        "var_total_V2": 3.49700972865083e-07,
+        "var_baseband_V2": 3.1459223512049395e-08,
+        "var_audio_band_V2": 2.618709534298258e-08,
+        "var_aliased_V2": 3.182417493530336e-07,
+        "inband_V2": 3.394548717886997e-08,
+        "inband_white_V2": 2.732038850508461e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.156522403521e-06,
+          "1kHz": 9.829007950734e-07,
+          "20kHz": 2.784926076691e-07,
+          "1MHz": 5.870658382167e-08,
+          "100MHz": 1.074379842684e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001302278239163,
+        "diagnostics": [],
+        "var_total_fs2": 6.071197445574358e-08,
+        "model_b_equiv_var_V2": 4.345022358895356e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 7.543441595304438e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 8.206052793978735e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 7.390782070840199,
+        "total_thermal_inband_V2": 3.4027547706809756e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -15.7758814210208
+      }
+    },
+    "sf/1.980V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001387217510899,
+        "input_referral": 1.0,
+        "var_total_V2": 1.9243724225448173e-08,
+        "var_baseband_V2": 1.3381496517835677e-12,
+        "var_audio_band_V2": 1.336878345914739e-12,
+        "var_aliased_V2": 1.924238607579639e-08,
+        "inband_V2": 1.5166929086894286e-10,
+        "inband_white_V2": 1.5034159551131385e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 8.179904064373e-09,
+          "1kHz": 8.179903952961e-09,
+          "20kHz": 8.179903853257e-09,
+          "1MHz": 8.179659885461e-09,
+          "100MHz": 6.652924417089e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.00133212227725,
+        "diagnostics": [],
+        "var_total_fs2": 3.3409243446958638e-09,
+        "model_b_equiv_var_V2": 1.9413669231224687e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.3704286859765084e-09,
+        "cs_eff_F": 1.1426174952622982e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003846928346739,
+        "input_referral": 2.0,
+        "var_total_V2": 5.919543081977622e-07,
+        "var_baseband_V2": 3.980767062460961e-08,
+        "var_audio_band_V2": 3.303873209098048e-08,
+        "var_aliased_V2": 5.521466375731526e-07,
+        "inband_V2": 4.412131623064986e-08,
+        "inband_white_V2": 4.6246430327950176e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.822590639241e-06,
+          "1kHz": 1.102996558616e-06,
+          "20kHz": 3.129529864968e-07,
+          "1MHz": 7.229084698834e-08,
+          "100MHz": 1.302659260702e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001322300117039,
+        "diagnostics": [],
+        "var_total_fs2": 1.0276984517322263e-07,
+        "model_b_equiv_var_V2": 5.647528477523182e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 9.804736940144415e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.5166929086894286e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.723148575519037,
+        "total_thermal_inband_V2": 4.42729855215188e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.918962999080044
+      }
+    },
+    "sf/1.980V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001184457503419,
+        "input_referral": 1.0,
+        "var_total_V2": 1.4029395774055705e-08,
+        "var_baseband_V2": 1.1785827171700781e-12,
+        "var_audio_band_V2": 1.1774630075859272e-12,
+        "var_aliased_V2": 1.4028217191338535e-08,
+        "inband_V2": 1.1077402952450238e-10,
+        "inband_white_V2": 1.096046544848102e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 7.676723476936e-09,
+          "1kHz": 7.676723476461e-09,
+          "20kHz": 7.676723305621e-09,
+          "1MHz": 7.676295553035e-09,
+          "100MHz": 5.515379398337e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.00133932819314,
+        "diagnostics": [],
+        "var_total_fs2": 2.435658988551338e-09,
+        "model_b_equiv_var_V2": 1.4179075779136305e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.4616451005444976e-09,
+        "cs_eff_F": 1.1815242909216244e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003328444421548,
+        "input_referral": 2.0,
+        "var_total_V2": 4.4314169069336007e-07,
+        "var_baseband_V2": 3.436495384824418e-08,
+        "var_audio_band_V2": 2.8571862921838574e-08,
+        "var_aliased_V2": 4.087767368451159e-07,
+        "inband_V2": 3.755852210484665e-08,
+        "inband_white_V2": 3.4620444585418756e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.39772356608e-06,
+          "1kHz": 1.026314105743e-06,
+          "20kHz": 2.909295753137e-07,
+          "1MHz": 6.362899902756e-08,
+          "100MHz": 1.185926885569e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.0013122390536,
+        "diagnostics": [],
+        "var_total_fs2": 7.693432130093058e-08,
+        "model_b_equiv_var_V2": 4.807490829420371e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 8.346338245521479e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.1077402952450238e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 6.087745598471368,
+        "total_thermal_inband_V2": 3.7669296134371156e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.217449958763794
+      }
+    },
+    "ss/1.620V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001006554062913,
+        "input_referral": 1.0,
+        "var_total_V2": 1.0131510815666677e-08,
+        "var_baseband_V2": 8.829982343324263e-12,
+        "var_audio_band_V2": 8.821593435001368e-12,
+        "var_aliased_V2": 1.0122680833323353e-08,
+        "inband_V2": 8.791342635366295e-11,
+        "inband_white_V2": 7.915242824739592e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 2.101241277354e-08,
+          "1kHz": 2.101241271847e-08,
+          "20kHz": 2.101239158679e-08,
+          "1MHz": 2.095968834778e-08,
+          "100MHz": 2.971006533849e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001352854054215,
+        "diagnostics": [],
+        "var_total_fs2": 1.7589428499421317e-09,
+        "model_b_equiv_var_V2": 1.1252918573268858e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 1.953631696748066e-09,
+        "cs_eff_F": 1.2708798133136802e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003691838666463,
+        "input_referral": 2.0,
+        "var_total_V2": 5.451869095676521e-07,
+        "var_baseband_V2": 4.3152946451296685e-08,
+        "var_audio_band_V2": 3.595671106392383e-08,
+        "var_aliased_V2": 5.020339631163554e-07,
+        "inband_V2": 4.707508678814321e-08,
+        "inband_white_V2": 4.259272730997282e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.031124493798e-06,
+          "1kHz": 1.151819725437e-06,
+          "20kHz": 3.266145714355e-07,
+          "1MHz": 6.869416385968e-08,
+          "100MHz": 1.038550472466e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001489388147352,
+        "diagnostics": [],
+        "var_total_fs2": 9.465050513327294e-08,
+        "model_b_equiv_var_V2": 6.025611108882331e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.046113039736516e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 8.791342635366295e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 7.091573071199608,
+        "total_thermal_inband_V2": 4.7163000214496877e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.193589149556527
+      }
+    },
+    "ss/1.620V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001396420105787,
+        "input_referral": 1.0,
+        "var_total_V2": 1.949989111846176e-08,
+        "var_baseband_V2": 4.492661053785481e-12,
+        "var_audio_band_V2": 4.488392079912797e-12,
+        "var_aliased_V2": 1.9495398457407974e-08,
+        "inband_V2": 1.5680046150228528e-10,
+        "inband_white_V2": 1.523428993629825e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 1.498861381139e-08,
+          "1kHz": 1.498814732248e-08,
+          "20kHz": 1.49881321713e-08,
+          "1MHz": 1.498550041981e-08,
+          "100MHz": 7.072269340315e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001339591099253,
+        "diagnostics": [],
+        "var_total_fs2": 3.3853977636218337e-09,
+        "model_b_equiv_var_V2": 2.0070459072292516e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.4844547000507845e-09,
+        "cs_eff_F": 1.1276071153639616e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.000434383153945,
+        "input_referral": 2.0,
+        "var_total_V2": 7.547548977248223e-07,
+        "var_baseband_V2": 5.2844224687538746e-08,
+        "var_audio_band_V2": 4.389497802343367e-08,
+        "var_aliased_V2": 7.019106730372836e-07,
+        "inband_V2": 5.832790182064253e-08,
+        "inband_white_V2": 5.8965226384751744e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.701414879741e-06,
+          "1kHz": 1.271524710237e-06,
+          "20kHz": 3.608721875764e-07,
+          "1MHz": 8.258009814348e-08,
+          "100MHz": 1.274011943388e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001349655595785,
+        "diagnostics": [],
+        "var_total_fs2": 1.3103383641055946e-07,
+        "model_b_equiv_var_V2": 7.4659714330422434e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.2961755960142786e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.5680046150228528e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.578651771896732,
+        "total_thermal_inband_V2": 5.848470228214481e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -18.12799774022932
+      }
+    },
+    "ss/1.620V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001182734265882,
+        "input_referral": 1.0,
+        "var_total_V2": 1.3988603436914334e-08,
+        "var_baseband_V2": 5.1013846161853615e-12,
+        "var_audio_band_V2": 5.096538057901073e-12,
+        "var_aliased_V2": 1.3983502052298148e-08,
+        "inband_V2": 1.1434749439976464e-10,
+        "inband_white_V2": 1.0928596435089324e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 1.597128720298e-08,
+          "1kHz": 1.597128719492e-08,
+          "20kHz": 1.597128439107e-08,
+          "1MHz": 1.596426879322e-08,
+          "100MHz": 5.143753590983e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001347524061632,
+        "diagnostics": [],
+        "var_total_fs2": 2.4285769855754055e-09,
+        "model_b_equiv_var_V2": 1.4636479283169874e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.5410554311058814e-09,
+        "cs_eff_F": 1.1849697483208104e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.000392857964417,
+        "input_referral": 2.0,
+        "var_total_V2": 6.173495208234754e-07,
+        "var_baseband_V2": 4.6340942910811616e-08,
+        "var_audio_band_V2": 3.856415173452492e-08,
+        "var_aliased_V2": 5.710085779126638e-07,
+        "inband_V2": 5.08019474257543e-08,
+        "inband_white_V2": 4.823043131433402e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.260548012816e-06,
+          "1kHz": 1.19245309216e-06,
+          "20kHz": 3.382188427654e-07,
+          "1MHz": 7.358531816892e-08,
+          "100MHz": 1.13145530593e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001397705052183,
+        "diagnostics": [],
+        "var_total_fs2": 1.0717873625407561e-07,
+        "model_b_equiv_var_V2": 6.502649270496551e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.1289321650167624e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.1434749439976464e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 5.949858610571329,
+        "total_thermal_inband_V2": 5.0916294920154064e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.52614283926502
+      }
+    },
+    "ss/1.800V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001050418762883,
+        "input_referral": 1.0,
+        "var_total_V2": 1.1033795774166523e-08,
+        "var_baseband_V2": 1.62790314066769e-12,
+        "var_audio_band_V2": 1.6263565552666561e-12,
+        "var_aliased_V2": 1.1032167871025856e-08,
+        "inband_V2": 8.78167146330572e-11,
+        "inband_white_V2": 8.620152948567596e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 9.02215227463e-09,
+          "1kHz": 9.022152272585e-09,
+          "20kHz": 9.022151499405e-09,
+          "1MHz": 9.020216617411e-09,
+          "100MHz": 5.235324768545e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001352283443781,
+        "diagnostics": [],
+        "var_total_fs2": 1.915589544126133e-09,
+        "model_b_equiv_var_V2": 1.1240539473031321e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 1.9514825474012714e-09,
+        "cs_eff_F": 1.1669540417039872e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.000332065488237,
+        "input_referral": 2.0,
+        "var_total_V2": 4.410699539123088e-07,
+        "var_baseband_V2": 4.368168584212771e-08,
+        "var_audio_band_V2": 3.6394011761168015e-08,
+        "var_aliased_V2": 3.973882680701811e-07,
+        "inband_V2": 4.6786281686426e-08,
+        "inband_white_V2": 3.4458590149399126e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.068990745085e-06,
+          "1kHz": 1.15883758461e-06,
+          "20kHz": 3.28512715973e-07,
+          "1MHz": 6.882451263253e-08,
+          "100MHz": 1.055976173513e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001298455375724,
+        "diagnostics": [],
+        "var_total_fs2": 7.657464477644251e-08,
+        "model_b_equiv_var_V2": 5.988644055862528e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.0396951485872445e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 8.78167146330572e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 7.096353283700324,
+        "total_thermal_inband_V2": 4.6874098401059054e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.166904179479566
+      }
+    },
+    "ss/1.800V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001406604350212,
+        "input_referral": 1.0,
+        "var_total_V2": 1.9785357980353226e-08,
+        "var_baseband_V2": 2.0499108834722684e-12,
+        "var_audio_band_V2": 2.047963369635579e-12,
+        "var_aliased_V2": 1.9783308069469753e-08,
+        "inband_V2": 1.566070051762047e-10,
+        "inband_white_V2": 1.5457310922150958e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 1.012426215845e-08,
+          "1kHz": 1.012426147273e-08,
+          "20kHz": 1.012426129923e-08,
+          "1MHz": 1.012384663979e-08,
+          "100MHz": 7.629769739479e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.00133760005639,
+        "diagnostics": [],
+        "var_total_fs2": 3.4349579827002132e-09,
+        "model_b_equiv_var_V2": 2.0045696662554203e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.4801556705823273e-09,
+        "cs_eff_F": 1.1113377880670242e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0004195024820324,
+        "input_referral": 2.0,
+        "var_total_V2": 7.039293297253763e-07,
+        "var_baseband_V2": 5.343656492995433e-08,
+        "var_audio_band_V2": 4.4387998772655506e-08,
+        "var_aliased_V2": 6.504927647954219e-07,
+        "inband_V2": 5.851853965491856e-08,
+        "inband_white_V2": 5.499447888479502e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.738847646478e-06,
+          "1kHz": 1.27868106278e-06,
+          "20kHz": 3.62856418628e-07,
+          "1MHz": 8.280571954036e-08,
+          "100MHz": 1.289799661376e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001318000692802,
+        "diagnostics": [],
+        "var_total_fs2": 1.222099530773223e-07,
+        "model_b_equiv_var_V2": 7.490373075829576e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.3004119923315238e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.566070051762047e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.584013292250232,
+        "total_thermal_inband_V2": 5.867514666009476e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -18.142116743633082
+      }
+    },
+    "ss/1.800V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001208592454001,
+        "input_referral": 1.0,
+        "var_total_V2": 1.4606957198681593e-08,
+        "var_baseband_V2": 1.6053727751000204e-12,
+        "var_audio_band_V2": 1.603847594680445e-12,
+        "var_aliased_V2": 1.4605351825906493e-08,
+        "inband_V2": 1.1570968391499449e-10,
+        "inband_white_V2": 1.1411685311469994e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 8.959500747831e-09,
+          "1kHz": 8.959500747283e-09,
+          "20kHz": 8.959500536803e-09,
+          "1MHz": 8.958973560098e-09,
+          "100MHz": 6.402084185705e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001346049572163,
+        "diagnostics": [],
+        "var_total_fs2": 2.5359300692155545e-09,
+        "model_b_equiv_var_V2": 1.4810839541119295e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.5713263092221003e-09,
+        "cs_eff_F": 1.1348066314246568e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003682652426545,
+        "input_referral": 2.0,
+        "var_total_V2": 5.424771557895111e-07,
+        "var_baseband_V2": 4.68821714233848e-08,
+        "var_audio_band_V2": 3.9013733058753665e-08,
+        "var_aliased_V2": 4.955949843661263e-07,
+        "inband_V2": 5.075400723874516e-08,
+        "inband_white_V2": 4.238102779605555e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.297502780377e-06,
+          "1kHz": 1.19941536973e-06,
+          "20kHz": 3.401303266376e-07,
+          "1MHz": 7.376944266268e-08,
+          "100MHz": 1.169369609162e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001308652630923,
+        "diagnostics": [],
+        "var_total_fs2": 9.418006176901236e-08,
+        "model_b_equiv_var_V2": 6.496512926559381e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.1278668275276705e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.1570968391499449e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 5.898428065534905,
+        "total_thermal_inband_V2": 5.086971692266016e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.522168114578307
+      }
+    },
+    "ss/1.980V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001045588151323,
+        "input_referral": 1.0,
+        "var_total_V2": 1.0932545821870487e-08,
+        "var_baseband_V2": 1.5953214301173784e-12,
+        "var_audio_band_V2": 1.5938057988436333e-12,
+        "var_aliased_V2": 1.0930950500440369e-08,
+        "inband_V2": 8.699337221480776e-11,
+        "inband_white_V2": 8.541051423336318e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 8.931409018268e-09,
+          "1kHz": 8.931409015218e-09,
+          "20kHz": 8.931407837637e-09,
+          "1MHz": 8.928461619687e-09,
+          "100MHz": 4.682874890439e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001348655880245,
+        "diagnostics": [],
+        "var_total_fs2": 1.898011427408071e-09,
+        "model_b_equiv_var_V2": 1.1135151643495394e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 1.9331860492179504e-09,
+        "cs_eff_F": 1.1777615922031427e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003284126957033,
+        "input_referral": 2.0,
+        "var_total_V2": 4.3141959479643336e-07,
+        "var_baseband_V2": 4.410968786433777e-08,
+        "var_audio_band_V2": 3.674987306997726e-08,
+        "var_aliased_V2": 3.873099069320956e-07,
+        "inband_V2": 4.713554651224476e-08,
+        "inband_white_V2": 3.3704655843471356e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.098899892632e-06,
+          "1kHz": 1.164498180453e-06,
+          "20kHz": 3.300948077261e-07,
+          "1MHz": 6.907581386552e-08,
+          "100MHz": 1.105255214005e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001295959808211,
+        "diagnostics": [],
+        "var_total_fs2": 7.489923520771414e-08,
+        "model_b_equiv_var_V2": 6.03334995356733e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.0474565891609948e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 8.699337221480776e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 7.137263475956049,
+        "total_thermal_inband_V2": 4.722253988445957e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.199068326456263
+      }
+    },
+    "ss/1.980V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001403382611582,
+        "input_referral": 1.0,
+        "var_total_V2": 1.9694827544907144e-08,
+        "var_baseband_V2": 1.645649769682143e-12,
+        "var_audio_band_V2": 1.6440863239169027e-12,
+        "var_aliased_V2": 1.969318189513746e-08,
+        "inband_V2": 1.5549863332544357e-10,
+        "inband_white_V2": 1.5386584019458706e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 9.07119656917e-09,
+          "1kHz": 9.071196366991e-09,
+          "20kHz": 9.071196247877e-09,
+          "1MHz": 9.070903244627e-09,
+          "100MHz": 7.227428410842e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001335425804982,
+        "diagnostics": [],
+        "var_total_fs2": 3.419240893213046e-09,
+        "model_b_equiv_var_V2": 1.9903825065656777e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.4555251850098574e-09,
+        "cs_eff_F": 1.1164462305579263e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0004162757394908,
+        "input_referral": 2.0,
+        "var_total_V2": 6.931419651544495e-07,
+        "var_baseband_V2": 5.3949930567349134e-08,
+        "var_audio_band_V2": 4.481588365735154e-08,
+        "var_aliased_V2": 6.391920345871004e-07,
+        "inband_V2": 5.894361833756086e-08,
+        "inband_white_V2": 5.415171602769137e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.770895325685e-06,
+          "1kHz": 1.284851713198e-06,
+          "20kHz": 3.645876535134e-07,
+          "1MHz": 8.305897884214e-08,
+          "100MHz": 1.314945225909e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001317600980349,
+        "diagnostics": [],
+        "var_total_fs2": 1.2033714672820307e-07,
+        "model_b_equiv_var_V2": 7.54478314720779e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.3098581852791304e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.5549863332544357e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.614859374017267,
+        "total_thermal_inband_V2": 5.9099116970886306e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -18.173384824819234
+      }
+    },
+    "ss/1.980V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001205113640771,
+        "input_referral": 1.0,
+        "var_total_V2": 1.4522988871723347e-08,
+        "var_baseband_V2": 1.365782861212241e-12,
+        "var_audio_band_V2": 1.3644853025955872e-12,
+        "var_aliased_V2": 1.4521623088862135e-08,
+        "inband_V2": 1.1481596324294768e-10,
+        "inband_white_V2": 1.1346085056033865e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 8.263931192935e-09,
+          "1kHz": 8.263931192437e-09,
+          "20kHz": 8.263930998499e-09,
+          "1MHz": 8.263445432219e-09,
+          "100MHz": 5.961671780358e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001343344548191,
+        "diagnostics": [],
+        "var_total_fs2": 2.5213522346741925e-09,
+        "model_b_equiv_var_V2": 1.4696443295097303e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.551465849843282e-09,
+        "cs_eff_F": 1.1413678024827288e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003647776777948,
+        "input_referral": 2.0,
+        "var_total_V2": 5.322510168694676e-07,
+        "var_baseband_V2": 4.733717635961183e-08,
+        "var_audio_band_V2": 3.9391807853282695e-08,
+        "var_aliased_V2": 4.849138405098558e-07,
+        "inband_V2": 5.1125565738595076e-08,
+        "inband_white_V2": 4.158211069292716e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.327960192948e-06,
+          "1kHz": 1.205226960413e-06,
+          "20kHz": 3.417582965055e-07,
+          "1MHz": 7.401942298123e-08,
+          "100MHz": 1.207434413636e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001307231648243,
+        "diagnostics": [],
+        "var_total_fs2": 9.240469042872702e-08,
+        "model_b_equiv_var_V2": 6.54407241454017e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.1361236830798907e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.1481596324294768e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 5.9321024011790415,
+        "total_thermal_inband_V2": 5.124038170183802e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.55369846808666
+      }
+    },
+    "tt/1.620V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001019359254479,
+        "input_referral": 1.0,
+        "var_total_V2": 1.0390932896919826e-08,
+        "var_baseband_V2": 3.175756687201675e-12,
+        "var_audio_band_V2": 3.172739567241382e-12,
+        "var_aliased_V2": 1.0387757140232624e-08,
+        "inband_V2": 8.433010934526905e-11,
+        "inband_white_V2": 8.117916325718614e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 1.260142005173e-08,
+          "1kHz": 1.260142004751e-08,
+          "20kHz": 1.260141848708e-08,
+          "1MHz": 1.259751331425e-08,
+          "100MHz": 4.759793832373e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001353568568685,
+        "diagnostics": [],
+        "var_total_fs2": 1.8039814057152477e-09,
+        "model_b_equiv_var_V2": 1.0794253996194439e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 1.874002429894868e-09,
+        "cs_eff_F": 1.23915077709883e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003360647441294,
+        "input_referral": 2.0,
+        "var_total_V2": 4.5175804898703635e-07,
+        "var_baseband_V2": 3.823837705299842e-08,
+        "var_audio_band_V2": 3.187656285029236e-08,
+        "var_aliased_V2": 4.1351967193403793e-07,
+        "inband_V2": 4.146899948998309e-08,
+        "inband_white_V2": 3.5293597577112215e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.673639747302e-06,
+          "1kHz": 1.084535548586e-06,
+          "20kHz": 3.076514965663e-07,
+          "1MHz": 6.471197475157e-08,
+          "100MHz": 9.445221039852e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001383756258472,
+        "diagnostics": [],
+        "var_total_fs2": 7.843021683802716e-08,
+        "model_b_equiv_var_V2": 5.308031934717836e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 9.215333219996244e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 8.433010934526905e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 7.2722985032697665,
+        "total_thermal_inband_V2": 4.155332959932836e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.643633193710542
+      }
+    },
+    "tt/1.620V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001400354813159,
+        "input_referral": 1.0,
+        "var_total_V2": 1.9609936027375778e-08,
+        "var_baseband_V2": 2.8570877936847796e-12,
+        "var_audio_band_V2": 2.8543457788987513e-12,
+        "var_aliased_V2": 1.9607078939582093e-08,
+        "inband_V2": 1.5603739200916987e-10,
+        "inband_white_V2": 1.5320262521387327e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 1.19751165716e-08,
+          "1kHz": 1.195289534304e-08,
+          "20kHz": 1.19522175488e-08,
+          "1MHz": 1.195132548433e-08,
+          "100MHz": 7.71820060878e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.00133951049331,
+        "diagnostics": [],
+        "var_total_fs2": 3.4045027825305175e-09,
+        "model_b_equiv_var_V2": 1.9972786177173743e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.4674976002037755e-09,
+        "cs_eff_F": 1.1212793322377036e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0004115961559203,
+        "input_referral": 2.0,
+        "var_total_V2": 6.776455822734717e-07,
+        "var_baseband_V2": 4.6822057043855186e-08,
+        "var_audio_band_V2": 3.89186925497855e-08,
+        "var_aliased_V2": 6.308235252296165e-07,
+        "inband_V2": 5.1750365834711567e-08,
+        "inband_white_V2": 5.294106111511498e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.301891331743e-06,
+          "1kHz": 1.197310030956e-06,
+          "20kHz": 3.400416256292e-07,
+          "1MHz": 7.796542430014e-08,
+          "100MHz": 1.234245946853e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001331682796914,
+        "diagnostics": [],
+        "var_total_fs2": 1.176468024780333e-07,
+        "model_b_equiv_var_V2": 6.6240468268430805e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.1500081296602573e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.5603739200916987e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.599838308224119,
+        "total_thermal_inband_V2": 5.190640322672074e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.609784267231536
+      }
+    },
+    "tt/1.620V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001192752391056,
+        "input_referral": 1.0,
+        "var_total_V2": 1.422658266369805e-08,
+        "var_baseband_V2": 2.6133915703846833e-12,
+        "var_audio_band_V2": 2.6109087240064918e-12,
+        "var_aliased_V2": 1.4223969272127665e-08,
+        "inband_V2": 1.1373815150888207e-10,
+        "inband_white_V2": 1.1114517706014102e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 1.143136560209e-08,
+          "1kHz": 1.143136545927e-08,
+          "20kHz": 1.143136494456e-08,
+          "1MHz": 1.143008720671e-08,
+          "100MHz": 6.394821860995e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001348031314448,
+        "diagnostics": [],
+        "var_total_fs2": 2.4698928235586896e-09,
+        "model_b_equiv_var_V2": 1.4558483393136905e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.527514477975157e-09,
+        "cs_eff_F": 1.1651478282481104e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003652955320478,
+        "input_referral": 2.0,
+        "var_total_V2": 5.337633029363411e-07,
+        "var_baseband_V2": 4.105590025581591e-08,
+        "var_audio_band_V2": 3.418511248406556e-08,
+        "var_aliased_V2": 4.927074026805251e-07,
+        "inband_V2": 4.490517683925751e-08,
+        "inband_white_V2": 4.170025804190165e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.888017052173e-06,
+          "1kHz": 1.122742413637e-06,
+          "20kHz": 3.186116826945e-07,
+          "1MHz": 6.937953243929e-08,
+          "100MHz": 1.083477479439e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001343229583314,
+        "diagnostics": [],
+        "var_total_fs2": 9.266724009311478e-08,
+        "model_b_equiv_var_V2": 5.747862635424961e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 9.97892818650167e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.1373815150888207e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 5.973063480270855,
+        "total_thermal_inband_V2": 4.501891499076639e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.991525143393183
+      }
+    },
+    "tt/1.800V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001051102923931,
+        "input_referral": 1.0,
+        "var_total_V2": 1.1048173566962975e-08,
+        "var_baseband_V2": 9.060312079264224e-13,
+        "var_audio_band_V2": 9.051704352308946e-13,
+        "var_aliased_V2": 1.104726753575505e-08,
+        "inband_V2": 8.721280883101274e-11,
+        "inband_white_V2": 8.631385599189824e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.730811695636e-09,
+          "1kHz": 6.730811695346e-09,
+          "20kHz": 6.730811585645e-09,
+          "1MHz": 6.730536922358e-09,
+          "100MHz": 5.223148245047e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001350989722072,
+        "diagnostics": [],
+        "var_total_fs2": 1.91808568870885e-09,
+        "model_b_equiv_var_V2": 1.116323953036963e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 1.93806241846695e-09,
+        "cs_eff_F": 1.1654353994313157e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003163281381196,
+        "input_referral": 2.0,
+        "var_total_V2": 4.0025396386485095e-07,
+        "var_baseband_V2": 3.88381719020036e-08,
+        "var_audio_band_V2": 3.237395971487175e-08,
+        "var_aliased_V2": 3.6141579196284733e-07,
+        "inband_V2": 4.1661732776713344e-08,
+        "inband_white_V2": 3.126984092694148e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.718717614411e-06,
+          "1kHz": 1.092984299626e-06,
+          "20kHz": 3.099877175459e-07,
+          "1MHz": 6.50214377187e-08,
+          "100MHz": 1.051365313161e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001297779035833,
+        "diagnostics": [],
+        "var_total_fs2": 6.94885353932033e-08,
+        "model_b_equiv_var_V2": 5.332701795419308e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 9.258162839269633e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 8.721280883101274e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 7.12632239896589,
+        "total_thermal_inband_V2": 4.174894558554436e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.66403001945269
+      }
+    },
+    "tt/1.800V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001404514532882,
+        "input_referral": 1.0,
+        "var_total_V2": 1.972661073076743e-08,
+        "var_baseband_V2": 1.534496276438705e-12,
+        "var_audio_band_V2": 1.533038428594508e-12,
+        "var_aliased_V2": 1.9725076234490994e-08,
+        "inband_V2": 1.5563665435839959e-10,
+        "inband_white_V2": 1.5411414633412056e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 8.759492867435e-09,
+          "1kHz": 8.759489244823e-09,
+          "20kHz": 8.759489061432e-09,
+          "1MHz": 8.759287870601e-09,
+          "100MHz": 7.306779579853e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001336751060538,
+        "diagnostics": [],
+        "var_total_fs2": 3.424758807424902e-09,
+        "model_b_equiv_var_V2": 1.9921491757875147e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.458592319075547e-09,
+        "cs_eff_F": 1.1146474310310773e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0004029461007695,
+        "input_referral": 2.0,
+        "var_total_V2": 6.494622405013762e-07,
+        "var_baseband_V2": 4.7501743283075246e-08,
+        "var_audio_band_V2": 3.9484138741699056e-08,
+        "var_aliased_V2": 6.019604972183009e-07,
+        "inband_V2": 5.2204559667593224e-08,
+        "inband_white_V2": 5.0739237539170014e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.347407804939e-06,
+          "1kHz": 1.206007529023e-06,
+          "20kHz": 3.424713393308e-07,
+          "1MHz": 7.831576070108e-08,
+          "100MHz": 1.273929532822e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001319125114121,
+        "diagnostics": [],
+        "var_total_fs2": 1.127538611981556e-07,
+        "model_b_equiv_var_V2": 6.682183637451933e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.1601013259465163e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.5563665435839959e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.611006273497715,
+        "total_thermal_inband_V2": 5.236019632195162e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.647587568080034
+      }
+    },
+    "tt/1.800V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001207258251372,
+        "input_referral": 1.0,
+        "var_total_V2": 1.4574724855057792e-08,
+        "var_baseband_V2": 1.1028575326351016e-12,
+        "var_audio_band_V2": 1.1018097655827822e-12,
+        "var_aliased_V2": 1.4573621997525156e-08,
+        "inband_V2": 1.1495927938830038e-10,
+        "inband_white_V2": 1.13865037930139e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 7.426010657537e-09,
+          "1kHz": 7.426010657338e-09,
+          "20kHz": 7.426010582453e-09,
+          "1MHz": 7.425823077362e-09,
+          "100MHz": 6.142238630895e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001345007918175,
+        "diagnostics": [],
+        "var_total_fs2": 2.5303341762253113e-09,
+        "model_b_equiv_var_V2": 1.4714787761702449e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.5546506530733423e-09,
+        "cs_eff_F": 1.1373162827322734e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003522528378413,
+        "input_referral": 2.0,
+        "var_total_V2": 4.963282470689968e-07,
+        "var_baseband_V2": 4.166619069798568e-08,
+        "var_audio_band_V2": 3.469212520828094e-08,
+        "var_aliased_V2": 4.546620563710111e-07,
+        "inband_V2": 4.5218238013384204e-08,
+        "inband_white_V2": 3.877564430226537e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.931986006302e-06,
+          "1kHz": 1.131060755334e-06,
+          "20kHz": 3.209245012602e-07,
+          "1MHz": 6.970175123595e-08,
+          "100MHz": 1.159090464349e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001309034055565,
+        "diagnostics": [],
+        "var_total_fs2": 8.616809844947861e-08,
+        "model_b_equiv_var_V2": 5.787934465713178e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.0048497336307602e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.1495927938830038e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 5.926684809757717,
+        "total_thermal_inband_V2": 4.5333197292772504e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.021738409372553
+      }
+    },
+    "tt/1.980V/-40C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001042201716948,
+        "input_referral": 1.0,
+        "var_total_V2": 1.086184418809359e-08,
+        "var_baseband_V2": 8.025441110186996e-13,
+        "var_audio_band_V2": 8.017816559815266e-13,
+        "var_aliased_V2": 1.0861041643982572e-08,
+        "inband_V2": 8.565443195463254e-11,
+        "inband_white_V2": 8.485815771948117e-11,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.334762227689e-09,
+          "1kHz": 6.334762227402e-09,
+          "20kHz": 6.334762116619e-09,
+          "1MHz": 6.334484820158e-09,
+          "100MHz": 4.849289610841e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001347126399509,
+        "diagnostics": [],
+        "var_total_fs2": 1.885736838210693e-09,
+        "model_b_equiv_var_V2": 1.0963767290192965e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 1.9034318212140565e-09,
+        "cs_eff_F": 1.1854278473368445e-12,
+        "temperature_K": 233.14999999999998
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003145779120683,
+        "input_referral": 2.0,
+        "var_total_V2": 3.9583705104500426e-07,
+        "var_baseband_V2": 3.934644769234601e-08,
+        "var_audio_band_V2": 3.2796469218667913e-08,
+        "var_aliased_V2": 3.5649060335265825e-07,
+        "inband_V2": 4.2131530531038656e-08,
+        "inband_white_V2": 3.092476961289096e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.75633052194e-06,
+          "1kHz": 1.100101035286e-06,
+          "20kHz": 3.119817352109e-07,
+          "1MHz": 6.53621882859e-08,
+          "100MHz": 1.083572598542e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001295460304878,
+        "diagnostics": [],
+        "var_total_fs2": 6.872171025086881e-08,
+        "model_b_equiv_var_V2": 5.392835907972948e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 9.362562340230813e-07
+      },
+      "verdict": {
+        "ktc_inband_V2": 8.565443195463254e-11,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 7.2046267451066175,
+        "total_thermal_inband_V2": 4.2217184962993286e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -16.712467617919675
+      }
+    },
+    "tt/1.980V/125C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001399342355822,
+        "input_referral": 1.0,
+        "var_total_V2": 1.9581590287974646e-08,
+        "var_baseband_V2": 1.2490401710982565e-12,
+        "var_audio_band_V2": 1.2478535234272916e-12,
+        "var_aliased_V2": 1.958034124780355e-08,
+        "inband_V2": 1.5422045616956349e-10,
+        "inband_white_V2": 1.5298117412480193e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 7.902856048715e-09,
+          "1kHz": 7.902855915193e-09,
+          "20kHz": 7.902855856788e-09,
+          "1MHz": 7.902713141278e-09,
+          "100MHz": 6.838148937781e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001334427471038,
+        "diagnostics": [],
+        "var_total_fs2": 3.399581647217821e-09,
+        "model_b_equiv_var_V2": 1.9740218389704126e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 3.4271212482125223e-09,
+        "cs_eff_F": 1.1229024635196918e-12,
+        "temperature_K": 398.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0004011631628425,
+        "input_referral": 2.0,
+        "var_total_V2": 6.437275328871928e-07,
+        "var_baseband_V2": 4.8100585287149574e-08,
+        "var_audio_band_V2": 3.998338246677666e-08,
+        "var_aliased_V2": 5.956269476000432e-07,
+        "inband_V2": 5.2753920815274914e-08,
+        "inband_white_V2": 5.029121350681194e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.387142375915e-06,
+          "1kHz": 1.213630055624e-06,
+          "20kHz": 3.446137387014e-07,
+          "1MHz": 7.866167655482e-08,
+          "100MHz": 1.296158171602e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001318188902231,
+        "diagnostics": [],
+        "var_total_fs2": 1.1175825223735988e-07,
+        "model_b_equiv_var_V2": 6.752501864355189e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.1723093514505539e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.5422045616956349e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 4.650705303824635,
+        "total_thermal_inband_V2": 5.2908141271444475e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.692799950574937
+      }
+    },
+    "tt/1.980V/27C": {
+      "ktc": {
+        "status": "pass",
+        "measured_rms_V": 0.0001200889547198,
+        "input_referral": 1.0,
+        "var_total_V2": 1.4421357045694174e-08,
+        "var_baseband_V2": 9.26566471146285e-13,
+        "var_audio_band_V2": 9.256861889791487e-13,
+        "var_aliased_V2": 1.4420430479223027e-08,
+        "inband_V2": 1.1358617959007618e-10,
+        "inband_white_V2": 1.1266685191948573e-10,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 6.806661470174e-09,
+          "1kHz": 6.806661470014e-09,
+          "20kHz": 6.806661408532e-09,
+          "1MHz": 6.806507456652e-09,
+          "100MHz": 5.730797694236e-09
+        },
+        "klt_vs_ngspice_integral_rel": 0.001342047412481,
+        "diagnostics": [],
+        "var_total_fs2": 2.5037078204330167e-09,
+        "model_b_equiv_var_V2": 1.4539030987529751e-08,
+        "model_b_equiv_ktc_noise_var_fs2": 2.5241373242239155e-09,
+        "cs_eff_F": 1.1494113793506809e-12,
+        "temperature_K": 300.15
+      },
+      "amp": {
+        "status": "pass",
+        "measured_rms_V": 0.0003504054502056,
+        "input_referral": 2.0,
+        "var_total_V2": 4.911359181351568e-07,
+        "var_baseband_V2": 4.2193690840179525e-08,
+        "var_audio_band_V2": 3.513111682079453e-08,
+        "var_aliased_V2": 4.489422272949773e-07,
+        "inband_V2": 4.570105199092154e-08,
+        "inband_white_V2": 3.836999360430913e-09,
+        "spectrum_V_per_rtHz": {
+          "20Hz": 5.969520805626e-06,
+          "1kHz": 1.138207492528e-06,
+          "20kHz": 3.229299424818e-07,
+          "1MHz": 7.003498235655e-08,
+          "100MHz": 1.187290824107e-08
+        },
+        "klt_vs_ngspice_integral_rel": 0.001307267778857,
+        "diagnostics": [],
+        "var_total_fs2": 8.526665245402029e-08,
+        "model_b_equiv_var_V2": 5.849734654837957e-06,
+        "model_b_equiv_ktc_noise_var_fs2": 1.01557893313159e-06
+      },
+      "verdict": {
+        "ktc_inband_V2": 1.1358617959007618e-10,
+        "ktc_budget_V2": 4.5e-10,
+        "ktc_pass": true,
+        "ktc_margin_db": 5.978870212463139,
+        "total_thermal_inband_V2": 4.581463817051161e-08,
+        "total_thermal_budget_V2": 9e-10,
+        "total_thermal_pass": false,
+        "total_thermal_margin_db": -17.067617515551103
+      }
+    }
+  },
+  "pass": true
+}
