@@ -19,10 +19,14 @@ cell, a step-independence check, and a DC-gain cross-check): see
 `integrator-ci/README.md`.
 
 `settling_common.py` holds the shared `klt sim` plumbing for the transistor-level
-benches (`ota-settling`, `integrator-settling`, `integrator-ci`). Its two record-validity gates — `grid_complete()` (all 45 DR-002 grid
-points returned) and `measurements_present()` (every one of them produced an
-`err_phase`, so a dead fleet job cannot become a record) — are covered by
-fixture tests, no EDA tools needed:
+benches (`ota-settling`, `integrator-settling`, `integrator-ci`), plus the two
+toolchain helpers every local single-corner probe runner needs as well —
+`join_continuations()` (fold a netlist's `+` continuation lines back into the
+instance line that declares them) and `ngspice_version()`. Its two
+record-validity gates — `grid_complete()` (all 45 DR-002 grid points returned)
+and `measurements_present()` (every one of them produced an `err_phase`, so a
+dead fleet job cannot become a record) — are covered by fixture tests, no EDA
+tools needed:
 `python3 -I -m unittest discover -s sim -p 'test_settling*.py'`. The
 charge-injection runner's own gates and derivations are covered the same way:
 `python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'`.
