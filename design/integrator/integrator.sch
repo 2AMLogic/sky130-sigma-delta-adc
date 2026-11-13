@@ -72,7 +72,7 @@ N -620 0 -640 0 {}
 C {devices/lab_pin.sym} -640 0 0 0 {name=l7 lab=phi1b}
 N -580 0 -550 0 {}
 C {devices/lab_pin.sym} -550 0 0 0 {name=l8 lab=vdda}
-C {sky130_fd_pr/nfet_01v8.sym} 100 0 0 0 {name=Sbi_p
+C {sky130_fd_pr/nfet_01v8_lvt.sym} 100 0 0 0 {name=Sbi_p
 L=0.15
 W=12
 nf=1
@@ -86,7 +86,7 @@ nrs=0.02416667
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N 120 -30 140 -40 {}
 C {devices/lab_pin.sym} 140 -40 0 0 {name=l9 lab=bpi_p}
@@ -96,7 +96,7 @@ N 80 0 60 0 {}
 C {devices/lab_pin.sym} 60 0 0 0 {name=l11 lab=phi2}
 N 120 0 150 0 {}
 C {devices/lab_pin.sym} 150 0 0 0 {name=l12 lab=vssa}
-C {sky130_fd_pr/nfet_01v8.sym} 550 0 0 0 {name=Sci_p
+C {sky130_fd_pr/nfet_01v8_lvt.sym} 550 0 0 0 {name=Sci_p
 L=0.15
 W=12
 nf=1
@@ -110,7 +110,7 @@ nrs=0.02416667
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N 570 -30 590 -40 {}
 C {devices/lab_pin.sym} 590 -40 0 0 {name=l13 lab=tpi_p}
@@ -120,7 +120,7 @@ N 530 0 510 0 {}
 C {devices/lab_pin.sym} 510 0 0 0 {name=l15 lab=phi1e}
 N 570 0 600 0 {}
 C {devices/lab_pin.sym} 600 0 0 0 {name=l16 lab=vssa}
-C {sky130_fd_pr/nfet_01v8.sym} 1000 0 0 0 {name=Sti_p
+C {sky130_fd_pr/nfet_01v8_lvt.sym} 1000 0 0 0 {name=Sti_p
 L=0.15
 W=12
 nf=1
@@ -134,7 +134,7 @@ nrs=0.02416667
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N 1020 -30 1040 -40 {}
 C {devices/lab_pin.sym} 1040 -40 0 0 {name=l17 lab=tpi_p}
@@ -299,7 +299,7 @@ N 180 500 160 500 {}
 C {devices/lab_pin.sym} 160 500 0 0 {name=l45 lab=phi1b}
 N 220 500 250 500 {}
 C {devices/lab_pin.sym} 250 500 0 0 {name=l46 lab=vdda}
-C {sky130_fd_pr/nfet_01v8.sym} 650 500 0 0 {name=Sbr_p
+C {sky130_fd_pr/nfet_01v8_lvt.sym} 650 500 0 0 {name=Sbr_p
 L=0.15
 W=12
 nf=1
@@ -313,7 +313,7 @@ nrs=0.02416667
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N 670 470 690 460 {}
 C {devices/lab_pin.sym} 690 460 0 0 {name=l47 lab=bpr_p}
@@ -323,7 +323,7 @@ N 630 500 610 500 {}
 C {devices/lab_pin.sym} 610 500 0 0 {name=l49 lab=phi2}
 N 670 500 700 500 {}
 C {devices/lab_pin.sym} 700 500 0 0 {name=l50 lab=vssa}
-C {sky130_fd_pr/nfet_01v8.sym} 1100 500 0 0 {name=Scr_p
+C {sky130_fd_pr/nfet_01v8_lvt.sym} 1100 500 0 0 {name=Scr_p
 L=0.15
 W=12
 nf=1
@@ -337,7 +337,7 @@ nrs=0.02416667
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N 1120 470 1140 460 {}
 C {devices/lab_pin.sym} 1140 460 0 0 {name=l51 lab=tpr_p}
@@ -347,7 +347,7 @@ N 1080 500 1060 500 {}
 C {devices/lab_pin.sym} 1060 500 0 0 {name=l53 lab=phi1e}
 N 1120 500 1150 500 {}
 C {devices/lab_pin.sym} 1150 500 0 0 {name=l54 lab=vssa}
-C {sky130_fd_pr/nfet_01v8.sym} 1550 500 0 0 {name=Str_p
+C {sky130_fd_pr/nfet_01v8_lvt.sym} 1550 500 0 0 {name=Str_p
 L=0.15
 W=12
 nf=1
@@ -361,7 +361,7 @@ nrs=0.02416667
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N 1570 470 1590 460 {}
 C {devices/lab_pin.sym} 1590 460 0 0 {name=l55 lab=tpr_p}
@@ -441,7 +441,7 @@ N -620 1500 -640 1500 {}
 C {devices/lab_pin.sym} -640 1500 0 0 {name=l69 lab=phi1b}
 N -580 1500 -550 1500 {}
 C {devices/lab_pin.sym} -550 1500 0 0 {name=l70 lab=vdda}
-C {sky130_fd_pr/nfet_01v8.sym} 100 1500 0 0 {name=Sbi_n
+C {sky130_fd_pr/nfet_01v8_lvt.sym} 100 1500 0 0 {name=Sbi_n
 L=0.15
 W=12
 nf=1
@@ -455,7 +455,7 @@ nrs=0.02416667
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N 120 1470 140 1460 {}
 C {devices/lab_pin.sym} 140 1460 0 0 {name=l71 lab=bpi_n}
@@ -465,7 +465,7 @@ N 80 1500 60 1500 {}
 C {devices/lab_pin.sym} 60 1500 0 0 {name=l73 lab=phi2}
 N 120 1500 150 1500 {}
 C {devices/lab_pin.sym} 150 1500 0 0 {name=l74 lab=vssa}
-C {sky130_fd_pr/nfet_01v8.sym} 550 1500 0 0 {name=Sci_n
+C {sky130_fd_pr/nfet_01v8_lvt.sym} 550 1500 0 0 {name=Sci_n
 L=0.15
 W=12
 nf=1
@@ -479,7 +479,7 @@ nrs=0.02416667
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N 570 1470 590 1460 {}
 C {devices/lab_pin.sym} 590 1460 0 0 {name=l75 lab=tpi_n}
@@ -489,7 +489,7 @@ N 530 1500 510 1500 {}
 C {devices/lab_pin.sym} 510 1500 0 0 {name=l77 lab=phi1e}
 N 570 1500 600 1500 {}
 C {devices/lab_pin.sym} 600 1500 0 0 {name=l78 lab=vssa}
-C {sky130_fd_pr/nfet_01v8.sym} 1000 1500 0 0 {name=Sti_n
+C {sky130_fd_pr/nfet_01v8_lvt.sym} 1000 1500 0 0 {name=Sti_n
 L=0.15
 W=12
 nf=1
@@ -503,7 +503,7 @@ nrs=0.02416667
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N 1020 1470 1040 1460 {}
 C {devices/lab_pin.sym} 1040 1460 0 0 {name=l79 lab=tpi_n}
@@ -668,7 +668,7 @@ N 180 2000 160 2000 {}
 C {devices/lab_pin.sym} 160 2000 0 0 {name=l107 lab=phi1b}
 N 220 2000 250 2000 {}
 C {devices/lab_pin.sym} 250 2000 0 0 {name=l108 lab=vdda}
-C {sky130_fd_pr/nfet_01v8.sym} 650 2000 0 0 {name=Sbr_n
+C {sky130_fd_pr/nfet_01v8_lvt.sym} 650 2000 0 0 {name=Sbr_n
 L=0.15
 W=12
 nf=1
@@ -682,7 +682,7 @@ nrs=0.02416667
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N 670 1970 690 1960 {}
 C {devices/lab_pin.sym} 690 1960 0 0 {name=l109 lab=bpr_n}
@@ -692,7 +692,7 @@ N 630 2000 610 2000 {}
 C {devices/lab_pin.sym} 610 2000 0 0 {name=l111 lab=phi2}
 N 670 2000 700 2000 {}
 C {devices/lab_pin.sym} 700 2000 0 0 {name=l112 lab=vssa}
-C {sky130_fd_pr/nfet_01v8.sym} 1100 2000 0 0 {name=Scr_n
+C {sky130_fd_pr/nfet_01v8_lvt.sym} 1100 2000 0 0 {name=Scr_n
 L=0.15
 W=12
 nf=1
@@ -706,7 +706,7 @@ nrs=0.02416667
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N 1120 1970 1140 1960 {}
 C {devices/lab_pin.sym} 1140 1960 0 0 {name=l113 lab=tpr_n}
@@ -716,7 +716,7 @@ N 1080 2000 1060 2000 {}
 C {devices/lab_pin.sym} 1060 2000 0 0 {name=l115 lab=phi1e}
 N 1120 2000 1150 2000 {}
 C {devices/lab_pin.sym} 1150 2000 0 0 {name=l116 lab=vssa}
-C {sky130_fd_pr/nfet_01v8.sym} 1550 2000 0 0 {name=Str_n
+C {sky130_fd_pr/nfet_01v8_lvt.sym} 1550 2000 0 0 {name=Str_n
 L=0.15
 W=12
 nf=1
@@ -730,7 +730,7 @@ nrs=0.02416667
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N 1570 1970 1590 1960 {}
 C {devices/lab_pin.sym} 1590 1960 0 0 {name=l117 lab=tpr_n}
@@ -779,6 +779,261 @@ N 3750 750 3770 750 {}
 C {devices/lab_pin.sym} 3770 750 0 0 {name=l131 lab=vcm}
 N 3750 770 3770 770 {}
 C {devices/lab_pin.sym} 3770 770 0 0 {name=l132 lab=ibias}
+* issue #92: low-Vth PMOS half of each phi2-gated vcm / summing-node switch.
+* The NMOS half loses its overdrive at Vdda = 1.620 V -- its Vgs is
+* Vdda - vcm = 0.72 V against a body-effected Vth of about 0.92 V, so it sits
+* in subthreshold and the charge transfer collapses (sim/integrator-settling/
+* diag-i92.json). The PMOS half is driven Vsg = vcm = 0.9 V against its gate at
+* vssa, which does NOT shrink with Vdda, so it carries the transfer at the low
+* rail; the low-Vth flavour is needed because the standard pfet is also
+* subthreshold at 0.9 V (pfet_01v8_lvt has no model bin below L = 0.35 um).
+* Sizes are per family, and small on purpose: the summing-node devices
+* (Sti/Str) and the bottom-plate devices (Sbi/Sbr) add junction capacitance
+* that lowers beta and costs more settling at 1.980 V than the Ron it buys.
+* Sci/Scr get no PMOS half: they only reset the top plate during phi1e, which
+* already reaches vcm at 1.620 V with the NMOS alone. See SIZING.md.
+C {sky130_fd_pr/pfet_01v8_lvt.sym} -800 2600 0 0 {name=Sbi_p_p
+L=0.35
+W=24
+nf=1
+mult=1
+ad=6.96
+as=6.96
+pd=48.58
+ps=48.58
+nrd=0.012083333
+nrs=0.012083333
+sa=0
+sb=0
+sd=0
+model=pfet_01v8_lvt
+spiceprefix=X}
+N -780 2570 -780 2560 {}
+C {devices/lab_pin.sym} -780 2560 0 0 {name=l133 lab=vcm}
+N -780 2630 -780 2640 {}
+C {devices/lab_pin.sym} -780 2640 0 0 {name=l134 lab=bpi_p}
+N -820 2600 -840 2600 {}
+C {devices/lab_pin.sym} -840 2600 0 0 {name=l135 lab=phi2b}
+N -780 2600 -750 2600 {}
+C {devices/lab_pin.sym} -750 2600 0 0 {name=l136 lab=vdda}
+C {sky130_fd_pr/pfet_01v8_lvt.sym} -350 2600 0 0 {name=Sbi_n_p
+L=0.35
+W=24
+nf=1
+mult=1
+ad=6.96
+as=6.96
+pd=48.58
+ps=48.58
+nrd=0.012083333
+nrs=0.012083333
+sa=0
+sb=0
+sd=0
+model=pfet_01v8_lvt
+spiceprefix=X}
+N -330 2570 -330 2560 {}
+C {devices/lab_pin.sym} -330 2560 0 0 {name=l137 lab=vcm}
+N -330 2630 -330 2640 {}
+C {devices/lab_pin.sym} -330 2640 0 0 {name=l138 lab=bpi_n}
+N -370 2600 -390 2600 {}
+C {devices/lab_pin.sym} -390 2600 0 0 {name=l139 lab=phi2b}
+N -330 2600 -300 2600 {}
+C {devices/lab_pin.sym} -300 2600 0 0 {name=l140 lab=vdda}
+C {sky130_fd_pr/pfet_01v8_lvt.sym} 100 2600 0 0 {name=Sbr_p_p
+L=0.35
+W=24
+nf=1
+mult=1
+ad=6.96
+as=6.96
+pd=48.58
+ps=48.58
+nrd=0.012083333
+nrs=0.012083333
+sa=0
+sb=0
+sd=0
+model=pfet_01v8_lvt
+spiceprefix=X}
+N 120 2570 120 2560 {}
+C {devices/lab_pin.sym} 120 2560 0 0 {name=l141 lab=vcm}
+N 120 2630 120 2640 {}
+C {devices/lab_pin.sym} 120 2640 0 0 {name=l142 lab=bpr_p}
+N 80 2600 60 2600 {}
+C {devices/lab_pin.sym} 60 2600 0 0 {name=l143 lab=phi2b}
+N 120 2600 150 2600 {}
+C {devices/lab_pin.sym} 150 2600 0 0 {name=l144 lab=vdda}
+C {sky130_fd_pr/pfet_01v8_lvt.sym} 550 2600 0 0 {name=Sbr_n_p
+L=0.35
+W=24
+nf=1
+mult=1
+ad=6.96
+as=6.96
+pd=48.58
+ps=48.58
+nrd=0.012083333
+nrs=0.012083333
+sa=0
+sb=0
+sd=0
+model=pfet_01v8_lvt
+spiceprefix=X}
+N 570 2570 570 2560 {}
+C {devices/lab_pin.sym} 570 2560 0 0 {name=l145 lab=vcm}
+N 570 2630 570 2640 {}
+C {devices/lab_pin.sym} 570 2640 0 0 {name=l146 lab=bpr_n}
+N 530 2600 510 2600 {}
+C {devices/lab_pin.sym} 510 2600 0 0 {name=l147 lab=phi2b}
+N 570 2600 600 2600 {}
+C {devices/lab_pin.sym} 600 2600 0 0 {name=l148 lab=vdda}
+C {sky130_fd_pr/pfet_01v8_lvt.sym} -800 3050 0 0 {name=Sti_p_p
+L=0.35
+W=4
+nf=1
+mult=1
+ad=1.16
+as=1.16
+pd=8.58
+ps=8.58
+nrd=0.0725
+nrs=0.0725
+sa=0
+sb=0
+sd=0
+model=pfet_01v8_lvt
+spiceprefix=X}
+N -780 3020 -780 3010 {}
+C {devices/lab_pin.sym} -780 3010 0 0 {name=l149 lab=sump}
+N -780 3080 -780 3090 {}
+C {devices/lab_pin.sym} -780 3090 0 0 {name=l150 lab=tpi_p}
+N -820 3050 -840 3050 {}
+C {devices/lab_pin.sym} -840 3050 0 0 {name=l151 lab=phi2b}
+N -780 3050 -750 3050 {}
+C {devices/lab_pin.sym} -750 3050 0 0 {name=l152 lab=vdda}
+C {sky130_fd_pr/pfet_01v8_lvt.sym} -350 3050 0 0 {name=Sti_n_p
+L=0.35
+W=4
+nf=1
+mult=1
+ad=1.16
+as=1.16
+pd=8.58
+ps=8.58
+nrd=0.0725
+nrs=0.0725
+sa=0
+sb=0
+sd=0
+model=pfet_01v8_lvt
+spiceprefix=X}
+N -330 3020 -330 3010 {}
+C {devices/lab_pin.sym} -330 3010 0 0 {name=l153 lab=sumn}
+N -330 3080 -330 3090 {}
+C {devices/lab_pin.sym} -330 3090 0 0 {name=l154 lab=tpi_n}
+N -370 3050 -390 3050 {}
+C {devices/lab_pin.sym} -390 3050 0 0 {name=l155 lab=phi2b}
+N -330 3050 -300 3050 {}
+C {devices/lab_pin.sym} -300 3050 0 0 {name=l156 lab=vdda}
+C {sky130_fd_pr/pfet_01v8_lvt.sym} 100 3050 0 0 {name=Str_p_p
+L=0.35
+W=4
+nf=1
+mult=1
+ad=1.16
+as=1.16
+pd=8.58
+ps=8.58
+nrd=0.0725
+nrs=0.0725
+sa=0
+sb=0
+sd=0
+model=pfet_01v8_lvt
+spiceprefix=X}
+N 120 3020 120 3010 {}
+C {devices/lab_pin.sym} 120 3010 0 0 {name=l157 lab=sump}
+N 120 3080 120 3090 {}
+C {devices/lab_pin.sym} 120 3090 0 0 {name=l158 lab=tpr_p}
+N 80 3050 60 3050 {}
+C {devices/lab_pin.sym} 60 3050 0 0 {name=l159 lab=phi2b}
+N 120 3050 150 3050 {}
+C {devices/lab_pin.sym} 150 3050 0 0 {name=l160 lab=vdda}
+C {sky130_fd_pr/pfet_01v8_lvt.sym} 550 3050 0 0 {name=Str_n_p
+L=0.35
+W=4
+nf=1
+mult=1
+ad=1.16
+as=1.16
+pd=8.58
+ps=8.58
+nrd=0.0725
+nrs=0.0725
+sa=0
+sb=0
+sd=0
+model=pfet_01v8_lvt
+spiceprefix=X}
+N 570 3020 570 3010 {}
+C {devices/lab_pin.sym} 570 3010 0 0 {name=l161 lab=sumn}
+N 570 3080 570 3090 {}
+C {devices/lab_pin.sym} 570 3090 0 0 {name=l162 lab=tpr_n}
+N 530 3050 510 3050 {}
+C {devices/lab_pin.sym} 510 3050 0 0 {name=l163 lab=phi2b}
+N 570 3050 600 3050 {}
+C {devices/lab_pin.sym} 600 3050 0 0 {name=l164 lab=vdda}
+* issue #92: local complement of phi2 for the PMOS halves above. Generated
+* in-cell so the block's port list and design/clkgen are both unchanged.
+C {sky130_fd_pr/nfet_01v8.sym} -800 3600 0 0 {name=Iphi2b_n
+L=0.15
+W=2
+nf=1
+mult=4
+ad=0.58
+as=0.58
+pd=4.58
+ps=4.58
+nrd=0.145
+nrs=0.145
+sa=0
+sb=0
+sd=0
+model=nfet_01v8
+spiceprefix=X}
+N -780 3570 -780 3560 {}
+C {devices/lab_pin.sym} -780 3560 0 0 {name=l165 lab=phi2b}
+N -780 3630 -780 3640 {}
+C {devices/lab_pin.sym} -780 3640 0 0 {name=l166 lab=vssa}
+N -820 3600 -840 3600 {}
+C {devices/lab_pin.sym} -840 3600 0 0 {name=l167 lab=phi2}
+N -780 3600 -750 3600 {}
+C {devices/lab_pin.sym} -750 3600 0 0 {name=l168 lab=vssa}
+C {sky130_fd_pr/pfet_01v8.sym} -350 3600 0 0 {name=Iphi2b_p
+L=0.15
+W=4
+nf=1
+mult=4
+ad=1.16
+as=1.16
+pd=8.58
+ps=8.58
+nrd=0.0725
+nrs=0.0725
+sa=0
+sb=0
+sd=0
+model=pfet_01v8
+spiceprefix=X}
+N -330 3570 -330 3560 {}
+C {devices/lab_pin.sym} -330 3560 0 0 {name=l169 lab=phi2b}
+N -330 3630 -330 3640 {}
+C {devices/lab_pin.sym} -330 3640 0 0 {name=l170 lab=vdda}
+N -370 3600 -390 3600 {}
+C {devices/lab_pin.sym} -390 3600 0 0 {name=l171 lab=phi2}
+N -330 3600 -300 3600 {}
+C {devices/lab_pin.sym} -300 3600 0 0 {name=l172 lab=vdda}
 * Block pins. Order sets the .subckt terminal order.
 C {devices/iopin.sym} -1400 -300 0 0 {name=p_vdda lab=vdda}
 C {devices/iopin.sym} -1400 -200 0 0 {name=p_vssa lab=vssa}

@@ -1,0 +1,33 @@
+* Single-switch DC probe (issue #92) -- ONE operating point, local.
+* NOT a performance claim and NOT a record. This deck measures one number for
+* one device at one corner: either the on-state resistance of a switch passing
+* vcm = 0.9 V, or its off-state leakage with a drain-source bias across it.
+* Simulated (ngspice, sky130 device models); nothing here is measured.
+*
+* It exists so the switch-resistance and leakage numbers quoted in
+* design/integrator/SIZING.md ("Why the `vcm` switches need a PMOS half") have
+* a committed testbench rather than resting on prose. The settling numbers
+* those arguments lead to are a different bench (integrator-settling).
+*
+* run_probe.py substitutes the doubled-brace placeholders: PDK library and
+* corner, temperature, supply, the device model and its geometry, the gate and
+* bulk bias, and the two terminal voltages.
+.lib {{PDK_LIB}} {{CORNER}}
+.temp {{TEMP}}
+Vdda vdda 0 {{VDDA}}
+* Source sits at vcm; drain is offset by the probe bias. The current through
+* Vd is the whole device current, so Ron = bias / I(Vd) in the on case and
+* I(Vd) is the leakage in the off case.
+Vs s 0 {{VS}}
+Vd d 0 {{VD}}
+Vg g 0 {{VG}}
+Vb b 0 {{VB}}
+X1 d g s b {{MODEL}} {{GEOM}}
+.control
+option gmin=1e-15
+op
+let i_dev = abs(i(vd))
+let r_on = {{BIAS}}/i_dev
+print i_dev r_on
+.endc
+.end

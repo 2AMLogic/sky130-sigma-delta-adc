@@ -1,0 +1,187 @@
+{
+  "fixture": "Integrator settling with substituted switches: switch-isolation cross-check and PMOS-half size bounds (issue #92)",
+  "result_kind": "simulated (ngspice, transistor-level netlists of design/integrator + design/ota/ota_fd); one corner per row, run locally; not measured, not a record, not a performance claim",
+  "purpose": "show the 1.620 V failure is switch conduction and not the OTA, and bound how small the PMOS halves can get",
+  "pass_criterion": "err_phase <= 1e-4 (DR-005), same definition as record.json",
+  "deck": "diag_1v62.cir.tmpl (same stimulus and timing as run_diag.py)",
+  "pdk_sources_stamp": "open_pdks f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+  "pdk_pin": {
+    "file": "sim/pdk.json",
+    "open_pdks_revision": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7"
+  },
+  "ngspice": "ngspice-47",
+  "deck_sha256": "6ff70fa75b23744fb1b0db49ddff2f44ef6bdf8ec304249a019c7cab4ff87c78",
+  "ota_netlist_sha256": "7f4724e9631c05760bc98d161100c41b06928b98e0526c027e6a9271d70f7977",
+  "baseline_rev": "ffbbb3b",
+  "variants": {
+    "ideal": {
+      "note": "baseline netlist, twelve vcm switches replaced by ideal 1 ohm switches",
+      "netlist_sha256": "c160e349250f95baca2586dc29c5e0669c20b6a6aee64a1c4c32280039e409c1"
+    },
+    "no_pmos_std": {
+      "note": "baseline netlist, unmodified (plain nfet_01v8, no PMOS halves)",
+      "netlist_sha256": "49a580ab536742166b2173e470181267ab4e8487146309bc239acffe6d8c92ca"
+    },
+    "no_pmos_lvt": {
+      "note": "baseline netlist, twelve vcm switches moved to nfet_01v8_lvt, still no PMOS halves",
+      "netlist_sha256": "98d6dcb8bc17b401bc7853b4bde7cb54896ee14ea90a373b4dae89c13653d401"
+    },
+    "fixed": {
+      "note": "working-tree netlist, unmodified",
+      "netlist_sha256": "18fc51475f667eea993fbef4e9a3abe7eaa35863ae88f86c25bfb56bc4074d53"
+    }
+  },
+  "points": {
+    "ideal_fs_1v62": {
+      "variant": "ideal",
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "values": {
+        "vod_pre": 1.048728e-11,
+        "vod_end": 0.8951726,
+        "step_dv": 0.8951726,
+        "vod_phase": 0.8951718,
+        "err_phase": 9.0789e-07,
+        "step_err_vs_ideal": 0.005363764,
+        "end_ripple_rel": 1.368994e-07
+      }
+    },
+    "ideal_sf_1v62": {
+      "variant": "ideal",
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "values": {
+        "vod_pre": -1.2763e-10,
+        "vod_end": 0.8956729,
+        "step_dv": 0.8956729,
+        "vod_phase": 0.8956703,
+        "err_phase": 2.850799e-06,
+        "step_err_vs_ideal": 0.004807941,
+        "end_ripple_rel": 1.448753e-06
+      }
+    },
+    "ideal_ss_1v62": {
+      "variant": "ideal",
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "values": {
+        "vod_pre": 1.021006e-11,
+        "vod_end": 0.8962887,
+        "step_dv": 0.8962887,
+        "vod_phase": 0.8962878,
+        "err_phase": 9.864234e-07,
+        "step_err_vs_ideal": 0.004123684,
+        "end_ripple_rel": 1.39199e-06
+      }
+    },
+    "ideal_fs_1v98": {
+      "variant": "ideal",
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.98,
+      "values": {
+        "vod_pre": -6.9618e-11,
+        "vod_end": 0.8964695,
+        "step_dv": 0.8964695,
+        "vod_phase": 0.8964708,
+        "err_phase": 1.426197e-06,
+        "step_err_vs_ideal": 0.003922754,
+        "end_ripple_rel": 1.504188e-07
+      }
+    },
+    "ideal_sf_1v98": {
+      "variant": "ideal",
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.98,
+      "values": {
+        "vod_pre": -4.21285e-11,
+        "vod_end": 0.8969026,
+        "step_dv": 0.8969026,
+        "vod_phase": 0.8968998,
+        "err_phase": 3.075094e-06,
+        "step_err_vs_ideal": 0.003441602,
+        "end_ripple_rel": 9.61202e-07
+      }
+    },
+    "ideal_ss_1v98": {
+      "variant": "ideal",
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.98,
+      "values": {
+        "vod_pre": -4.68875e-11,
+        "vod_end": 0.897518,
+        "step_dv": 0.897518,
+        "vod_phase": 0.8975176,
+        "err_phase": 4.294408e-07,
+        "step_err_vs_ideal": 0.002757794,
+        "end_ripple_rel": 1.23221e-07
+      }
+    },
+    "ideal_sf_1v80_125c": {
+      "variant": "ideal",
+      "corner": "sf",
+      "temperature_c": 125,
+      "vdda_V": 1.8,
+      "values": {
+        "vod_pre": -9.72425e-11,
+        "vod_end": 0.8953401,
+        "step_dv": 0.8953401,
+        "vod_phase": 0.8953398,
+        "err_phase": 3.431476e-07,
+        "step_err_vs_ideal": 0.005177659,
+        "end_ripple_rel": 1.559756e-06
+      }
+    },
+    "no_pmos_std_sf_1v80_125c": {
+      "variant": "no_pmos_std",
+      "corner": "sf",
+      "temperature_c": 125,
+      "vdda_V": 1.8,
+      "values": {
+        "vod_pre": 6.84639e-11,
+        "vod_end": 0.8952005,
+        "step_dv": 0.8952005,
+        "vod_phase": 0.8951965,
+        "err_phase": 4.448302e-06,
+        "step_err_vs_ideal": 0.005332798,
+        "end_ripple_rel": 7.346632e-07
+      }
+    },
+    "no_pmos_lvt_sf_1v80_125c": {
+      "variant": "no_pmos_lvt",
+      "corner": "sf",
+      "temperature_c": 125,
+      "vdda_V": 1.8,
+      "values": {
+        "vod_pre": -4.03133e-12,
+        "vod_end": 0.895143,
+        "step_dv": 0.895143,
+        "vod_phase": 0.8951712,
+        "err_phase": 3.152634e-05,
+        "step_err_vs_ideal": 0.00539669,
+        "end_ripple_rel": 5.482054e-07
+      }
+    },
+    "fixed_sf_1v80_125c": {
+      "variant": "fixed",
+      "corner": "sf",
+      "temperature_c": 125,
+      "vdda_V": 1.8,
+      "values": {
+        "vod_pre": 3.580913e-12,
+        "vod_end": 0.8951462,
+        "step_dv": 0.8951462,
+        "vod_phase": 0.8951855,
+        "err_phase": 4.389695e-05,
+        "step_err_vs_ideal": 0.005393105,
+        "end_ripple_rel": 6.704401e-06
+      }
+    }
+  }
+}
+

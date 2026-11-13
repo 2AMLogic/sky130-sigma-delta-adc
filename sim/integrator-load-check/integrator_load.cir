@@ -23,7 +23,7 @@ Vphi1e phi1e 0 0
 Vphi2 phi2 0 0
 Vdp dp 0 0
 Vdn dn 0 0
-Xint vdda 0 vinp vinn voutp voutn vrefp vrefn vcm ibias phi1 phi1b phi1e phi2 dp dn integrator
+Xint vdda 0 vinp vinn vrefp vrefn vcm ibias phi1 phi1b phi1e phi2 dp dn voutp voutn integrator
 * planning load on the integrator outputs (no effect on DC)
 Cop voutp 0 1p
 Con voutn 0 1p

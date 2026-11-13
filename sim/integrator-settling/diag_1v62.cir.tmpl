@@ -1,0 +1,47 @@
+* Integrator 1.620 V non-settling DIAGNOSIS deck (issue #92) -- ONE corner, local.
+* NOT a performance claim and NOT a record: it is the single-corner probe that
+* names the mechanism behind the 0/15 failures at Vdda = 1.620 V in
+* sim/integrator-settling/record.json. Simulated (ngspice, transistor-level
+* design/integrator + design/ota/ota_fd); nothing here is measured.
+*
+* Circuit, stimulus and timing are identical to integrator_settling_int1.cir
+* (0.1 pF per-side load, case B) so the err_phase it reports is comparable to
+* that bench; the difference is that this deck also saves internal node
+* voltages and device operating points, which `run_settling.py --probe` cannot
+* do and which it could not reach anyway (--probe is fixed at tt/27 C/1.8 V).
+*
+* run_diag.py substitutes the doubled-brace placeholders below: the PDK library
+* and corner, the temperature and supply, the per-side load, the two .include
+* paths, and the .control probe program. (They are not spelled out here: a
+* literal placeholder inside this comment would itself be substituted.)
+.lib {{PDK_LIB}} {{CORNER}}
+.temp {{TEMP}}
+.include {{OTA}}
+.include {{NETLIST}}
+Vdda vdda 0 {{VDDA}}
+Vvcm vcm 0 0.9
+Vrefp vrefp 0 1.5
+Vrefn vrefn 0 0.3
+Vinp vinp 0 1.2
+Vinn vinn 0 0.6
+Ibias vdda ibias 5u
+Bphi1 phi1 0 V='v(vdda)*(1 - min(max((time-29.9n)/0.2n,0),1))'
+Bphi1b phi1b 0 V='v(vdda) - v(phi1)'
+Bphi1e phi1e 0 V='v(vdda)*(1 - min(max((time-27.9n)/0.2n,0),1))'
+Bphi2 phi2 0 V='v(vdda)*min(max((time-34.9n)/0.2n,0),1)'
+Bdn dn 0 V='v(vdda)'
+Bdp dp 0 V='0'
+* The instance line is built from the .subckt port list of the included
+* netlist, not hard-coded, so this deck probes whichever port order the
+* netlist declares (issue #92: `klt netlist` reorders ports by pin type).
+{{XINT}}
+Clp voutp 0 {{LOAD}}
+Cln voutn 0 {{LOAD}}
+* bench-only reset (not part of the cell): closes the OTA loop until 31 ns
+Brst rst 0 V='1 - min(max((time-30.9n)/0.2n,0),1)'
+Srp voutp xint.sump rst 0 swr
+Srn voutn xint.sumn rst 0 swr
+.model swr sw vt=0.5 vh=0.1 ron=1 roff=1e15
+Bvod vod 0 V='v(voutp)-v(voutn)'
+{{PROBES}}
+.end
