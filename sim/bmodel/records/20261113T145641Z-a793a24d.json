@@ -25,56 +25,56 @@
   "tone_cycles": 1639,
   "tone_hz": 2000.732421875,
   "amplitude_dbfs": -6,
-  "peak_sndr_db": 82.23825227632122,
+  "peak_sndr_db": 86.00322376721212,
   "peak_at_sweep_ceiling": true,
   "sweep": [
     {
       "amplitude_dbfs": -60,
-      "sndr_db": 30.41640767224889
+      "sndr_db": 33.15583685631955
     },
     {
       "amplitude_dbfs": -50,
-      "sndr_db": 40.714619139525766
+      "sndr_db": 40.82560055657207
     },
     {
       "amplitude_dbfs": -40,
-      "sndr_db": 50.72727564781887
+      "sndr_db": 53.25037877832798
     },
     {
       "amplitude_dbfs": -30,
-      "sndr_db": 60.6308179137681
+      "sndr_db": 64.14577614249511
     },
     {
       "amplitude_dbfs": -24,
-      "sndr_db": 63.79902064700515
+      "sndr_db": 70.63121420443312
     },
     {
       "amplitude_dbfs": -18,
-      "sndr_db": 71.15538106079302
+      "sndr_db": 76.85897522967423
     },
     {
       "amplitude_dbfs": -14,
-      "sndr_db": 75.17478495766646
+      "sndr_db": 80.58296253067658
     },
     {
       "amplitude_dbfs": -12,
-      "sndr_db": 77.22517621968507
+      "sndr_db": 81.81079522986124
     },
     {
       "amplitude_dbfs": -10,
-      "sndr_db": 79.05721785294241
+      "sndr_db": 83.97884319956535
     },
     {
       "amplitude_dbfs": -8,
-      "sndr_db": 80.28072003144446
+      "sndr_db": 84.92117360349064
     },
     {
       "amplitude_dbfs": -7,
-      "sndr_db": 80.82229022655386
+      "sndr_db": 85.5873867387018
     },
     {
       "amplitude_dbfs": -6,
-      "sndr_db": 82.23825227632122
+      "sndr_db": 86.00322376721212
     }
   ],
   "oversampling_ratio": 128,
@@ -95,16 +95,16 @@
   "params": {
     "dc_gain": null,
     "settling_error": 0.0,
-    "ci_offset": 0.011834983333333333,
-    "ci_gain_error": -0.5395402783744864,
+    "ci_offset": 0.00022520058728456603,
+    "ci_gain_error": 0.0,
     "ktc_noise_var": 0.0,
     "comparator_offset": 0.0,
     "comparator_hysteresis": 0.0,
     "jitter_rms_s": 0.0,
     "seed": 1
   },
-  "params_sha256": "5c886561ba0888826356c42ddb662bc632235935cb37ea469b82d18043e90965",
+  "params_sha256": "a793a24ddba87db9f7825ec20081a99a9b1ae996cabc36ec498e7445089fadeb",
   "numpy": "1.26.4",
-  "git_commit": "54c4cf523759b7f7e1efbfce1a3a3031a0c8a55f",
+  "git_commit": "f37cfa6661ed1277618cf9f9e9be322f6e7acdcf",
   "git_dirty": true
 }

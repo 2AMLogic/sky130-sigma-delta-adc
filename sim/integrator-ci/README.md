@@ -23,7 +23,7 @@ sqrt(W L) growth the design notes predicted is not what dominates it.**
 | … leaving the **switch-attributable** σ | **59–90 µV** per clock (4.9e-05 … 7.5e-05 FS) | `record-mc.json` |
 | … post/pre ratio of that σ | **1.84× – 3.61×** (mean 2.56, per-anchor SE 0.19–0.37) — *faster* than either sqrt(W L) prediction (1.333× / 1.929×) | `record-mc.json` |
 | Signal-dependent part (`ci_gain_error`) | **below this bench's resolution**; the measured slope is accounted for by the drawn capacitor ratio, the finite-gain leak and, at the slow/cold corners, incomplete *input* sampling (#106) | `record.json` |
-| **Cost in model B** | **0.17 dB** of peak SNDR: 89.02 dB against the 89.19 dB ideal record | `sim/bmodel/records/20261113T144417Z-a793a24d.json` |
+| **Cost in model B** | **0.17 dB** of peak SNDR: 86.00 dB against the 86.17 dB ideal record | `sim/bmodel/records/20261113T145641Z-a793a24d.json` |
 
 Everything here is **simulated**, never measured, and the records carry no
 pass/fail criterion: no spec row bounds this residual. **Read "Limits" at the
@@ -451,12 +451,22 @@ fixture tests.
   are not transistor-level SNDR numbers and do not become them. Both use
   `sim/bmodel/run.py`, N = 2^16 output samples, a Blackman-Harris 4-term window,
   1.2207 Hz bins, the 0–20 kHz band, and the peak over the amplitude sweep at
-  −6 dBFS, against the committed ideal record (89.19 dB):
+  −6 dBFS, against the committed ideal record
+  `20261113T142853Z-f8b2fa44.json` (**86.17 dB**). That is the post-issue-#107
+  ideal: #107 removed a 3.02 dB ENBW over-statement from `sndr_db`, so any
+  comparison against the older 89.19 dB ideal record is on the superseded
+  formula. These runs are on the corrected one.
 
-  | parameters | `ci_offset` FS | `ci_gain_error` | peak SNDR |
-  |---|---|---|---|
-  | `bmodel-ci-injection.json` | 2.252e-04 | 0 | **89.02 dB** |
-  | `bmodel-ci-worst-bound.json` | 1.183e-02 | −0.5395 | 82.24 dB |
+  | parameters | `ci_offset` FS | `ci_gain_error` | peak SNDR | loss |
+  |---|---|---|---|---|
+  | `bmodel-ci-injection.json` | 2.252e-04 | 0 | **86.00 dB** | **0.17 dB** |
+  | `bmodel-ci-worst-bound.json` | 1.183e-02 | −0.5395 | 79.22 dB | 6.95 dB |
+
+  The `worst_bound` run lands just **below** the 80 dB target. That is not a
+  charge-injection result: its `ci_gain_error` is #106's incomplete input
+  sampling (−54 % at `ss`/1.620 V/−40 °C) and its `ci_offset` is the OTA's own
+  offset mismatch. Read the right way round, it says #106 is worth fixing —
+  which is an argument for that issue, not a verdict on these switches.
 
   `injection` is what this bench attributes to the switches: 3σ of the worst
   OTA-removed spread, with `ci_gain_error` at 0 because the signal-dependent part

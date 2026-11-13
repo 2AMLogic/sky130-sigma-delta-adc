@@ -373,8 +373,9 @@ and it is cheap.** `sim/integrator-ci` (issue #102) measures the residual with
 the shipped switch sizes over the DR-002 full grid and a Monte Carlo campaign at
 the anchors: the switch-attributable differential sigma under PDK mismatch is
 59 to 90 uV per clock (4.9e-05 to 7.5e-05 in model-B `ci_offset` FS units), which
-costs **0.17 dB** of peak SNDR in model B (89.02 dB against the 89.19 dB ideal
-record; source B, uncross-checked). The post/pre growth is 1.84x to 3.61x --
+costs **0.17 dB** of peak SNDR in model B (86.00 dB against the 86.17 dB
+post-#107 ideal record; source B, uncross-checked). The post/pre growth is
+1.84x to 3.61x --
 *faster* than the sqrt(W L) this file predicted, because #92 also swapped
 standard-Vth for low-Vth on those switches and the area-only argument omits that
 term. Records: `sim/integrator-ci/record.json`, `record-mc.json`; discussion and

@@ -317,7 +317,7 @@ on `Sbi`/`Sbr` and 4 x 0.35 = 1.4 um2 on `Sti`/`Str`, and #92 also swapped
 | Differential sigma under PDK mismatch, switch-attributable | **59 to 90 uV per clock** (4.9e-05 to 7.5e-05 FS) |
 | ... post/pre ratio | **1.84x to 3.61x**, mean 2.56, per-anchor standard errors 0.19 to 0.37 |
 | Signal-dependent part (`ci_gain_error`) | below the bench's resolution; the measured slope is the drawn `Cs/Ci` ratio (0.497557, not 0.5), the finite-gain leak, and at the slow/cold corners the incomplete *input* sampling of #102's spin-off #106 |
-| Cost in model B | **0.17 dB** of peak SNDR (89.02 dB against the 89.19 dB ideal record), source B, uncross-checked, N = 2^16, 1.2207 Hz bins, 0-20 kHz, -6 dBFS |
+| Cost in model B | **0.17 dB** of peak SNDR (86.00 dB against the 86.17 dB post-#107 ideal record), source B, uncross-checked, N = 2^16, 1.2207 Hz bins, 0-20 kHz, -6 dBFS |
 
 **Three things in the argument this section used to make are wrong, and the
 measurement is why:**
@@ -345,7 +345,11 @@ measurement is why:**
 
 **The engineering conclusion is unchanged: the #92 fix was cheap.** 0.17 dB
 against an 80 dB target is not a reason to revisit the `W 24`/`W 4` sizing, and
-PR #99 establishes `W 4` as the floor for 1.620 V settling. Not covered by these
+PR #99 establishes `W 4` as the floor for 1.620 V settling. (A deliberately
+over-stated bound run -- `ci_offset` from the OTA's offset mismatch and
+`ci_gain_error` from #106's input sampling, neither of them charge injection --
+lands at 79.22 dB, just under the target. That is an argument for fixing #106,
+not a cost of these switches.) Not covered by these
 numbers: capacitor mismatch (klt reports the `cap_mim_*` family's mismatch as
 unverified for sky130, so it is outside the sigma above), clock feedthrough from
 a real non-overlap generator, and post-layout extraction. See
