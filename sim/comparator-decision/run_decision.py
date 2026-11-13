@@ -14,6 +14,11 @@ falls back to a local grid.
                fresh temporary directory, so --resume can finish it
   --resume     launch only the units a previous run into the same --work left
                unrun (lost shards, Spot reclaims), instead of the whole grid
+  --from-partials
+               re-derive the record from both cached .partials/ results
+               without going near the fleet; the cached request and deck
+               hashes must still match, so this can never re-derive a record
+               from a run of a different bench
 
 Everything the record states beyond the raw per-corner measurements is
 derived by the pure functions below, so the fixture tests in
@@ -172,7 +177,13 @@ def binding_decision(corners):
     `tdec_worst`, among the clocks where dp/dn actually changed -- the only
     clocks where the delay to dp/dn is observable at all.
     """
-    cid, frac = worst(corners, "tdec_frac")
+    # A corner whose dp/dn never changed carries no decision-time evidence
+    # (the SR latch holds, so there is nothing to time), and `n_flip` is the
+    # graded row that says so. Such a corner must not set the headline; a
+    # corner that merely MISSED the limit must, which is why this filters on
+    # the evidence row and not on the corner's overall pass/fail.
+    evidenced = {k: v for k, v in corners.items() if (v.get("n_flip") or 0) >= 2}
+    cid, frac = worst(evidenced, "tdec_frac")
     if cid is None:
         return None
     c = corners[cid]
@@ -184,6 +195,8 @@ def binding_decision(corners):
             "limit_s": decision_limit(c.get("phi1_width")),
             "fraction_of_limit": frac,
             "flips_counted": c.get("n_flip"),
+            "corners_without_decision_evidence": sorted(
+                k for k in corners if (corners[k].get("n_flip") or 0) < 2),
             # the smallest differential this corner was actually asked to
             # decide on, over the graded clocks: the bench does not command
             # the overdrive, the closed loop presents it
@@ -243,6 +256,43 @@ def kickback_at(corner, clocks=MR.LOOP_KICK_CLKS):
     return out
 
 
+def bracketed(corner):
+    """True if this `trip` corner actually bracketed the comparator's trip.
+
+    Only then do its two trip points -- and so its offset and hysteresis --
+    mean anything. Every condition here is a graded row of the request, so
+    this is a restatement of them, not a second opinion:
+
+      * the decision changed in each direction (`flip_up`, `flip_dn`);
+      * it changed strictly inside the swept clocks (`k_up`, `k_dn`), not on
+        the first clock of a sweep, which would mean the sweep started past
+        the trip;
+      * the staircase moved, in the intended direction, at the trip and over
+        the sweep (`step_*`, `span_*`).
+
+    A corner that fails any of them still appears in the record -- with its
+    raw numbers and the reason -- but it does not set a headline figure. On
+    the 2026-11-13 grid exactly one did: `sf/1.620V/-40C` never flipped on
+    the way up, so its "trip point" was the sentinel the deck substitutes to
+    keep the later expressions finite, and without this gate it would have
+    been published as the binding offset corner at 1.41 mV.
+    """
+    f = corner.get
+    if not (f("flip_up") and f("flip_dn")):
+        return False
+    for tag, first, last in (("up", MR.TRIP_UP_FIRST, MR.TRIP_UP_LAST),
+                             ("dn", MR.TRIP_DN_FIRST, MR.TRIP_DN_LAST)):
+        k = f(f"k_{tag}")
+        if k is None or not (first + 1 <= k <= last):
+            return False
+    for name, want_positive in (("step_up", True), ("span_up", True),
+                                ("step_dn", False), ("span_dn", False)):
+        v = f(name)
+        if v is None or (v > 0) != want_positive or abs(v) < MR.SWEEP_FLOOR_V:
+            return False
+    return True
+
+
 def bracket_margin(corner):
     """Clocks between each trip and the nearer end of its own sweep.
 
@@ -267,6 +317,7 @@ def trip_summary(corners):
         step = [s for s in (c.get("step_up"), c.get("step_dn")) if s is not None]
         step_V = max((abs(s) for s in step), default=None)
         q = quantization(c.get("v_trip_up"), c.get("v_trip_dn"), step_V)
+        brk = bracketed(c)
         per[cid] = {**parse_corner(cid),
                     "v_trip_up_V": c.get("v_trip_up"),
                     "v_trip_dn_V": c.get("v_trip_dn"),
@@ -276,18 +327,26 @@ def trip_summary(corners):
                     "comparator_hysteresis_FS": fs(hyst_V),
                     "staircase_step_V": step_V,
                     "quantization": q,
+                    # False -> the sweep did not bracket the trip at this
+                    # corner, so its two "trip points" are not trip points
+                    # and it sets no headline number. See bracketed().
+                    "bracketed": brk,
+                    "diagnostics": c.get("diagnostics"),
                     # how far from the ends of the sweep the trip was found;
                     # 0 means it was bracketed only by the sweep's own edge
                     "bracket_margin_clocks": bracket_margin(c),
                     "t_decision_at_trip_up_s": c.get("tdec_up"),
                     "t_decision_at_trip_dn_s": c.get("tdec_dn")}
-    off_cid, off_v = worst_abs({k: {"x": v["comparator_offset_V"]} for k, v in per.items()
+    ok = {k: v for k, v in per.items() if v["bracketed"]}
+    off_cid, off_v = worst_abs({k: {"x": v["comparator_offset_V"]} for k, v in ok.items()
                                 if v["comparator_offset_V"] is not None}, "x")
-    hy_cid, hy_v = worst_abs({k: {"x": v["comparator_hysteresis_V"]} for k, v in per.items()
+    hy_cid, hy_v = worst_abs({k: {"x": v["comparator_hysteresis_V"]} for k, v in ok.items()
                               if v["comparator_hysteresis_V"] is not None}, "x")
-    steps = [v["staircase_step_V"] for v in per.values() if v["staircase_step_V"] is not None]
+    steps = [v["staircase_step_V"] for v in ok.values() if v["staircase_step_V"] is not None]
     return {
         "per_corner": per,
+        "bracketed_corner_count": len(ok),
+        "corners_without_a_bracketed_trip": sorted(set(per) - set(ok)),
         # Each headline number carries the binding corner's own quantization,
         # so the bound travels with the value instead of living only in the
         # note above it.
@@ -324,10 +383,11 @@ def trip_summary(corners):
         "resolution_FS": fs(max(steps)) if steps else None,
         "resolution_range_V": None if not steps else {
             "coarsest": max(steps),
-            "coarsest_corner": max(per.items(), key=lambda kv: kv[1]["staircase_step_V"]
-                                   if kv[1]["staircase_step_V"] is not None else -1.0)[0],
+            "coarsest_corner": max((kv for kv in ok.items()
+                                    if kv[1]["staircase_step_V"] is not None),
+                                   key=lambda kv: kv[1]["staircase_step_V"])[0],
             "finest": min(steps),
-            "finest_corner": min((kv for kv in per.items()
+            "finest_corner": min((kv for kv in ok.items()
                                   if kv[1]["staircase_step_V"] is not None),
                                  key=lambda kv: kv[1]["staircase_step_V"])[0]},
     }
@@ -408,6 +468,10 @@ def main():
     ap.add_argument("--record", action="store_true",
                     help="write record.json (refuses to overwrite: records are append-only)")
     ap.add_argument("--record-name", default="record.json")
+    ap.add_argument("--from-partials", action="store_true",
+                    help="build the record from the cached .partials/ results only, "
+                         "with no fleet run (for a derivation change after a grid "
+                         "has already been paid for)")
     ap.add_argument("--work", type=pathlib.Path,
                     help="keep klt sim's scratch (shard map, checkpoint) here so "
                          "--resume can finish a grid the fleet left incomplete")
@@ -435,7 +499,15 @@ def main():
               file=sys.stderr)
         return 2
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="comparator-decision-"))
-    run = (a.probe,) if a.probe else tuple(dict.fromkeys(a.variant)) if a.variant else VARIANTS
+    if a.from_partials:
+        if a.probe or a.variant or a.resume:
+            print("REFUSE: --from-partials runs nothing, so it takes no --probe, "
+                  "--variant or --resume", file=sys.stderr)
+            return 2
+        run = ()
+    else:
+        run = ((a.probe,) if a.probe
+               else tuple(dict.fromkeys(a.variant)) if a.variant else VARIANTS)
 
     results = {}
     for v in (run if a.probe else VARIANTS):
@@ -576,6 +648,8 @@ def build_record(results, pin, stamp):
                 "what_these_numbers_are": tsum["what_these_numbers_are"],
             },
             "per_corner": tsum["per_corner"],
+            "bracketed_corner_count": tsum["bracketed_corner_count"],
+            "corners_without_a_bracketed_trip": tsum["corners_without_a_bracketed_trip"],
             "kickback": {
                 "corner": kb_corner,
                 "note": ("Peak deviation of each node from the value it holds through "
@@ -595,6 +669,21 @@ def build_record(results, pin, stamp):
             },
         },
         "variants": results,
+        # The two variants carry different claims, and one can hold while the
+        # other does not; `pass` below is both together, which is the right
+        # gate for the run and the wrong thing to quote for either claim.
+        "pass_by_claim": {
+            "decision_time_fits_the_delivered_phi1": {
+                "pass": results["loop"]["pass"],
+                "corners_graded": len(loop),
+                "worst_fraction_of_limit": None if dec is None else dec["fraction_of_limit"],
+                "binding_corner": None if dec is None else dec["corner"]},
+            "trip_points_bracketed_so_offset_and_hysteresis_are_bounded": {
+                "pass": results["trip"]["pass"],
+                "corners_bracketed": tsum["bracketed_corner_count"],
+                "corners_graded": len(trip),
+                "corners_without_a_bracketed_trip": tsum["corners_without_a_bracketed_trip"]},
+        },
         "pass": all(r["pass"] for r in results.values()),
     }
 

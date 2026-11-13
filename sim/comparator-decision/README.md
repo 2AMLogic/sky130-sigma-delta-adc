@@ -305,8 +305,84 @@ comparable even though the loading is not.
 ## Results
 
 <!-- results:begin -->
-Not yet recorded: `record.json` is written by
-`python3 -I sim/comparator-decision/run_decision.py --record`.
+`record.json`, written 2026-11-13 from two 45-corner `klt sim` grids on the
+batch fleet (23 jobs each; every job id is in `batch_job_ids`). ngspice 47,
+open_pdks `f6eeac7d…`, comparator pin `a0767fa5…`. **Simulated, not
+measured.**
+
+### Decision time — passes at all 45 corners
+
+| | value | corner |
+|---|---|---|
+| worst delay, `phi1` rise → `dp`/`dn` | **5.15 ns** | `sf`/1.620 V/−40 °C |
+| … as a fraction of its own limit | **5.3 %** | same |
+| … differential at that clock | 1.57 mV | same |
+| best delay | 0.62 ns (0.64 %) | `ff`/1.980 V/−40 °C |
+| delivered `phi1` high time | 97.557 … 97.831 ns | over the grid |
+| at the trip point itself (ungraded) | 1.04 … 4.19 ns | `ff`/1.620 V/−40 °C worst |
+
+The limit is the `phi1` high time measured at the same corner — 97.557 to
+97.831 ns across the grid, against a bare half-period of 97.65625 ns. **The
+decision time is never worse than 5.3 % of it**, so whether it fits the
+half-period, the check spec row 5 says DR-003 owes, is answered: it does,
+with a factor of ~19 in hand at the binding corner. At that corner the
+comparator's own outputs resolved in 5.38 ns and the SR latch in 5.05 ns on
+the same clock (the buffers are not the slow part; the latch regeneration at
+1.57 mV of overdrive is).
+
+### Systematic offset and hysteresis — bounded, not resolved
+
+| | value | FS | corner |
+|---|---|---|---|
+| worst \|offset\| | **122 µV** | 1.0e-04 | `sf`/1.620 V/27 °C |
+| … resolution there (±step/2) | ±251 µV | ±2.1e-04 | |
+| hysteresis, upper bound | **697 µV** | 5.8e-04 | `fs`/1.980 V/−40 °C |
+| … lower bound | 0 | 0 | every corner |
+| median hysteresis reading | 593 µV ≈ 1.19 steps | | |
+| staircase step | 502 µV (`sf`/1.800 V/125 °C) … 6.6 µV (`ss`/1.620 V/−40 °C) | | |
+
+Both quantities come out **below what this staircase can resolve**: every
+offset is smaller than its own ±step/2, and the median hysteresis reading is
+1.19 steps against the 1.00 step a comparator with no hysteresis at all
+would read. The honest statement is a bound, and it is the one to give model
+B: `comparator_offset` ≤ 1.0e-04 FS and `comparator_hysteresis` ≤ 5.8e-04 FS
+over the 44 bracketed corners. That is consistent with the topology — the
+comparator is symmetric and its latch is reset by `phi1` every clock, so it
+has no memory to carry hysteresis in.
+
+**One corner has no bracketed trip**: `sf`/1.620 V/−40 °C, where the decision
+never flipped on the way up (`flip_up` = 0) — the trip sits above the top of
+the ±2.25 mV sweep. It sets no headline number, it is named in
+`corners_without_a_bracketed_trip`, and it is why `record.json` has
+`pass: false` even though the decision-time claim passes at all 45 corners
+(`pass_by_claim` separates the two). Widening the sweep for it is
+[#150](https://github.com/2AMLogic/sky130-sigma-delta-adc/issues/150); note
+that it is also one of the corners where `sim/integrator-settling` records
+the integrator as unsettled, so the loop it sits in is not a working
+modulator there either.
+
+### Kickback — reported, not graded
+
+At the binding decision-time corner, `sf`/1.620 V/−40 °C, peak deviation
+across the `phi1` edge:
+
+| node | clock 6 (differential 50.6 mV) | clock 7 (differential −463 mV) |
+|---|---|---|
+| `o2p` | 79.4 mV | 72.3 mV |
+| `o2n` | 80.7 mV | 67.6 mV |
+| `o2p − o2n` | **1.65 mV** | **5.54 mV** |
+| `xi2.sump` | 77.9 mV | 70.8 mV |
+| `xi2.sumn` | 79.1 mV | 66.2 mV |
+| `xi2.sump − xi2.sumn` | **1.59 mV** | **5.36 mV** |
+
+The single-ended numbers barely move between the two clocks while the
+differential ones change by 3.4× with the differential — the split the
+"What the number is, exactly" section above predicts. So **the comparator's
+kickback at that corner is ≤ 5.5 mV differential onto `o2p`/`o2n` and
+≤ 5.4 mV onto the integrator-2 summing nodes**, and the ~70–80 mV
+single-ended figure is the integrator's own phi2 → phi1 switch transition,
+which the OTA's common-mode feedback rejects. No pass limit is applied to any
+of these, here or anywhere: this repo has no kickback row.
 <!-- results:end -->
 
 ## Files

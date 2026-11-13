@@ -119,6 +119,34 @@ class DerivationCase(unittest.TestCase):
         self.assertIsNone(RUNNER.quantization(None, -1e-4, 5e-4))
         self.assertIsNone(RUNNER.quantization(1e-4, -1e-4, 0.0))
 
+    def test_bracketed_accepts_a_clean_sweep(self):
+        self.assertTrue(RUNNER.bracketed(trip_corner()))
+
+    def test_bracketed_rejects_a_sweep_that_never_flipped(self):
+        # The real failure mode seen on the 2026-11-13 grid: the up sweep
+        # never reached the trip, so v_trip_up was the sentinel the deck
+        # substitutes to keep later expressions finite -- a finite number
+        # that is not a trip point.
+        c = trip_corner()
+        c["flip_up"] = 0.0
+        self.assertFalse(RUNNER.bracketed(c))
+
+    def test_bracketed_rejects_a_trip_on_a_sweeps_first_clock(self):
+        c = trip_corner()
+        c["k_up"] = MR.TRIP_UP_FIRST
+        self.assertFalse(RUNNER.bracketed(c))
+        c = trip_corner()
+        c["k_dn"] = MR.TRIP_DN_LAST + 1
+        self.assertFalse(RUNNER.bracketed(c))
+
+    def test_bracketed_rejects_a_sweep_that_moved_the_wrong_way_or_not_at_all(self):
+        for key, bad in (("step_up", -5e-4), ("step_dn", +5e-4),
+                         ("span_up", -4e-3), ("span_dn", +4e-3),
+                         ("step_up", MR.SWEEP_FLOOR_V / 2), ("span_up", None)):
+            c = trip_corner()
+            c[key] = bad
+            self.assertFalse(RUNNER.bracketed(c), f"{key}={bad} should not bracket")
+
     def test_bracket_margin_says_how_central_each_trip_was(self):
         mid = (MR.TRIP_UP_FIRST + MR.TRIP_UP_LAST) // 2
         m = RUNNER.bracket_margin({"k_up": mid, "k_dn": MR.TRIP_DN_LAST})
@@ -432,6 +460,38 @@ class RunnerCase(unittest.TestCase):
         self.assertEqual(rec["derived"]["decision_time"]["corner"], "ss/1.620V/-40C")
         self.assertGreater(rec["derived"]["decision_time"]["fraction_of_limit"], 1.0)
         self.assertIsNotNone(rec["derived"]["decision_time"]["t_decision_to_dp_dn_s"])
+
+    def test_an_unbracketed_corner_sets_no_headline_and_is_named(self):
+        trip = grid(trip_corner)
+        # a corner that never flipped up, but whose sentinel-derived numbers
+        # are the largest on the grid: without the gate it would be published
+        # as the binding offset corner
+        bad = trip_corner(up=-5e-3, dn=-5e-3)
+        bad["flip_up"] = 0.0
+        trip["sf/1.620V/-40C"] = bad
+        rc, out = self.run_main({"loop": grid(loop_corner), "trip": trip},
+                                ["--record"], status="fail")
+        self.assertEqual(rc, 1, out)
+        d = json.loads((self.here / "record.json").read_text())["derived"]
+        self.assertEqual(d["corners_without_a_bracketed_trip"], ["sf/1.620V/-40C"])
+        self.assertEqual(d["bracketed_corner_count"], GRID_POINTS - 1)
+        self.assertNotEqual(d["comparator_offset"]["binding_corner"], "sf/1.620V/-40C")
+        self.assertFalse(d["per_corner"]["sf/1.620V/-40C"]["bracketed"])
+        # ... but its raw numbers are still in the record
+        self.assertEqual(d["per_corner"]["sf/1.620V/-40C"]["v_trip_up_V"], -5e-3)
+
+    def test_pass_is_reported_per_claim_as_well_as_overall(self):
+        loop = grid(loop_corner)
+        rc, out = self.run_main({"loop": loop, "trip": grid(trip_corner)}, ["--record"])
+        self.assertEqual(rc, 0, out)
+        rec = json.loads((self.here / "record.json").read_text())
+        pbc = rec["pass_by_claim"]
+        self.assertTrue(pbc["decision_time_fits_the_delivered_phi1"]["pass"])
+        self.assertEqual(pbc["decision_time_fits_the_delivered_phi1"]["corners_graded"],
+                         GRID_POINTS)
+        self.assertEqual(
+            pbc["trip_points_bracketed_so_offset_and_hysteresis_are_bounded"]
+               ["corners_bracketed"], GRID_POINTS)
 
     def test_a_partial_grid_writes_no_record(self):
         rc, out = self.run_main({"loop": grid(loop_corner, n=44),
