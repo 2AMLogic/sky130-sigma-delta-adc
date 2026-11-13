@@ -359,23 +359,31 @@ fixture tests.
   contains the OTA input offset referred through `Cs/Ci` as well as switch
   injection; only the pre/post comparison isolates the switch change. See "What
   else is in the step".
-- **`ci_gain_error_bound` is an upper bound**, and at `tt`/27 °C/1.80 V three
-  other mechanisms account for the whole of it with nothing left for injection:
+- **`ci_gain_error_bound` is an upper bound**, and at `tt`/27 °C/1.80 V two other
+  mechanisms account for the whole of it with ~0.1 % left over for everything
+  else, injection included. From the committed `record.json`:
 
-  | mechanism | size at `tt`/27 °C/1.80 V | where it is recorded |
-  |---|---|---|
-  | drawn capacitor ratio `Cs/Ci` = 0.497557, not model B's 0.5 | −0.489 % | `derived.drawn_cap_ratio` |
-  | finite-DC-gain leak over the measurement window | fits A = 672 | per-clock droop; `dac_crosscheck` gives 667 independently |
-  | everything else (real vs drawn cap ratio, fringe, transfer, injection) | +0.104 % | `slope_vs_drawn_cap_ratio_rel` |
+  | | slope, V/V | vs model B's 0.5 | vs the drawn ratio |
+  |---|---|---|---|
+  | drawn capacitor ratio `Cs/Ci` = 22.17²/31.43² | 0.497557 | **−0.489 %** | — |
+  | measured slope from `dvod_mean` (includes the leak) | 0.495836 | −0.833 % | −0.346 % |
+  | measured slope from the **first** clock (leak-free) | 0.498077 | −0.385 % | **+0.105 %** |
 
-  The measured transfer coefficient is 0.498075 V/V against a drawn ratio of
-  0.497557. For injection to be producing a gain error of order 1e-3 it would
-  have to vary the injected charge by ~1e-4 V per 0.1 V of input, which is three
-  orders of magnitude above the 2.3e-7 V absolute residual measured at zero
-  input — and the switches that reach `Ci` turn off with their terminals at the
-  summing node (≈ `vcm`) whatever the input is. So the signal-dependent part of
-  charge injection is **below this bench's resolution**, which is what the record
-  states; the slope is not reported as `ci_gain_error`.
+  so the −0.833 % total splits into −0.489 % drawn capacitor ratio, −0.450 %
+  finite-DC-gain leak across the three-clock measurement window, and +0.105 %
+  for everything else — real-vs-drawn capacitance (fringe), charge transfer and
+  injection together. The leak term is independently corroborated: the
+  `dac_crosscheck` variant gives 56.51 dB (A ≈ 670) at this corner from a
+  completely different measurement.
+
+  Two further facts bound injection's share of that +0.105 %. The three-point
+  fit is **linear to 4.2 ppm** of the step (`fit_max_residual_V` = 4.2e-7 V), so
+  there is no resolvable curvature for a signal-dependent injection term to live
+  in; and the switches that reach `Ci` turn off with their terminals at the
+  summing node (≈ `vcm`) whatever the input is, which is why the absolute
+  zero-input residual is 4e-11 V here. The record therefore states that the
+  signal-dependent part of charge injection is **below this bench's resolution**
+  and does not report the slope as `ci_gain_error`.
 
 - **Input sampling, not charge transfer, is what limits the slow/cold corners —
   and it is a different mechanism.** At `ss`/1.620 V/−40 °C the bottom plate
