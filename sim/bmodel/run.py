@@ -63,6 +63,27 @@ def git_state():
     return {"git_commit": g("rev-parse", "HEAD"), "git_dirty": bool(g("status", "--porcelain"))}
 
 
+# The files whose contents determine a B-model number. git_commit/git_dirty
+# cannot identify them: a record is written before the commit that contains it,
+# so the tree is dirty on every run (issue #110).
+CODE_FILES = (HERE / "model.py", HERE / "sndr.py", HERE / "run.py")
+
+
+def _sha256(path):
+    return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
+
+
+def code_state(extra=()):
+    """Content hash of the code that determines the result.
+
+    Returns {"code_sha256": {repo-relative path: sha256 of the file bytes}}
+    for the three B-model source files plus any `extra` paths, so a caller that
+    adds its own model code (or its own file) stamps it the same way.
+    """
+    paths = [pathlib.Path(p).resolve() for p in (*CODE_FILES, *extra)]
+    return {"code_sha256": {str(p.relative_to(REPO)): _sha256(p) for p in paths}}
+
+
 def build_record(params, params_sha, n_out, table, best, det, cycles):
     return {
         "source": "B",
@@ -93,6 +114,7 @@ def build_record(params, params_sha, n_out, table, best, det, cycles):
         "params_sha256": params_sha,
         "numpy": np.__version__,
         **git_state(),
+        **code_state(),
     }
 
 

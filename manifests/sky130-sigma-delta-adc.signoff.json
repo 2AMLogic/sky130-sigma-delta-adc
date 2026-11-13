@@ -5,7 +5,7 @@
   "tier": null,
   "t1_item_count": 22,
   "build_t1_item_count": 22,
-  "t1_met_count": 7,
+  "t1_met_count": 8,
   "source_doc": "docs/design-evidence-tiers.md",
   "source_doc_content_hash": "sha256:a26b90262320d0fbd32b3f549a02b6300832706041797a559d8bf6bdb62efdc7",
   "build": {
@@ -25,10 +25,35 @@
       "partition": "analog",
       "text": "committed schematic sources (or generator) plus the netlist derived from them, regenerated on design change.",
       "notes": [],
-      "status": "unmet",
-      "reason": "no_evidence",
+      "status": "met",
+      "reason": null,
       "graded_by_build": true,
-      "citation": null
+      "citation": {
+        "file": "design/attest/item1-analog-envelope.json",
+        "command": null,
+        "kind": "generic",
+        "check_status": "pass",
+        "content_hash": "sha256:7e278564c29d8056c7422d9e9ea4876408f335798d3525188cd88069251d1333",
+        "input_verified": true,
+        "exit_status": 0,
+        "artifact_binding": {
+          "t1_item": 1,
+          "path": {
+            "path": "design/attest/item1-analog-inventory.json",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:7e278564c29d8056c7422d9e9ea4876408f335798d3525188cd88069251d1333",
+          "input_verified": true,
+          "summary": "T1 item 1 (Design sources): 23/23 attestation checks passed (klt signoff --attest)",
+          "source": "design/attest/item1-analog-inventory.json",
+          "attestation": {
+            "producer": "klt signoff --attest",
+            "inventory_schema_version": 1,
+            "check_count": 23,
+            "passed_count": 23
+          }
+        }
+      }
     },
     {
       "tier": "T1",

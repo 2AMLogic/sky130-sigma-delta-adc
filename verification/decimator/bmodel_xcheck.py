@@ -44,6 +44,13 @@ bm = _load("bmodel_model", REPO / "sim/bmodel/model.py")
 sn = _load("bmodel_sndr", REPO / "sim/bmodel/sndr.py")
 dm = _load("decimator_model", HERE / "model.py")
 
+# The code whose contents determine this check's numbers. git state cannot name
+# it: a record is written before the commit that contains it (issue #110). The
+# B-model files are hashed here rather than via sim/bmodel/run.code_state()
+# because this script loads the models by path and never imports run.py.
+CODE_FILES = (REPO / "sim/bmodel/model.py", REPO / "sim/bmodel/sndr.py",
+              HERE / "model.py", pathlib.Path(__file__).resolve())
+
 AMPLITUDES_DBFS = (-6, -12)   # spec row 11 ceiling, and a mid-scale point
 WARMUP_OUT = 8
 TOL_BELOW_DB = 3.0            # RTL SNDR may be at most this far below the sinc^3 reference
@@ -107,6 +114,8 @@ def main(argv=None):
             "points": rows, "pass": ok,
             "rtl_sha256": {f: hashlib.sha256((REPO / "rtl" / f).read_bytes()).hexdigest()
                            for f in ("decimator.v", "decimator_coef.v")},
+            "code_sha256": {str(f.relative_to(REPO)): hashlib.sha256(f.read_bytes()).hexdigest()
+                            for f in CODE_FILES},
             "numpy": np.__version__,
             "utc": datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
         }
