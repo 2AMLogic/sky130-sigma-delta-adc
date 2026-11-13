@@ -1,0 +1,1375 @@
+{
+  "block_origins_um": {
+    "rcm": {
+      "x": 2.25,
+      "y": 1.125
+    },
+    "ccm": {
+      "x": 2.0,
+      "y": 14.2
+    },
+    "cff": {
+      "x": 53.2,
+      "y": 14.2
+    },
+    "rz": {
+      "x": 77.09,
+      "y": 15.325
+    },
+    "mb1": {
+      "x": 6.125,
+      "y": 71.47
+    },
+    "mbn1": {
+      "x": 11.715,
+      "y": 71.47
+    },
+    "mbn2": {
+      "x": 17.305,
+      "y": 71.47
+    },
+    "mbcn": {
+      "x": 22.895,
+      "y": 71.47
+    },
+    "mct": {
+      "x": 28.985,
+      "y": 71.32
+    },
+    "cmfbin": {
+      "x": 35.495,
+      "y": 71.47
+    },
+    "mtail": {
+      "x": 42.825,
+      "y": 71.32
+    },
+    "nsink": {
+      "x": 62.215,
+      "y": 71.47
+    },
+    "inpair": {
+      "x": 6.125,
+      "y": 89.11
+    },
+    "ncasc": {
+      "x": 15.455,
+      "y": 89.11
+    },
+    "ptop": {
+      "x": 6.15,
+      "y": 118.75
+    },
+    "pcasc": {
+      "x": 23.97,
+      "y": 118.75
+    },
+    "cmfbld": {
+      "x": 34.83,
+      "y": 118.75
+    },
+    "mbp1": {
+      "x": 42.21,
+      "y": 118.75
+    },
+    "mbp2": {
+      "x": 47.85,
+      "y": 118.75
+    },
+    "mbcp": {
+      "x": 53.49,
+      "y": 118.75
+    },
+    "ptapring": {
+      "x": 3.58,
+      "y": 68.9
+    },
+    "ntapring": {
+      "x": 3.58,
+      "y": 116.18
+    }
+  },
+  "met2_columns": 117,
+  "nets": {
+    "inp": {
+      "anchors": [
+        {
+          "block": "inpair",
+          "plane": "met1",
+          "ports": [
+            "Q1_1_G"
+          ],
+          "column_x_um": 7.0,
+          "y_um": 97.87
+        },
+        {
+          "block": "inpair",
+          "plane": "met1",
+          "ports": [
+            "Q1_2_G"
+          ],
+          "column_x_um": 8.5,
+          "y_um": 107.39
+        }
+      ],
+      "spine_y_um": [
+        102.0
+      ],
+      "wire_length_um": 12.96
+    },
+    "inn": {
+      "anchors": [
+        {
+          "block": "inpair",
+          "plane": "met1",
+          "ports": [
+            "Q2_2_G"
+          ],
+          "column_x_um": 6.5,
+          "y_um": 107.39
+        },
+        {
+          "block": "inpair",
+          "plane": "met1",
+          "ports": [
+            "Q2_1_G"
+          ],
+          "column_x_um": 9.0,
+          "y_um": 97.87
+        }
+      ],
+      "spine_y_um": [
+        101.5
+      ],
+      "wire_length_um": 14.48
+    },
+    "vcm": {
+      "anchors": [
+        {
+          "block": "cmfbin",
+          "plane": "met1",
+          "ports": [
+            "Q2_2_G"
+          ],
+          "column_x_um": 36.0,
+          "y_um": 77.75
+        },
+        {
+          "block": "cmfbin",
+          "plane": "met1",
+          "ports": [
+            "Q2_1_G"
+          ],
+          "column_x_um": 38.0,
+          "y_um": 74.23
+        }
+      ],
+      "spine_y_um": [
+        75.0
+      ],
+      "wire_length_um": 7.48
+    },
+    "cmx": {
+      "anchors": [
+        {
+          "block": "rcm",
+          "plane": "met1",
+          "ports": [
+            "R1_B"
+          ],
+          "column_x_um": 2.0,
+          "y_um": 3.65
+        },
+        {
+          "block": "rcm",
+          "plane": "met1",
+          "ports": [
+            "R0_A"
+          ],
+          "column_x_um": 2.5,
+          "y_um": 1.05
+        },
+        {
+          "block": "cmfbin",
+          "plane": "met1",
+          "ports": [
+            "Q1_1_G"
+          ],
+          "column_x_um": 36.5,
+          "y_um": 74.23
+        },
+        {
+          "block": "cmfbin",
+          "plane": "met1",
+          "ports": [
+            "Q1_2_G"
+          ],
+          "column_x_um": 37.5,
+          "y_um": 77.75
+        },
+        {
+          "block": "cff",
+          "plane": "cap4",
+          "ports": [
+            "C0_TOP"
+          ],
+          "column_x_um": 57.0,
+          "y_um": 24.39
+        },
+        {
+          "block": "cff",
+          "plane": "cap4",
+          "ports": [
+            "C1_TOP"
+          ],
+          "column_x_um": 67.0,
+          "y_um": 24.39
+        }
+      ],
+      "spine_y_um": [
+        2.5,
+        37.5,
+        76.0,
+        51.0,
+        24.5
+      ],
+      "wire_length_um": 210.68
+    },
+    "vcn": {
+      "anchors": [
+        {
+          "block": "ncasc",
+          "plane": "met1",
+          "ports": [
+            "Q1_2_G",
+            "Q2_2_G"
+          ],
+          "column_x_um": 16.5,
+          "y_um": 105.39
+        },
+        {
+          "block": "ncasc",
+          "plane": "met1",
+          "ports": [
+            "Q1_1_G",
+            "Q2_1_G"
+          ],
+          "column_x_um": 17.0,
+          "y_um": 96.87
+        },
+        {
+          "block": "mbcn",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 24.0,
+          "y_um": 72.65
+        },
+        {
+          "block": "mbcn",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 24.5,
+          "y_um": 71.68
+        },
+        {
+          "block": "mbp2",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 49.0,
+          "y_um": 121.0
+        }
+      ],
+      "spine_y_um": [
+        102.0,
+        85.0,
+        72.0,
+        96.5
+      ],
+      "wire_length_um": 123.0
+    },
+    "vcp": {
+      "anchors": [
+        {
+          "block": "mbn2",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 18.5,
+          "y_um": 72.22
+        },
+        {
+          "block": "pcasc",
+          "plane": "met1",
+          "ports": [
+            "Q1_1_G",
+            "Q1_2_G",
+            "Q2_1_G",
+            "Q2_2_G"
+          ],
+          "column_x_um": 27.0,
+          "y_um": 129.51
+        },
+        {
+          "block": "pcasc",
+          "plane": "met1",
+          "ports": [
+            "Q1_3_G",
+            "Q1_4_G",
+            "Q2_3_G",
+            "Q2_4_G"
+          ],
+          "column_x_um": 27.5,
+          "y_um": 141.03
+        },
+        {
+          "block": "mbcp",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 54.0,
+          "y_um": 119.93
+        },
+        {
+          "block": "mbcp",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 54.5,
+          "y_um": 118.96
+        }
+      ],
+      "spine_y_um": [
+        101.0,
+        136.5,
+        130.5,
+        120.0
+      ],
+      "wire_length_um": 137.435
+    },
+    "vbpd": {
+      "anchors": [
+        {
+          "block": "mbn1",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 13.0,
+          "y_um": 72.22
+        },
+        {
+          "block": "mbp1",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 43.0,
+          "y_um": 124.51
+        },
+        {
+          "block": "mbp1",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 43.5,
+          "y_um": 121.0
+        },
+        {
+          "block": "mbp2",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 48.5,
+          "y_um": 124.51
+        }
+      ],
+      "spine_y_um": [
+        98.5,
+        123.0,
+        123.0
+      ],
+      "wire_length_um": 95.495
+    },
+    "cr": {
+      "anchors": [
+        {
+          "block": "ptop",
+          "plane": "met1",
+          "ports": [
+            "M1_1_G",
+            "M1_2_G",
+            "M1_3_G",
+            "M1_4_G",
+            "M2_1_G",
+            "M2_2_G",
+            "M2_3_G",
+            "M2_4_G"
+          ],
+          "column_x_um": 12.5,
+          "y_um": 129.51
+        },
+        {
+          "block": "ptop",
+          "plane": "met1",
+          "ports": [
+            "M1_5_G",
+            "M1_6_G",
+            "M1_7_G",
+            "M1_8_G",
+            "M2_5_G",
+            "M2_6_G",
+            "M2_7_G",
+            "M2_8_G"
+          ],
+          "column_x_um": 13.5,
+          "y_um": 141.03
+        },
+        {
+          "block": "cmfbld",
+          "plane": "met1",
+          "ports": [
+            "M2_2_D"
+          ],
+          "column_x_um": 35.5,
+          "y_um": 123.52
+        },
+        {
+          "block": "cmfbin",
+          "plane": "met1",
+          "ports": [
+            "Q2_2_D"
+          ],
+          "column_x_um": 37.0,
+          "y_um": 75.49
+        },
+        {
+          "block": "cmfbin",
+          "plane": "met1",
+          "ports": [
+            "Q2_1_D"
+          ],
+          "column_x_um": 38.5,
+          "y_um": 71.97
+        },
+        {
+          "block": "cmfbld",
+          "plane": "met1",
+          "ports": [
+            "M2_1_D"
+          ],
+          "column_x_um": 39.0,
+          "y_um": 119.5
+        },
+        {
+          "block": "rz",
+          "plane": "met1",
+          "ports": [
+            "R0_B"
+          ],
+          "column_x_um": 82.0,
+          "y_um": 15.25
+        }
+      ],
+      "spine_y_um": [
+        136.5,
+        132.5,
+        99.5,
+        73.5,
+        95.5,
+        67.5
+      ],
+      "wire_length_um": 304.725
+    },
+    "cs": {
+      "anchors": [
+        {
+          "block": "cmfbld",
+          "plane": "met1",
+          "ports": [
+            "M1_2_G",
+            "M2_2_G"
+          ],
+          "column_x_um": 33.5,
+          "y_um": 126.03
+        },
+        {
+          "block": "cmfbld",
+          "plane": "met1",
+          "ports": [
+            "M1_1_G",
+            "M2_1_G"
+          ],
+          "column_x_um": 34.0,
+          "y_um": 122.01
+        },
+        {
+          "block": "cmfbld",
+          "plane": "met1",
+          "ports": [
+            "M1_1_D"
+          ],
+          "column_x_um": 34.5,
+          "y_um": 120.0
+        },
+        {
+          "block": "cmfbin",
+          "plane": "met1",
+          "ports": [
+            "Q1_1_D"
+          ],
+          "column_x_um": 35.0,
+          "y_um": 72.47
+        },
+        {
+          "block": "cmfbin",
+          "plane": "met1",
+          "ports": [
+            "Q1_2_D"
+          ],
+          "column_x_um": 39.5,
+          "y_um": 75.99
+        },
+        {
+          "block": "cmfbld",
+          "plane": "met1",
+          "ports": [
+            "M1_2_D"
+          ],
+          "column_x_um": 40.0,
+          "y_um": 124.02
+        }
+      ],
+      "spine_y_um": [
+        124.0,
+        121.0,
+        96.0,
+        77.0,
+        100.0
+      ],
+      "wire_length_um": 130.85
+    },
+    "nz": {
+      "anchors": [
+        {
+          "block": "ccm",
+          "plane": "cap4",
+          "ports": [
+            "C0_TOP"
+          ],
+          "column_x_um": 25.5,
+          "y_um": 61.52
+        },
+        {
+          "block": "rz",
+          "plane": "met1",
+          "ports": [
+            "R0_A"
+          ],
+          "column_x_um": 77.5,
+          "y_um": 15.75
+        }
+      ],
+      "spine_y_um": [
+        38.5
+      ],
+      "wire_length_um": 104.915
+    },
+    "fa": {
+      "anchors": [
+        {
+          "block": "inpair",
+          "plane": "met1",
+          "ports": [
+            "Q1_1_D"
+          ],
+          "column_x_um": 7.5,
+          "y_um": 92.61
+        },
+        {
+          "block": "inpair",
+          "plane": "met1",
+          "ports": [
+            "Q1_2_D"
+          ],
+          "column_x_um": 9.5,
+          "y_um": 102.13
+        },
+        {
+          "block": "ptop",
+          "plane": "met1",
+          "ports": [
+            "M1_1_D",
+            "M1_2_D",
+            "M1_3_D",
+            "M1_4_D"
+          ],
+          "column_x_um": 12.0,
+          "y_um": 123.25
+        },
+        {
+          "block": "ptop",
+          "plane": "met1",
+          "ports": [
+            "M1_5_D",
+            "M1_6_D",
+            "M1_7_D",
+            "M1_8_D"
+          ],
+          "column_x_um": 14.0,
+          "y_um": 134.77
+        },
+        {
+          "block": "pcasc",
+          "plane": "met1",
+          "ports": [
+            "Q1_1_S",
+            "Q1_2_S"
+          ],
+          "column_x_um": 26.5,
+          "y_um": 123.0
+        },
+        {
+          "block": "pcasc",
+          "plane": "met1",
+          "ports": [
+            "Q1_3_S",
+            "Q1_4_S"
+          ],
+          "column_x_um": 28.0,
+          "y_um": 134.52
+        }
+      ],
+      "spine_y_um": [
+        97.0,
+        112.5,
+        129.0,
+        129.0,
+        129.0
+      ],
+      "wire_length_um": 107.19
+    },
+    "fb": {
+      "anchors": [
+        {
+          "block": "inpair",
+          "plane": "met1",
+          "ports": [
+            "Q2_2_D"
+          ],
+          "column_x_um": 6.0,
+          "y_um": 102.63
+        },
+        {
+          "block": "inpair",
+          "plane": "met1",
+          "ports": [
+            "Q2_1_D"
+          ],
+          "column_x_um": 8.0,
+          "y_um": 93.11
+        },
+        {
+          "block": "ptop",
+          "plane": "met1",
+          "ports": [
+            "M2_5_D",
+            "M2_6_D",
+            "M2_7_D",
+            "M2_8_D"
+          ],
+          "column_x_um": 11.5,
+          "y_um": 135.27
+        },
+        {
+          "block": "ptop",
+          "plane": "met1",
+          "ports": [
+            "M2_1_D",
+            "M2_2_D",
+            "M2_3_D",
+            "M2_4_D"
+          ],
+          "column_x_um": 14.5,
+          "y_um": 123.75
+        },
+        {
+          "block": "pcasc",
+          "plane": "met1",
+          "ports": [
+            "Q2_3_S",
+            "Q2_4_S"
+          ],
+          "column_x_um": 23.5,
+          "y_um": 135.02
+        },
+        {
+          "block": "pcasc",
+          "plane": "met1",
+          "ports": [
+            "Q2_1_S",
+            "Q2_2_S"
+          ],
+          "column_x_um": 28.5,
+          "y_um": 123.5
+        }
+      ],
+      "spine_y_um": [
+        98.5,
+        114.0,
+        130.0,
+        130.0,
+        130.0
+      ],
+      "wire_length_um": 125.57
+    },
+    "sa": {
+      "anchors": [
+        {
+          "block": "ncasc",
+          "plane": "met1",
+          "ports": [
+            "Q1_1_S"
+          ],
+          "column_x_um": 15.5,
+          "y_um": 92.86
+        },
+        {
+          "block": "ncasc",
+          "plane": "met1",
+          "ports": [
+            "Q1_2_S"
+          ],
+          "column_x_um": 17.5,
+          "y_um": 101.38
+        },
+        {
+          "block": "nsink",
+          "plane": "met1",
+          "ports": [
+            "M1_1_D",
+            "M1_2_D",
+            "M1_3_D",
+            "M1_4_D"
+          ],
+          "column_x_um": 68.5,
+          "y_um": 71.97
+        },
+        {
+          "block": "nsink",
+          "plane": "met1",
+          "ports": [
+            "M1_5_D",
+            "M1_6_D",
+            "M1_7_D",
+            "M1_8_D"
+          ],
+          "column_x_um": 70.5,
+          "y_um": 75.49
+        }
+      ],
+      "spine_y_um": [
+        97.5,
+        86.5,
+        73.5
+      ],
+      "wire_length_um": 115.24
+    },
+    "sb": {
+      "anchors": [
+        {
+          "block": "ncasc",
+          "plane": "met1",
+          "ports": [
+            "Q2_2_S"
+          ],
+          "column_x_um": 16.0,
+          "y_um": 101.88
+        },
+        {
+          "block": "ncasc",
+          "plane": "met1",
+          "ports": [
+            "Q2_1_S"
+          ],
+          "column_x_um": 18.0,
+          "y_um": 93.36
+        },
+        {
+          "block": "nsink",
+          "plane": "met1",
+          "ports": [
+            "M2_5_D",
+            "M2_6_D",
+            "M2_7_D",
+            "M2_8_D"
+          ],
+          "column_x_um": 69.0,
+          "y_um": 75.99
+        },
+        {
+          "block": "nsink",
+          "plane": "met1",
+          "ports": [
+            "M2_1_D",
+            "M2_2_D",
+            "M2_3_D",
+            "M2_4_D"
+          ],
+          "column_x_um": 70.0,
+          "y_um": 72.47
+        }
+      ],
+      "spine_y_um": [
+        98.0,
+        84.5,
+        75.0
+      ],
+      "wire_length_um": 108.28
+    },
+    "tail": {
+      "anchors": [
+        {
+          "block": "inpair",
+          "plane": "met1",
+          "ports": [
+            "Q2_2_S",
+            "Q1_2_S"
+          ],
+          "column_x_um": 5.0,
+          "y_um": 103.13
+        },
+        {
+          "block": "inpair",
+          "plane": "met1",
+          "ports": [
+            "Q1_1_S",
+            "Q2_1_S"
+          ],
+          "column_x_um": 5.5,
+          "y_um": 93.61
+        },
+        {
+          "block": "mtail",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 58.0,
+          "y_um": 74.75
+        }
+      ],
+      "spine_y_um": [
+        98.5,
+        84.0
+      ],
+      "wire_length_um": 93.475
+    },
+    "ct": {
+      "anchors": [
+        {
+          "block": "mct",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 31.0,
+          "y_um": 74.75
+        },
+        {
+          "block": "cmfbin",
+          "plane": "met1",
+          "ports": [
+            "Q1_1_S",
+            "Q2_1_S"
+          ],
+          "column_x_um": 33.0,
+          "y_um": 72.97
+        },
+        {
+          "block": "cmfbin",
+          "plane": "met1",
+          "ports": [
+            "Q2_2_S",
+            "Q1_2_S"
+          ],
+          "column_x_um": 40.5,
+          "y_um": 76.49
+        }
+      ],
+      "spine_y_um": [
+        74.0,
+        73.0
+      ],
+      "wire_length_um": 30.245
+    },
+    "outp": {
+      "anchors": [
+        {
+          "block": "ncasc",
+          "plane": "met1",
+          "ports": [
+            "Q2_2_D"
+          ],
+          "column_x_um": 15.0,
+          "y_um": 100.88
+        },
+        {
+          "block": "ncasc",
+          "plane": "met1",
+          "ports": [
+            "Q2_1_D"
+          ],
+          "column_x_um": 19.0,
+          "y_um": 92.36
+        },
+        {
+          "block": "pcasc",
+          "plane": "met1",
+          "ports": [
+            "Q2_1_D",
+            "Q2_2_D"
+          ],
+          "column_x_um": 29.0,
+          "y_um": 124.5
+        },
+        {
+          "block": "pcasc",
+          "plane": "met1",
+          "ports": [
+            "Q2_3_D",
+            "Q2_4_D"
+          ],
+          "column_x_um": 29.5,
+          "y_um": 136.02
+        },
+        {
+          "block": "cff",
+          "plane": "cap3",
+          "ports": [
+            "C0_BOT"
+          ],
+          "column_x_um": 53.0,
+          "y_um": 13.0
+        },
+        {
+          "block": "rcm",
+          "plane": "met1",
+          "ports": [
+            "R0_B"
+          ],
+          "column_x_um": 353.0,
+          "y_um": 1.55
+        }
+      ],
+      "spine_y_um": [
+        96.0,
+        108.5,
+        130.0,
+        71.0,
+        7.5
+      ],
+      "wire_length_um": 542.87
+    },
+    "outn": {
+      "anchors": [
+        {
+          "block": "ncasc",
+          "plane": "met1",
+          "ports": [
+            "Q1_1_D"
+          ],
+          "column_x_um": 19.5,
+          "y_um": 91.86
+        },
+        {
+          "block": "ncasc",
+          "plane": "met1",
+          "ports": [
+            "Q1_2_D"
+          ],
+          "column_x_um": 20.0,
+          "y_um": 100.38
+        },
+        {
+          "block": "pcasc",
+          "plane": "met1",
+          "ports": [
+            "Q1_1_D",
+            "Q1_2_D"
+          ],
+          "column_x_um": 30.0,
+          "y_um": 124.0
+        },
+        {
+          "block": "pcasc",
+          "plane": "met1",
+          "ports": [
+            "Q1_3_D",
+            "Q1_4_D"
+          ],
+          "column_x_um": 30.5,
+          "y_um": 135.52
+        },
+        {
+          "block": "cff",
+          "plane": "cap3",
+          "ports": [
+            "C1_BOT"
+          ],
+          "column_x_um": 63.0,
+          "y_um": 13.0
+        },
+        {
+          "block": "rcm",
+          "plane": "met1",
+          "ports": [
+            "R1_A"
+          ],
+          "column_x_um": 352.5,
+          "y_um": 4.15
+        }
+      ],
+      "spine_y_um": [
+        96.0,
+        112.0,
+        130.0,
+        70.5,
+        8.5
+      ],
+      "wire_length_um": 536.96
+    },
+    "ibias": {
+      "anchors": [
+        {
+          "block": "mb1",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 4.5,
+          "y_um": 74.23
+        },
+        {
+          "block": "mb1",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 10.0,
+          "y_um": 72.22
+        },
+        {
+          "block": "mbn1",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 11.0,
+          "y_um": 74.23
+        },
+        {
+          "block": "mbn2",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 20.5,
+          "y_um": 74.23
+        },
+        {
+          "block": "mct",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 31.5,
+          "y_um": 75.57
+        },
+        {
+          "block": "mtail",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 50.5,
+          "y_um": 75.57
+        },
+        {
+          "block": "nsink",
+          "plane": "met1",
+          "ports": [
+            "M1_5_G",
+            "M1_6_G",
+            "M1_7_G",
+            "M1_8_G",
+            "M2_5_G",
+            "M2_6_G",
+            "M2_7_G",
+            "M2_8_G"
+          ],
+          "column_x_um": 68.0,
+          "y_um": 77.75
+        },
+        {
+          "block": "nsink",
+          "plane": "met1",
+          "ports": [
+            "M1_1_G",
+            "M1_2_G",
+            "M1_3_G",
+            "M1_4_G",
+            "M2_1_G",
+            "M2_2_G",
+            "M2_3_G",
+            "M2_4_G"
+          ],
+          "column_x_um": 69.5,
+          "y_um": 74.23
+        }
+      ],
+      "spine_y_um": [
+        73.5,
+        73.0,
+        74.0,
+        75.5,
+        78.5,
+        77.0,
+        77.0
+      ],
+      "wire_length_um": 121.13
+    },
+    "vssa": {
+      "anchors": [
+        {
+          "block": "ptapring",
+          "plane": "met1",
+          "ports": [
+            "TAP_W"
+          ],
+          "column_x_um": 3.5,
+          "y_um": 89.46
+        },
+        {
+          "block": "mb1",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 4.0,
+          "y_um": 72.72
+        },
+        {
+          "block": "mbn1",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 21.0,
+          "y_um": 72.72
+        },
+        {
+          "block": "mbn2",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 21.5,
+          "y_um": 72.72
+        },
+        {
+          "block": "mbcn",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 23.0,
+          "y_um": 71.68
+        },
+        {
+          "block": "mct",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 32.0,
+          "y_um": 71.53
+        },
+        {
+          "block": "mtail",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 42.5,
+          "y_um": 71.53
+        },
+        {
+          "block": "nsink",
+          "plane": "met1",
+          "ports": [
+            "M2_5_S",
+            "M1_5_S",
+            "M2_6_S",
+            "M1_6_S",
+            "M2_7_S",
+            "M1_7_S",
+            "M2_8_S",
+            "M1_8_S"
+          ],
+          "column_x_um": 66.0,
+          "y_um": 76.49
+        },
+        {
+          "block": "nsink",
+          "plane": "met1",
+          "ports": [
+            "M1_1_S",
+            "M2_1_S",
+            "M1_2_S",
+            "M2_2_S",
+            "M1_3_S",
+            "M2_3_S",
+            "M1_4_S",
+            "M2_4_S"
+          ],
+          "column_x_um": 71.0,
+          "y_um": 72.97
+        }
+      ],
+      "spine_y_um": [
+        81.0,
+        71.5,
+        72.5,
+        72.0,
+        70.0,
+        70.0,
+        73.5,
+        73.0
+      ],
+      "wire_length_um": 149.6
+    },
+    "vdda": {
+      "anchors": [
+        {
+          "block": "ccm",
+          "plane": "cap3",
+          "ports": [
+            "C0_BOT"
+          ],
+          "column_x_um": 1.0,
+          "y_um": 13.0
+        },
+        {
+          "block": "ntapring",
+          "plane": "met1",
+          "ports": [
+            "TAP_W"
+          ],
+          "column_x_um": 3.0,
+          "y_um": 130.07
+        },
+        {
+          "block": "ptop",
+          "plane": "met1",
+          "ports": [
+            "M1_1_S",
+            "M2_1_S",
+            "M1_2_S",
+            "M2_2_S",
+            "M1_3_S",
+            "M2_3_S",
+            "M1_4_S",
+            "M2_4_S"
+          ],
+          "column_x_um": 10.5,
+          "y_um": 124.25
+        },
+        {
+          "block": "ptop",
+          "plane": "met1",
+          "ports": [
+            "M2_5_S",
+            "M1_5_S",
+            "M2_6_S",
+            "M1_6_S",
+            "M2_7_S",
+            "M1_7_S",
+            "M2_8_S",
+            "M1_8_S"
+          ],
+          "column_x_um": 22.0,
+          "y_um": 135.77
+        },
+        {
+          "block": "cmfbld",
+          "plane": "met1",
+          "ports": [
+            "M1_1_S",
+            "M2_1_S"
+          ],
+          "column_x_um": 32.5,
+          "y_um": 120.5
+        },
+        {
+          "block": "cmfbld",
+          "plane": "met1",
+          "ports": [
+            "M2_2_S",
+            "M1_2_S"
+          ],
+          "column_x_um": 41.0,
+          "y_um": 124.52
+        },
+        {
+          "block": "mbp1",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 42.0,
+          "y_um": 121.5
+        },
+        {
+          "block": "mbp2",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 48.0,
+          "y_um": 121.5
+        },
+        {
+          "block": "mbcp",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 52.0,
+          "y_um": 118.96
+        }
+      ],
+      "spine_y_um": [
+        71.5,
+        127.0,
+        130.5,
+        128.0,
+        122.5,
+        123.0,
+        121.5,
+        120.0
+      ],
+      "wire_length_um": 288.86
+    }
+  }
+}

@@ -112,3 +112,6 @@ layout/digital/.klt/
 
 # Repo Skills Codex-side machine-local install metadata (never committed)
 .agents/skills/repo/.install-local.json
+
+# analog cell generators: per-run scratch (block GDS, draw/compose requests)
+layout/analog/*/_gen/
