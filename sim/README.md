@@ -74,3 +74,10 @@ own gates and derivations are covered the same way:
     python3 -I -m unittest discover -s sim/ota-gain -p 'test_*.py'
     python3 -I -m unittest discover -s sim/integrator-noise -p 'test_*.py'
     python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'
+
+`runner_test_common.py` is the test-side counterpart: the harness those
+per-bench runner tests share (loading a runner by path, the DR-002 corner ids,
+a `RunnerCase` base that runs `main()` against a temporary `HERE` with
+`run_klt`/`pdk_stamp` patched, and the issue #94 admission tests as a mixin each
+bench binds to its own variants). It is deliberately not `test_`-prefixed, so no
+`unittest discover` pattern collects it with no runner bound.

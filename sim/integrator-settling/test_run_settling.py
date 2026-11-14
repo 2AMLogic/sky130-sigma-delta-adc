@@ -7,40 +7,31 @@ committed record.json is never read or written. `shas()` is NOT patched — the
 real request and deck files are copied into the temporary HERE, so the
 .partials hash gate is exercised as written.
 
+The harness itself is `sim/runner_test_common.py`, shared with the
+charge-injection bench; this module binds it to this bench and keeps the
+bench-specific gates below.
+
 What is pinned here (issue #94): a variant requested in this invocation whose
 submit fails is never served from .partials/ — the run refuses with exit 1 and
 writes no record — while reuse of a partial for a variant *not* requested this
 invocation still works.
 """
-import contextlib
-import importlib.util
-import io
 import json
 import pathlib
 import sys
-import tempfile
 import unittest
-from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parent
+# `sim/` is not on sys.path under `python3 -I`: isolated mode drops CWD and
+# PYTHONPATH, and `discover -s sim/integrator-settling` puts only the bench
+# directory there. The runner inserts it in load_runner() below, which is too
+# late for this import.
+sys.path.insert(0, str(HERE.parent))
 
+import runner_test_common as rtc                                    # noqa: E402
+from runner_test_common import CORNER_IDS                           # noqa: E402
 
-def load_runner():
-    """Load run_settling.py by path: 'integrator-settling' is not importable."""
-    spec = importlib.util.spec_from_file_location(
-        "run_settling_under_test", HERE / "run_settling.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-RUNNER = load_runner()
-PIN = json.loads((RUNNER.REPO / "sim/pdk.json").read_text())
-
-PROCESS = ("tt", "ss", "ff", "sf", "fs")
-VDDA = ("1p620", "1p800", "1p980")
-TEMP = ("m40", "27", "125")
-CORNER_IDS = tuple(f"{p}_{v}_{t}" for p in PROCESS for v in VDDA for t in TEMP)
+RUNNER = rtc.load_runner("run_settling_under_test", HERE / "run_settling.py")
 SC = sys.modules["settling_common"]   # put on sys.path by run_settling.py above
 KEYS, GRID_POINTS = SC.KEYS, SC.GRID_POINTS
 
@@ -63,86 +54,33 @@ def report(status="pass", job="job-0001"):
                             "remote": {"job_id": job}}}
 
 
-class RunnerCase(unittest.TestCase):
-    """Runs main() against a temporary HERE with run_klt / pdk_stamp patched."""
+class RunnerCase(rtc.RunnerCase):
+    """The shared harness, bound to this bench's runner and inputs."""
 
-    maxDiff = None
+    RUNNER = RUNNER
+    BENCH = HERE
+    VARIANTS = RUNNER.VARIANTS
+    TMP_PREFIX = "test-run-settling-"
+    ARGV0 = "run_settling.py"
+    NGSPICE = "ngspice-44"
+    GRID_POINTS = GRID_POINTS
 
-    def setUp(self):
-        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="test-run-settling-"))
-        self.addCleanup(lambda: __import__("shutil").rmtree(self.tmp, ignore_errors=True))
-        self.here = self.tmp / "bench"
-        self.here.mkdir()
-        for v in RUNNER.VARIANTS:                       # real inputs: real shas()
-            for name in (f"request_{v}.json", f"integrator_settling_{v}.cir"):
-                (self.here / name).write_bytes((HERE / name).read_bytes())
-        self.partials = self.here / ".partials"
-        self.work = self.tmp / "work"
-        self.work.mkdir()
-        self.calls = []
+    def deck_name(self, v):
+        return f"integrator_settling_{v}.cir"
 
-    def shas(self, v):
-        """The hashes load_partial() demands, computed with the real helper."""
-        with mock.patch.object(RUNNER, "HERE", self.here):
-            return RUNNER.shas(v)
+    def default_corners(self):
+        return measured_corners()
 
-    def write_partial(self, v, corners=None, passed=True, stale=False):
-        self.partials.mkdir(exist_ok=True)
-        d = {"summary": {"corner_count": GRID_POINTS, "pass": GRID_POINTS, "fail": 0,
-                         "worst_err_phase": [1.2e-5, CORNER_IDS[0]]},
-             "corners": measured_corners() if corners is None else corners,
-             "pass": passed, "ngspice": "ngspice-44", "engine_host": "fleet-node-0",
-             "remote": {"job_id": f"job-earlier-{v}"}, **self.shas(v)}
-        if stale:
-            d["deck_sha256"] = "0" * 64
-        (self.partials / f"{v}.json").write_text(json.dumps(d, indent=2) + "\n")
-        return d
-
-    def run_main(self, argv, submits):
-        """main() with argv; `submits` maps variant -> run_klt return value."""
-        def fake_run_klt(request_path, probe, tmpdir, tag, probe_path, **kw):
-            self.calls.append(tag)
-            return submits.get(tag)
-
-        out, err = io.StringIO(), io.StringIO()
-        with contextlib.ExitStack() as st:
-            st.enter_context(mock.patch.object(RUNNER, "HERE", self.here))
-            st.enter_context(mock.patch.object(RUNNER, "PARTIALS", self.partials))
-            st.enter_context(mock.patch.object(RUNNER, "ARTIFACTS", self.here / ".artifacts"))
-            st.enter_context(mock.patch.object(
-                RUNNER, "pdk_stamp",
-                lambda variant, root: (pathlib.Path("/fake/pdk"), PIN["sources_stamp"])))
-            st.enter_context(mock.patch.object(RUNNER, "run_klt", fake_run_klt))
-            st.enter_context(mock.patch.object(
-                RUNNER.tempfile, "mkdtemp", lambda *a, **k: str(self.work)))
-            st.enter_context(mock.patch.object(sys, "argv", ["run_settling.py", *argv]))
-            st.enter_context(contextlib.redirect_stdout(out))
-            st.enter_context(contextlib.redirect_stderr(err))
-            rc = RUNNER.main()
-        return rc, out.getvalue(), err.getvalue()
-
-    def assertNoRecord(self, name="record.json"):
-        self.assertFalse((self.here / name).exists(),
-                         f"{name} was written from a run whose submit failed")
+    def partial_summary(self):
+        s = super().partial_summary()
+        s["worst_err_phase"] = [1.2e-5, CORNER_IDS[0]]
+        return s
 
 
-class FailedSubmitIsNotServedFromPartials(RunnerCase):
-    def test_requested_variant_with_failed_submit_refuses_despite_matching_partial(self):
-        self.write_partial("int1")
-        self.write_partial("int2")
-        before = (self.partials / "int1.json").read_text()
-
-        rc, out, err = self.run_main(["--variant", "int1", "--record"], {"int1": None})
-
-        self.assertEqual(rc, 1)
-        self.assertNoRecord()
-        self.assertIn("not falling back to a local grid or to .partials/", err)
-        self.assertIn("REFUSE: no result for int1", err)
-        self.assertNotIn("falling back to the saved", out + err)
-        # int2 was not requested, so its partial is still reused ...
-        self.assertIn("int2: reusing .partials/int2.json", out)
-        # ... and int1's partial is left on disk for an operator to re-run into.
-        self.assertEqual((self.partials / "int1.json").read_text(), before)
+class FailedSubmitIsNotServedFromPartials(rtc.FailedSubmitRefusalTests, RunnerCase):
+    REQUESTED = "int1"
+    OTHER = "int2"
+    REUSE_FMT = "{v}: reusing .partials/{v}.json"
 
     def test_both_submits_failing_refuses_both_variants(self):
         self.write_partial("int1")
@@ -154,27 +92,6 @@ class FailedSubmitIsNotServedFromPartials(RunnerCase):
         self.assertNoRecord()
         self.assertIn("REFUSE: no result for int1, int2", err)
         self.assertEqual(self.calls, ["int1", "int2"])
-
-    def test_stale_partial_with_failed_submit_also_refuses(self):
-        self.write_partial("int1", stale=True)
-        self.write_partial("int2")
-
-        rc, out, err = self.run_main(["--variant", "int1", "--record"], {"int1": None})
-
-        self.assertEqual(rc, 1)
-        self.assertNoRecord()
-        self.assertIn("REFUSE: no result for int1", err)
-
-    def test_record_name_variant_is_not_written_either(self):
-        self.write_partial("int1")
-        self.write_partial("int2")
-
-        rc, _, err = self.run_main(
-            ["--variant", "int1", "--record", "--record-name", "record-retry.json"],
-            {"int1": None})
-
-        self.assertEqual(rc, 1)
-        self.assertNoRecord("record-retry.json")
 
 
 class NonRequestedVariantReuseIsUnchanged(RunnerCase):
