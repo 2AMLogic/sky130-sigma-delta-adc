@@ -123,6 +123,25 @@ jobs:
       - name: Charge-injection record-admission unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'
 
+      # The DC-gain and thermal-noise benches' record-admission gates and the
+      # derivations their records depend on (issue #126): V/V -> dB and the
+      # binding corner for the gain bench; the input referral, the V^2 -> FS^2
+      # conversion, the two in-band links and the per-corner budget verdicts
+      # for the noise bench. Plus the checks that the committed decks and
+      # requests still match their generators. Fixtures only: no fleet, no
+      # ngspice, no klt.
+      - name: Gain and noise record-admission unit tests (no EDA tools)
+        run: |
+          python3 -I -m unittest discover -s sim/ota-gain -p 'test_*.py'
+          python3 -I -m unittest discover -s sim/integrator-noise -p 'test_*.py'
+
+      # The comparator bench's derivations (model-B unit conversion, the
+      # offset/hysteresis inversion, the decision-time limit), the staircase
+      # geometry, and the gates that decide whether its record is written at
+      # all (issue #127). Fixtures only: no fleet, no ngspice, no klt.
+      - name: Comparator decision record-admission unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'
+
       - name: Decimator whole-chain response, spec rows 8-9 (no EDA tools)
         working-directory: verification/decimator
         run: python3 response.py
