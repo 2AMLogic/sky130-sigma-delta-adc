@@ -1,0 +1,25 @@
+{
+  "schema": "klt.sta.request/1",
+  "def": "decimator.def",
+  "hdl_toplevel": "decimator",
+  "geometry_source": "routed",
+  "pdk": {
+    "cell_library": "sky130_fd_sc_hd",
+    "corners": [
+      "tt_025C_1v80",
+      "tt_100C_1v80",
+      "ss_100C_1v60",
+      "ss_n40C_1v60",
+      "ss_n40C_1v76",
+      "ff_100C_1v65",
+      "ff_n40C_1v65",
+      "ff_n40C_1v76",
+      "ff_100C_1v95",
+      "ff_n40C_1v95"
+    ]
+  },
+  "constraints": {
+    "clock_port": "clk",
+    "clock_period_ns": 195.3125
+  }
+}

@@ -32,7 +32,7 @@ corner in the cited record, or the only one it has.
 | 3 | 2nd-order single-bit SC modulator | partial | tt/27C/1.80V (load check only) | `design/modulator/modulator.spice`, `sim/bmodel/model.py` | transistor-level behaviour of the assembled modulator: pending (#33) |
 | 4 | OSR 128 | evidenced | none (arithmetic and B config) | `sim/bmodel/records/20261113T142853Z-f8b2fa44.json` | none |
 | 5 | Modulator clock 5.12 MHz | partial | sf/1.62V/125C (OTA only) | `sim/ota-settling/record-i51-rcm2M-cff100f.json` | integrator-cell and comparator-decision settling over the grid: pending (#33) |
-| 6 | Output rate 80 kSps | evidenced | tt/27C/1.80V (RTL sim) | `verification/decimator/record.json` | none for function; corner timing: pending (#33) |
+| 6 | Output rate 80 kSps | evidenced | tt/27C/1.80V (RTL sim) | `verification/decimator/record.json` | none for function; corner timing evidenced at the ten declared liberty corners (`layout/digital/sta-decimator.report.json`), the other 35 DR-002 points: pending (#131) |
 | 7 | 16-bit two's complement word | evidenced | tt/27C/1.80V (RTL sim) | `verification/decimator/record.json` | none |
 | 8 | Passband ripple <= 0.1 dB | evidenced | analytic (0.0401 dB peak-to-peak) | `verification/decimator/record.json` | none |
 | 9 | Stopband >= 90 dB | partial | analytic (93.91 dB at 300 kHz, alias-band reading) | `verification/decimator/record.json` | row reading unconfirmed: pending (#18) |
@@ -94,15 +94,28 @@ library is `sky130_fd_sc_hd`.
 |---|---|---|---|---|
 | Cell area (synthesized) | 49 062.05 um^2, 5 390 instances | corner-independent (cell areas) | `verification/decimator/record.json` | evidenced (synthesis) |
 | Placed die / core area | 129 758 um^2 die, 121 877 um^2 core, 42.4 % utilization | corner-independent | `layout/README.md`, `layout/digital/decimator.gds` | evidenced (place-and-route) |
-| Fmax at each of the 45 corners | none | all 45 | none | pending (#33) |
+| Fmax at the ten declared `sky130_fd_sc_hd` liberty corners | 26.73 MHz worst, 110.05 MHz best; every declared corner clears the 5.12 MHz clock | ss/-40C/1.60V binds (setup slack 157.898 ns of the 195.3125 ns period) | `layout/digital/sta-decimator.report.json` | evidenced (STA on the routed DEF; ideal clock, no SPEF) |
+| Fmax at the other 35 DR-002 corners | none | the sf, fs, 1.98 V, 125 C and 27 C points | none | pending (#131): the library ships no liberty file for them |
 | Power at each of the 45 corners | none | all 45 | none | pending (#33) |
 
-- **Fmax.** No static timing analysis has been run, so no Fmax is claimed at any
-  corner. The routed design is clocked at 195.3125 ns (fs = 5.12 MHz,
-  `layout/digital/pnr_request.json`); the router reports max-transition and
-  max-capacitance violations against the library limits, concentrated in the slow
-  corners (`layout/README.md`), and those are unaddressed. Timing closure is
-  #33's decimator STA.
+- **Fmax.** `klt sta` (0.8.0, OpenROAD `26Q3-1510-g6cb3f2b704`) on the committed
+  routed DEF, one fixed geometry characterized at ten corners in one request
+  (`layout/digital/sta_request.json`, `pdk.corners`), clock `clk` at 195.3125 ns
+  (fs = 5.12 MHz, spec row 5). Every corner reports
+  `timing_status: "constrained"` with non-negative setup and hold slack and zero
+  setup/hold violations; worst setup is 157.898 ns at `ss_n40C_1v60`
+  (Fmax 26.73 MHz), worst hold 0.2586 ns at `ff_n40C_1v95`. The Fmax figures are
+  OpenSTA's extrapolated `1/(T - WNS)`, not a bisected search, and the clock is
+  **ideal** (no `set_propagated_clock`), so clock-tree insertion delay does not
+  reach these numbers. There is no SPEF: routed-DEF timing with no extracted wire
+  parasitics; parasitic-annotated timing is #35. Every corner reports
+  `constraint_completeness: "incomplete"` — 17 unconstrained endpoints
+  (`dout[15:0]`, `dout_valid`), because no block-boundary I/O delay budget is
+  declared, so this is register-to-register timing only (#131). The router's
+  max-transition and max-capacitance violations against the library limits
+  reappear here at one corner only, `ss_n40C_1v60` (660 max-transition, 7
+  max-capacitance); they are electrical-rule violations, not slack violations,
+  and they are not addressed by this item.
 - **Power.** No power analysis exists. P_dig is reported separately from P_ana
   (spec row 13), never summed into it. Post-layout activity-based power is
   covered by #35.

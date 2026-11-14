@@ -1,0 +1,2502 @@
+{
+  "capacitors": {
+    "mirror_axis_y_um": 143.43,
+    "plate_binding": "The netlist's first terminal of every capacitor is bound to the cap_array _TOP port (met4 71/20 over capm), uniformly across all six -- design/integrator/SIZING.md:72-74's amplifier-side plate on the MIM top plate (c0). This cell is that line's 'to be confirmed in layout' step. klt extract cannot read the binding back (it normalises a two-terminal device and names the plates a/b), so it is asserted by the generator's layer choice and recorded here. If klayout-tools#146's open question concludes that c0 is the sky130 model's *bottom* plate, SIZING.md:72 is what changes, not this binding.",
+    "plate_binding_uniform": true,
+    "groups": [
+      {
+        "group": "Csi",
+        "plate_um": [
+          22.17,
+          22.17
+        ],
+        "arrangement": "mirror-symmetric about the cell axis",
+        "blocks": {
+          "csi_p": {
+            "bbox_um": {
+              "x0": 41.17,
+              "y0": 184.97,
+              "x1": 64.34,
+              "y1": 209.06
+            },
+            "orientation": "rotate_180",
+            "top_plate_net": "tpi_p",
+            "bottom_plate_net": "bpi_p"
+          },
+          "csi_n": {
+            "bbox_um": {
+              "x0": 41.17,
+              "y0": 77.8,
+              "x1": 64.34,
+              "y1": 101.89
+            },
+            "orientation": "mirror_x",
+            "top_plate_net": "tpi_n",
+            "bottom_plate_net": "bpi_n"
+          }
+        }
+      },
+      {
+        "group": "Csr",
+        "plate_um": [
+          22.17,
+          22.17
+        ],
+        "arrangement": "mirror-symmetric about the cell axis",
+        "blocks": {
+          "csr_p": {
+            "bbox_um": {
+              "x0": 4.0,
+              "y0": 184.97,
+              "x1": 27.17,
+              "y1": 209.06
+            },
+            "orientation": "rotate_180",
+            "top_plate_net": "tpr_p",
+            "bottom_plate_net": "bpr_p"
+          },
+          "csr_n": {
+            "bbox_um": {
+              "x0": 4.0,
+              "y0": 77.8,
+              "x1": 27.17,
+              "y1": 101.89
+            },
+            "orientation": "mirror_x",
+            "top_plate_net": "tpr_n",
+            "bottom_plate_net": "bpr_n"
+          }
+        }
+      },
+      {
+        "group": "Ci",
+        "plate_um": [
+          31.43,
+          31.43
+        ],
+        "arrangement": "mirror-symmetric about the cell axis",
+        "blocks": {
+          "ci_p": {
+            "bbox_um": {
+              "x0": 78.34,
+              "y0": 184.97,
+              "x1": 110.77,
+              "y1": 218.32
+            },
+            "orientation": "rotate_180",
+            "top_plate_net": "sump",
+            "bottom_plate_net": "voutp"
+          },
+          "ci_n": {
+            "bbox_um": {
+              "x0": 78.34,
+              "y0": 68.54,
+              "x1": 110.77,
+              "y1": 101.89000000000001
+            },
+            "orientation": "mirror_x",
+            "top_plate_net": "sumn",
+            "bottom_plate_net": "voutn"
+          }
+        }
+      }
+    ]
+  },
+  "summing_nodes": {
+    "wire_length_um": {
+      "sump": 130.485,
+      "sumn": 134.475
+    },
+    "length_rank_of_all_nets": [
+      "ibias",
+      "vinp",
+      "vinn",
+      "sump",
+      "sumn",
+      "voutn",
+      "rsel_p",
+      "voutp",
+      "rsel_n",
+      "bpi_p",
+      "bpi_n",
+      "bpr_p",
+      "tpi_p",
+      "bpr_n",
+      "tpi_n",
+      "tpr_p",
+      "tpr_n",
+      "vrefn",
+      "vrefp",
+      "phi1",
+      "phi1e",
+      "dp",
+      "dn",
+      "phi1b",
+      "vssa",
+      "vdda",
+      "phi2",
+      "phi2b",
+      "vcm"
+    ],
+    "shortest_net": "ibias",
+    "shield_clearance_um": 1.0,
+    "shielded": false,
+    "beside_count": 4,
+    "beside": [
+      {
+        "summing_net": "sumn",
+        "clock_net": "phi2",
+        "layer": "68/20",
+        "gap_um": 0.18,
+        "summing_rect_um": [
+          112.33,
+          126.83,
+          135.59,
+          127.17
+        ],
+        "clock_rect_um": [
+          111.88,
+          127.35,
+          117.17,
+          127.69
+        ]
+      },
+      {
+        "summing_net": "sumn",
+        "clock_net": "phi2",
+        "layer": "68/20",
+        "gap_um": 0.211,
+        "summing_rect_um": [
+          112.33,
+          126.83,
+          135.59,
+          127.17
+        ],
+        "clock_rect_um": [
+          111.88,
+          127.35,
+          112.22,
+          127.69
+        ]
+      },
+      {
+        "summing_net": "sump",
+        "clock_net": "phi2",
+        "layer": "68/20",
+        "gap_um": 0.32,
+        "summing_rect_um": [
+          111.83,
+          159.83,
+          137.59,
+          160.17
+        ],
+        "clock_rect_um": [
+          111.88,
+          159.17,
+          112.22,
+          159.51
+        ]
+      },
+      {
+        "summing_net": "sump",
+        "clock_net": "phi2",
+        "layer": "68/20",
+        "gap_um": 0.32,
+        "summing_rect_um": [
+          111.83,
+          159.83,
+          137.59,
+          160.17
+        ],
+        "clock_rect_um": [
+          111.88,
+          159.17,
+          117.67,
+          159.51
+        ]
+      }
+    ],
+    "crossings_count": 15,
+    "crossings": [
+      {
+        "summing_net": "sumn",
+        "clock_net": "phi1e",
+        "summing_layer": "68/20",
+        "clock_layer": "69/20",
+        "overlap_um2": 0.1156,
+        "at_um": [
+          100.33,
+          133.83
+        ]
+      },
+      {
+        "summing_net": "sumn",
+        "clock_net": "phi1e",
+        "summing_layer": "68/20",
+        "clock_layer": "69/20",
+        "overlap_um2": 0.1156,
+        "at_um": [
+          114.83,
+          126.83
+        ]
+      },
+      {
+        "summing_net": "sumn",
+        "clock_net": "phi2",
+        "summing_layer": "69/20",
+        "clock_layer": "68/20",
+        "overlap_um2": 0.1156,
+        "at_um": [
+          96.83,
+          127.35
+        ]
+      },
+      {
+        "summing_net": "sumn",
+        "clock_net": "phi2",
+        "summing_layer": "68/20",
+        "clock_layer": "69/20",
+        "overlap_um2": 0.1156,
+        "at_um": [
+          101.33,
+          133.83
+        ]
+      },
+      {
+        "summing_net": "sumn",
+        "clock_net": "phi2b",
+        "summing_layer": "69/20",
+        "clock_layer": "68/20",
+        "overlap_um2": 0.1156,
+        "at_um": [
+          95.33,
+          112.23
+        ]
+      },
+      {
+        "summing_net": "sumn",
+        "clock_net": "phi2b",
+        "summing_layer": "69/20",
+        "clock_layer": "68/20",
+        "overlap_um2": 0.1156,
+        "at_um": [
+          95.33,
+          112.33
+        ]
+      },
+      {
+        "summing_net": "sumn",
+        "clock_net": "phi2b",
+        "summing_layer": "68/20",
+        "clock_layer": "69/20",
+        "overlap_um2": 0.1156,
+        "at_um": [
+          115.83,
+          126.83
+        ]
+      },
+      {
+        "summing_net": "sump",
+        "clock_net": "phi1e",
+        "summing_layer": "68/20",
+        "clock_layer": "69/20",
+        "overlap_um2": 0.1156,
+        "at_um": [
+          100.83,
+          151.83
+        ]
+      },
+      {
+        "summing_net": "sump",
+        "clock_net": "phi1e",
+        "summing_layer": "68/20",
+        "clock_layer": "69/20",
+        "overlap_um2": 0.1156,
+        "at_um": [
+          115.33,
+          159.83
+        ]
+      },
+      {
+        "summing_net": "sump",
+        "clock_net": "phi2",
+        "summing_layer": "68/20",
+        "clock_layer": "69/20",
+        "overlap_um2": 0.1156,
+        "at_um": [
+          101.83,
+          151.83
+        ]
+      },
+      {
+        "summing_net": "sump",
+        "clock_net": "phi2b",
+        "summing_layer": "69/20",
+        "clock_layer": "68/20",
+        "overlap_um2": 0.1156,
+        "at_um": [
+          95.83,
+          174.29
+        ]
+      },
+      {
+        "summing_net": "sump",
+        "clock_net": "phi2b",
+        "summing_layer": "68/20",
+        "clock_layer": "69/20",
+        "overlap_um2": 0.1156,
+        "at_um": [
+          116.33,
+          159.83
+        ]
+      },
+      {
+        "summing_net": "sump",
+        "clock_net": "phi2",
+        "summing_layer": "69/20",
+        "clock_layer": "68/20",
+        "overlap_um2": 0.0442,
+        "at_um": [
+          96.54,
+          159.17
+        ]
+      },
+      {
+        "summing_net": "sump",
+        "clock_net": "phi2",
+        "summing_layer": "69/20",
+        "clock_layer": "68/20",
+        "overlap_um2": 0.0442,
+        "at_um": [
+          96.54,
+          159.17
+        ]
+      },
+      {
+        "summing_net": "sumn",
+        "clock_net": "phi2",
+        "summing_layer": "69/20",
+        "clock_layer": "68/20",
+        "overlap_um2": 0.017,
+        "at_um": [
+          96.83,
+          127.35
+        ]
+      }
+    ]
+  },
+  "mirror_axis_y_um": 143.43,
+  "ota_origin_x_um": 139.42,
+  "block_origins_um": {
+    "ci_n": {
+      "x": 110.77,
+      "y": 68.54
+    },
+    "ci_p": {
+      "x": 110.77,
+      "y": 218.32
+    },
+    "csi_n": {
+      "x": 64.34,
+      "y": 77.8
+    },
+    "csi_p": {
+      "x": 64.34,
+      "y": 209.06
+    },
+    "csr_n": {
+      "x": 27.17,
+      "y": 77.8
+    },
+    "csr_p": {
+      "x": 27.17,
+      "y": 209.06
+    },
+    "iphi2b_n": {
+      "x": 4.125,
+      "y": 293.86
+    },
+    "iphi2b_p": {
+      "x": 4.15,
+      "y": 307.47
+    },
+    "mra_n_n": {
+      "x": 4.125,
+      "y": 57.39
+    },
+    "mra_n_p": {
+      "x": 4.15,
+      "y": 31.27
+    },
+    "mra_p_n": {
+      "x": 4.125,
+      "y": 229.47
+    },
+    "mra_p_p": {
+      "x": 4.15,
+      "y": 255.59
+    },
+    "mrb_n_n": {
+      "x": 19.465,
+      "y": 57.39
+    },
+    "mrb_n_p": {
+      "x": 19.54,
+      "y": 31.27
+    },
+    "mrb_p_n": {
+      "x": 19.465,
+      "y": 229.47
+    },
+    "mrb_p_p": {
+      "x": 19.54,
+      "y": 255.59
+    },
+    "ntap_inv": {
+      "x": 1.58,
+      "y": 304.9
+    },
+    "ntap_n": {
+      "x": 1.58,
+      "y": 3.58
+    },
+    "ntap_p": {
+      "x": 1.58,
+      "y": 253.02
+    },
+    "ntap_swp_n": {
+      "x": 93.32,
+      "y": 109.47
+    },
+    "ntap_swp_p": {
+      "x": 93.32,
+      "y": 167.13
+    },
+    "ptap_inv": {
+      "x": 1.58,
+      "y": 291.44
+    },
+    "ptap_n": {
+      "x": 1.58,
+      "y": 42.0
+    },
+    "ptap_p": {
+      "x": 1.58,
+      "y": 226.9
+    },
+    "ptap_swn_n": {
+      "x": 93.62,
+      "y": 124.89
+    },
+    "ptap_swn_p": {
+      "x": 93.62,
+      "y": 144.01
+    },
+    "sbi_n": {
+      "x": 65.485,
+      "y": 57.39
+    },
+    "sbi_n_p": {
+      "x": 65.71,
+      "y": 31.27
+    },
+    "sbi_p": {
+      "x": 65.485,
+      "y": 229.47
+    },
+    "sbi_p_p": {
+      "x": 65.71,
+      "y": 255.59
+    },
+    "sbr_n": {
+      "x": 80.825,
+      "y": 57.39
+    },
+    "sbr_n_p": {
+      "x": 81.2,
+      "y": 31.27
+    },
+    "sbr_p": {
+      "x": 80.825,
+      "y": 229.47
+    },
+    "sbr_p_p": {
+      "x": 81.2,
+      "y": 255.59
+    },
+    "sci_n": {
+      "x": 96.165,
+      "y": 57.39
+    },
+    "sci_p": {
+      "x": 96.165,
+      "y": 229.47
+    },
+    "scr_n": {
+      "x": 111.505,
+      "y": 57.39
+    },
+    "scr_p": {
+      "x": 111.505,
+      "y": 229.47
+    },
+    "sin_n_n": {
+      "x": 34.805,
+      "y": 57.39
+    },
+    "sin_n_p": {
+      "x": 34.93,
+      "y": 31.27
+    },
+    "sin_p_n": {
+      "x": 34.805,
+      "y": 229.47
+    },
+    "sin_p_p": {
+      "x": 34.93,
+      "y": 255.59
+    },
+    "sr_n_n": {
+      "x": 50.145,
+      "y": 57.39
+    },
+    "sr_n_p": {
+      "x": 50.32,
+      "y": 31.27
+    },
+    "sr_p_n": {
+      "x": 50.145,
+      "y": 229.47
+    },
+    "sr_p_p": {
+      "x": 50.32,
+      "y": 255.59
+    },
+    "sti_n": {
+      "x": 96.165,
+      "y": 140.28
+    },
+    "sti_n_p": {
+      "x": 95.89,
+      "y": 117.16
+    },
+    "sti_p": {
+      "x": 96.165,
+      "y": 146.58
+    },
+    "sti_p_p": {
+      "x": 95.89,
+      "y": 169.7
+    },
+    "str_n": {
+      "x": 111.505,
+      "y": 140.28
+    },
+    "str_n_p": {
+      "x": 111.38,
+      "y": 117.16
+    },
+    "str_p": {
+      "x": 111.505,
+      "y": 146.58
+    },
+    "str_p_p": {
+      "x": 111.38,
+      "y": 169.7
+    }
+  },
+  "block_orientation": {
+    "ci_n": "mirror_x",
+    "ci_p": "rotate_180",
+    "csi_n": "mirror_x",
+    "csi_p": "rotate_180",
+    "csr_n": "mirror_x",
+    "csr_p": "rotate_180",
+    "iphi2b_n": "none",
+    "iphi2b_p": "none",
+    "mra_n_n": "mirror_y",
+    "mra_n_p": "mirror_y",
+    "mra_p_n": "none",
+    "mra_p_p": "none",
+    "mrb_n_n": "mirror_y",
+    "mrb_n_p": "mirror_y",
+    "mrb_p_n": "none",
+    "mrb_p_p": "none",
+    "ntap_inv": "none",
+    "ntap_n": "none",
+    "ntap_p": "none",
+    "ntap_swp_n": "none",
+    "ntap_swp_p": "none",
+    "ptap_inv": "none",
+    "ptap_n": "none",
+    "ptap_p": "none",
+    "ptap_swn_n": "none",
+    "ptap_swn_p": "none",
+    "sbi_n": "mirror_y",
+    "sbi_n_p": "mirror_y",
+    "sbi_p": "none",
+    "sbi_p_p": "none",
+    "sbr_n": "mirror_y",
+    "sbr_n_p": "mirror_y",
+    "sbr_p": "none",
+    "sbr_p_p": "none",
+    "sci_n": "mirror_y",
+    "sci_p": "none",
+    "scr_n": "mirror_y",
+    "scr_p": "none",
+    "sin_n_n": "mirror_y",
+    "sin_n_p": "mirror_y",
+    "sin_p_n": "none",
+    "sin_p_p": "none",
+    "sr_n_n": "mirror_y",
+    "sr_n_p": "mirror_y",
+    "sr_p_n": "none",
+    "sr_p_p": "none",
+    "sti_n": "mirror_y",
+    "sti_n_p": "mirror_y",
+    "sti_p": "none",
+    "sti_p_p": "none",
+    "str_n": "mirror_y",
+    "str_n_p": "mirror_y",
+    "str_p": "none",
+    "str_p_p": "none"
+  },
+  "met2_columns": 168,
+  "lvtn_markers": [
+    [
+      64.98,
+      44.04,
+      67.08,
+      57.92
+    ],
+    [
+      65.18,
+      5.62,
+      67.43,
+      31.8
+    ],
+    [
+      64.98,
+      228.94,
+      67.08,
+      242.82
+    ],
+    [
+      65.18,
+      255.06,
+      67.43,
+      281.24
+    ],
+    [
+      80.32,
+      44.04,
+      82.42,
+      57.92
+    ],
+    [
+      80.67,
+      5.62,
+      82.92,
+      31.8
+    ],
+    [
+      80.32,
+      228.94,
+      82.42,
+      242.82
+    ],
+    [
+      80.67,
+      255.06,
+      82.92,
+      281.24
+    ],
+    [
+      95.66,
+      44.04,
+      97.76,
+      57.92
+    ],
+    [
+      95.66,
+      228.94,
+      97.76,
+      242.82
+    ],
+    [
+      111.0,
+      44.04,
+      113.1,
+      57.92
+    ],
+    [
+      111.0,
+      228.94,
+      113.1,
+      242.82
+    ],
+    [
+      95.66,
+      126.93,
+      97.76,
+      140.81
+    ],
+    [
+      95.36,
+      111.51,
+      97.61,
+      117.69
+    ],
+    [
+      95.66,
+      146.05,
+      97.76,
+      159.93
+    ],
+    [
+      95.36,
+      169.17,
+      97.61,
+      175.35
+    ],
+    [
+      111.0,
+      126.93,
+      113.1,
+      140.81
+    ],
+    [
+      110.85,
+      111.51,
+      113.1,
+      117.69
+    ],
+    [
+      111.0,
+      146.05,
+      113.1,
+      159.93
+    ],
+    [
+      110.85,
+      169.17,
+      113.1,
+      175.35
+    ]
+  ],
+  "nets": {
+    "sump": {
+      "anchors": [
+        {
+          "block": "ci_p",
+          "plane": "cap4",
+          "ports": [
+            "C0_TOP"
+          ],
+          "column_x_um": 94.5,
+          "y_um": 183.77
+        },
+        {
+          "block": "sti_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 96.0,
+          "y_um": 171.45
+        },
+        {
+          "block": "sti_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 96.5,
+          "y_um": 152.33
+        },
+        {
+          "block": "str_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 111.5,
+          "y_um": 152.33
+        },
+        {
+          "block": "str_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 112.0,
+          "y_um": 171.45
+        },
+        {
+          "block": "ota",
+          "plane": "ota",
+          "ports": [
+            "inn"
+          ],
+          "column_x_um": 137.42,
+          "y_um": 148.2
+        }
+      ],
+      "spine_y_um": [
+        177.5,
+        162.0,
+        152.0,
+        162.0,
+        160.0
+      ],
+      "wire_length_um": 130.485
+    },
+    "sumn": {
+      "anchors": [
+        {
+          "block": "ci_n",
+          "plane": "cap4",
+          "ports": [
+            "C0_TOP"
+          ],
+          "column_x_um": 93.0,
+          "y_um": 103.09
+        },
+        {
+          "block": "sti_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 95.5,
+          "y_um": 114.91
+        },
+        {
+          "block": "sti_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 97.0,
+          "y_um": 134.03
+        },
+        {
+          "block": "str_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 111.0,
+          "y_um": 134.03
+        },
+        {
+          "block": "str_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 112.5,
+          "y_um": 114.91
+        },
+        {
+          "block": "ota",
+          "plane": "ota",
+          "ports": [
+            "inp"
+          ],
+          "column_x_um": 135.42,
+          "y_um": 138.65
+        }
+      ],
+      "spine_y_um": [
+        109.0,
+        124.5,
+        134.0,
+        124.5,
+        127.0
+      ],
+      "wire_length_um": 134.475
+    },
+    "tpi_p": {
+      "anchors": [
+        {
+          "block": "csi_p",
+          "plane": "cap4",
+          "ports": [
+            "C0_TOP"
+          ],
+          "column_x_um": 53.0,
+          "y_um": 183.77
+        },
+        {
+          "block": "sci_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 97.5,
+          "y_um": 235.22
+        },
+        {
+          "block": "sti_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 98.0,
+          "y_um": 152.83
+        },
+        {
+          "block": "sti_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 98.5,
+          "y_um": 171.95
+        }
+      ],
+      "spine_y_um": [
+        209.5,
+        194.0,
+        162.5
+      ],
+      "wire_length_um": 174.425
+    },
+    "tpi_n": {
+      "anchors": [
+        {
+          "block": "csi_n",
+          "plane": "cap4",
+          "ports": [
+            "C0_TOP"
+          ],
+          "column_x_um": 51.5,
+          "y_um": 103.09
+        },
+        {
+          "block": "sci_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 99.0,
+          "y_um": 51.14
+        },
+        {
+          "block": "sti_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 99.5,
+          "y_um": 134.53
+        },
+        {
+          "block": "sti_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 100.0,
+          "y_um": 115.41
+        }
+      ],
+      "spine_y_um": [
+        77.0,
+        93.0,
+        125.0
+      ],
+      "wire_length_um": 184.435
+    },
+    "tpr_p": {
+      "anchors": [
+        {
+          "block": "csr_p",
+          "plane": "cap4",
+          "ports": [
+            "C0_TOP"
+          ],
+          "column_x_um": 15.5,
+          "y_um": 183.77
+        },
+        {
+          "block": "scr_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 113.0,
+          "y_um": 235.22
+        },
+        {
+          "block": "str_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 113.5,
+          "y_um": 152.83
+        },
+        {
+          "block": "str_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 114.0,
+          "y_um": 171.95
+        }
+      ],
+      "spine_y_um": [
+        209.0,
+        194.0,
+        162.5
+      ],
+      "wire_length_um": 227.095
+    },
+    "tpr_n": {
+      "anchors": [
+        {
+          "block": "csr_n",
+          "plane": "cap4",
+          "ports": [
+            "C0_TOP"
+          ],
+          "column_x_um": 17.0,
+          "y_um": 103.09
+        },
+        {
+          "block": "str_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 110.0,
+          "y_um": 115.41
+        },
+        {
+          "block": "scr_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 110.5,
+          "y_um": 51.14
+        },
+        {
+          "block": "str_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 114.5,
+          "y_um": 134.53
+        }
+      ],
+      "spine_y_um": [
+        109.5,
+        83.5,
+        93.0
+      ],
+      "wire_length_um": 235.055
+    },
+    "bpi_p": {
+      "anchors": [
+        {
+          "block": "sin_p_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 35.0,
+          "y_um": 231.22
+        },
+        {
+          "block": "sin_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 35.5,
+          "y_um": 259.34
+        },
+        {
+          "block": "csi_p",
+          "plane": "cap3",
+          "ports": [
+            "C0_BOT"
+          ],
+          "column_x_um": 64.0,
+          "y_um": 210.26
+        },
+        {
+          "block": "sbi_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 66.5,
+          "y_um": 235.22
+        },
+        {
+          "block": "sbi_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 67.0,
+          "y_um": 267.34
+        }
+      ],
+      "spine_y_um": [
+        245.5,
+        235.0,
+        222.5,
+        251.5
+      ],
+      "wire_length_um": 161.525
+    },
+    "bpi_n": {
+      "anchors": [
+        {
+          "block": "sin_n_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 34.5,
+          "y_um": 55.14
+        },
+        {
+          "block": "sin_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 36.0,
+          "y_um": 27.02
+        },
+        {
+          "block": "csi_n",
+          "plane": "cap3",
+          "ports": [
+            "C0_BOT"
+          ],
+          "column_x_um": 65.5,
+          "y_um": 76.6
+        },
+        {
+          "block": "sbi_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 67.5,
+          "y_um": 51.14
+        },
+        {
+          "block": "sbi_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 68.0,
+          "y_um": 19.02
+        }
+      ],
+      "spine_y_um": [
+        41.0,
+        51.0,
+        64.0,
+        35.0
+      ],
+      "wire_length_um": 167.945
+    },
+    "bpr_p": {
+      "anchors": [
+        {
+          "block": "csr_p",
+          "plane": "cap3",
+          "ports": [
+            "C0_BOT"
+          ],
+          "column_x_um": 27.0,
+          "y_um": 210.26
+        },
+        {
+          "block": "sr_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 50.0,
+          "y_um": 259.34
+        },
+        {
+          "block": "sr_p_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 50.5,
+          "y_um": 231.22
+        },
+        {
+          "block": "sbr_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 81.5,
+          "y_um": 235.22
+        },
+        {
+          "block": "sbr_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 82.0,
+          "y_um": 267.34
+        }
+      ],
+      "spine_y_um": [
+        235.5,
+        245.5,
+        233.0,
+        251.5
+      ],
+      "wire_length_um": 174.355
+    },
+    "bpr_n": {
+      "anchors": [
+        {
+          "block": "csr_n",
+          "plane": "cap3",
+          "ports": [
+            "C0_BOT"
+          ],
+          "column_x_um": 25.5,
+          "y_um": 76.6
+        },
+        {
+          "block": "sr_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 49.0,
+          "y_um": 27.02
+        },
+        {
+          "block": "sr_n_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 49.5,
+          "y_um": 55.14
+        },
+        {
+          "block": "sbr_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 81.0,
+          "y_um": 51.14
+        },
+        {
+          "block": "sbr_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 82.5,
+          "y_um": 19.02
+        }
+      ],
+      "spine_y_um": [
+        52.0,
+        41.0,
+        53.5,
+        35.0
+      ],
+      "wire_length_um": 180.445
+    },
+    "rsel_p": {
+      "anchors": [
+        {
+          "block": "mra_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 4.0,
+          "y_um": 259.34
+        },
+        {
+          "block": "mra_p_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 4.5,
+          "y_um": 231.22
+        },
+        {
+          "block": "mrb_p_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 19.5,
+          "y_um": 231.22
+        },
+        {
+          "block": "mrb_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 20.0,
+          "y_um": 259.34
+        },
+        {
+          "block": "sr_p_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 48.5,
+          "y_um": 231.72
+        },
+        {
+          "block": "sr_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 54.0,
+          "y_um": 259.84
+        }
+      ],
+      "spine_y_um": [
+        245.5,
+        231.0,
+        245.5,
+        246.0,
+        246.0
+      ],
+      "wire_length_um": 146.855
+    },
+    "rsel_n": {
+      "anchors": [
+        {
+          "block": "mra_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 3.5,
+          "y_um": 27.02
+        },
+        {
+          "block": "mra_n_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 5.0,
+          "y_um": 55.14
+        },
+        {
+          "block": "mrb_n_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 19.0,
+          "y_um": 55.14
+        },
+        {
+          "block": "mrb_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 20.5,
+          "y_um": 27.02
+        },
+        {
+          "block": "sr_n_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 48.0,
+          "y_um": 55.64
+        },
+        {
+          "block": "sr_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 54.5,
+          "y_um": 27.52
+        }
+      ],
+      "spine_y_um": [
+        41.0,
+        55.0,
+        41.0,
+        41.5,
+        41.5
+      ],
+      "wire_length_um": 150.915
+    },
+    "voutp": {
+      "anchors": [
+        {
+          "block": "ci_p",
+          "plane": "cap3",
+          "ports": [
+            "C0_BOT"
+          ],
+          "column_x_um": 109.0,
+          "y_um": 219.52
+        },
+        {
+          "block": "ota",
+          "plane": "ota",
+          "ports": [
+            "outp"
+          ],
+          "column_x_um": 136.42,
+          "y_um": 141.7
+        }
+      ],
+      "spine_y_um": [
+        180.5
+      ],
+      "wire_length_um": 149.775
+    },
+    "voutn": {
+      "anchors": [
+        {
+          "block": "ci_n",
+          "plane": "cap3",
+          "ports": [
+            "C0_BOT"
+          ],
+          "column_x_um": 107.5,
+          "y_um": 67.34
+        },
+        {
+          "block": "ota",
+          "plane": "ota",
+          "ports": [
+            "outn"
+          ],
+          "column_x_um": 134.42,
+          "y_um": 132.65
+        }
+      ],
+      "spine_y_um": [
+        100.0
+      ],
+      "wire_length_um": 144.065
+    },
+    "phi1e": {
+      "anchors": [
+        {
+          "block": "sci_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 100.5,
+          "y_um": 44.63
+        },
+        {
+          "block": "sci_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 101.0,
+          "y_um": 242.23
+        },
+        {
+          "block": "scr_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 115.0,
+          "y_um": 44.63
+        },
+        {
+          "block": "scr_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 115.5,
+          "y_um": 242.23
+        }
+      ],
+      "spine_y_um": [
+        143.5,
+        143.5,
+        143.5
+      ],
+      "wire_length_um": 428.42
+    },
+    "phi2b": {
+      "anchors": [
+        {
+          "block": "iphi2b_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 5.5,
+          "y_um": 307.68
+        },
+        {
+          "block": "iphi2b_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 7.0,
+          "y_um": 297.29
+        },
+        {
+          "block": "sbi_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 68.5,
+          "y_um": 6.51
+        },
+        {
+          "block": "sbi_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 69.0,
+          "y_um": 280.35
+        },
+        {
+          "block": "sbr_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 80.5,
+          "y_um": 280.35
+        },
+        {
+          "block": "sbr_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 83.0,
+          "y_um": 6.51
+        },
+        {
+          "block": "sti_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 91.5,
+          "y_um": 174.46
+        },
+        {
+          "block": "sti_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 92.0,
+          "y_um": 112.4
+        },
+        {
+          "block": "str_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 116.0,
+          "y_um": 112.4
+        },
+        {
+          "block": "str_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 116.5,
+          "y_um": 174.46
+        }
+      ],
+      "spine_y_um": [
+        302.5,
+        152.0,
+        143.5,
+        280.5,
+        143.5,
+        90.5,
+        143.5,
+        112.5,
+        143.5
+      ],
+      "wire_length_um": 1036.705
+    },
+    "phi1": {
+      "anchors": [
+        {
+          "block": "sin_p_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 34.0,
+          "y_um": 234.23
+        },
+        {
+          "block": "sin_n_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 36.5,
+          "y_um": 52.63
+        },
+        {
+          "block": "sr_p_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 47.0,
+          "y_um": 234.23
+        },
+        {
+          "block": "sr_n_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 47.5,
+          "y_um": 52.63
+        }
+      ],
+      "spine_y_um": [
+        143.5,
+        143.5,
+        143.5
+      ],
+      "wire_length_um": 389.82
+    },
+    "phi1b": {
+      "anchors": [
+        {
+          "block": "sin_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 33.5,
+          "y_um": 264.35
+        },
+        {
+          "block": "sin_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 37.0,
+          "y_um": 22.51
+        },
+        {
+          "block": "sr_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 46.5,
+          "y_um": 264.35
+        },
+        {
+          "block": "sr_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 55.0,
+          "y_um": 22.51
+        }
+      ],
+      "spine_y_um": [
+        143.0,
+        143.0,
+        143.0
+      ],
+      "wire_length_um": 520.92
+    },
+    "phi2": {
+      "anchors": [
+        {
+          "block": "iphi2b_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 6.0,
+          "y_um": 298.11
+        },
+        {
+          "block": "iphi2b_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 6.5,
+          "y_um": 313.72
+        },
+        {
+          "block": "sbi_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 63.0,
+          "y_um": 44.63
+        },
+        {
+          "block": "sbi_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 69.5,
+          "y_um": 242.23
+        },
+        {
+          "block": "sbr_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 79.5,
+          "y_um": 242.23
+        },
+        {
+          "block": "sbr_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 80.0,
+          "y_um": 44.63
+        },
+        {
+          "block": "sti_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 101.5,
+          "y_um": 127.52
+        },
+        {
+          "block": "sti_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 102.0,
+          "y_um": 159.34
+        },
+        {
+          "block": "str_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 117.0,
+          "y_um": 127.52
+        },
+        {
+          "block": "str_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 117.5,
+          "y_um": 159.34
+        }
+      ],
+      "spine_y_um": [
+        306.0,
+        179.0,
+        143.0,
+        242.0,
+        143.5,
+        86.0,
+        143.0,
+        143.0,
+        143.5
+      ],
+      "wire_length_um": 831.675
+    },
+    "dp": {
+      "anchors": [
+        {
+          "block": "mra_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 2.5,
+          "y_um": 264.35
+        },
+        {
+          "block": "mra_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 3.0,
+          "y_um": 22.51
+        },
+        {
+          "block": "mrb_n_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 21.0,
+          "y_um": 52.63
+        },
+        {
+          "block": "mrb_p_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 21.5,
+          "y_um": 234.23
+        }
+      ],
+      "spine_y_um": [
+        143.5,
+        37.5,
+        143.5
+      ],
+      "wire_length_um": 467.68
+    },
+    "dn": {
+      "anchors": [
+        {
+          "block": "mra_n_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 2.0,
+          "y_um": 52.63
+        },
+        {
+          "block": "mra_p_n",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 7.5,
+          "y_um": 234.23
+        },
+        {
+          "block": "mrb_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 18.5,
+          "y_um": 22.51
+        },
+        {
+          "block": "mrb_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 22.0,
+          "y_um": 264.35
+        }
+      ],
+      "spine_y_um": [
+        143.0,
+        128.5,
+        143.0
+      ],
+      "wire_length_um": 470.68
+    },
+    "vinp": {
+      "anchors": [
+        {
+          "block": "sin_p_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 37.5,
+          "y_um": 231.72
+        },
+        {
+          "block": "sin_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 38.0,
+          "y_um": 259.84
+        }
+      ],
+      "spine_y_um": [
+        245.5
+      ],
+      "wire_length_um": 34.325
+    },
+    "vinn": {
+      "anchors": [
+        {
+          "block": "sin_n_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 33.0,
+          "y_um": 55.64
+        },
+        {
+          "block": "sin_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 38.5,
+          "y_um": 27.52
+        }
+      ],
+      "spine_y_um": [
+        42.0
+      ],
+      "wire_length_um": 40.695
+    },
+    "vrefp": {
+      "anchors": [
+        {
+          "block": "mra_p_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 8.0,
+          "y_um": 231.72
+        },
+        {
+          "block": "mra_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 8.5,
+          "y_um": 259.84
+        },
+        {
+          "block": "mrb_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 18.0,
+          "y_um": 27.52
+        },
+        {
+          "block": "mrb_n_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 22.5,
+          "y_um": 55.64
+        }
+      ],
+      "spine_y_um": [
+        246.0,
+        143.5,
+        42.0
+      ],
+      "wire_length_um": 289.52
+    },
+    "vrefn": {
+      "anchors": [
+        {
+          "block": "mra_n_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 1.5,
+          "y_um": 55.64
+        },
+        {
+          "block": "mra_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 9.0,
+          "y_um": 27.52
+        },
+        {
+          "block": "mrb_p_n",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 23.0,
+          "y_um": 231.72
+        },
+        {
+          "block": "mrb_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 23.5,
+          "y_um": 259.84
+        }
+      ],
+      "spine_y_um": [
+        41.5,
+        129.5,
+        245.5
+      ],
+      "wire_length_um": 285.41
+    },
+    "vcm": {
+      "anchors": [
+        {
+          "block": "sbi_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 61.5,
+          "y_um": 235.72
+        },
+        {
+          "block": "sbi_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 62.0,
+          "y_um": 19.52
+        },
+        {
+          "block": "sbi_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 62.5,
+          "y_um": 51.64
+        },
+        {
+          "block": "sbi_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 70.0,
+          "y_um": 267.84
+        },
+        {
+          "block": "sbr_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 78.5,
+          "y_um": 235.72
+        },
+        {
+          "block": "sbr_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 79.0,
+          "y_um": 51.64
+        },
+        {
+          "block": "sbr_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 83.5,
+          "y_um": 19.52
+        },
+        {
+          "block": "sbr_p_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 84.0,
+          "y_um": 267.84
+        },
+        {
+          "block": "sci_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 90.5,
+          "y_um": 235.72
+        },
+        {
+          "block": "sci_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 91.0,
+          "y_um": 51.64
+        },
+        {
+          "block": "scr_p",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 106.0,
+          "y_um": 235.72
+        },
+        {
+          "block": "scr_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 106.5,
+          "y_um": 51.64
+        },
+        {
+          "block": "ota",
+          "plane": "ota",
+          "ports": [
+            "vcm"
+          ],
+          "column_x_um": 132.42,
+          "y_um": 118.55
+        }
+      ],
+      "spine_y_um": [
+        127.5,
+        35.5,
+        159.5,
+        252.0,
+        143.5,
+        35.5,
+        143.5,
+        252.0,
+        143.5,
+        144.0,
+        144.0,
+        85.0
+      ],
+      "wire_length_um": 1508.51
+    },
+    "ibias": {
+      "anchors": [
+        {
+          "block": "ota",
+          "plane": "ota",
+          "ports": [
+            "ibias"
+          ],
+          "column_x_um": 131.42,
+          "y_um": 115.05
+        }
+      ],
+      "spine_y_um": [],
+      "wire_length_um": 16.21
+    },
+    "vssa": {
+      "anchors": [
+        {
+          "block": "ptap_p",
+          "plane": "met1",
+          "ports": [
+            "TAP_W"
+          ],
+          "column_x_um": -0.5,
+          "y_um": 235.88
+        },
+        {
+          "block": "ptap_n",
+          "plane": "met1",
+          "ports": [
+            "TAP_W"
+          ],
+          "column_x_um": 0.0,
+          "y_um": 50.98
+        },
+        {
+          "block": "ptap_inv",
+          "plane": "met1",
+          "ports": [
+            "TAP_W"
+          ],
+          "column_x_um": 0.5,
+          "y_um": 296.09
+        },
+        {
+          "block": "iphi2b_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 1.0,
+          "y_um": 294.07
+        },
+        {
+          "block": "ptap_swn_p",
+          "plane": "met1",
+          "ports": [
+            "TAP_W"
+          ],
+          "column_x_um": 89.5,
+          "y_um": 152.99
+        },
+        {
+          "block": "ptap_swn_n",
+          "plane": "met1",
+          "ports": [
+            "TAP_W"
+          ],
+          "column_x_um": 90.0,
+          "y_um": 133.87
+        },
+        {
+          "block": "ota",
+          "plane": "ota",
+          "ports": [
+            "vssa"
+          ],
+          "column_x_um": 133.42,
+          "y_um": 130.25
+        }
+      ],
+      "spine_y_um": [
+        143.5,
+        173.5,
+        295.0,
+        223.5,
+        143.5,
+        132.0
+      ],
+      "wire_length_um": 672.355
+    },
+    "vdda": {
+      "anchors": [
+        {
+          "block": "ntap_n",
+          "plane": "met1",
+          "ports": [
+            "TAP_W"
+          ],
+          "column_x_um": -1.5,
+          "y_um": 18.71
+        },
+        {
+          "block": "ntap_inv",
+          "plane": "met1",
+          "ports": [
+            "TAP_W"
+          ],
+          "column_x_um": -1.0,
+          "y_um": 310.7
+        },
+        {
+          "block": "iphi2b_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 9.5,
+          "y_um": 312.9
+        },
+        {
+          "block": "ntap_p",
+          "plane": "met1",
+          "ports": [
+            "TAP_W"
+          ],
+          "column_x_um": 10.0,
+          "y_um": 268.15
+        },
+        {
+          "block": "ntap_swp_p",
+          "plane": "met1",
+          "ports": [
+            "TAP_W"
+          ],
+          "column_x_um": 88.5,
+          "y_um": 172.26
+        },
+        {
+          "block": "ntap_swp_n",
+          "plane": "met1",
+          "ports": [
+            "TAP_W"
+          ],
+          "column_x_um": 89.0,
+          "y_um": 114.6
+        },
+        {
+          "block": "ota",
+          "plane": "ota",
+          "ports": [
+            "vdda"
+          ],
+          "column_x_um": 138.42,
+          "y_um": 170.85
+        }
+      ],
+      "spine_y_um": [
+        164.5,
+        312.0,
+        290.5,
+        220.0,
+        143.5,
+        142.5
+      ],
+      "wire_length_um": 700.0
+    }
+  },
+  "ota": {
+    "gds": "../ota_fd/ota_fd.gds",
+    "cell": "ota_fd",
+    "sha256": "27ace056b255428e05c0fd6293dd08239fe97ba67379f6a330c30a94eeefe976",
+    "source_digest": "sha256:6355cd2860e5d8d832116f8ada79cc0f06dc0920ee95c5c983da87d5c57081eb",
+    "origin_um": {
+      "x": 138.72,
+      "y": 40.8
+    },
+    "ports": [
+      {
+        "name": "ibias",
+        "net": "ibias",
+        "x_um": 143.57,
+        "y_um": 115.05,
+        "label_um": {
+          "x": 143.22,
+          "y": 115.03
+        },
+        "via_count": 2
+      },
+      {
+        "name": "inn",
+        "net": "sump",
+        "x_um": 145.57,
+        "y_um": 148.2,
+        "label_um": {
+          "x": 145.22,
+          "y": 148.19
+        },
+        "via_count": 2
+      },
+      {
+        "name": "inp",
+        "net": "sumn",
+        "x_um": 145.37,
+        "y_um": 138.65,
+        "label_um": {
+          "x": 145.72,
+          "y": 138.67000000000002
+        },
+        "via_count": 2
+      },
+      {
+        "name": "outn",
+        "net": "voutn",
+        "x_um": 157.87,
+        "y_um": 132.65,
+        "label_um": {
+          "x": 158.22,
+          "y": 132.66
+        },
+        "via_count": 2
+      },
+      {
+        "name": "outp",
+        "net": "voutp",
+        "x_um": 154.07,
+        "y_um": 141.7,
+        "label_um": {
+          "x": 153.72,
+          "y": 141.68
+        },
+        "via_count": 2
+      },
+      {
+        "name": "vcm",
+        "net": "vcm",
+        "x_um": 175.04,
+        "y_um": 118.55,
+        "label_um": {
+          "x": 174.72,
+          "y": 118.55
+        },
+        "via_count": 2
+      },
+      {
+        "name": "vdda",
+        "net": "vdda",
+        "x_um": 142.07,
+        "y_um": 170.85,
+        "label_um": {
+          "x": 141.72,
+          "y": 170.87
+        },
+        "via_count": 2
+      },
+      {
+        "name": "vssa",
+        "net": "vssa",
+        "x_um": 142.57,
+        "y_um": 130.25,
+        "label_um": {
+          "x": 142.22,
+          "y": 130.26
+        },
+        "via_count": 2
+      }
+    ]
+  }
+}

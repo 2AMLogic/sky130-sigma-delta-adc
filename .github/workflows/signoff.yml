@@ -20,7 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # Full history: the pre-#92 fixture test compares the committed cell
+      # against `git show e310b5f:...`, and a depth-1 clone makes it skip.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -56,6 +60,17 @@ jobs:
       # record that changed, a missing file, a pending row with no issue).
       - name: Check the item-8 characterization envelope still reproduces
         run: python3 -I attestation/item8_envelope.py --check
+
+      # Item 6 (digital partition) is discharged by a recorded
+      # `not_applicable`, which klt signoff hash-binds to two JSON files under
+      # spec/. klt cannot see that those files are a projection of the ratified
+      # Markdown, so this check binds that last link: it re-derives the row
+      # projection from spec/modulator-adc.md section 1.1 and fails if the
+      # Markdown no longer hashes to the value recorded in the projection.
+      # Editing the ratified spec therefore invalidates the claim loudly.
+      # Runs before the byte-compare below so the failure names the cause.
+      - name: Decimator spec projection is bound to the ratified spec (no EDA tools)
+        run: python3 -I -m unittest discover -s spec -p 'test_*.py'
 
       - name: Re-run klt signoff and compare against the committed record
         run: |
@@ -107,6 +122,25 @@ jobs:
       # matches the commit it names. Fixtures only: no fleet, no ngspice, no klt.
       - name: Charge-injection record-admission unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'
+
+      # The DC-gain and thermal-noise benches' record-admission gates and the
+      # derivations their records depend on (issue #126): V/V -> dB and the
+      # binding corner for the gain bench; the input referral, the V^2 -> FS^2
+      # conversion, the two in-band links and the per-corner budget verdicts
+      # for the noise bench. Plus the checks that the committed decks and
+      # requests still match their generators. Fixtures only: no fleet, no
+      # ngspice, no klt.
+      - name: Gain and noise record-admission unit tests (no EDA tools)
+        run: |
+          python3 -I -m unittest discover -s sim/ota-gain -p 'test_*.py'
+          python3 -I -m unittest discover -s sim/integrator-noise -p 'test_*.py'
+
+      # The comparator bench's derivations (model-B unit conversion, the
+      # offset/hysteresis inversion, the decision-time limit), the staircase
+      # geometry, and the gates that decide whether its record is written at
+      # all (issue #127). Fixtures only: no fleet, no ngspice, no klt.
+      - name: Comparator decision record-admission unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'
 
       # The short full-modulator transient's record-admission gates (issue
       # #125): a partial grid, a missing measurement, a short per-clock sample
