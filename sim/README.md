@@ -18,10 +18,29 @@ its own validity evidence (a sensitivity check against a deliberately skewed
 cell, a step-independence check, and a DC-gain cross-check): see
 `integrator-ci/README.md`.
 
+`comparator-decision/` closes the two checks DR-003 still owed on the vendored
+comparator and sources model B's quantizer parameters (issue #127). Both of its
+variants simulate the **whole modulator**, so the comparator sits in exactly the
+loading it has in the block -- real `phi1`, real integrator-2 OTA outputs, real
+NAND SR latch, real `dp`/`dn`/`bs` buffers driving both integrators' reference
+muxes. The `loop` variant runs the modulator closed on the spec reference pair
+and measures the decision time from the `phi1` rise to `dp`/`dn`, graded against
+the `phi1` high time that corner actually delivers (not the bare 97.66 ns
+half-period), plus the kickback onto `o2p`/`o2n` and onto the integrator-2
+summing nodes -- reported as numbers, with no invented limit. The `trip` variant
+nulls the reference pair to open the loop and walks the comparator's input
+across its trip point in 500 uV steps, up and then down, giving the systematic
+offset and the hysteresis width per corner in volts and in model B's FS units.
+Both run the DR-002 full grid; see `comparator-decision/README.md`. Fixture
+tests for the derivations and the record-admission gates, no EDA tools needed:
+`python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'`.
+
 `settling_common.py` holds the shared `klt sim` plumbing for the transistor-level
-benches (`ota-settling`, `integrator-settling`, `integrator-ci`). Its two record-validity gates — `grid_complete()` (all 45 DR-002 grid
-points returned) and `measurements_present()` (every one of them produced an
-`err_phase`, so a dead fleet job cannot become a record) — are covered by
+benches (`ota-settling`, `integrator-settling`, `integrator-ci`,
+`comparator-decision`). Its two record-validity gates — `grid_complete()` (all
+45 DR-002 grid points returned) and `measurements_present()` (every one of them
+produced the bench's admission measurement, so a dead fleet job cannot become a
+record) — are covered by
 fixture tests, no EDA tools needed:
 `python3 -I -m unittest discover -s sim -p 'test_settling*.py'`. The
 charge-injection runner's own gates and derivations are covered the same way:
