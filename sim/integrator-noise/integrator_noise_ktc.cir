@@ -1,0 +1,65 @@
+* Integrator thermal-noise bench (issue #126) -- circuit body for `klt sim`
+* (no .lib/.control/.end: klt sim owns those; corner = process/temp/Vdda).
+* Variant: ktc (phi1 sampling state). Circuit under test:
+* design/integrator/integrator.spice (the full first-integrator cell: switches,
+* the drawn 22.17 x 22.17 um MIM Cs on each branch, the drawn 31.43 x 31.43 um
+* MIM Ci, DAC mux) with design/ota/ota_fd.spice.
+*
+* A small-signal `.noise` run needs a static clock state, so each variant holds
+* the cell in one phase with ideal, noiseless VCVS clocks scaled off vdda (so
+* they track the supply corner). There is no transient and no switching: this
+* bench measures the thermal (and flicker) noise of the devices at the bias
+* that phase gives them, which is what sets the sampled variance.
+*
+* Boundary (DR-005): VCM 0.9 V, VREFP/VREFN 1.5/0.3 V, ibias 5 uA, all ideal
+* and noiseless -- the reference and bias are inputs at the boundary, so their
+* own noise is not in this number. Stimulus bias as in the settling bench:
+* vin diff = +0.6 V (1.2/0.6 V), dn = 1, so rsel_p/rsel_n = vrefp/vrefn.
+*
+* Bench-only DC stabilization. In both phases the OTA summing nodes see only
+* capacitors and gates, so .op has no DC path to set them. Lf* = 1e12 H is a
+* short at DC -- .op biases the OTA in unity feedback with the outputs at the
+* CMFB common mode -- and 6.3e12 ohm at 1 Hz, seven orders above the ~1 Mohm
+* output resistance, so it is an open everywhere the noise is integrated. The
+* negative-feedback pairing is sump<->voutp, sumn<->voutn, the pairing Ci
+* already wires.
+.include "../../design/ota/ota_fd.spice"
+.include "../../design/integrator/integrator.spice"
+Vdda vdda 0 1.8
+Vvcm vcm 0 0.9
+Vrefp vrefp 0 1.5
+Vrefn vrefn 0 0.3
+* AC 1 on Vinp: ngspice's `noise` command aborts ('ac input not found') unless
+* the named input source carries an AC value. Only `onoise` is read from this
+* bench -- in the phi2 state vinp has no path to the output at all, so the
+* inoise spectrum ngspice refers back to it is meaningless there and unused.
+Vinp vinp 0 1.2 AC 1
+Vinn vinn 0 0.6
+Ibias vdda ibias 5u
+* static clock state for this variant (1 = vdda, 0 = vssa)
+Ephi1 phi1 0 vdda 0 1
+Ephi1b phi1b 0 vdda 0 0
+Ephi1e phi1e 0 vdda 0 1
+Ephi2 phi2 0 vdda 0 0
+Edn dn 0 vdda 0 1
+Edp dp 0 vdda 0 0
+Xint vdda 0 vinp vinn vrefp vrefn vcm ibias phi1 phi1b phi1e phi2 dp dn voutp voutn integrator
+* output load per side: 0.1 pF output parasitics only (case B of
+* design/integrator/SIZING.md: delaying integrators, the next stage's Sin is
+* off in phi2) -- the first integrator, as issue #126 asks for
+Clp voutp 0 0.1p
+Cln voutn 0 0.1p
+* bench-only DC-only unity feedback (not part of the cell)
+Lfp xint.sump voutp 1e12
+Lfn xint.sumn voutn 1e12
+* ---- probes: ideal linear VCVSs, noiseless and non-loading ----
+* nqp/nqn: the signed differential sum of the four sampled capacitor voltages,
+* (Csi_p + Csr_p) - (Csi_n + Csr_n). Its variance is the spec 5.3 quantity
+* 4*kT/Cs: the input and the reference sampling phase, both sides, four
+* independent contributions.
+Eqip nqip 0 xint.tpi_p xint.bpi_p 1
+Eqrp nqp nqip xint.tpr_p xint.bpr_p 1
+Eqin nqin 0 xint.tpi_n xint.bpi_n 1
+Eqrn nqn nqin xint.tpr_n xint.bpr_n 1
+* vod: the differential output, for the integrate-phase (amplifier) variant
+Evod vod 0 voutp voutn 1

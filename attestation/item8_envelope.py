@@ -124,6 +124,9 @@ def parse(text: str):
                               "that declares it (`spec/decisions/DR-NNN-*.md`)")
             if paths:
                 errors.append(f"{label}: a declared gap cites no evidence (write 'none')")
+            if refs:
+                errors.append(f"{label}: a declared gap names no issue (#N) - there is "
+                              "none that could close it; cite the record instead")
         elif status.startswith("pending"):
             if not refs:
                 errors.append(f"{label}: pending but names no issue (#N)")

@@ -121,6 +121,13 @@ class DeclaredGapGrammar(unittest.TestCase):
                f"`layout/digital/sta-decimator.report.json` | declared-gap per `{RECORD}` |")
         self.assertTrue(any("cites no evidence" in e for e in only_gap_errors(with_gap_row(bad))))
 
+    def test_rejects_declared_gap_that_also_names_an_issue(self):
+        """Re-parking an unclosable gap on an issue is the failure DR-008 exists to end."""
+        bad = (f"{GAP_ROW_PREFIX} none | the points | none | "
+               f"declared-gap per `{RECORD}`, tracked at #131 |")
+        self.assertTrue(any("names no issue" in e for e in only_gap_errors(with_gap_row(bad))),
+                        "a declared gap citing an issue must be rejected, not silently accepted")
+
     def test_rejects_an_unknown_status_prefix(self):
         bad = f"{GAP_ROW_PREFIX} none | the points | none | gap, see DR-008 |"
         errs = only_gap_errors(with_gap_row(bad))

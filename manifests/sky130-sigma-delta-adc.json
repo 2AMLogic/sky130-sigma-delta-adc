@@ -27,6 +27,18 @@
         "file": "verification/decimator/fv-decimator.report.json"
       }
     ],
+    "6.digital": {
+      "not_applicable": {
+        "spec": {
+          "file": "spec/decimator-rows.json",
+          "content_hash": "sha256:4961c9be68085e9af518f413f0cc6e28d0d7885403cac1ab069b7c233f319cdc"
+        },
+        "statement": {
+          "file": "spec/decimator-not-statistical.json",
+          "content_hash": "sha256:24d25d54f65c965655c13d8910d76b7b1bc1f6cf3dc974ff4d848a8582eea706"
+        }
+      }
+    },
     "8.analog": {"file": "attestation/item8-envelope.json", "content_hash": "sha256:5ce4d44ed25cf3cd4b2f016427c6423d029072078959393f1ebac731135fa1fc"},
     "8.digital": {"file": "attestation/item8-envelope.json", "content_hash": "sha256:5ce4d44ed25cf3cd4b2f016427c6423d029072078959393f1ebac731135fa1fc"},
     "9": {"file": "attestation/item9-envelope.json", "content_hash": "sha256:b8d3bb89fc360daeb8a34750603f42f01c3e5695b70e3b2424064ac38f985774"},
