@@ -31,7 +31,7 @@
       "not_applicable": {
         "spec": {
           "file": "spec/decimator-rows.json",
-          "content_hash": "sha256:4961c9be68085e9af518f413f0cc6e28d0d7885403cac1ab069b7c233f319cdc"
+          "content_hash": "sha256:ecbd0ea4b9ee6357a843b0c1154c30198e7835e8e7af232d4823d11d6a9e0769"
         },
         "statement": {
           "file": "spec/decimator-not-statistical.json",

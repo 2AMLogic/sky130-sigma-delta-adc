@@ -20,6 +20,9 @@ delta-sigma ADC.
     bias boundary
   - [DR-006](decisions/DR-006-decimation-stopband-reading.md) — decimation
     stopband (row 9) graded in the alias bands, with a gap floor
+  - [DR-009](decisions/DR-009-flicker-allocation.md) — amplifier 1/f line
+    added to the §5.3 budget, carved from the non-thermal half; the 80 dB
+    total, thermal and kT/C lines unchanged; graded over [1.22 Hz, 20 kHz]
 
 Pinned sibling references live in [`../reuse.lock.json`](../reuse.lock.json).
 
