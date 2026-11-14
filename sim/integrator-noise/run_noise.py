@@ -21,8 +21,9 @@ import make_request as mk  # noqa: E402
 ARTIFACTS = HERE / ".artifacts"   # raw klt reports / batch receipts, gitignored
 
 KEYS = ("nz_rms_tot", "nz_rms_bb", "nz_rms_audio", "nz_dens_20", "nz_dens_1k",
-        "nz_dens_20k", "nz_dens_1meg", "nz_dens_100meg", "nz_total_native",
-        "total_vs_native_rel")
+        "nz_dens_20k", "nz_dens_1meg", "nz_dens_100meg", "nz_dens_top",
+        "nz_rms_trunc1", "nz_rms_trunc2", "trunc_vs_total_rms_rel",
+        "nz_total_native", "total_vs_native_rel")
 
 # --- spec and model constants, each with the line it comes from -------------
 OSR = 128                   # spec row 4 target (fs 5.12 MHz, BW 20 kHz)
@@ -40,6 +41,43 @@ K_B = 1.380649e-23          # J/K, SI 2019 exact
 CAMIMC_F_PER_UM2 = 2.00e-15
 CPMIMC_F_PER_UM = 0.19e-15
 M3_DW_UM = -0.025
+
+# The two separate convergence claims this bench makes, kept here (and pinned
+# by test_run_noise.py) because they are easy to conflate and a verdict depends
+# on the second one: 99% of ktc's inband_V2 is the aliased share of the
+# FULL-BAND integral, so a truncated band would make the budget margin
+# optimistic.
+CONVERGENCE = {
+    "integration_scheme": (
+        "klt_vs_ngspice_integral_rel compares klt's trapezoid against ngspice's own "
+        f"onoise_total over the same swept range, gated <= {mk.NATIVE_TOL:g} per corner. "
+        "What it shows: that the 20-points/decade grid resolves the spectrum well "
+        "enough for a trapezoid to reproduce ngspice's own integrator. What it does "
+        "NOT show: anything about the upper band edge -- both numbers span the "
+        "identical sweep, so truncating the band would move them together and they "
+        "would still agree. It is not cited as upper-edge evidence."),
+    "upper_edge": (
+        f"the per-corner evidence that F_HI = {mk.F_HI:g} Hz is far enough out is in "
+        "`upper_edge` below, and it is the direct test: the SAME integral over bands "
+        f"truncated at {mk.F_TRUNC[0]:g} Hz and {mk.F_TRUNC[1]:g} Hz. An integral with "
+        "content left above its edge moves when the edge moves, so "
+        "1 - (rms_trunc/rms_tot)^2 is the measured share of the full-band variance "
+        "lying above each truncated edge, and the ratio of the two is the per-decade "
+        "shrink rate. extrapolated_frac_above_F_HI carries that same rate one decade "
+        f"further, past {mk.F_HI:g} Hz. trunc_vs_total_rms_rel gates the "
+        f"{mk.F_TRUNC[1]:g} Hz one at {mk.TRUNC_TOL:g} per corner (a "
+        "reference-validity limit, not a spec row). The density roll-off beside it "
+        f"({mk.F_DENS_TOP:g} Hz against 100 MHz) is the slope that produces this. "
+        "summary.extrapolated_tail_margin_impact_db closes the loop on why this "
+        "matters: it is what the whole residual tail would be worth on a budget "
+        "margin, 10*log10(1 + frac), against the dB of margin the verdicts report."),
+    "closure": (
+        "independently, for ktc: cs_eff_F = 4kT/var_total_V2 lands within switch- and "
+        "plate-parasitic distance of the drawn Cs on every corner (see "
+        "summary.cs_eff_F_range and method.chosen). A short integral would under-count "
+        "the variance and so report a cs_eff ABOVE the drawn value by far more than "
+        "parasitics can explain, so this is a second, physical check on the same band."),
+}
 
 # The noise is measured at a different place in each variant, so each carries
 # its own referral to the integrator input (differential volts), where spec
@@ -99,6 +137,43 @@ def temp_k(corner_id):
     return None if m is None else float(m.group(1)) + 273.15
 
 
+def upper_edge(c, g, var_tot):
+    """Measured evidence that the band integral converged below F_HI.
+
+    The truncated-band integrals are the direct test: an integral that still
+    has content above its edge moves when the edge moves, so
+    1 - (rms_trunc/rms_tot)^2 is the share of the full-band variance above each
+    truncated edge. The input referral `g` cancels in every ratio here, which
+    is why the shares are comparable with var_total_V2 directly.
+    """
+    rms = c.get("nz_rms_tot")
+
+    def frac_above(key):
+        """Share of the full-band variance above that truncated edge."""
+        t = c.get(key)
+        return None if t is None or not rms else max(1.0 - (t / rms) ** 2, 0.0)
+
+    f1, f2 = frac_above("nz_rms_trunc1"), frac_above("nz_rms_trunc2")
+    # Same geometric shrink one decade further: an estimate of the tail left
+    # above F_HI, labelled as an extrapolation rather than a measurement.
+    shrink = None if not f1 or f2 is None else f2 / f1
+    d_top, d_100m = c.get("nz_dens_top"), c.get("nz_dens_100meg")
+    return {
+        "truncated_edges_Hz": list(mk.F_TRUNC),
+        "var_above_trunc1_frac": f1,
+        "var_above_trunc2_frac": f2,
+        "per_decade_shrink": shrink,
+        "extrapolated_frac_above_F_HI": (None if shrink is None or f2 is None
+                                         else f2 * shrink),
+        "trunc_vs_total_rms_rel": c.get("trunc_vs_total_rms_rel"),
+        "trunc_vs_total_rms_rel_limit": mk.TRUNC_TOL,
+        "dens_at_trunc2_V_per_rtHz": d_top,
+        "dens_at_100meg_V_per_rtHz": d_100m,
+        "rolloff_trunc2_over_100meg": (None if not d_top or not d_100m else d_top / d_100m),
+        "what_it_shows": CONVERGENCE["upper_edge"],
+    }
+
+
 def part(corner_id, c, variant):
     """One variant's noise at one corner, referred to the integrator input."""
     g = INPUT_REFERRAL[variant]
@@ -134,6 +209,8 @@ def part(corner_id, c, variant):
         "klt_vs_ngspice_integral_rel": c.get("total_vs_native_rel"),
         "diagnostics": c.get("diagnostics", []),
     }
+    row["spectrum_V_per_rtHz"][f"{mk.F_DENS_TOP:g}Hz"] = c.get("nz_dens_top")
+    row["upper_edge"] = upper_edge(c, g, var_tot)
     # Model B's ktc_noise_var is a per-event variance in FS^2 at the
     # integrator-1 state increment; one FS of integrator input becomes C1 FS
     # there, and 1 FS = VREFP - VREFN volts. The equivalent WHITE per-event
@@ -181,6 +258,12 @@ def derive(sets):
 
 
 def summarize(rows):
+    def worst(path):
+        return max([v for r in rows.values() for v in
+                    (_dig(r, ("ktc",) + path), _dig(r, ("amp",) + path))
+                    if v is not None] or [None])
+    worst_tail = worst(("upper_edge", "extrapolated_frac_above_F_HI"))
+
     def binding(path, pick):
         have = [(_dig(r, path), cid) for cid, r in rows.items() if _dig(r, path) is not None]
         if not have:
@@ -200,11 +283,38 @@ def summarize(rows):
         "total_thermal_fail_corners": fails_t,
         "total_thermal_pass_count": len(rows) - len(fails_t),
         "cs_eff_F_range": [binding(("ktc", "cs_eff_F"), min), binding(("ktc", "cs_eff_F"), max)],
-        "worst_klt_vs_ngspice_integral_rel": max(
-            [v for cid, r in rows.items() for v in
-             (_dig(r, ("ktc", "klt_vs_ngspice_integral_rel")),
-              _dig(r, ("amp", "klt_vs_ngspice_integral_rel"))) if v is not None] or [None]),
+        "worst_klt_vs_ngspice_integral_rel": worst(("klt_vs_ngspice_integral_rel",)),
+        "worst_trunc_vs_total_rms_rel": worst(("upper_edge", "trunc_vs_total_rms_rel")),
+        # Upper-edge convergence, worst over both variants and all corners: the
+        # largest measured share of a part's variance lying above the truncated
+        # edge one decade below F_HI, and the largest extrapolated share above
+        # F_HI itself.
+        "worst_var_above_trunc2_frac": worst(("upper_edge", "var_above_trunc2_frac")),
+        "worst_extrapolated_frac_above_F_HI": worst_tail,
+        # What that residual tail would be worth on a budget margin, if every
+        # bit of it were collected: 10*log10(1 + frac). This is the number that
+        # says whether the upper edge can change a verdict.
+        "extrapolated_tail_margin_impact_db": (
+            None if worst_tail is None else 10.0 * math.log10(1.0 + worst_tail)),
     }
+
+
+def cs_eff_spread(summary, caps):
+    """The measured cs_eff range as a percentage over the drawn Cs.
+
+    A 45-corner spread, not a point value: the parasitic excess moves with
+    process and temperature, so quoting one corner's figure would misstate it.
+    """
+    drawn = (caps or {}).get("cs_drawn_F")
+    lo, hi = (summary.get("cs_eff_F_range") or [None, None])[:2]
+    if not drawn or not lo or not hi:
+        return ("cs_eff_F below is the per-corner effective sampling capacitance the "
+                "simulation implies, against the drawn Cs")
+    def pct(e):
+        return 100.0 * (e["value"] / drawn - 1.0)
+    return ("cs_eff_F below runs {:+.1f}% ({}) to {:+.1f}% ({}) against the drawn Cs of "
+            "{:.5g} F, a 45-corner spread rather than one figure").format(
+                pct(lo), lo["corner_id"], pct(hi), hi["corner_id"], drawn)
 
 
 def _dig(d, path):
@@ -223,6 +333,16 @@ def main():
                     help="write record.json (refuses to overwrite: records are append-only)")
     ap.add_argument("--record-name", default="record.json",
                     help="record file name, for a re-run after a sizing change (new file)")
+    ap.add_argument("--hosts", type=int, metavar="N",
+                    help="shard the submission across N fleet instances "
+                         "(klt sim --hosts). The fleet kills a job still running "
+                         "at its whole-job ceiling and reports every unit "
+                         "batch_job_timeout, and this grid's conservative serial "
+                         "bound exceeds that ceiling (the receipt's job_ceiling "
+                         "warns, with a recommended_hosts), so pass this if a "
+                         "re-run's corners are slower than the ones recorded. "
+                         "Sharding is a submission choice: it does not change the "
+                         "request file or its sha256.")
     a = ap.parse_args()
     pin = json.load(open(REPO / "sim/pdk.json"))
     root, stamp = pdk_stamp(pin["variant"], a.pdk_root)
@@ -238,7 +358,8 @@ def main():
     for v in mk.VARIANTS:
         res = run_klt(HERE / f"request_{v}.json", a.probe, tmp, v,
                       HERE / f"probe_request_{v}.json",
-                      artifacts_dir=None if a.probe else ARTIFACTS, keys=KEYS)
+                      artifacts_dir=None if a.probe else ARTIFACTS, keys=KEYS,
+                      hosts=None if a.probe else a.hosts)
         if res is None:
             print(f"REFUSE: variant {v} returned no usable report", file=sys.stderr)
             return 1
@@ -254,6 +375,8 @@ def main():
     if not grid_complete(corner_sets) or not measurements_present(corner_sets, key="nz_rms_tot"):
         return 1
     env = reps["ktc"].get("environment", {})
+    caps = drawn_caps()
+    cs_spread = cs_eff_spread(summary, caps)
     rec = {
         "fixture": ("First-integrator thermal-noise bench (issue #126): design/integrator's full "
                     "cell held in one clock phase per variant, small-signal .noise over "
@@ -272,8 +395,8 @@ def main():
                        "the one DR-001 item 2 names. Not kT/C arithmetic: the simulated variance "
                        "carries each corner's own capacitance, its switch noise at the bias that "
                        "phase gives it, and the plate and switch parasitics that arithmetic from "
-                       "the drawn value alone would miss (cs_eff_F below is 15% above the drawn "
-                       "Cs for exactly that reason)."),
+                       f"the drawn value alone would miss ({cs_spread}, for exactly that "
+                       "reason)."),
             "why_two_requests": ("a small-signal .noise run needs a static clock state and one "
                                  "corner runs one analysis with one output, so the two halves of "
                                  "spec 5.3's thermal share are two requests over the same "
@@ -287,10 +410,11 @@ def main():
                            "property of the circuit: var_audio_band_V2 repeats the baseband "
                            f"integral from {mk.AUDIO_LO_HZ:g} Hz so the sensitivity is visible "
                            "rather than hidden."),
-            "convergence": ("klt_vs_ngspice_integral_rel compares klt's trapezoid over the swept "
-                            "grid against ngspice's own onoise_total over the same range; "
-                            f"agreement within {mk.NATIVE_TOL:g} is gated per corner and is also "
-                            "the evidence that the upper edge is far enough out."),
+            # Two separate claims, each with the evidence that actually bears on
+            # it. Conflating them would matter: 99% of ktc's inband_V2 is the
+            # aliased share of the full-band integral, so the budget verdict
+            # rests on the upper edge, not on the integration scheme.
+            "convergence": CONVERGENCE,
         },
         "unit_conversions": {
             "osr": OSR,
@@ -354,7 +478,7 @@ def main():
         "conditions": {"vcm_V": 0.9, "vrefp_V": 1.5, "vrefn_V": 0.3, "vin_diff_V": 0.6,
                        "ibias_uA": 5, "load_pF_per_side": 0.1,
                        "corner_set": "DR-002 full grid, 5 process x 3 T x 3 Vdda"},
-        "drawn_capacitors": drawn_caps(),
+        "drawn_capacitors": caps,
         "pdk_sources_stamp": stamp,
         "pdk_pin": {"file": "sim/pdk.json", "open_pdks_revision": pin["open_pdks_revision"]},
         "ngspice": env.get("engine_version", "unknown"),

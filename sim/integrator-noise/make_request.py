@@ -9,17 +9,33 @@ from settling_common import request
 # Swept band. F_LO is the lower edge of every band integral, so it is also the
 # lower edge of the flicker integral, which diverges logarithmically -- the
 # record states it and carries the 20 Hz variant beside it so the sensitivity
-# is visible. F_HI is far above every pole in the circuit: the sampling-branch
-# RC corner is a few hundred MHz and the closed-loop bandwidth tens of MHz, so
-# the integral has converged well before it (`total_vs_native_rel` below is the
-# per-corner evidence that it has).
+# is visible. F_HI is above every pole in the circuit: the sampling-branch RC
+# corner is a few hundred MHz and the closed-loop bandwidth tens of MHz.
+#
+# The per-corner evidence that F_HI is far enough out is the same integral
+# taken over bands truncated one and two decades below it (`nz_rms_trunc*`,
+# gated): a band with content left above its edge moves when the edge moves,
+# so the measured shares above 1e9 and 1e10 Hz, and the shrink rate between
+# them, are what show the integral has converged. It is NOT
+# `total_vs_native_rel` below -- that compares two integrals of the *same*
+# swept range, so a band truncated anywhere would move both together and they
+# would still agree. That gate checks the integration scheme and the grid
+# density, which is a different claim.
 F_LO = 1.0
 F_HI = 1e11
+# The two truncated upper edges of the convergence sequence, one and two
+# decades below F_HI, plus the spot density at the first of them.
+F_TRUNC = (1e9, 1e10)
+F_DENS_TOP = F_TRUNC[-1]
 PTS_PER_DECADE = 20
 BW_HZ = 2.0e4          # spec row 3 signal bandwidth, 20 kHz
 AUDIO_LO_HZ = 20.0     # the 20 Hz variant of the baseband integral
 
 NATIVE_TOL = 1e-2      # reference-validity gate (not a spec row), see README.md
+# Upper-edge reference-validity gate (not a spec row): the rms over the band
+# truncated one decade below F_HI must agree with the full-band rms to this.
+# On rms, so in variance the top decade is bounded by about twice it.
+TRUNC_TOL = 1e-1
 
 # The two phases. A small-signal `.noise` run needs a static clock state, and
 # one corner runs one analysis with one output, so the two parts of the thermal
@@ -87,9 +103,26 @@ MEASUREMENTS = [
     n("nz_dens_20k", at_hz=BW_HZ),
     n("nz_dens_1meg", at_hz=1e6),
     n("nz_dens_100meg", at_hz=1e8),
+    # --- upper-edge convergence, measured three ways -----------------------
+    # The same integral over bands TRUNCATED one and two decades below F_HI.
+    # This is the direct test: a band that still has content above its edge
+    # moves when the edge moves, so (1 - (rms_trunc/rms_tot)^2) IS the share
+    # of the integral that lies above each truncated edge, and the two of them
+    # give the per-decade shrink rate that bounds what is left above F_HI.
+    n("nz_rms_trunc1", band_hz=[F_LO, F_TRUNC[0]], unit="V"),
+    n("nz_rms_trunc2", band_hz=[F_LO, F_TRUNC[1]], unit="V"),
+    # Gated per corner: the truncated rms must already agree with the
+    # full-band rms, i.e. the integral has stopped growing before the edge.
+    e("trunc_vs_total_rms_rel", "abs(1 - nz_rms_trunc2/nz_rms_tot)",
+      None, {"max": TRUNC_TOL}),
+    # The spot density at the first truncated edge, against the 100 MHz probe:
+    # the roll-off itself, so the record shows the slope and not only the
+    # integral it produces.
+    n("nz_dens_top", at_hz=F_DENS_TOP),
     # Independent cross-check of klt's trapezoid against ngspice's own
-    # integral over the same swept range. Agreement is also evidence that the
-    # band has converged -- both numbers are the whole spectrum.
+    # integral over the same swept range: it checks the integration scheme and
+    # the 20-points/decade grid density. It says nothing about the upper edge
+    # -- both numbers span the identical sweep.
     e("nz_total_native", "onoise_total", "V"),
     e("total_vs_native_rel", "abs(nz_rms_tot/nz_total_native - 1)", None, {"max": NATIVE_TOL}),
 ]
@@ -108,7 +141,9 @@ if __name__ == "__main__":
     tmpl = (HERE / "integrator_noise.cir.tmpl").read_text()
     for v, d in VARIANTS.items():
         deck = tmpl.replace("@VARIANT@", v).replace("@VARIANTNOTE@", d["note"])
-        for k, val in d["clocks"].items():          # PHI1B/PHI1E before PHI1
+        # Order-independent: the closing delimiter keeps @PHI1@ from matching
+        # inside @PHI1B@/@PHI1E@, so no substitution can shadow another.
+        for k, val in d["clocks"].items():
             deck = deck.replace(f"@{k}@", val)
         (HERE / f"integrator_noise_{v}.cir").write_text(deck)
         (HERE / f"request_{v}.json").write_text(

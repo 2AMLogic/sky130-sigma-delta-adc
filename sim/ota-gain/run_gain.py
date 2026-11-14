@@ -96,6 +96,16 @@ def main():
                     help="write record.json (refuses to overwrite: records are append-only)")
     ap.add_argument("--record-name", default="record.json",
                     help="record file name, for a re-run after a sizing change (new file)")
+    ap.add_argument("--hosts", type=int, metavar="N",
+                    help="shard the submission across N fleet instances "
+                         "(klt sim --hosts). The fleet kills a job still running "
+                         "at its whole-job ceiling and reports every unit "
+                         "batch_job_timeout, and this grid's conservative serial "
+                         "bound exceeds that ceiling (the receipt's job_ceiling "
+                         "warns, with a recommended_hosts), so pass this if a "
+                         "re-run's corners are slower than the ones recorded. "
+                         "Sharding is a submission choice: it does not change the "
+                         "request file or its sha256.")
     a = ap.parse_args()
     pin = json.load(open(REPO / "sim/pdk.json"))
     root, stamp = pdk_stamp(pin["variant"], a.pdk_root)
@@ -109,7 +119,8 @@ def main():
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="ota-gain-"))
     res = run_klt(HERE / "request.json", a.probe, tmp, "gain",
                   HERE / "probe_request_gain.json",
-                  artifacts_dir=None if a.probe else ARTIFACTS, keys=KEYS)
+                  artifacts_dir=None if a.probe else ARTIFACTS, keys=KEYS,
+                  hosts=None if a.probe else a.hosts)
     if res is None:
         return 1
     rep, corners = res

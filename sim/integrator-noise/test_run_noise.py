@@ -26,14 +26,22 @@ TEMP = ("-40C", "27C", "125C")
 CORNER_IDS = tuple(f"{p}/{v}/{t}" for p in PROCESS for v in VDDA for t in TEMP)
 
 
-def measured(rms=1.207258251372e-4, bb=None, audio=None, status="pass", diagnostics=()):
+def measured(rms=1.207258251372e-4, bb=None, audio=None, status="pass", diagnostics=(),
+             dens_top=1.5e-10, trunc=(0.93, 0.983)):
     """A corner that simulated. `bb` defaults to a white spectrum's baseband
-    share, i.e. tiny next to the total."""
+    share, i.e. tiny next to the total. `trunc` gives the two truncated-band
+    rms values as fractions of the full-band rms; the default is a converged
+    integral (14% / 3.4% of the variance above the two truncated edges, the
+    shape the real tt corner shows). `dens_top` is the density one decade
+    below F_HI."""
     bb = rms * 1e-2 if bb is None else bb
     return {"status": status, "nz_rms_tot": rms, "nz_rms_bb": bb,
             "nz_rms_audio": audio if audio is not None else bb,
             "nz_dens_20": 7.4e-9, "nz_dens_1k": 7.4e-9, "nz_dens_20k": 7.4e-9,
             "nz_dens_1meg": 7.4e-9, "nz_dens_100meg": 6.1e-9,
+            "nz_dens_top": dens_top,
+            "nz_rms_trunc1": rms * trunc[0], "nz_rms_trunc2": rms * trunc[1],
+            "trunc_vs_total_rms_rel": abs(1.0 - trunc[1]),
             "nz_total_native": rms, "total_vs_native_rel": 1e-3,
             "diagnostics": list(diagnostics)}
 
@@ -111,6 +119,138 @@ class Conversions(unittest.TestCase):
         """Rounding can put the baseband integral a hair above the total."""
         p = rn.part("tt/1.800V/27C", measured(rms=1e-4, bb=1.000001e-4), "ktc")
         self.assertEqual(p["var_aliased_V2"], 0.0)
+
+
+class UpperEdge(unittest.TestCase):
+    """The blocking finding of PR #139's review: the klt-vs-ngspice gate cannot
+    show the upper band edge is far enough out, and a verdict depends on it --
+    99% of ktc's inband_V2 is the aliased share of the full-band integral."""
+
+    def test_the_truncated_edges_sit_below_the_swept_edge(self):
+        self.assertEqual(mkn.F_HI, 1e11)
+        self.assertEqual(mkn.F_TRUNC, (1e9, 1e10))
+        for f in mkn.F_TRUNC:
+            self.assertLess(f, mkn.F_HI)
+        names = {m["name"] for m in mkn.MEASUREMENTS}
+        self.assertLessEqual({"nz_rms_trunc1", "nz_rms_trunc2"}, names)
+        for i, name in enumerate(("nz_rms_trunc1", "nz_rms_trunc2")):
+            m = next(m for m in mkn.MEASUREMENTS if m["name"] == name)
+            self.assertEqual(m["noise"]["band_hz"], [mkn.F_LO, mkn.F_TRUNC[i]])
+
+    def test_the_share_above_an_edge_is_one_minus_the_rms_ratio_squared(self):
+        """The direct test: an integral with content left above its edge moves
+        when the edge moves, and by exactly this much."""
+        p = rn.part("tt/1.800V/27C", measured(rms=1e-4, trunc=(0.8, 0.9)), "ktc")
+        u = p["upper_edge"]
+        self.assertAlmostEqual(u["var_above_trunc1_frac"], 1 - 0.8 ** 2)
+        self.assertAlmostEqual(u["var_above_trunc2_frac"], 1 - 0.9 ** 2)
+
+    def test_the_shares_are_independent_of_the_input_referral(self):
+        """`g` scales the truncated and the full integral alike, so the shares
+        are comparable with var_total_V2 on either variant."""
+        k = rn.part("tt/1.800V/27C", measured(rms=1e-4, trunc=(0.8, 0.9)), "ktc")
+        a = rn.part("tt/1.800V/27C", measured(rms=1e-4, trunc=(0.8, 0.9)), "amp")
+        self.assertNotEqual(rn.INPUT_REFERRAL["ktc"], rn.INPUT_REFERRAL["amp"])
+        for key in ("var_above_trunc1_frac", "var_above_trunc2_frac",
+                    "per_decade_shrink", "extrapolated_frac_above_F_HI"):
+            self.assertAlmostEqual(k["upper_edge"][key], a["upper_edge"][key], msg=key)
+
+    def test_the_extrapolation_carries_the_measured_shrink_one_decade_further(self):
+        p = rn.part("tt/1.800V/27C", measured(rms=1e-4, trunc=(0.8, 0.9)), "ktc")
+        u = p["upper_edge"]
+        f1, f2 = 1 - 0.8 ** 2, 1 - 0.9 ** 2
+        self.assertAlmostEqual(u["per_decade_shrink"], f2 / f1)
+        self.assertAlmostEqual(u["extrapolated_frac_above_F_HI"], f2 * (f2 / f1))
+        self.assertLess(u["extrapolated_frac_above_F_HI"], u["var_above_trunc2_frac"])
+
+    def test_a_converged_integral_leaves_a_negligible_tail(self):
+        """The default fixture is the measured tt shape: ~1% above F_HI."""
+        u = rn.part("tt/1.800V/27C", measured(), "ktc")["upper_edge"]
+        self.assertLess(u["var_above_trunc2_frac"], 0.05)
+        self.assertLess(u["extrapolated_frac_above_F_HI"], 0.02)
+        self.assertLess(u["trunc_vs_total_rms_rel"], mkn.TRUNC_TOL)
+
+    def test_a_truncated_integral_is_caught_by_the_share_and_the_gate(self):
+        """A band cut inside the noise bandwidth: the truncated integral is far
+        short of the full one. This is the condition the klt-vs-ngspice gate is
+        blind to, since both of its numbers span the same sweep."""
+        c = measured(rms=1e-4, trunc=(0.5, 0.6))
+        u = rn.part("tt/1.800V/27C", c, "ktc")["upper_edge"]
+        self.assertGreater(u["var_above_trunc2_frac"], 0.5)
+        self.assertGreater(u["trunc_vs_total_rms_rel"], mkn.TRUNC_TOL)
+        # ...while the integration-scheme gate is perfectly happy.
+        self.assertLess(c["total_vs_native_rel"], mkn.NATIVE_TOL)
+
+    def test_the_gate_limit_is_carried_beside_the_value(self):
+        u = rn.part("tt/1.800V/27C", measured(), "ktc")["upper_edge"]
+        self.assertEqual(u["trunc_vs_total_rms_rel_limit"], mkn.TRUNC_TOL)
+        gate = next(m for m in mkn.MEASUREMENTS if m["name"] == "trunc_vs_total_rms_rel")
+        self.assertEqual(gate["limits"]["max"], mkn.TRUNC_TOL)
+
+    def test_the_rolloff_slope_is_recorded_beside_the_integral(self):
+        u = rn.part("tt/1.800V/27C", measured(dens_top=6.1e-10), "ktc")["upper_edge"]
+        self.assertAlmostEqual(u["rolloff_trunc2_over_100meg"], 0.1)
+        self.assertEqual(u["dens_at_trunc2_V_per_rtHz"], 6.1e-10)
+        p = rn.part("tt/1.800V/27C", measured(dens_top=3e-12), "ktc")
+        self.assertEqual(p["spectrum_V_per_rtHz"][f"{mkn.F_DENS_TOP:g}Hz"], 3e-12)
+
+    def test_an_unmeasured_truncated_band_gives_no_share_rather_than_zero(self):
+        c = measured()
+        c["nz_rms_trunc1"] = c["nz_rms_trunc2"] = None
+        u = rn.part("tt/1.800V/27C", c, "ktc")["upper_edge"]
+        self.assertIsNone(u["var_above_trunc1_frac"])
+        self.assertIsNone(u["var_above_trunc2_frac"])
+        self.assertIsNone(u["per_decade_shrink"])
+        self.assertIsNone(u["extrapolated_frac_above_F_HI"])
+
+    def test_summary_carries_the_worsts_over_both_variants(self):
+        sets = {"ktc": {"tt/1.800V/27C": measured(trunc=(0.93, 0.983))},
+                "amp": {"tt/1.800V/27C": measured(trunc=(0.90, 0.97))}}
+        s = rn.summarize(rn.derive(sets))
+        rows = rn.derive(sets)["tt/1.800V/27C"]
+        self.assertAlmostEqual(s["worst_var_above_trunc2_frac"],
+                               rows["amp"]["upper_edge"]["var_above_trunc2_frac"])
+        self.assertAlmostEqual(s["worst_extrapolated_frac_above_F_HI"],
+                               rows["amp"]["upper_edge"]["extrapolated_frac_above_F_HI"])
+        self.assertAlmostEqual(s["worst_trunc_vs_total_rms_rel"], 0.03)
+
+    def test_summary_states_what_the_tail_is_worth_on_a_budget_margin(self):
+        """The verdict-bearing link: dB, against the dB of margin reported."""
+        sets = {"ktc": {"tt/1.800V/27C": measured()},
+                "amp": {"tt/1.800V/27C": measured()}}
+        s = rn.summarize(rn.derive(sets))
+        frac = s["worst_extrapolated_frac_above_F_HI"]
+        import math
+        self.assertAlmostEqual(s["extrapolated_tail_margin_impact_db"],
+                               10.0 * math.log10(1.0 + frac))
+        self.assertLess(s["extrapolated_tail_margin_impact_db"], 0.1)
+
+    def test_the_integration_gate_is_not_cited_as_upper_edge_evidence(self):
+        """The defect the review caught: one sentence claiming both things."""
+        scheme = rn.CONVERGENCE["integration_scheme"]
+        self.assertIn("klt_vs_ngspice_integral_rel", scheme)
+        self.assertIn("identical sweep", scheme)
+        self.assertIn("not cited as upper-edge evidence", scheme)
+        edge = rn.CONVERGENCE["upper_edge"]
+        self.assertNotIn("klt_vs_ngspice", edge)
+        self.assertIn("truncated", edge)
+        self.assertIn("extrapolated_frac_above_F_HI", edge)
+
+
+class CsEffSpread(unittest.TestCase):
+    def test_the_record_quotes_the_range_not_one_corner(self):
+        caps = {"cs_drawn_F": 1.0e-12}
+        summary = {"cs_eff_F_range": [{"corner_id": "fs/1.800V/125C", "value": 1.11e-12},
+                                      {"corner_id": "fs/1.620V/-40C", "value": 1.285e-12}]}
+        text = rn.cs_eff_spread(summary, caps)
+        self.assertIn("+11.0%", text)
+        self.assertIn("+28.5%", text)
+        self.assertIn("fs/1.800V/125C", text)
+        self.assertIn("fs/1.620V/-40C", text)
+        self.assertIn("spread", text)
+
+    def test_a_missing_range_degrades_instead_of_crashing(self):
+        self.assertIn("cs_eff_F", rn.cs_eff_spread({}, {}))
 
 
 class Temperature(unittest.TestCase):

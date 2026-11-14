@@ -69,12 +69,65 @@ band-integrated rms, `at_hz` for a spot density.
 - `nz_dens_*` at 20 Hz / 1 kHz / 20 kHz / 1 MHz / 100 MHz — spectrum shape, so
   the record *shows* which part is white and which is flicker-dominated
   instead of asserting it.
+- `nz_rms_trunc1` (1 Hz .. 1 GHz), `nz_rms_trunc2` (1 Hz .. 10 GHz) and
+  `trunc_vs_total_rms_rel` (**gated `<= 1e-1`**) — the same integral over
+  **truncated** bands, one and two decades below the swept edge, plus
+  `nz_dens_top` at 10 GHz for the roll-off slope. This is the upper-edge
+  evidence; see the next section.
 - `nz_total_native` (`expr: onoise_total`) and `total_vs_native_rel` —
   ngspice's own integral over the same swept range, and the relative
-  disagreement with klt's trapezoid. **Gated `<= 1e-2`** per corner. This is
-  both an independent check of the integration and the evidence that the upper
-  band edge is far enough out for the integral to have converged. Observed at
-  tt/27 C/1.80 V: 1.3e-3 on both variants.
+  disagreement with klt's trapezoid. **Gated `<= 1e-2`** per corner. What it
+  checks is the *integration scheme and the 20-points/decade grid density*:
+  that a trapezoid over this grid reproduces ngspice's own integrator.
+  Observed at tt/27 C/1.80 V: 1.3e-3 on both variants. It is **not** evidence
+  about the upper band edge — both numbers span the identical sweep, so a
+  truncated band would move them together and they would still agree to 1e-3.
+  The separate evidence for the edge is below.
+
+## Why the upper band edge is far enough out
+
+This is a **verdict-bearing** property, not a detail: at tt/27 C/1.80 V about
+99 % of `ktc.inband_V2` — the number the 4.5e-10 V² budget is compared against
+— is the *aliased* share of the full-band integral. A band truncated inside
+the circuit's noise bandwidth would under-count the variance and make the
+reported margin optimistic. So the record carries measured evidence for it,
+per corner, in each part's `upper_edge` block. The test is the direct one —
+**move the edge and see whether the integral moves**:
+
+- `var_above_trunc1_frac` and `var_above_trunc2_frac` — the same integral taken
+  over bands truncated at 1 GHz and 10 GHz, as `1 - (rms_trunc/rms_tot)²`. That
+  *is* the measured share of the full-band variance lying above each truncated
+  edge (the input referral cancels, so both are comparable with `var_total_V2`
+  directly). Over the 45 corners of `record.json`: **1.9 to 4.7 % lies above
+  10 GHz** for `ktc` and 1.3 to 6.6 % for `amp`, down from 3.1 to 23.5 % and
+  13.2 to 18.3 % above 1 GHz.
+- `per_decade_shrink` — the ratio of the two, i.e. how fast the remaining tail
+  shrinks per decade. **0.18 to 0.64** (`ktc`), 0.10 to 0.44 (`amp`).
+- `extrapolated_frac_above_F_HI` — that same measured rate carried one decade
+  further, past the edge: **0.57 to 1.46 %** (`ktc`), 0.12 to 2.85 % (`amp`).
+  Labelled an extrapolation, because it is one.
+- `trunc_vs_total_rms_rel` — the 10 GHz truncation as an rms-relative
+  difference, **gated `<= 1e-1`** per corner (a reference-validity limit, not a
+  spec row). Worst observed over the grid **0.033** (`sf`/1.980 V/−40 °C), a
+  factor 3 inside the limit; all 90 corner-runs pass.
+- `dens_at_trunc2_V_per_rtHz` against `dens_at_100meg_V_per_rtHz`
+  (`rolloff_trunc2_over_100meg`) — the slope that produces all of the above:
+  the density falls by a factor 0.015 to 0.037 (`ktc`) and 0.040 to 0.063
+  (`amp`), i.e. **−36 to −24 dB**, over the two decades from 100 MHz to 10 GHz.
+
+`summary` carries the worst of each over both variants and all 45 corners, and
+closes the loop on the verdict: `extrapolated_tail_margin_impact_db` is what
+the *whole* residual tail would be worth on a budget margin if every bit of it
+were collected, `10·log10(1 + frac)`. Worst over the grid: **0.12 dB**, against
+the 4.58 dB of `ktc` margin at the binding corner. That is the number which
+says the upper edge cannot turn a pass into a fail here — and it is reported,
+not assumed.
+
+A second, physical check on the same band, for `ktc` only: `cs_eff_F =
+4·kT/var_total` lands within switch- and plate-parasitic distance of the drawn
+`Cs` on every corner (below). A short integral would under-count the variance
+and so report a `cs_eff` *above* the drawn value by far more than parasitics
+can explain.
 
 ## Units: the two conversions, written out
 
@@ -109,12 +162,15 @@ charge transfer between the measured output and the integrator input.
 
 **Effective sampling capacitance.** A single-pole sampler holds `kT/C` whatever
 R is, and the `ktc` output sums four of them, so `cs_eff_F = 4·kT/var_total`
-per corner — a direct check on the drawn value. At tt/27 C/1.80 V it comes out
-1.137 pF against a drawn 0.9976 pF (`drawn_capacitors` in the record: the
-cell's 22.17 x 22.17 um MIM through the PDK's own area/perimeter model, **not**
-the 1 pF planning value). The +14 % is the switch and plate parasitics on the
-sampled nodes — which is precisely why this bench measures rather than
-calculates.
+per corner — a direct check on the drawn value. Against a drawn 0.9976 pF
+(`drawn_capacitors` in the record: the cell's 22.17 x 22.17 um MIM through the
+PDK's own area/perimeter model, **not** the 1 pF planning value) it runs
+**+11.0 % to +28.8 %** across the 45 corners — 1.137 pF, +14.0 %, at
+tt/27 C/1.80 V. It is a spread, not one figure, because the parasitic excess
+moves with process and temperature; the record's `method.chosen` quotes the
+range and names both binding corners. That excess is the switch and plate
+parasitics on the sampled nodes — which is precisely why this bench measures
+rather than calculates.
 
 ## Budgets (§5.3, unchanged)
 
@@ -154,6 +210,16 @@ refuses to overwrite an existing record (append-only); use
 `--record-name record-<label>.json` after a sizing change.
 `python3 -I sim/integrator-noise/make_request.py` regenerates both decks and
 both requests.
+
+**Sharding a re-run (`--hosts N`).** The receipt's `job_ceiling` warns on this
+grid: its conservative fully-serial bound (`options.timeout_s` 600 s x 45
+units + overhead) exceeds the fleet's 3600 s whole-job ceiling, with
+`recommended_hosts` 9. The recorded runs finished in 69 s and 43 s, well
+inside it, so they were submitted unsharded — but a re-run whose corner mix is
+slower would be killed at the ceiling with **every** unit reported
+`batch_job_timeout`, not just the slow one. Pass `--hosts 9` to split the
+submission if that is a risk. Sharding is a submission choice, so it changes
+neither the request file nor its `sha256`.
 
 Unit tests (no EDA tools):
 

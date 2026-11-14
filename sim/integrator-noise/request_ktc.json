@@ -101,6 +101,42 @@
       }
     },
     {
+      "name": "nz_rms_trunc1",
+      "noise": {
+        "quantity": "onoise",
+        "band_hz": [
+          1.0,
+          1000000000.0
+        ]
+      },
+      "unit": "V"
+    },
+    {
+      "name": "nz_rms_trunc2",
+      "noise": {
+        "quantity": "onoise",
+        "band_hz": [
+          1.0,
+          10000000000.0
+        ]
+      },
+      "unit": "V"
+    },
+    {
+      "name": "trunc_vs_total_rms_rel",
+      "expr": "abs(1 - nz_rms_trunc2/nz_rms_tot)",
+      "limits": {
+        "max": 0.1
+      }
+    },
+    {
+      "name": "nz_dens_top",
+      "noise": {
+        "quantity": "onoise",
+        "at_hz": 10000000000.0
+      }
+    },
+    {
       "name": "nz_total_native",
       "expr": "onoise_total",
       "unit": "V"
