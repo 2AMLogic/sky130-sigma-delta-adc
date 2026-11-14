@@ -7,6 +7,10 @@ committed records are never read or written. `shas()` is NOT patched -- the real
 request and deck files are copied into the temporary HERE, so the .partials hash
 gate is exercised as written.
 
+The harness itself is `sim/runner_test_common.py`, shared with the
+integrator-settling bench; this module binds it to this bench and keeps the
+bench-specific gates, derivations and fixture checks below.
+
 What is pinned here:
 
 - The issue #94 rule, for this bench: a variant requested in this invocation
@@ -28,8 +32,6 @@ What is pinned here:
   it; outside CI a shallow clone still skips.
 """
 import contextlib
-import importlib.util
-import io
 import json
 import math
 import os
@@ -41,27 +43,20 @@ import unittest
 from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parent
+# `sim/` is not on sys.path under `python3 -I`: isolated mode drops CWD and
+# PYTHONPATH, and `discover -s sim/integrator-ci` puts only the bench directory
+# there. The runner inserts it in load_runner() below, which is too late for
+# this import.
+sys.path.insert(0, str(HERE.parent))
 
+import runner_test_common as rtc                                    # noqa: E402
+from runner_test_common import CORNER_IDS, PIN                      # noqa: E402
 
-def load_runner():
-    """Load run_ci.py by path: 'integrator-ci' is not an importable name."""
-    spec = importlib.util.spec_from_file_location("run_ci_under_test", HERE / "run_ci.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-RUNNER = load_runner()
+RUNNER = rtc.load_runner("run_ci_under_test", HERE / "run_ci.py")
 MK = sys.modules["make_request"]          # put on sys.path by run_ci.py above
-PIN = json.loads((RUNNER.REPO / "sim/pdk.json").read_text())
 SENTINEL = RUNNER.SENTINEL
 GRID = RUNNER.GRID_VARIANTS
 MCV = RUNNER.MC_VARIANTS
-
-PROCESS = ("tt", "ss", "ff", "sf", "fs")
-VDDA = ("1p620", "1p800", "1p980")
-TEMP = ("m40", "27", "125")
-CORNER_IDS = tuple(f"{p}_{v}_{t}" for p in PROCESS for v in VDDA for t in TEMP)
 ANCHOR_IDS = tuple(f"{p}_{v:.3f}_{t}" for p, v, t in MK.ANCHOR_POINTS)
 
 
@@ -93,77 +88,50 @@ def report(status="pass", job="job-0001"):
                                             "vary": "mismatch"}}}
 
 
-class RunnerCase(unittest.TestCase):
-    """Runs main() against a temporary HERE with run_klt / pdk_stamp patched."""
+class RunnerCase(rtc.RunnerCase):
+    """The shared harness, bound to this bench's runner and inputs.
 
-    maxDiff = None
+    Beyond the base: `make_request`'s HERE is redirected alongside the
+    runner's, `klt --version` is faked, and the Monte Carlo variants carry
+    their own request files, partial names and hashes.
+    """
 
-    def setUp(self):
-        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="test-run-ci-"))
-        self.addCleanup(lambda: __import__("shutil").rmtree(self.tmp, ignore_errors=True))
-        self.here = self.tmp / "bench"
-        self.here.mkdir()
-        for v in GRID:                                  # real inputs: real shas()
-            for name in (f"request_{v}.json", MK.deck_name(v)):
-                (self.here / name).write_bytes((HERE / name).read_bytes())
+    RUNNER = RUNNER
+    BENCH = HERE
+    VARIANTS = GRID
+    TMP_PREFIX = "test-run-ci-"
+    ARGV0 = "run_ci.py"
+
+    def deck_name(self, v):
+        return MK.deck_name(v)
+
+    def default_corners(self):
+        return grid()
+
+    def input_names(self):
+        yield from super().input_names()
         for v in MCV:
-            (self.here / f"request_mc_{v}.json").write_bytes(
-                (HERE / f"request_mc_{v}.json").read_bytes())
-        (self.here / MK.PRE_CELL).write_bytes((HERE / MK.PRE_CELL).read_bytes())
-        self.partials = self.here / ".partials"
-        self.work = self.tmp / "work"
-        self.work.mkdir()
-        self.calls = []
-        self.kwargs = []
+            yield f"request_mc_{v}.json"
+        yield MK.PRE_CELL
+
+    def partial_name(self, v, mc=False):
+        return f"mc-{v}.json" if mc else f"{v}.json"
+
+    @contextlib.contextmanager
+    def patch_here(self):
+        with mock.patch.object(RUNNER, "HERE", self.here), mock.patch.object(MK, "HERE", self.here):
+            yield
 
     def shas(self, v, mc=False):
-        with mock.patch.object(RUNNER, "HERE", self.here), mock.patch.object(MK, "HERE", self.here):
+        with self.patch_here():
             return RUNNER.mc_shas(v) if mc else RUNNER.shas(v)
 
-    def write_partial(self, v, corners=None, mc=False, passed=True, stale=False):
-        self.partials.mkdir(exist_ok=True)
-        d = {"summary": {"corner_count": 45, "pass": 45, "fail": 0},
-             "corners": grid() if corners is None else corners,
-             "pass": passed, "ngspice": "ngspice-47", "engine_host": "fleet-node-0",
-             "remote": {"job_id": f"job-earlier-{v}"}, **self.shas(v, mc)}
-        if stale:
-            d["deck_sha256"] = "0" * 64
-        (self.partials / (f"mc-{v}.json" if mc else f"{v}.json")).write_text(
-            json.dumps(d, indent=2) + "\n")
-        return d
-
-    def run_main(self, argv, submits):
-        """main() with argv; `submits` maps run_klt tag -> its return value."""
-        def fake_run_klt(request_path, probe, tmpdir, tag, probe_path, **kw):
-            self.calls.append(tag)
-            self.kwargs.append(kw)
-            return submits.get(tag)
-
-        out, err = io.StringIO(), io.StringIO()
-        with contextlib.ExitStack() as st:
-            st.enter_context(mock.patch.object(RUNNER, "HERE", self.here))
-            st.enter_context(mock.patch.object(MK, "HERE", self.here))
-            st.enter_context(mock.patch.object(RUNNER, "PARTIALS", self.partials))
-            st.enter_context(mock.patch.object(RUNNER, "ARTIFACTS", self.here / ".artifacts"))
-            st.enter_context(mock.patch.object(
-                RUNNER, "pdk_stamp",
-                lambda variant, root: (pathlib.Path("/fake/pdk"), PIN["sources_stamp"])))
-            st.enter_context(mock.patch.object(RUNNER, "run_klt", fake_run_klt))
-            st.enter_context(mock.patch.object(
-                RUNNER.tempfile, "mkdtemp", lambda *a, **k: str(self.work)))
-            st.enter_context(mock.patch.object(
-                RUNNER.subprocess, "run",
-                lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout="klt 0.0.0-test\n",
-                                                            stderr="")))
-            st.enter_context(mock.patch.object(sys, "argv", ["run_ci.py", *argv]))
-            st.enter_context(contextlib.redirect_stdout(out))
-            st.enter_context(contextlib.redirect_stderr(err))
-            rc = RUNNER.main()
-        return rc, out.getvalue(), err.getvalue()
-
-    def assertNoRecord(self, name="record.json"):
-        self.assertFalse((self.here / name).exists(),
-                         f"{name} was written from a run that should have refused")
+    def patch_extra(self, st):
+        st.enter_context(mock.patch.object(MK, "HERE", self.here))
+        st.enter_context(mock.patch.object(
+            RUNNER.subprocess, "run",
+            lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout="klt 0.0.0-test\n",
+                                                        stderr="")))
 
     def all_grid_submits(self, dvod=None):
         """A passing nominal submit for every variant; dvod maps variant -> value."""
@@ -171,23 +139,9 @@ class RunnerCase(unittest.TestCase):
         return {v: (report(), grid(dvod.get(v, 1e-6))) for v in GRID}
 
 
-class FailedSubmitIsNotServedFromPartials(RunnerCase):
-    def test_requested_variant_with_failed_submit_refuses_despite_matching_partial(self):
-        for v in GRID:
-            self.write_partial(v)
-        before = (self.partials / "post_v0.json").read_text()
-
-        rc, out, err = self.run_main(["--variant", "post_v0", "--record"], {"post_v0": None})
-
-        self.assertEqual(rc, 1)
-        self.assertNoRecord()
-        self.assertIn("not falling back to a local grid or to .partials/", err)
-        self.assertIn("REFUSE: no result for post_v0", err)
-        # A variant not requested this time still comes from its partial ...
-        self.assertIn("pre_v0: reusing pre_v0.json", out)
-        # ... and the failed one's partial is left on disk to re-run into.
-        self.assertEqual((self.partials / "post_v0.json").read_text(), before)
-        self.assertEqual(self.calls, ["post_v0"])
+class FailedSubmitIsNotServedFromPartials(rtc.FailedSubmitRefusalTests, RunnerCase):
+    REQUESTED = "post_v0"
+    OTHER = "pre_v0"
 
     def test_all_submits_failing_refuses_every_variant(self):
         for v in GRID:
@@ -200,28 +154,6 @@ class FailedSubmitIsNotServedFromPartials(RunnerCase):
         for v in GRID:
             self.assertIn(v, err)
         self.assertEqual(self.calls, list(GRID))
-
-    def test_stale_partial_with_failed_submit_also_refuses(self):
-        self.write_partial("post_v0", stale=True)
-        for v in GRID[1:]:
-            self.write_partial(v)
-
-        rc, _, err = self.run_main(["--variant", "post_v0", "--record"], {"post_v0": None})
-
-        self.assertEqual(rc, 1)
-        self.assertNoRecord()
-        self.assertIn("REFUSE: no result for post_v0", err)
-
-    def test_record_name_variant_is_not_written_either(self):
-        for v in GRID:
-            self.write_partial(v)
-
-        rc, _, err = self.run_main(
-            ["--variant", "post_v0", "--record", "--record-name", "record-retry.json"],
-            {"post_v0": None})
-
-        self.assertEqual(rc, 1)
-        self.assertNoRecord("record-retry.json")
 
     def test_existing_record_is_never_overwritten(self):
         (self.here / "record.json").write_text("{}\n")
