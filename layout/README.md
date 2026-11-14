@@ -152,6 +152,53 @@ The whole-chain response check (`verification/decimator/response.py`, spec rows 
 `verification/decimator/run_synth.py` and by its own CI step in
 `.github/workflows/signoff.yml`.
 
-## Analog partition
+## Analog partition: `layout/analog/`
 
-Empty until #29 lands. See the repo README for scope.
+Generated GDS of the modulator's analog cells, one directory per cell. #29 assembles
+them; until it lands these are standalone cells with no shared floorplan, no top-level
+supply plan and no inter-cell abutment.
+
+| Cell | Directory | Status |
+|---|---|---|
+| `ota_fd` — fully-differential folded-cascode OTA | `analog/ota_fd/` | generated, DRC `clean`, device count matches the netlist (#118) |
+| integrator | — | #119 |
+| clock generator | — | not started |
+
+### `ota_fd` (#118)
+
+`analog/ota_fd/ota_fd.gds`, top cell `ota_fd`, **352.58 x 144.16 um**
+(50,828 um^2). Produced by `analog/ota_fd/gen_ota_fd.py` from
+`design/ota/ota_fd.spice`: one `klt gen` call per device group (`diff_pair`
+cross-quads for the matched pairs, `mos_array` for the single devices,
+`res_array`/`cap_array` for the passives), two `guard_ring` body-tie rings, the
+script's own floorplan and met1/met2 router, merged by `klt gen-compose` used as
+a placer only. Nothing hand-drawn.
+
+- **Reproducing**: `python3 layout/analog/ota_fd/gen_ota_fd.py --check` regenerates
+  into a temp dir and **byte-compares** against the committed stream (it passes; two
+  consecutive runs reproduce it exactly). Both the regeneration and the comparison are
+  **local-only** — CI installs the pinned klt but no PDK, and every `klt gen`/`drc`/
+  `extract` call needs a resolved `sky130A`. CI checks the committed envelopes instead,
+  as it does for the digital partition.
+- **Build that produced it**: klt `0.9.2.dev964+g02db14ecf46b`, klayout `0.30.13`,
+  `sky130A` / open_pdks `f6eeac7` (the `sim/pdk.json` pin). **Not** the klt `0.8.0` CI
+  pin — byte-reproducibility is an assertion about that klt build, so the stream and its
+  envelopes must be regenerated in the same PR when the pin moves.
+- **DRC**: `klt drc` (sky130 curated deck, content hash `sha256:36027b82…`, `released:
+  false`) on `ota_fd.gds` is `clean` — **0 violations**, so no rule names to quote;
+  report `analog/ota_fd/drc.report.json`. `layers_in_stream_without_rules`: `66/13`
+  (resistor-ID marker), `68/5` (`met1.pin` port labels); `rules_skipped`: 53. This is a
+  different deck build from the one the digital partition quotes above, and it is **not**
+  a DRC-clean signoff claim — that stays with #31.
+- **Device count**: `klt extract` gives 29 merged devices (14 `nfet_01v8`, 9
+  `pfet_01v8`, 3 `cap_mim_m3_1`, 1 `res_high_po`, 2 `res_xhigh_po`), matching the
+  netlist's 29 `X` lines; `analog/ota_fd/extract-device-count.json` records both the
+  merged and the `mult`-expanded raw counts and names which was compared.
+- **Pins and body ties**: all eight `.subckt` ports (`vdda vssa inp inn outp outn vcm
+  ibias`) are labelled on `met1.pin` and come back out of `klt extract` as named pins;
+  every nFET bulk extracts to `vssa` and every pFET bulk to `vdda` through the two tap
+  rings.
+- LVS (#32), parasitic extraction (#35) and power-delivery checks (#39) are not claimed.
+
+Full floorplan, per-pair matching rationale, routing discipline and the klayout-tools
+gaps hit along the way: `analog/ota_fd/README.md`.
