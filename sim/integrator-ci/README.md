@@ -410,6 +410,24 @@ lives here and in `design/integrator/SIZING.md`; a future bench that re-cuts
 this deck (a changed cell needs a new deck and a new record anyway) should word
 the note as this section does.
 
+**A second, separate sentence in the record carried the same premise, and that
+one *was* corrected.** Do not read the paragraph above as covering it.
+`record-i106.json` → `conditions.measured_quantity` (written by
+`run_sampling.py`'s `conditions()`) defines the headline quantity, and it used
+to go on to assert that this "equals `v(xint.bpi_p) − v(xint.bpi_n)`" — the
+very equality this campaign disproves, sitting three keys below
+`which_reading_is_the_headline`, which states the opposite correctly. Unlike
+the variant note it is substituted into no deck and pinned by no hash, so it
+was fixed at source and in the record rather than disclosed: it now says when
+the equality holds, when it does not, and names `sampled_bpi_only_V` and
+`top_plate_differential_V`. `conditions()` takes no arguments — it is a pure
+function of the source constants and depends on no simulated value — so this
+was a prose correction only: **no measurement moved, and no grid was re-run.**
+`test_run_sampling.py`'s `CommittedRecordProse` now pins both halves — the
+record's definitional prose may not assert an equality the record's own rows
+contradict, and the committed `conditions` block must equal what `conditions()`
+emits, so a corrected sentence cannot silently revert on the next re-record.
+
 **The reference line is not a limit.** No ratified spec row bounds input-sampling
 completeness, and this change adds none. The record states the per-corner error
 `1 − sampled/ideal` and compares it against **1e-4 relative** — the starting
@@ -440,7 +458,7 @@ From `record-i106.json` (fleet jobs `klt-sim-b7f6bc6865de` and
 | of which bottom-plate (`Sin`) | 0.5044 | **0.0026** |
 | of which top-plate hold (`Sci`) | 0.0388 | **0.1315** |
 | corners over the 1e-4 reference line | 8 of 45 | 2 of 45 |
-| every 1.980 V corner | exact to the reported precision | exact to the reported precision |
+| every 1.980 V corner | exact to the reported precision (15/15) | exact at 13/15; `ss` and `sf` at 125 °C read `sampled_V` 0.5999999, `error_rel` 1.7e-7 |
 
 **The two worst corners are not the same mechanism**, which the headline
 `error_rel` alone hides: at 0.2 V the error is overwhelmingly the `Sin` input

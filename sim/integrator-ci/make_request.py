@@ -295,13 +295,16 @@ def _plates(tag, a, b, cyc):
 def sampling_measurements():
     """Issue #106: what the input path delivered onto Csi by the phi1e fall.
 
-    `samp_<tag>` is the differential voltage ACROSS Csi. Sci holds both top
-    plates at vcm right up to the phi1e fall, so inside W_SAMP that is equal to
-    `v(xint.bpi_p) - v(xint.bpi_n)` -- the form issue #106 reported, carried
-    separately as `samp_bpi_<tag>`. Taking it across the capacitor rather than
-    on the bottom plates alone removes any difference between the two sides'
-    Sci holding the top plate, so the number is the sampled charge and not a
-    sum of the sampled charge and a top-plate offset.
+    `samp_<tag>` is the differential voltage ACROSS Csi. Do NOT assume that
+    inside W_SAMP it equals `v(xint.bpi_p) - v(xint.bpi_n)` -- the form issue
+    #106 reported, carried separately as `samp_bpi_<tag>`. That equality needs
+    Sci to still pin both top plates to vcm at the phi1e fall, which holds to
+    the reported precision over most of the grid but fails at the slow/cold
+    corners (78.9 mV apart at fs/1.620V/-40C, 0.6 V). Taking it across the
+    capacitor rather than on the bottom plates alone removes any difference
+    between the two sides' Sci holding the top plate, so the number is the
+    sampled charge and not a sum of the sampled charge and a top-plate offset;
+    that is why both forms are recorded, not one as a check on the other.
 
     No measurement here carries `limits`: see SAMP_REFERENCE_LINE.
     """

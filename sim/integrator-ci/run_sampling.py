@@ -168,9 +168,10 @@ def corner_rows(variant_result, vin_diff):
                                   else (VCM + half) - c[f"bpip_s{mk.SAMP_REPORT}"]),
             "bpi_n_shortfall_V": (None if c.get(f"bpin_s{mk.SAMP_REPORT}") is None
                                   else c[f"bpin_s{mk.SAMP_REPORT}"] - (VCM - half)),
-            # Sci holds both top plates at vcm until the phi1e fall, so these
-            # should sit at 0.9 V; a departure says the hold itself is suspect
-            # and the across-Csi reading is doing real work.
+            # These sit at 0.9 V only while Sci still pins both top plates to
+            # vcm at the phi1e fall. That is NOT a given: at the slow/cold
+            # corners it departs (78.9 mV on the p side at fs/1.620V/-40C,
+            # 0.6 V), which is what makes the across-Csi reading do real work.
             "tpi_p_V": c.get(f"tpip_s{mk.SAMP_REPORT}"),
             "tpi_n_V": c.get(f"tpin_s{mk.SAMP_REPORT}"),
             # Same charge, read in the following non-overlap gap where both
@@ -312,9 +313,14 @@ def conditions():
         "measured_quantity": (
             "samp_s<k> = the differential voltage across Csi, (bpi_p - tpi_p) - "
             "(bpi_n - tpi_n), as a mean over the last 0.8 ns of phi1e in cycle k. "
-            "Sci holds both top plates at vcm until the phi1e fall, so this equals "
-            "v(xint.bpi_p) - v(xint.bpi_n) at that instant; that bottom-plate-only "
-            "form is carried alongside as sampled_bpi_only_V."),
+            "Do NOT read this as equal to v(xint.bpi_p) - v(xint.bpi_n): that "
+            "equality holds only while Sci still pins both top plates to vcm at "
+            "the phi1e fall, which is true to the reported precision over most of "
+            "the grid but false at the slow/cold corners -- at fs/1.620V/-40C and "
+            "the 0.6 V amplitude the two forms differ by 78.9 mV. The "
+            "bottom-plate-only form is carried alongside as sampled_bpi_only_V "
+            "and their difference as top_plate_differential_V; "
+            "which_reading_is_the_headline says which one error_rel uses."),
         "reset": "bench-only ideal 1 ohm switches across Ci until 40 ns (cell has none)",
         "clocks": ("behavioural rail-to-rail on Vdda from PULSE shape sources, "
                    "200 ps edges, >= 4.7 ns non-overlap, no non-overlap generator"),

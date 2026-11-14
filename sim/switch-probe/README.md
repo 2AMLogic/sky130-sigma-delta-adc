@@ -71,6 +71,19 @@ share of the current, `current_nmos_A` / `current_pmos_A` /
 `nmos_current_share`. Which half carries the current is what says whether a
 remedy should add a low-Vth NMOS half or widen the PMOS half.
 
+**What validates the split: the two shares must sum to the total.** The deck
+takes `abs()` of each half's current independently, so if the halves ever ran
+counter to one another their currents would be *summed* rather than cancelled
+and the shares could exceed 1. The check that rules this out is
+`current_nmos_A + current_pmos_A == current_A`, which the deck asserts agrees
+to 7 digits and `test_run_probe.py` re-derives on every committed row — all
+102 rows of `probe-i106.json` hold it to 1e-6, so no row on this grid is in
+that regime. Read a future row whose shares do not sum to the total as the
+halves fighting, not as a measurement of either one. (The note belongs here
+rather than in `tg_probe.cir.tmpl`: `probe-i106.json` pins the template's
+bytes as `tg_deck_sha256`, so editing the deck would move that hash and
+invalidate the committed record's provenance.)
+
 ### Points
 
 - **Ron versus input** at `Vdda` = 1.620 V / -40 C for all five process skews,

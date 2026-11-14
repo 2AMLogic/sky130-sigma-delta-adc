@@ -145,14 +145,21 @@ NMOS plus a PMOS half on the phi2 switches in issue #92.
 `sim/integrator-ci/record-i106.json`: at `ss`/1.620 V/-40 C a 0.2 V differential
 input is **54.3 % unsampled** when `phi1e` opens, and the error is strongly
 input-level dependent (0.8 % at a 0.6 V input at that same corner). 8 of 45 grid
-points exceed 1e-4 at 0.2 V, 2 of 45 at 0.6 V, and every 1.980 V point is exact.
+points exceed 1e-4 at 0.2 V, 2 of 45 at 0.6 V, and the 1.980 V points are
+exact to the reported precision — 43 of those 45 read `error_rel` exactly 0,
+and the two that do not (`ss` and `sf` at 1.980 V/125 °C, 0.6 V) read
+1.7e-7, which is the 7-digit print resolution and three orders below the
+reference line.
 
 **Not all of that headline error is this gate**, and the record separates the
 two. The headline is the differential across `Csi`; the bottom-plate-only
-reading (`error_rel_bpi_only`) isolates `Sin`, and the remainder
-(`top_plate_differential_V`) is the `Sci` top-plate hold:
+reading (`error_rel_bpi_only`) isolates `Sin`, and the remainder is the `Sci`
+top-plate hold. All three columns below are **relative**, so the last one is
+`error_rel` − `error_rel_bpi_only`; the record's volt-valued field of that
+remainder is `top_plate_differential_V`, which is this column times `ideal_V`
+(0.0388 relative is 0.007768 V at the first row):
 
-| corner | input | headline `error_rel` | `Sin` (bottom plate) | `Sci` (top-plate hold) |
+| corner | input | headline `error_rel` | `Sin` (bottom plate), `error_rel_bpi_only` | `Sci` (top-plate hold), relative: `error_rel` − `error_rel_bpi_only` |
 |---|---|---|---|---|
 | `ss`/1.620 V/-40 C | 0.2 V | 0.5432 | **0.5044** | 0.0388 |
 | `sf`/1.620 V/-40 C | 0.2 V | 0.2843 | **0.2833** | 0.0010 |

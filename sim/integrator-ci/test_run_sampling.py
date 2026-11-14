@@ -24,6 +24,7 @@ import importlib.util
 import io
 import json
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -528,6 +529,74 @@ class Derivations(unittest.TestCase):
         self.assertEqual(d["amplitudes"]["post_v0p2"]["vinn_V"], 0.8)
         self.assertEqual(d["amplitudes"]["post_v0p6"]["vinp_V"], 1.2)
         self.assertAlmostEqual(d["amplitudes"]["post_v0p6"]["vinn_V"], 0.6)
+
+
+class CommittedRecordProse(unittest.TestCase):
+    """The committed record's definitional prose, against its own rows.
+
+    Issue #106 round 3: `conditions.measured_quantity` asserted that the
+    across-`Csi` reading equals the bottom-plate-only one -- the very premise
+    this campaign disproved, three keys below a field that said the opposite.
+    Nothing caught it: `request_sha256` covers the request and `deck_sha256`
+    the deck, so the runner strings and the record's prose are pinned by no
+    hash and, before this class, by no test either. Once merged the record is
+    append-only evidence, so a false sentence here is not editable in place.
+    """
+
+    REC = HERE / "record-i106.json"
+
+    def setUp(self):
+        if not self.REC.exists():
+            self.skipTest("record-i106.json is not committed")
+        self.rec = json.loads(self.REC.read_text())
+
+    def worst_top_plate_differential_V(self):
+        """How far apart the two sampling forms actually get on this grid."""
+        worst = 0.0
+        for amp in self.rec["derived"]["amplitudes"].values():
+            for row in amp["per_corner"].values():
+                v = row.get("top_plate_differential_V")
+                if v is not None:
+                    worst = max(worst, abs(v))
+        return worst
+
+    def test_the_prose_does_not_claim_an_equality_the_rows_contradict(self):
+        worst = self.worst_top_plate_differential_V()
+        self.assertGreater(worst, 1e-6,
+                           "the record carries no top-plate split at all -- "
+                           "this guard would be vacuous")
+        mq = " ".join(self.rec["conditions"]["measured_quantity"].split())
+        # A period only ends a sentence when whitespace (or the end) follows:
+        # the node name this looks for, v(xint.bpi_p), contains one itself.
+        within = r"(?:[^.]|\.(?!\s|$))*?"
+        claim = re.search(
+            r"(?i)\b(?:so|hence|therefore|thus)\b" + within
+            + r"\bequals?\b" + within + r"bpi_p", mq)
+        self.assertIsNone(
+            claim,
+            "conditions.measured_quantity asserts the across-Csi form equals "
+            "the bottom-plate-only form, but this record's own per-corner rows "
+            f"put them up to {worst * 1e3:.1f} mV apart. Say when the equality "
+            "holds and when it does not, as which_reading_is_the_headline does."
+            + (f" Offending text: {claim.group(0)!r}" if claim else ""))
+
+    def test_the_prose_names_both_forms_and_their_difference(self):
+        """A reader must be able to get from the definition to the split."""
+        mq = self.rec["conditions"]["measured_quantity"]
+        for field in ("sampled_bpi_only_V", "top_plate_differential_V"):
+            self.assertIn(field, mq,
+                          f"measured_quantity does not mention {field}")
+
+    def test_the_committed_conditions_block_still_matches_the_runner(self):
+        """Generator and record must not drift.
+
+        `conditions()` takes no arguments -- it is a pure function of the
+        source constants and depends on no simulated value -- so this holds
+        without re-running anything. It is what stops a corrected sentence
+        from silently reverting the next time the record is regenerated, and
+        what catches a hand-edit to either side.
+        """
+        self.assertEqual(self.rec["conditions"], RUNNER.conditions())
 
 
 if __name__ == "__main__":
