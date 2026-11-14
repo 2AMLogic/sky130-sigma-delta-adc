@@ -1006,7 +1006,7 @@ class Router:
                                             WIRE_UM))
                 if extra and not self.met1_free(a.net, extra):
                     continue
-                self.used_cols.add(nm(col))
+                self.reserve_column(col)
                 if extra:
                     self.add_met1(a.net, extra)
                 self.add_trunk_via(a.net, col, y)
@@ -1407,7 +1407,9 @@ def build(blocks: dict[str, Block], ota: dict, axis_y: float, ota_x: float):
         "ota_origin_x_um": ota_x,
         "block_origins_um": {b: dict(blocks[b].origin) for b in sorted(blocks)},
         "block_orientation": {b: blocks[b].orientation for b in sorted(blocks)},
-        "met2_columns": len(router.used_cols),
+        # used_cols holds trunks plus the MiM risers' ±1-pitch keep-outs, so
+        # this counts reserved columns, not columns that carry a met2 trunk.
+        "met2_columns_reserved": len(router.used_cols),
         "lvtn_markers": [r.as_um() for r in markers],
         "nets": summary,
     }
@@ -1708,7 +1710,7 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
     (out_dir / "route.summary.json").write_text(
         json.dumps(route_summary, indent=2) + "\n")
     say(f"  {len(draw_params['shapes'])} routing shapes, "
-        f"{route_summary['met2_columns']} met2 columns, "
+        f"{route_summary['met2_columns_reserved']} met2 columns reserved, "
         f"{len(route_summary['lvtn_markers'])} lvtn markers")
 
     # -- 4. draw + compose -----------------------------------------------------
