@@ -94,7 +94,7 @@ library is `sky130_fd_sc_hd`.
 |---|---|---|---|---|
 | Cell area (synthesized) | 49 062.05 um^2, 5 390 instances | corner-independent (cell areas) | `verification/decimator/record.json` | evidenced (synthesis) |
 | Placed die / core area | 129 758 um^2 die, 121 877 um^2 core, 42.4 % utilization | corner-independent | `layout/README.md`, `layout/digital/decimator.gds` | evidenced (place-and-route) |
-| Fmax at the ten declared `sky130_fd_sc_hd` liberty corners | 26.73 MHz worst, 110.05 MHz best; every declared corner clears the 5.12 MHz clock | ss/-40C/1.60V binds (setup slack 157.898 ns of the 195.3125 ns period) | `layout/digital/sta-decimator.report.json` | evidenced (STA on the routed DEF; ideal clock, no SPEF) |
+| Fmax at the ten declared `sky130_fd_sc_hd` liberty corners | 26.69 MHz worst, 109.79 MHz best; every declared corner clears the 5.12 MHz clock | ss/-40C/1.60V binds (setup slack 157.838 ns of the 195.3125 ns period) | `layout/digital/sta-decimator.report.json` | evidenced (STA on the routed DEF; propagated clock, no SPEF) |
 | Fmax at the other 35 DR-002 corners | none | the sf, fs, 1.98 V, 125 C and 27 C points | none | pending (#131): the library ships no liberty file for them |
 | Power at each of the 45 corners | none | all 45 | none | pending (#33) |
 
@@ -103,12 +103,19 @@ library is `sky130_fd_sc_hd`.
   (`layout/digital/sta_request.json`, `pdk.corners`), clock `clk` at 195.3125 ns
   (fs = 5.12 MHz, spec row 5). Every corner reports
   `timing_status: "constrained"` with non-negative setup and hold slack and zero
-  setup/hold violations; worst setup is 157.898 ns at `ss_n40C_1v60`
-  (Fmax 26.73 MHz), worst hold 0.2586 ns at `ff_n40C_1v95`. The Fmax figures are
-  OpenSTA's extrapolated `1/(T - WNS)`, not a bisected search, and the clock is
-  **ideal** (no `set_propagated_clock`), so clock-tree insertion delay does not
-  reach these numbers. There is no SPEF: routed-DEF timing with no extracted wire
-  parasitics; parasitic-annotated timing is #35. Every corner reports
+  setup/hold violations; worst setup is 157.838 ns at `ss_n40C_1v60`
+  (Fmax 26.69 MHz), worst hold 0.2698 ns at `ff_n40C_1v95`. The Fmax figures are
+  OpenSTA's extrapolated `1/(T - WNS)`, not a bisected search. The clock is
+  **propagated** (`clock_mode: "propagated"`, `constraints.propagated_clock: true`),
+  so the DEF's own clock tree carries insertion delay into both the launch and the
+  capture edge: the per-corner `clock_propagation` block reports worst network
+  latency from 0.3204 ns at `ff_n40C_1v95` to 0.9745 ns at `ss_n40C_1v60`. The
+  superseded ideal-clock run of the same DEF gave worst setup 157.898 ns
+  (Fmax 26.73 MHz) and worst hold 0.2586 ns — propagation costs setup and earns
+  hold, and the verdict is unchanged. There is no SPEF: routed-DEF timing with no
+  extracted wire parasitics, so the insertion delay above is estimated from the
+  DEF's interconnect rather than extracted; parasitic-annotated timing is #35.
+  Every corner reports
   `constraint_completeness: "incomplete"` — 17 unconstrained endpoints
   (`dout[15:0]`, `dout_valid`), because no block-boundary I/O delay budget is
   declared, so this is register-to-register timing only (#131). The router's

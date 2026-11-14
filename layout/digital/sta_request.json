@@ -20,6 +20,7 @@
   },
   "constraints": {
     "clock_port": "clk",
-    "clock_period_ns": 195.3125
+    "clock_period_ns": 195.3125,
+    "propagated_clock": true
   }
 }
