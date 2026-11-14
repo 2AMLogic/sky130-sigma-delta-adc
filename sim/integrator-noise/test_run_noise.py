@@ -9,6 +9,7 @@ unmeasured grid is refused as a record.
 """
 import contextlib
 import io
+import math
 import pathlib
 import sys
 import unittest
@@ -376,10 +377,8 @@ class RequestShape(unittest.TestCase):
         for v, d in mkn.VARIANTS.items():
             self.assertEqual(json.loads((HERE / f"request_{v}.json").read_text()),
                              mkn.variant_request(v), v)
-            deck = tmpl.replace("@VARIANT@", v).replace("@VARIANTNOTE@", d["note"])
-            for k, val in d["clocks"].items():
-                deck = deck.replace(f"@{k}@", val)
-            self.assertEqual((HERE / f"integrator_noise_{v}.cir").read_text(), deck, v)
+            self.assertEqual((HERE / f"integrator_noise_{v}.cir").read_text(),
+                             mkn.deck_text(v, tmpl), v)
             self.assertNotIn("@", (HERE / f"integrator_noise_{v}.cir").read_text()
                              .split(".include")[-1], v)
 
@@ -414,3 +413,375 @@ class RequestShape(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# --- issue #140: the accumulating referral and the per-device split ---------
+
+def amp_pair(rms_vod=1.0e-4, ratio_v=0.5, bb_frac=0.9, **kw):
+    """An (amp, ampq) corner pair with a known amplitude transfer `ratio_v`.
+
+    `bb_frac` is the baseband SHARE of the full-band variance, so a flicker-
+    dominated part (the real amplifier) is bb_frac near 1 and a white part is
+    bb_frac near 0. The same share is used for both outputs, so the transfer
+    is flat across the band and every band ratio must come back as ratio_v^2.
+    """
+    def one(rms):
+        return measured(rms=rms, bb=rms * math.sqrt(bb_frac), **kw)
+    return one(rms_vod), one(rms_vod * ratio_v)
+
+
+class AccumulatingReferral(unittest.TestCase):
+    def test_ampq_carries_the_same_input_referral_as_amp(self):
+        # The #140 correction is WHERE the noise is read, not the referral: a
+        # per-cycle increment refers to the input by the same 1/C1 as a static
+        # output. A different constant here would double-count the correction.
+        self.assertEqual(rn.INPUT_REFERRAL["ampq"], rn.INPUT_REFERRAL["amp"])
+        self.assertEqual(rn.INPUT_REFERRAL["ampq"], 1.0 / rn.C1)
+
+    def test_the_transfer_is_the_ratio_of_the_two_band_integrals(self):
+        amp, ampq = amp_pair(ratio_v=0.5)
+        t = rn.transfer(rn.part("tt/1.800V/27C", amp, "amp"),
+                        rn.part("tt/1.800V/27C", ampq, "ampq"))
+        for band in ("total", "baseband", "audio_band", "aliased", "inband"):
+            self.assertAlmostEqual(t["power_ratio_by_band"][band], 0.25, places=9,
+                                   msg=band)
+            self.assertAlmostEqual(t["power_ratio_db_by_band"][band],
+                                   10.0 * math.log10(0.25), places=7, msg=band)
+
+    def test_the_input_referral_cancels_out_of_the_transfer(self):
+        # Both parts carry 1/C1, so the measured transfer must not depend on
+        # it. Guards against a future referral change silently moving it.
+        amp, ampq = amp_pair(ratio_v=0.4)
+        a = rn.part("tt/1.800V/27C", amp, "amp")
+        q = rn.part("tt/1.800V/27C", ampq, "ampq")
+        k = rn.part("tt/1.800V/27C", ampq, "ktc")       # referral 1.0, not 1/C1
+        self.assertNotEqual(q["var_total_V2"], k["var_total_V2"])
+        self.assertAlmostEqual(rn.transfer(a, q)["power_ratio_by_band"]["total"],
+                               0.16, places=9)
+
+    def test_the_bands_can_carry_different_transfers(self):
+        # The real block's baseband and aliased transfers differ by about 1 dB,
+        # so the record reports them separately rather than one scalar.
+        amp = measured(rms=1.0e-4, bb=9.0e-5)
+        ampq = measured(rms=4.0e-5, bb=4.5e-5)           # quieter total, louder bb
+        t = rn.transfer(rn.part("tt/1.800V/27C", amp, "amp"),
+                        rn.part("tt/1.800V/27C", ampq, "ampq"))
+        self.assertGreater(t["power_ratio_by_band"]["baseband"],
+                           t["power_ratio_by_band"]["aliased"])
+
+    def test_the_hand_analysis_residual_is_measured_minus_predicted(self):
+        caps = rn.drawn_caps()
+        cs, ci = caps["cs_drawn_F"], caps["ci_drawn_F"]
+        hand_v = (2.0 * cs) / (ci + 2.0 * cs)
+        amp, ampq = amp_pair(ratio_v=hand_v)             # exactly the prediction
+        t = rn.transfer(rn.part("tt/1.800V/27C", amp, "amp"),
+                        rn.part("tt/1.800V/27C", ampq, "ampq"), caps)
+        self.assertAlmostEqual(t["hand_analysis_amplitude_ratio"], hand_v, places=12)
+        self.assertAlmostEqual(t["hand_analysis_residual_db"], 0.0, places=9)
+
+    def test_a_measured_transfer_above_the_prediction_gives_a_positive_residual(self):
+        caps = rn.drawn_caps()
+        hand_v = (2.0 * caps["cs_drawn_F"]) / (caps["ci_drawn_F"] + 2.0 * caps["cs_drawn_F"])
+        amp, ampq = amp_pair(ratio_v=hand_v * 1.1)
+        t = rn.transfer(rn.part("tt/1.800V/27C", amp, "amp"),
+                        rn.part("tt/1.800V/27C", ampq, "ampq"), caps)
+        self.assertAlmostEqual(t["hand_analysis_residual_db"],
+                               20.0 * math.log10(1.1), places=7)
+
+    def test_implied_cp_inverts_the_static_noise_gain(self):
+        # Round trip: a chosen Cp -> the amplitude ratio it predicts -> back.
+        caps = rn.drawn_caps()
+        cs_tot, ci = 2.0 * caps["cs_drawn_F"], caps["ci_drawn_F"]
+        for cp in (0.0, 50e-15, 150e-15, 400e-15):
+            r = (cs_tot + cp) / (ci + cs_tot + cp)
+            self.assertAlmostEqual(rn.implied_summing_node_cp_F(r, caps) / 1e-15,
+                                   cp / 1e-15, places=6, msg=str(cp))
+
+    def test_implied_cp_is_zero_when_the_ratio_matches_the_drawn_caps(self):
+        caps = rn.drawn_caps()
+        hand_v = (2.0 * caps["cs_drawn_F"]) / (caps["ci_drawn_F"] + 2.0 * caps["cs_drawn_F"])
+        self.assertAlmostEqual(rn.implied_summing_node_cp_F(hand_v, caps), 0.0, places=18)
+
+    def test_implied_cp_degrades_instead_of_crashing(self):
+        caps = rn.drawn_caps()
+        for bad in (None, 0.0, 1.0, 1.5, -0.2):
+            self.assertIsNone(rn.implied_summing_node_cp_F(bad, caps), msg=str(bad))
+        self.assertIsNone(rn.implied_summing_node_cp_F(0.5, None))
+        self.assertIsNone(rn.implied_summing_node_cp_F(0.5, {}))
+
+    def test_an_unmeasured_variant_gives_no_transfer_rather_than_zero(self):
+        a = rn.part("tt/1.800V/27C", unmeasured(), "amp")
+        q = rn.part("tt/1.800V/27C", measured(), "ampq")
+        t = rn.transfer(a, q)
+        self.assertIsNone(t["power_ratio_by_band"]["total"])
+        self.assertIsNone(t["power_ratio_db_by_band"]["total"])
+        self.assertIsNone(t["implied_summing_node_cp_F"])
+
+
+class AccumulatingVerdicts(unittest.TestCase):
+    def rows(self, ratio_v=0.5, amp_rms=1.0e-4, ktc_rms=1.0e-5, n=sc.GRID_POINTS):
+        amp, ampq = amp_pair(rms_vod=amp_rms, ratio_v=ratio_v)
+        return rn.derive({"ktc": corner_set(n, rms=ktc_rms),
+                          "amp": {cid: amp for cid in CORNER_IDS[:n]},
+                          "ampq": {cid: ampq for cid in CORNER_IDS[:n]}},
+                         rn.drawn_caps())
+
+    def test_the_accumulating_verdict_uses_the_same_budget(self):
+        v = list(self.rows().values())[0]["verdict"]
+        self.assertEqual(v["total_thermal_budget_V2"], rn.THERMAL_BUDGET_V2)
+        self.assertEqual(v["total_thermal_budget_V2"], 9.0e-10)
+
+    def test_the_accumulating_total_is_switches_plus_the_accumulating_amplifier(self):
+        r = list(self.rows().values())[0]
+        self.assertAlmostEqual(r["verdict"]["total_thermal_inband_accumulated_V2"],
+                               r["ktc"]["inband_V2"] + r["ampq"]["inband_V2"], places=18)
+        # and the static one still uses amp, unchanged by #140
+        self.assertAlmostEqual(r["verdict"]["total_thermal_inband_V2"],
+                               r["ktc"]["inband_V2"] + r["amp"]["inband_V2"], places=18)
+
+    def test_a_quieter_accumulating_part_improves_the_margin_by_the_transfer(self):
+        # With the switch part negligible, the margin must improve by exactly
+        # the transfer in dB -- the headline claim of issue #140.
+        r = list(self.rows(ratio_v=0.5, ktc_rms=1.0e-12).values())[0]
+        self.assertAlmostEqual(r["verdict"]["accumulated_vs_static_db"],
+                               10.0 * math.log10(0.25), places=6)
+        self.assertAlmostEqual(r["verdict"]["total_thermal_accumulated_margin_db"]
+                               - r["verdict"]["total_thermal_margin_db"],
+                               -10.0 * math.log10(0.25), places=6)
+
+    def test_the_corrected_treatment_can_turn_a_miss_into_a_pass(self):
+        rows = self.rows(ratio_v=0.05, amp_rms=1.0e-4, ktc_rms=1.0e-12)
+        v = list(rows.values())[0]["verdict"]
+        self.assertFalse(v["total_thermal_pass"])
+        self.assertTrue(v["total_thermal_accumulated_pass"])
+        s = rn.summarize(rows)
+        self.assertEqual(s["total_thermal_fail_corners"], sorted(CORNER_IDS))
+        self.assertEqual(s["total_thermal_accumulated_fail_corners"], [])
+        self.assertEqual(s["total_thermal_accumulated_pass_count"], sc.GRID_POINTS)
+
+    def test_the_corrected_treatment_does_not_rescue_a_loud_enough_amplifier(self):
+        v = list(self.rows(ratio_v=0.5, amp_rms=1.0e-4).values())[0]["verdict"]
+        self.assertFalse(v["total_thermal_pass"])
+        self.assertFalse(v["total_thermal_accumulated_pass"])
+
+    def test_the_model_b_number_follows_the_accumulating_total(self):
+        r = list(self.rows().values())[0]
+        v, fs2 = r["verdict"], (rn.C1 / rn.VFS_DIFF_V) ** 2
+        self.assertAlmostEqual(v["model_b_equiv_ktc_noise_var_fs2_accumulated"],
+                               fs2 * v["total_thermal_inband_accumulated_V2"] * rn.OSR,
+                               places=18)
+        self.assertAlmostEqual(v["model_b_equiv_ktc_noise_var_fs2_static"],
+                               fs2 * v["total_thermal_inband_V2"] * rn.OSR, places=18)
+        self.assertLess(v["model_b_equiv_ktc_noise_var_fs2_accumulated"],
+                        v["model_b_equiv_ktc_noise_var_fs2_static"])
+
+    def test_summary_reports_the_transfer_over_the_grid(self):
+        s = rn.summarize(self.rows(ratio_v=0.5))
+        for key in ("transfer_baseband_db_range", "transfer_aliased_db_range",
+                    "transfer_inband_db_range", "implied_summing_node_cp_F_range",
+                    "accumulated_vs_static_db_range"):
+            lo, hi = s[key]
+            self.assertIsNotNone(lo, key)
+            self.assertLessEqual(lo["value"], hi["value"], key)
+        self.assertAlmostEqual(s["transfer_baseband_db_range"][0]["value"],
+                               10.0 * math.log10(0.25), places=6)
+        self.assertIsNotNone(s["binding_total_thermal_accumulated_corner"]["corner_id"])
+
+    def test_an_unmeasured_corner_gives_no_accumulating_verdict_rather_than_a_pass(self):
+        rows = rn.derive({"ktc": corner_set(1), "amp": corner_set(1),
+                          "ampq": {CORNER_IDS[0]: unmeasured()}})
+        v = list(rows.values())[0]["verdict"]
+        self.assertIsNone(v["total_thermal_inband_accumulated_V2"])
+        self.assertIsNone(v["total_thermal_accumulated_pass"])
+        self.assertNotIn(CORNER_IDS[0],
+                         rn.summarize(rows)["total_thermal_accumulated_fail_corners"])
+
+    def test_the_record_gates_cover_the_third_variant(self):
+        full, short = corner_set(), corner_set(sc.GRID_POINTS - 1)
+        self.assertTrue(sc.grid_complete([full, full, full]))
+        verdict, err = call(sc.grid_complete, [full, full, short])
+        self.assertFalse(verdict)
+        self.assertIn("45, 45, 44", err)
+        dead = corner_set(factory=unmeasured)
+        verdict, err = call(sc.measurements_present, [full, full, dead],
+                            key="nz_rms_tot")
+        self.assertFalse(verdict)
+        self.assertIn("returned no nz_rms_tot", err)
+
+
+def dev_print(total, entries, tag="inband_nqci"):
+    """A synthetic ngspice `print all` block.
+
+    `entries` maps a flat instance path to {mechanism: rms_in_volts}. The
+    device line ngspice emits alongside is the RMS sum in quadrature of that
+    device's mechanisms, which is what the real output does.
+    """
+    out = [f"@@BLOCK {tag}", f"onoise_total = {total:.12e}"]
+    for inst, mechs in entries.items():
+        dev = math.sqrt(sum(v * v for v in mechs.values()))
+        out.append(f"onoise_total.m.{inst}.msky130_fd_pr__nfet_01v8 = {dev:.12e}")
+        for mech, v in mechs.items():
+            out.append(
+                f"onoise_total.m.{inst}.msky130_fd_pr__nfet_01v8.{mech} = {v:.12e}")
+    return "\n".join(out) + "\n"
+
+
+def dev_entries(*pairs):
+    """`pairs` of (instance, flicker_V, thermal_V) -> the entries mapping."""
+    return {inst: {"1overf": fl, "id": th} for inst, fl, th in pairs}
+
+
+class DeviceSplitParsing(unittest.TestCase):
+    def test_the_vectors_are_read_as_rms_volts_not_variances(self):
+        # The identity that defines the reading: sum(v_i^2) == onoise_total^2.
+        # Reading them as variances over-counts by ~4e4 on the real block, so
+        # this is the single most load-bearing assumption of the split.
+        e = dev_entries(("xint.xota.xm1", 3.0e-5, 4.0e-5),
+                        ("xint.xota.xm2", 0.0, 1.2e-4))
+        total = math.sqrt(3.0e-5 ** 2 + 4.0e-5 ** 2 + 1.2e-4 ** 2)
+        b = rn.device_block(rn.parse_device_print(dev_print(total, e))["inband_nqci"])
+        self.assertAlmostEqual(b["closure_devices_rel"], 0.0, places=12)
+        self.assertAlmostEqual(b["closure_mechanisms_rel"], 0.0, places=12)
+        self.assertAlmostEqual(b["total_V2"], total ** 2, places=20)
+
+    def test_the_mechanism_split_separates_flicker_from_thermal(self):
+        e = dev_entries(("xint.xota.xm1", 3.0e-5, 4.0e-5))
+        b = rn.device_block(rn.parse_device_print(
+            dev_print(5.0e-5, e))["inband_nqci"])
+        self.assertAlmostEqual(b["flicker_V2"], 9.0e-10, places=20)
+        self.assertAlmostEqual(b["thermal_and_shot_V2"], 1.6e-09, places=20)
+        self.assertAlmostEqual(b["flicker_share"], 0.36, places=12)
+        self.assertAlmostEqual(b["thermal_and_shot_share"], 0.64, places=12)
+        self.assertAlmostEqual(b["flicker_share"] + b["thermal_and_shot_share"],
+                               1.0, places=12)
+
+    def test_the_named_devices_reach_the_coverage_target(self):
+        # Four equal devices at 25% each: three of them reach 75%, so the list
+        # must run to the fourth to cross 90%.
+        e = dev_entries(*[(f"xint.xota.xm{i}", 1.0e-5, 0.0) for i in range(1, 5)])
+        b = rn.device_block(rn.parse_device_print(
+            dev_print(2.0e-5, e))["inband_nqci"])
+        self.assertEqual(len(b["devices_to_coverage"]), 4)
+        self.assertGreaterEqual(b["devices_to_coverage_share"], rn.DEV_COVERAGE)
+        self.assertEqual(b["coverage_target"], 0.90)
+
+    def test_one_dominant_device_ends_the_list_early(self):
+        e = dev_entries(("xint.xota.xm1", 1.0e-4, 0.0),
+                        *[(f"xint.xsin_p_n{i}", 1.0e-7, 0.0) for i in range(1, 20)])
+        b = rn.device_block(rn.parse_device_print(
+            dev_print(1.0e-4, e))["inband_nqci"])
+        self.assertEqual([d["instance"] for d in b["devices_to_coverage"]],
+                         ["xint.xota.xm1"])
+        self.assertEqual(b["device_count"], 20)
+
+    def test_the_devices_are_ranked_loudest_first(self):
+        e = dev_entries(("xint.xota.quiet", 1.0e-6, 0.0),
+                        ("xint.xota.loud", 1.0e-4, 0.0),
+                        ("xint.xota.mid", 1.0e-5, 0.0))
+        b = rn.device_block(rn.parse_device_print(
+            dev_print(1.0e-4, e))["inband_nqci"])
+        shares = [d["share"] for d in b["devices_to_coverage"]]
+        self.assertEqual(shares, sorted(shares, reverse=True))
+        self.assertEqual(b["devices_to_coverage"][0]["instance"], "xint.xota.loud")
+
+    def test_the_instance_path_strips_the_model_and_the_m_prefix(self):
+        e = dev_entries(("xint.xota.xm1", 1.0e-5, 0.0))
+        b = rn.device_block(rn.parse_device_print(
+            dev_print(1.0e-5, e))["inband_nqci"])
+        self.assertEqual(b["devices_to_coverage"][0]["instance"], "xint.xota.xm1")
+
+    def test_every_block_of_the_run_is_parsed_separately(self):
+        text = "".join(dev_print(1.0e-5, dev_entries(("xint.xota.xm1", 1.0e-5, 0.0)),
+                                 tag=tag) for tag, *_ in rn.DEV_BLOCKS)
+        blocks = rn.parse_device_print(text)
+        self.assertEqual(sorted(blocks), sorted(t for t, *_ in rn.DEV_BLOCKS))
+        self.assertEqual(len(rn.DEV_BLOCKS), 4)
+
+    def test_lines_before_any_block_marker_are_ignored(self):
+        text = "onoise_total = 9.9e-1\n" + dev_print(
+            1.0e-5, dev_entries(("xint.xota.xm1", 1.0e-5, 0.0)))
+        b = rn.parse_device_print(text)["inband_nqci"]
+        self.assertAlmostEqual(b["total_V2"], 1.0e-10, places=20)
+
+    def test_the_four_blocks_cover_both_outputs_and_both_lower_edges(self):
+        nodes = {node for _, node, _, _ in rn.DEV_BLOCKS}
+        self.assertEqual(nodes, {"v(nqci)", "v(vod)"})
+        los = {lo for _, _, lo, _ in rn.DEV_BLOCKS}
+        self.assertEqual(los, {mkn.F_LO, mkn.AUDIO_LO_HZ})
+        for _, _, _, hi in rn.DEV_BLOCKS:
+            self.assertEqual(hi, mkn.BW_HZ)
+
+    def test_the_summary_pts_exceeds_any_plausible_point_count(self):
+        # One summary block per analysis depends on this; a value below the
+        # point count would emit several and the parse would sum them twice.
+        pts = mkn.PTS_PER_DECADE * math.log10(mkn.F_HI / mkn.F_LO)
+        self.assertGreater(rn.DEV_PTS_PER_SUMMARY, 10 * pts)
+
+    def test_flicker_is_the_only_non_thermal_mechanism(self):
+        self.assertIn(rn.DEV_FLICKER, rn.DEV_MECHANISMS)
+        self.assertEqual(rn.DEV_FLICKER, "1overf")
+        # Everything else ngspice can emit for a BSIM4 device is thermal or
+        # gate-leakage shot noise, which the record folds into the thermal side.
+        for m in rn.DEV_MECHANISMS:
+            self.assertTrue(m == "1overf" or m[0] in "irq", m)
+
+    def test_a_decomposition_that_does_not_close_is_outside_the_gate(self):
+        # The variance-vs-RMS misreading inflates the sum by ~4e4; any closure
+        # that far out must land outside DEV_CLOSURE_TOL so device_split()
+        # refuses rather than recording an untrustworthy split.
+        e = dev_entries(("xint.xota.xm1", 3.0e-5, 4.0e-5))
+        wrong_total = 5.0e-5 * 10.0                      # total 20 dB off
+        b = rn.device_block(rn.parse_device_print(
+            dev_print(wrong_total, e))["inband_nqci"])
+        self.assertGreater(abs(b["closure_devices_rel"]), rn.DEV_CLOSURE_TOL)
+        self.assertGreater(abs(b["closure_mechanisms_rel"]), rn.DEV_CLOSURE_TOL)
+        self.assertEqual(b["closure_tol"], rn.DEV_CLOSURE_TOL)
+
+
+class DeviceGeometry(unittest.TestCase):
+    def setUp(self):
+        self.geo = rn.device_geometry()
+
+    def test_the_ota_input_pair_is_found_with_its_drawn_geometry(self):
+        # #138 names XM1/XM2 (W 16 / L 0.5) as the likely cause; the geometry
+        # the split quotes beside them has to come from the netlist, not here.
+        for k in ("xm1", "xm2"):
+            g = self.geo[k]
+            self.assertEqual(g["design_instance"], k.upper())
+            self.assertEqual(g["model"], "sky130_fd_pr__nfet_01v8")
+            self.assertEqual((g["W_um"], g["L_um"]), (16.0, 0.5))
+            self.assertEqual(g["netlist"], "design/ota/ota_fd.spice")
+
+    def test_devices_from_both_design_netlists_are_indexed(self):
+        self.assertEqual(self.geo["xsci_p"]["netlist"],
+                         "design/integrator/integrator.spice")
+        self.assertEqual(self.geo["xm1"]["netlist"], "design/ota/ota_fd.spice")
+
+    def test_the_key_is_the_ngspice_flattened_instance_name(self):
+        # `xint.xota.xm1` -> `xm1`: the leading X is part of the key, which is
+        # the bug this test exists for. A key of `m1` silently finds nothing
+        # and every named device loses its geometry.
+        self.assertIn("xm1", self.geo)
+        self.assertNotIn("m1", self.geo)
+
+    def test_name_devices_adds_geometry_without_losing_the_flat_path(self):
+        named = rn.name_devices(
+            [{"instance": "xint.xota.xm1", "var_V2": 1.0, "share": 1.0}], self.geo)
+        self.assertEqual(named[0]["instance"], "xint.xota.xm1")
+        self.assertEqual(named[0]["design_instance"], "XM1")
+        self.assertAlmostEqual(named[0]["wl_um2"], 8.0, places=9)
+
+    def test_an_unknown_instance_is_left_alone_rather_than_crashing(self):
+        named = rn.name_devices(
+            [{"instance": "xint.not_a_device", "var_V2": 1.0, "share": 1.0}], self.geo)
+        self.assertNotIn("design_instance", named[0])
+        self.assertEqual(named[0]["instance"], "xint.not_a_device")
+
+    def test_the_bias_devices_have_a_much_smaller_gate_area_than_the_pair(self):
+        # Flicker power goes as 1/(W*L), so this is the ratio that explains why
+        # a bias device competes with the input pair in band. Read from the
+        # netlist, so it tracks a resizing in #143 rather than going stale.
+        pair = self.geo["xm1"]["W_um"] * self.geo["xm1"]["L_um"]
+        bias = self.geo["xmn1"]["W_um"] * self.geo["xmn1"]["L_um"]
+        self.assertGreater(pair, bias)
+        self.assertAlmostEqual(pair / bias, 8.0, places=9)
