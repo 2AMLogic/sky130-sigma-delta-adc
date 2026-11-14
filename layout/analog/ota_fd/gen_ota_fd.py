@@ -85,8 +85,6 @@ WIRE_UM = 0.34           # met1/met2 wire width: m1.1/m2.1 minimum is 0.14,
                          # two adjacent edges, so 0.15 + 2*0.085 = 0.32 is
                          # the real floor (0.34 leaves 0.16 at 0.50 pitch)
 MET1_SPACE_UM = 0.14     # m1.2
-MET2_SPACE_UM = 0.14     # m2.2
-MCON_SPACE_UM = 0.19     # ct.2
 MET34_W_UM = 0.60        # met3/met4 wire width: m3.1/m4.1 want 0.30, but
                          # a run narrower than its own via pad leaves a
                          # notch at the corner that m3.2/m4.2 then flag
@@ -562,7 +560,6 @@ class Router:
         self.met1_index: dict[int, list[tuple[str, Rect]]] = defaultdict(list)
         self.met3: list[tuple[str, Rect]] = []
         self.met4: list[tuple[str, Rect]] = []
-        self.mcons: list[Rect] = []
         self.used_cols: set[int] = set()
         self.trunk_y: dict[tuple[str, float], list[float]] = defaultdict(list)
         self.via1_y: dict[tuple[str, float], list[float]] = defaultdict(list)
@@ -588,7 +585,6 @@ class Router:
 
     def add_mcon(self, x: float, y: float) -> None:
         rect = Rect.centred(x, y, MCON_UM, MCON_UM)
-        self.mcons.append(rect)
         self.add_shape(L_MCON, rect)
 
     def add_trunk_via(self, net: str, col: float, y: float) -> None:
@@ -637,10 +633,6 @@ class Router:
                     if not self._ok(rect, placed, owner == net, gap):
                         return False
         return True
-
-    def mcon_free(self, rects: list[Rect]) -> bool:
-        gap = nm(MCON_SPACE_UM)
-        return not any(r.clashes(p, gap) for p in self.mcons for r in rects)
 
     # -- candidate orders ------------------------------------------------------
     def columns(self, x0: float, x1: float, pref: float):
@@ -1083,10 +1075,6 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, verbose: bool = True) -> dict:
     if not ok:
         raise RuntimeError(f"extract device count check FAILED: {tally}")
     return {"drc": drc, "extract": evidence, "route": route_summary}
-
-
-DELIVERABLES = (f"{TOP_CELL}.gds", "extract-device-count.json", "drc.report.json",
-                "route-summary.json", "compose-report.json")
 
 
 def emit(out_dir: Path, cell_dir: Path) -> None:
