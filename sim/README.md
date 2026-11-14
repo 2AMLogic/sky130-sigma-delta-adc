@@ -30,17 +30,22 @@ the reading a dc gain rather than a band value; there is no ratified spec row
 for dc gain, so the record makes no pass/fail against the spec. See
 `ota-gain/README.md`.
 
-`integrator-noise/` is the first integrator's thermal-noise extraction (issue
-#126, DR-001 item 2): two `.noise` requests over the DR-002 full grid, one with
-the cell held in phi1 (the four sampling capacitors, the `4*kT/Cs` quantity
-spec 5.3 budgets) and one in phi2 (the OTA with its phi2 switches). It reports
+`integrator-noise/` is the first integrator's thermal-noise extraction (issues
+#126 and #140, DR-001 item 2): three `.noise` requests over the DR-002 full
+grid, one with the cell held in phi1 (the four sampling capacitors, the
+`4*kT/Cs` quantity spec 5.3 budgets) and two in phi2 (the OTA with its phi2
+switches, read at the differential output and again across `Ci`, which is the
+part that survives the phi1 reset and accumulates -- the per-corner ratio of
+the two is the sampled-data transfer issue #140 measures). It reports
 each part per sampling event and in band, in V^2 and in model B's
 `ktc_noise_var` FS^2 units with both conversions written out, against the
 unchanged 4.5e-10 / 9.0e-10 V^2 budgets of spec 5.3, per corner. Because the
 amplifier's spectrum is flicker-dominated it also carries the aliasing-correct
 in-band link beside the white `1/OSR` one, and derives an effective sampling
 capacitance per corner from the measured variance as a check on the drawn
-capacitor value. See `integrator-noise/README.md`.
+capacitor value. Issue #140 adds the accumulating read above and, from one
+local corner, the per-device and flicker/thermal split of the in-band
+amplifier noise. See `integrator-noise/README.md`.
 
 `comparator-decision/` closes the two checks DR-003 still owed on the vendored
 comparator and sources model B's quantizer parameters (issue #127). Both of its
