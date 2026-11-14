@@ -27,8 +27,8 @@
         "file": "verification/decimator/fv-decimator.report.json"
       }
     ],
-    "8.analog": {"file": "attestation/item8-envelope.json", "content_hash": "sha256:08e0145202de09550e3d69c088cc64261d2a4feccce6dc131711aea3a5a26ce0"},
-    "8.digital": {"file": "attestation/item8-envelope.json", "content_hash": "sha256:08e0145202de09550e3d69c088cc64261d2a4feccce6dc131711aea3a5a26ce0"},
+    "8.analog": {"file": "attestation/item8-envelope.json", "content_hash": "sha256:5ce4d44ed25cf3cd4b2f016427c6423d029072078959393f1ebac731135fa1fc"},
+    "8.digital": {"file": "attestation/item8-envelope.json", "content_hash": "sha256:5ce4d44ed25cf3cd4b2f016427c6423d029072078959393f1ebac731135fa1fc"},
     "9": {"file": "attestation/item9-envelope.json", "content_hash": "sha256:b8d3bb89fc360daeb8a34750603f42f01c3e5695b70e3b2424064ac38f985774"},
     "10": {
       "file": "attestation/item10-envelope.json",

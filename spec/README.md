@@ -20,6 +20,10 @@ delta-sigma ADC.
     bias boundary
   - [DR-006](decisions/DR-006-decimation-stopband-reading.md) — decimation
     stopband (row 9) graded in the alias bands, with a gap floor
+  - [DR-008](decisions/DR-008-digital-timing-corners.md) — digital-partition
+    timing corners are the ten shipped `sky130_fd_sc_hd` liberty corners; the
+    other 35 DR-002 points are a declared gap and the block-boundary I/O
+    budget is the assembled top's
 
 Pinned sibling references live in [`../reuse.lock.json`](../reuse.lock.json).
 

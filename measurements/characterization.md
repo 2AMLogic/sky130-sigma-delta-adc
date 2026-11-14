@@ -32,7 +32,7 @@ corner in the cited record, or the only one it has.
 | 3 | 2nd-order single-bit SC modulator | partial | tt/27C/1.80V (load check only) | `design/modulator/modulator.spice`, `sim/bmodel/model.py` | transistor-level behaviour of the assembled modulator: pending (#33) |
 | 4 | OSR 128 | evidenced | none (arithmetic and B config) | `sim/bmodel/records/20261113T142853Z-f8b2fa44.json` | none |
 | 5 | Modulator clock 5.12 MHz | partial | sf/1.62V/125C (OTA only) | `sim/ota-settling/record-i51-rcm2M-cff100f.json` | integrator-cell and comparator-decision settling over the grid: pending (#33) |
-| 6 | Output rate 80 kSps | evidenced | tt/27C/1.80V (RTL sim) | `verification/decimator/record.json` | none for function; corner timing evidenced at the ten declared liberty corners (`layout/digital/sta-decimator.report.json`), the other 35 DR-002 points: pending (#131) |
+| 6 | Output rate 80 kSps | evidenced | tt/27C/1.80V (RTL sim) | `verification/decimator/record.json` | none for function; corner timing evidenced at the ten declared liberty corners (`layout/digital/sta-decimator.report.json`), which DR-008 sets as the digital partition's corner set; the other 35 DR-002 points are a declared gap under DR-008, not evidenced and not closable by a further STA run |
 | 7 | 16-bit two's complement word | evidenced | tt/27C/1.80V (RTL sim) | `verification/decimator/record.json` | none |
 | 8 | Passband ripple <= 0.1 dB | evidenced | analytic (0.0401 dB peak-to-peak) | `verification/decimator/record.json` | none |
 | 9 | Stopband >= 90 dB | partial | analytic (93.91 dB at 300 kHz, alias-band reading) | `verification/decimator/record.json` | row reading unconfirmed: pending (#18) |
@@ -95,7 +95,7 @@ library is `sky130_fd_sc_hd`.
 | Cell area (synthesized) | 49 062.05 um^2, 5 390 instances | corner-independent (cell areas) | `verification/decimator/record.json` | evidenced (synthesis) |
 | Placed die / core area | 129 758 um^2 die, 121 877 um^2 core, 42.4 % utilization | corner-independent | `layout/README.md`, `layout/digital/decimator.gds` | evidenced (place-and-route) |
 | Fmax at the ten declared `sky130_fd_sc_hd` liberty corners | 26.73 MHz worst, 110.05 MHz best; every declared corner clears the 5.12 MHz clock | ss/-40C/1.60V binds (setup slack 157.898 ns of the 195.3125 ns period) | `layout/digital/sta-decimator.report.json` | evidenced (STA on the routed DEF; ideal clock, no SPEF) |
-| Fmax at the other 35 DR-002 corners | none | the sf, fs, 1.98 V, 125 C and 27 C points | none | pending (#131): the library ships no liberty file for them |
+| Fmax at the other 35 DR-002 corners | none | the sf, fs, 1.98 V, 125 C and 27 C points | none | declared-gap per `spec/decisions/DR-008-digital-timing-corners.md`: the pinned PDK ships no liberty file for these points, so no STA run can close it. Not evidenced, and outside the digital partition's corner set per that record; it reopens only if a PDK pin bump brings new liberty files |
 | Power at each of the 45 corners | none | all 45 | none | pending (#33) |
 
 - **Fmax.** `klt sta` (0.8.0, OpenROAD `26Q3-1510-g6cb3f2b704`) on the committed
@@ -111,7 +111,12 @@ library is `sky130_fd_sc_hd`.
   parasitics; parasitic-annotated timing is #35. Every corner reports
   `constraint_completeness: "incomplete"` — 17 unconstrained endpoints
   (`dout[15:0]`, `dout_valid`), because no block-boundary I/O delay budget is
-  declared, so this is register-to-register timing only (#131). The router's
+  declared, so this is register-to-register timing only. DR-008
+  (`spec/decisions/DR-008-digital-timing-corners.md`) assigns that budget to the
+  assembled top (#122), so `incomplete` is the expected value for the standalone
+  block rather than a defect; the same record sets the ten declared corners as
+  the digital partition's corner set and declares the other 35 DR-002 points a
+  gap no further run can close. The router's
   max-transition and max-capacitance violations against the library limits
   reappear here at one corner only, `ss_n40C_1v60` (660 max-transition, 7
   max-capacitance); they are electrical-rule violations, not slack violations,

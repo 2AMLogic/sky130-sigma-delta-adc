@@ -61,6 +61,12 @@ jobs:
       - name: Check the item-8 characterization envelope still reproduces
         run: python3 -I attestation/item8_envelope.py --check
 
+      # The grammar the step above enforces, in particular that a `declared-gap`
+      # row cites the ratified record that declares it and never reads as
+      # evidence (issue #131). Fixtures only: no EDA tools.
+      - name: Item-8 envelope grammar unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s attestation -p 'test_*.py'
+
       - name: Re-run klt signoff and compare against the committed record
         run: |
           set -uo pipefail

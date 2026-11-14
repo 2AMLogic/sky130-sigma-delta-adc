@@ -102,8 +102,12 @@ library ships no file above 100 C (against the 125 C bound), none at 27 C, none 
 1.60 V (`ss_100C_1v40`, `ss_n40C_1v{28,35,40,44}`, `ff_n40C_1v56`) are
 outside the spec's 1.62-1.98 V supply range and are deliberately **not** declared. `klt
 signoff` grades exactly the corners a run declares, so **item 5 / digital is met on these
-ten corners only — this is not 45-corner coverage.** The 35 uncovered DR-002 points are
-tracked in #131.
+ten corners only — this is not 45-corner coverage.** The ten declared corners *are* the
+digital partition's corner set, and the 35 uncovered DR-002 points are a **declared,
+unclosable gap** under
+[DR-008](../spec/decisions/DR-008-digital-timing-corners.md), which also records the
+residual risk each missing axis leaves. The table above is the normative stand-in map that
+record cites.
 
 **Other limits of this report, stated rather than implied.**
 
@@ -117,7 +121,11 @@ tracked in #131.
   `constraint_completeness.status: "incomplete"` with 17 unconstrained endpoints
   (`dout[15:0]`, `dout_valid`) and 0 unclocked registers. No block-boundary input/output
   delay budget is declared, because no ratified document states one; inventing one would be
-  a timing contract no spec backs. Tracked in #131.
+  a timing contract no spec backs.
+  [DR-008](../spec/decisions/DR-008-digital-timing-corners.md) assigns that budget to the
+  assembled top (#122 / #29 / #35), so `incomplete` is the expected value here, not a
+  defect; the first run that may report `complete` is the one made under the top's declared
+  budget.
 - **`fmax_mhz` is extrapolated**, `1/(T - WNS)`, not a bisected search.
 - **Electrical rules.** `ss_n40C_1v60` reports 660 max-transition and 7 max-capacitance
   violations against the liberty limits (every other declared corner reports 0). These are

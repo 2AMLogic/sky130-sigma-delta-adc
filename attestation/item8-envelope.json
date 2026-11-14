@@ -3,10 +3,10 @@
   "kind": "generic",
   "status": "fail",
   "t1_item": 8,
-  "summary": "T1 item 8 (Characterization report): spec rows 5 evidenced, 7 partial, 2 pending; decimator Fmax/area/power 3/5 evidenced",
+  "summary": "T1 item 8 (Characterization report): spec rows 5 evidenced, 7 partial, 2 pending; decimator Fmax/area/power 3/5 evidenced, 1 declared gap",
   "source": "measurements/characterization.md",
   "metrics": {
-    "report_sha256": "sha256:7d8941578fce6ae859175e556918f9ea8d337380832061a03db058015a6f17d7",
+    "report_sha256": "sha256:a55f0f0775816219f2369df280e340777694f10f81308df742ed0cec37f569d8",
     "spec_rows": [
       {
         "row": 1,
@@ -63,9 +63,7 @@
         "evidence": [
           "verification/decimator/record.json"
         ],
-        "issues": [
-          "131"
-        ]
+        "issues": []
       },
       {
         "row": 7,
@@ -144,40 +142,50 @@
       {
         "quantity": "Cell area (synthesized)",
         "evidenced": true,
+        "declared_gap": false,
         "evidence": [
           "verification/decimator/record.json"
         ],
+        "records": [],
         "issues": []
       },
       {
         "quantity": "Placed die / core area",
         "evidenced": true,
+        "declared_gap": false,
         "evidence": [
           "layout/README.md",
           "layout/digital/decimator.gds"
         ],
+        "records": [],
         "issues": []
       },
       {
         "quantity": "Fmax at the ten declared `sky130_fd_sc_hd` liberty corners",
         "evidenced": true,
+        "declared_gap": false,
         "evidence": [
           "layout/digital/sta-decimator.report.json"
         ],
+        "records": [],
         "issues": []
       },
       {
         "quantity": "Fmax at the other 35 DR-002 corners",
         "evidenced": false,
+        "declared_gap": true,
         "evidence": [],
-        "issues": [
-          "131"
-        ]
+        "records": [
+          "spec/decisions/DR-008-digital-timing-corners.md"
+        ],
+        "issues": []
       },
       {
         "quantity": "Power at each of the 45 corners",
         "evidenced": false,
+        "declared_gap": false,
         "evidence": [],
+        "records": [],
         "issues": [
           "33"
         ]
@@ -185,13 +193,14 @@
     ],
     "evidence_sha256": {
       "design/modulator/modulator.spice": "sha256:3a7b0cece4d81961e0dc06ee9cd6de06c3e1de199e372f0eecd99a8edbae8318",
-      "layout/README.md": "sha256:e1a34689793c7d6b648c6e6b860bbbeba3034e952a116c2265101eca80bedff9",
+      "layout/README.md": "sha256:396ff2383668dc1014f1f6305ca908bc2fb1401b76bd445d4b73f4951e5ca692",
       "layout/digital/decimator.gds": "sha256:211d42ef71f676bb26b16fb0feef6ed3db8fc9ec7c99033ce074e8a66458d676",
       "layout/digital/sta-decimator.report.json": "sha256:65a613c8c562cf95fbc22ae14c90899dade8aee9a5c4ed48d6072192719ad992",
       "rtl/decimator.v": "sha256:2a77b51270910bdee6cfa421af221768bbd1dc0d9ca1afd69580b2f9c69b7376",
       "sim/bmodel/model.py": "sha256:04b9b299a656b039333baad926f3b0f35d67ce807d0885541beb1a5e4edd6ec2",
       "sim/bmodel/records/20261113T142853Z-f8b2fa44.json": "sha256:c2136d1f327973dbf05d8a39326c644641744f563c14675c0dc3ba6d8e34ab41",
       "sim/ota-settling/record-i51-rcm2M-cff100f.json": "sha256:c8f25c25f37cb18478240e025ed41b7521fc759e486f3899d310328ba729cdd8",
+      "spec/decisions/DR-008-digital-timing-corners.md": "sha256:3ce76f5e139b5c550868670cff55c430f9d30390e63db415bb850312a5eea3f6",
       "verification/decimator/record.json": "sha256:6a772739a0020e2fede4a90d801de3113de559ccdb6b8e93f9fe6495eb42e1bd"
     },
     "pending_issues": [
@@ -199,8 +208,7 @@
       "31",
       "32",
       "33",
-      "35",
-      "131"
+      "35"
     ]
   }
 }
