@@ -7,13 +7,28 @@ Runs `klt place-and-route` on layout/digital/pnr_request.json against the pinned
 (sim/pdk.json) and copies the routed GDS, DEF and as-built netlist next to the request.
 --check leaves the committed files alone and exits 3 if the fresh GDS differs from the
 committed one (raw bytes), else 0. The flow takes tens of minutes (detailed routing).
-Exit 2 = PDK tree differs from the pin; 1 = flow failed.
+Exit 2 = the PDK klt recorded in the report (provenance.pdk.version) is absent or
+differs from the sim/pdk.json pin; 1 = flow failed.
 """
 import argparse, hashlib, json, pathlib, shutil, subprocess, sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 OUT = {"gds_path": "decimator.gds", "def_path": "decimator.def", "verilog_path": "decimator_pnr.v"}
+
+
+def report_pdk_stamp(rep):
+    """The PDK stamp `klt` recorded in a report, or None when it recorded none.
+
+    `klt` writes it at `provenance.pdk.version` -- the variant's SOURCES file
+    verbatim, the same string the thirteen tree-reading runners compare against
+    `sim/pdk.json`'s `sources_stamp` (sim/smoke/run_smoke.py:34). A klt report
+    has no top-level `pdk` key, and `provenance.pdk` is null on a check that
+    resolved no PDK install (layout/digital/drc-decimator.report.json), so both
+    levels are read defensively -- but never defaulted to the pin: an absent
+    stamp is an unverified PDK, not a pass.
+    """
+    return ((rep.get("provenance") or {}).get("pdk") or {}).get("version")
 
 
 def main():
@@ -32,8 +47,9 @@ def main():
         print(o.stdout + o.stderr, file=sys.stderr)
         return 1
     rep = json.loads(o.stdout)
-    if rep.get("pdk", {}).get("version", pin["sources_stamp"]) != pin["sources_stamp"]:
-        print("REFUSE: PDK differs from sim/pdk.json pin", file=sys.stderr)
+    stamp = report_pdk_stamp(rep)
+    if stamp != pin["sources_stamp"]:
+        print(f"REFUSE: report PDK is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
         return 2
     drift = False
     for key, name in OUT.items():
@@ -51,4 +67,5 @@ def main():
     return 3 if drift else 0
 
 
-sys.exit(main())
+if __name__ == "__main__":
+    sys.exit(main())
