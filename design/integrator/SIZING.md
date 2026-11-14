@@ -18,9 +18,13 @@ simulated; *probe* = one DC small-signal point (10 mV drop) in ngspice, at `tt`,
 Carlo. Behind this block there are now, besides those probes and
 `sim/integrator-load-check/` (switch states and polarity wiring, DC):
 `sim/integrator-settling/record.json` and `record-i92.json` (settling over the
-DR-002 full grid, 45 corners per load variant, batch fleet) and
-`diag-i92.json` (the single-corner 1.620 V mechanism probe). All simulated,
-none measured. Noise, charge injection, gain and SNDR results still do not
+DR-002 full grid, 45 corners per load variant, batch fleet), `diag-i92.json`
+(the single-corner 1.620 V mechanism probe), `sim/integrator-ci/record.json` and
+`record-mc.json` (charge injection over the full grid and under PDK mismatch),
+`sim/integrator-ci/record-i106.json` (input-sampling completeness over the full
+grid at two input amplitudes) and `sim/switch-probe/probe-i106.json` (the `Sin`
+transmission gate's Ron against the voltage it passes, five skews at 1.620 V/
+-40 C). All simulated, none measured. Noise, gain and SNDR results still do not
 exist; everything marked "not simulated" is owed to later T-tier evidence.
 
 ## Structure
@@ -82,11 +86,104 @@ All `L` = 0.15 um, `nf` = 1, 1.8 V core devices (`nfet_01v8`/`pfet_01v8`).
 | `vcm`/summing-node NMOS: `Sbi`, `Sci`, `Sti`, `Sbr`, `Scr`, `Str` (both sides) | `nfet_01v8_lvt`, L 0.15 | 12 | 0.57 kohm at 0.9 V, 1.8 V (0.07 at 0.3 V, 0.11 at 0.6 V) | bottom plate and top plate reset to `vcm`, top plate to summing node |
 | PMOS half of the four phi2-gated families: `Sbi`, `Sbr` | `pfet_01v8_lvt`, L 0.35 | 24 | see the 1.620 V table below | carries the integrate-phase transfer at the low rail |
 | PMOS half of the four phi2-gated families: `Sti`, `Str` | `pfet_01v8_lvt`, L 0.35 | 4 | see the 1.620 V table below | as above, deliberately small (summing-node capacitance) |
-| Transmission gate `Sin_*`, `Sr_*`, `Mra_*`, `Mrb_*` | `nfet_01v8` + `pfet_01v8`, L 0.15 | NMOS 4, PMOS 8 | 1.73 kohm worst (at 0.9 V); 0.21 at 0.3 V, 0.36 at 0.6 V, 1.08 at 1.2 V, 0.51 at 1.5 V | input sample, reference sample, DAC reference mux |
+| Transmission gate `Sin_*`, `Sr_*`, `Mra_*`, `Mrb_*` | `nfet_01v8` + `pfet_01v8`, L 0.15 | NMOS 4, PMOS 8 | **`tt`/27 C/1.8 V only** (per "Labelling"): 1.73 kohm at 0.9 V; 0.21 at 0.3 V, 0.36 at 0.6 V, 1.08 at 1.2 V, 0.51 at 1.5 V. **Not a PVT worst case, and 0.9 V is not the peak** -- see "`Sin` over PVT" below | input sample, reference sample, DAC reference mux |
 
 The `vcm`/summing-node switches only ever connect nodes near `vcm` (0.9 V);
 the transmission gates cover the full input and reference range (assumed
 `vrefp` 1.5 V, `vrefn` 0.3 V about `vcm`; DR-005 fixes only the 1.2 V span).
+
+### `Sin` over PVT: the transmission gate peaks at `vcm`, and hard (issue #106)
+
+The "1.73 kohm worst (at 0.9 V)" entry above was a single `tt`/27 C/1.8 V probe,
+which that row now says. It is **not** a worst case over PVT, and "worst" was
+the wrong word even at its own condition. Both halves of this gate are
+standard-Vth -- unlike the phi2 `vcm` switches issue #92 fixed -- so for an
+input near `vcm` the NMOS half has `Vgs` = `Vdda` - `Vin` against a high `Vth`
+and the PMOS half only `|Vgs|` = `Vin`, and **neither conducts**.
+
+Swept properly (`sim/switch-probe/probe-i106.json`, 102 points: both halves in
+parallel with the netlist's own geometry and bulk ties, gates fully on, 10 mV
+across, one local DC operating point each; **simulated, not measured**):
+
+| condition | peak Ron | at `Vin` | Ron at 0.3 V | at 0.6 V | at 0.9 V | at 1.2 V | at 1.5 V |
+|---|---|---|---|---|---|---|---|
+| `ss`/1.620 V/-40 C | **584 kohm** | 0.90 V | 0.28 k | 1.08 k | 584 k | 2.83 k | 0.71 k |
+| `sf`/1.620 V/-40 C | 190 kohm | 0.95 V | 0.17 k | 0.42 k | 47.8 k | 3.69 k | 0.74 k |
+| `tt`/1.620 V/-40 C | 87.8 kohm | 0.90 V | 0.22 k | 0.68 k | 87.8 k | 1.38 k | 0.50 k |
+| `fs`/1.620 V/-40 C | 33.6 kohm | 0.80 V | 0.29 k | 1.27 k | 10.0 k | 0.73 k | 0.36 k |
+| `ff`/1.620 V/-40 C | 15.1 kohm | 0.90 V | 0.18 k | 0.46 k | 15.1 k | 0.82 k | 0.37 k |
+| `tt`/27 C/1.800 V | 2.72 kohm | 1.00 V | 0.21 k | 0.37 k | 1.89 k | 1.04 k | 0.50 k |
+
+Three corrections to the row above follow from it:
+
+1. **The PVT peak is 584 kohm, 338x the quoted 1.73 kohm** -- `Ron*Cs` = 584 ns
+   against the 90.4 ns the input path actually gets (see "Settling in the
+   97.7 ns phase" below).
+2. **0.9 V is not where it peaks.** The peak sits at 0.80-1.00 V depending on
+   skew, i.e. always *inside* the signal range, and at the row's own
+   `tt`/27 C/1.8 V condition it is 2.72 kohm at 1.00 V, not the 0.9 V value.
+3. **The quoted 1.73 kohm itself does not quite reproduce**: this bench reads
+   1.89 kohm at 0.9 V at that condition. Its 0.3 / 0.6 / 1.2 / 1.5 V values do
+   reproduce, to 3 % (0.214 / 0.373 / 1.04 / 0.501 kohm), so the sizing argument
+   built on them stands. The residual 9 % at 0.9 V is **unexplained**: the
+   original probe's setup is not recorded beyond the "Labelling" convention, and
+   that convention's "bulk at ground" cannot be what produced it -- grounding the
+   PMOS half's well forward-biases its source junction and reads 20 ohm. Treat
+   1.89 kohm as the reproducible number at that condition.
+
+**Which half is failing moves with the skew**, which is what a remedy has to
+answer to. From the same sweep, the NMOS half's share of the current at each
+condition's peak: `ff` 18 %, `tt`/1.620 V 26 %, `ss` 42 %, `fs` 46 %, `sf` 69 %.
+Below ~0.8 V the NMOS half carries essentially all of it and above ~1.0 V the
+PMOS half does; the crossover lands on the peak, so at `vcm` **both** halves are
+subthreshold and neither can be called the weak one in general. Widening will
+not rescue that -- `probe-i92.json` shows an 8x width on a subthreshold NMOS
+buying 2.5x (456 k -> 180 k) -- which is the same argument that put a low-Vth
+NMOS plus a PMOS half on the phi2 switches in issue #92.
+
+**The transient consequence is simulated, over the DR-002 full grid**, in
+`sim/integrator-ci/record-i106.json`: at `ss`/1.620 V/-40 C a 0.2 V differential
+input is **54.3 % unsampled** when `phi1e` opens, and the error is strongly
+input-level dependent (0.8 % at a 0.6 V input at that same corner). 8 of 45 grid
+points exceed 1e-4 at 0.2 V, 2 of 45 at 0.6 V, and the 1.980 V points are
+exact to the reported precision — 43 of those 45 read `error_rel` exactly 0,
+and the two that do not (`ss` and `sf` at 1.980 V/125 °C, 0.6 V) read
+1.7e-7, which is the 7-digit print resolution and three orders below the
+reference line.
+
+**Not all of that headline error is this gate**, and the record separates the
+two. The headline is the differential across `Csi`; the bottom-plate-only
+reading (`error_rel_bpi_only`) isolates `Sin`, and the remainder is the `Sci`
+top-plate hold. All three columns below are **relative**, so the last one is
+`error_rel` − `error_rel_bpi_only`; the record's volt-valued field of that
+remainder is `top_plate_differential_V`, which is this column times `ideal_V`
+(0.0388 relative is 0.007768 V at the first row):
+
+| corner | input | headline `error_rel` | `Sin` (bottom plate), `error_rel_bpi_only` | `Sci` (top-plate hold), relative: `error_rel` − `error_rel_bpi_only` |
+|---|---|---|---|---|
+| `ss`/1.620 V/-40 C | 0.2 V | 0.5432 | **0.5044** | 0.0388 |
+| `sf`/1.620 V/-40 C | 0.2 V | 0.2843 | **0.2833** | 0.0010 |
+| `fs`/1.620 V/-40 C | 0.6 V | 0.1340 | 0.0026 | **0.1315** |
+
+At 0.2 V the error is this gate, as filed — the top-plate term is at most
+0.039 anywhere on that grid. **At 0.6 V the binding corner is not.** At
+`fs`/1.620 V/-40 C the bottom plates settle to 1.19849 V / 0.60002 V against
+1.2 / 0.6 V targets (0.26 % short, which is what the ~1 kohm this sweep reads
+at 0.6 V and 1.2 V predicts); the 13.4 % is the p-side top plate sitting
+**78.9 mV above `vcm`** when `phi1e` opens. 98 % of that corner's error is the
+top-plate hold, so **`fs`/0.6 V is not a `Sin` result and a `Sin` remedy cannot
+move it.** The top-plate term is already 69 mV at cycle 1, when the output has
+only reached 0.298 V, so it is not the OTA range excursion either; the
+suspected cause is `XSci_*`'s missing PMOS half (see "`Sci`/`Scr` get no PMOS
+half" below), reasoned from the netlist and **not separately simulated**.
+
+**No spec row bounds input-sampling completeness, so none of this is a pass/fail
+result and no SNDR or resolution consequence is claimed** -- nothing here has
+been through model B. The cell is **unchanged** by that extraction. The two
+mechanisms are deferred separately, because they are different switches with
+different remedies: whether to give `Sin` the issue #92 treatment, lengthen
+`phi1`, or accept the bottom-plate error is **#129**; the `Sci` top-plate hold
+is **#147**. Both were filed from these numbers.
 
 `phi2b`, the complement the PMOS halves need, is generated inside this cell by
 one inverter (`Iphi2b_n`/`Iphi2b_p`, NMOS W 2 / PMOS W 4, both m = 4) from the
@@ -201,6 +298,24 @@ during `phi1e`, and the probe shows the top plate already reaches 0.8993 V at
 as-built run) -- the sampling path never needed the charge the integrate path
 does, so a PMOS half there would be capacitance for nothing.
 
+> **Qualifier (issue #106, from `sim/integrator-ci/record-i106.json`): the
+> conclusion above is contradicted at the top of the input range.** On the
+> DR-002 grid with a 0.6 V differential input, the p-side top plate is
+> **78.9 mV above `vcm`** at `fs`/1.620 V/-40 C at the instant `phi1e` opens,
+> and that hold error -- not `Sin` -- is 98 % of that corner's sampling error
+> (see "`Sin` over PVT" above). So `Sci` does **not** always "already reach
+> 0.8993 V with the subthreshold NMOS alone".
+>
+> The two readings are not the same measurement, and this note does not claim
+> to reconcile them: `tpi_smp` is one point of `v(xint.tpi_p)` on the
+> *integrator-settling* deck with the DAC live (`vrefp`/`vrefn` 1.5/0.3,
+> `dn` 1), probed **20 ns** into the phase, while the #106 figure is on the
+> charge-injection deck with the DAC nulled, read at the **90.5 ns** `phi1e`
+> fall. Why the hold is intact at the first and 78.9 mV off at the second is
+> **not established** -- `Sci` has never been swept at any corner. The
+> sizing decision is therefore **bounded, not replaced**, and the decision is
+> **#147**.
+
 ## Settling in the 97.7 ns phase (hand-calc, not simulated)
 
 Phase = `1 / (2 * 5.12 MHz)` = 97.66 ns (spec row 5), target 0.01 % = 9.2 time
@@ -208,11 +323,21 @@ constants, so the total time constant must be <= 10.6 ns. Non-overlap and the
 `phi1e`/`phi1` skew take part of the phase and are not allocated here.
 
 - **Sampling, input path.** Loop `Sin` (1.73 kohm) + `Sci` (0.57 kohm) times
-  `Cs` = 2.3 ns; 9.2 tau = 21 ns.
+  `Cs` = 2.3 ns; 9.2 tau = 21 ns. **Superseded over PVT, and this arithmetic is
+  why**: both Ron figures are `tt`/27 C/1.8 V probes, and at
+  `ss`/1.620 V/-40 C the `Sin` gate is 584 kohm near `vcm`, not 1.73 kohm (see
+  "`Sin` over PVT" above). The phase also delivers less than it looks: the
+  sample is frozen when `phi1e` opens, 90.4 ns in, not when `phi1` opens at
+  92.5 ns. `sim/integrator-ci/record-i106.json` measures the result over the
+  DR-002 grid instead of calculating it, and at that corner a 0.2 V
+  differential input is 54.3 % unsampled.
 - **Sampling, DAC path (upper bound).** `Mr*` + `Sr` at their worst 1.73 kohm
   each, plus `Scr` 0.57 kohm = 4.0 ns; 9.2 tau = 37 ns. In practice the last
   part of the exponential happens near a rail, where the transmission gates
-  are 0.2-0.5 kohm.
+  are 0.2-0.5 kohm -- and the PVT sweep above bears that out: the same gate is
+  0.28 kohm at `vrefn` = 0.3 V and 0.71 kohm at `vrefp` = 1.5 V even at
+  `ss`/1.620 V/-40 C, so unlike the input path the reference path never sits on
+  the peak. Not separately simulated in the transient.
 - **Integration, switch part.** Bottom-plate and top-plate switches in series
   with `Cs` (0.57 + 0.57 kohm, 1 pF) = 1.15 ns, added to the OTA time constant.
 - **Integration, OTA part.** In the integrate phase both `Csi` and `Csr` are on
@@ -373,8 +498,17 @@ capacitor mismatch (klt reports the `cap_mim_*` family's mismatch as unverified
 for sky130, so it is outside the charge-injection sigma above), the
 reference-node settling through the mux, layout and parasitics. Monte Carlo is
 done for charge injection only (issue #102); every other mechanism here is still
-nominal-grid only. Incomplete *input* sampling at the slow/cold corners is owed
-as #106 -- a separate mechanism from charge injection, found by the #102 bench.
+nominal-grid only.
+
+**No longer owed** (issue #106): incomplete *input* sampling -- a separate
+mechanism from charge injection, found by the #102 bench -- is extracted over
+the DR-002 full grid at two input amplitudes in
+`sim/integrator-ci/record-i106.json`, with the switch mechanism swept over the
+five skews in `sim/switch-probe/probe-i106.json`. Still owed on it: Monte Carlo
+/ mismatch, layout parasitics, any model-B consequence, a direct `Sci` sweep,
+and the decision on whether to change the cell -- **#129** for the `Sin`
+bottom-plate term and **#147** for the `Sci` top-plate hold, both filed from
+those numbers.
 
 **No longer owed** (issue #102): charge injection and its mismatch-driven
 differential part, over the DR-002 full grid and a Monte Carlo campaign at the
