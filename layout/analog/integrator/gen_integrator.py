@@ -93,8 +93,6 @@ VIA2_UM = 0.20           # via2.1a exact size
 VIA3_UM = 0.20           # via3.1a exact size
 WIRE_UM = 0.34           # met1/met2 wire width (via1 enclosure sets the floor)
 MET1_SPACE_UM = 0.14     # m1.2
-MET2_SPACE_UM = 0.14     # m2.2
-MCON_SPACE_UM = 0.19     # ct.2
 MET34_W_UM = 0.60        # met3/met4 wire width
 MET34_SPACE_UM = 0.30    # m3.2/m4.2
 PAD34_UM = 0.60          # met2/met3/met4 landing pad for a via2/via3
@@ -889,7 +887,6 @@ class Router:
         self.met1_index: dict[int, list[tuple[str, Rect]]] = defaultdict(list)
         self.met3: list[tuple[str, Rect]] = []
         self.met4: list[tuple[str, Rect]] = []
-        self.mcons: list[Rect] = []
         self.used_cols: set[int] = set()
         #: Every routed rectangle, keyed by (net, layer).  Only used after the
         #: fact, by `summing_node_report()`.
@@ -920,7 +917,6 @@ class Router:
 
     def add_mcon(self, x: float, y: float) -> None:
         rect = Rect.centred(x, y, MCON_UM, MCON_UM)
-        self.mcons.append(rect)
         self.add_shape(L_MCON, rect)
 
     def add_trunk_via(self, net: str, col: float, y: float) -> None:
@@ -956,10 +952,6 @@ class Router:
                     if not self._ok(rect, placed, owner == net, gap):
                         return False
         return True
-
-    def mcon_free(self, rects: list[Rect]) -> bool:
-        gap = nm(MCON_SPACE_UM)
-        return not any(r.clashes(p, gap) for p in self.mcons for r in rects)
 
     # -- candidate orders ------------------------------------------------------
     def columns(self, x0: float, x1: float, pref: float):
