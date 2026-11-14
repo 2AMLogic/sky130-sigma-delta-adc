@@ -1,7 +1,7 @@
 """Shared `klt sim` plumbing for the transistor-level benches.
 
-Used by ota-settling, integrator-settling, integrator-ci, ota-gain and
-integrator-noise. Toolchain only:
+Used by ota-settling, integrator-settling, integrator-ci, ota-gain,
+integrator-noise and comparator-decision. Toolchain only:
 submits a `klt sim` request, parses the report into per-corner measurements,
 summarizes it, and builds the common DR-002 request. Each bench keeps its own
 fixture, measurements and record metadata.
@@ -116,7 +116,7 @@ def _find_receipt(outdir):
 
 def run_klt(request_path, probe, tmpdir, tag, probe_path, *,
             capacity_wait_s=CAPACITY_WAIT_S, artifacts_dir=None, keys=KEYS,
-            hosts=None):
+            hosts=None, outdir=None, resume=False):
     """Run `klt sim` on request_path; with probe, on one local tt/27C/1.8V corner.
 
     Batch submits always pass --wait-for-capacity, so a refused launch waits
@@ -126,6 +126,15 @@ def run_klt(request_path, probe, tmpdir, tag, probe_path, *,
 
     `keys` selects which measurements are carried into the per-corner dict
     (default: the settling benches' KEYS).
+
+    `outdir` overrides the per-run scratch directory (default: a fresh one
+    under `tmpdir`). A stable one is what makes `resume` possible: `klt sim`
+    keeps its shard map and checkpoint there. `resume` passes `--resume`, so
+    a re-run launches only the units a previous run left unrun -- the fleet
+    loses shards to capacity refusals and Spot reclaims routinely, and
+    without this the only way to finish such a grid is to pay for all of it
+    again. `resume` without a matching `outdir` from an earlier run is an
+    error `klt sim` reports; this helper does not second-guess it.
 
     `hosts` shards the expanded unit list across that many fleet instances
     (`--hosts`). The fleet kills a job that is still running at its whole-job
@@ -137,7 +146,7 @@ def run_klt(request_path, probe, tmpdir, tag, probe_path, *,
     Returns (report, corners) or None (details on stderr) if no usable report.
     """
     request_path = pathlib.Path(request_path)
-    outdir = pathlib.Path(tmpdir) / f"out-{tag}"
+    outdir = pathlib.Path(outdir) if outdir else pathlib.Path(tmpdir) / f"out-{tag}"
     report_out = pathlib.Path(tmpdir) / f"report-{tag}.json"
     cmd = ["klt", "sim", str(request_path), "--format", "json",
            "-o", str(outdir), "--report-out", str(report_out)]
@@ -152,6 +161,8 @@ def run_klt(request_path, probe, tmpdir, tag, probe_path, *,
         cmd += ["--backend", "local"]
     else:
         cmd += ["--wait-for-capacity", str(capacity_wait_s)]
+        if resume:
+            cmd += ["--resume"]
         if hosts:
             cmd += ["--hosts", str(hosts)]
     r = subprocess.run(cmd, capture_output=True, text=True)
