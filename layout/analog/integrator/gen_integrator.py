@@ -63,11 +63,20 @@ import argparse
 import hashlib
 import json
 import shutil
-import subprocess
 import sys
 import tempfile
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
+
+# layout_common is the shared plumbing module one directory up (issue #176);
+# the path insert is what lets
+# `python3 layout/analog/integrator/gen_integrator.py` run from any working
+# directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from layout_common import (DBU, GRID_UM, PDK_ROOT_DEFAULT, PDK_VARIANT, emit,
+                           extract_nets, klt_pin, nm, parse_extract_devices,
+                           run, snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
 L_LI1 = (67, 20)
@@ -85,8 +94,7 @@ L_LVTN = (125, 44)
 # --- rule-derived geometry (sky130 deck minimums plus margin) -----------------
 # Identical to the sibling OTA generator's table; see
 # layout/analog/ota_fd/gen_ota_fd.py for the per-constant derivation.
-DBU = 1000
-GRID_UM = 0.005          # manufacturing grid (*.ongrid.1)
+# DBU/GRID_UM come from layout_common, alongside nm/snap which use them.
 MCON_UM = 0.17           # ct.1 exact size
 VIA_UM = 0.15            # via.1a exact size
 VIA2_UM = 0.20           # via2.1a exact size
@@ -133,8 +141,6 @@ BUCKET_NM = 2000         # y bucket for the met1 overlap index
 LVTN_ENCLOSE_UM = 0.38
 
 # --- PDK pin (mirrors sim/pdk.json) -------------------------------------------
-PDK_VARIANT = "sky130A"
-PDK_ROOT_DEFAULT = "~/.ciel"
 TOP_CELL = "integrator"
 
 # --- the instantiated OTA cell (#118) -----------------------------------------
@@ -425,15 +431,6 @@ EXPECTED_DEVICES = {
 EXPECTED_FLAVOUR_BLIND = {"nfet": 21, "pfet": 17, "cap_mim": 6}
 
 
-def nm(value_um: float) -> int:
-    return int(round(value_um * DBU))
-
-
-def snap(value_um: float) -> float:
-    """Round onto the PDK manufacturing grid (*.ongrid.1)."""
-    return round(round(value_um / GRID_UM) * GRID_UM, 6)
-
-
 def sha256_of(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -474,15 +471,6 @@ class Rect:
 
 class RouteError(RuntimeError):
     """The floorplan/router could not place a wire."""
-
-
-def run(cmd: list[str], cwd: Path | None = None, check: bool = True):
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
-    if check and result.returncode != 0:
-        raise RuntimeError(
-            f"command failed (rc={result.returncode}): {' '.join(cmd)}\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
-    return result
 
 
 # --- orientation --------------------------------------------------------------
@@ -1415,57 +1403,6 @@ def build(blocks: dict[str, Block], ota: dict, axis_y: float, ota_x: float):
 
 
 # --- device-count evidence ----------------------------------------------------
-def _symmetric_terminals(terminals: tuple[str, ...]) -> tuple[str, ...]:
-    """Normalise a device's terminal order over the terminals it is symmetric
-    in: a MOSFET's source and drain are interchangeable and alternate finger by
-    finger, so without this a 4-finger device counts as two."""
-    if len(terminals) == 4:          # D G S B
-        d, g, src, b = terminals
-        lo, hi = sorted((d, src))
-        return (lo, g, hi, b)
-    if len(terminals) == 3:          # A B bulk (res)
-        a, b, bulk = terminals
-        lo, hi = sorted((a, b))
-        return (lo, hi, bulk)
-    return tuple(sorted(terminals))  # 2-terminal (cap)
-
-
-def parse_extract_devices(netlist_text: str) -> tuple[Counter, Counter]:
-    """Count extracted devices by model, and by model with parallel same-net
-    devices merged (what an LVS combine-parallel-devices pass does)."""
-    raw: Counter = Counter()
-    groups: set[tuple[str, tuple[str, ...]]] = set()
-    for line in netlist_text.splitlines():
-        tok = line.split()
-        if not tok or not tok[0].startswith("X"):
-            continue
-        model = next((t for t in tok if t.startswith("sky130_fd_pr__")
-                      or t in ("nfet", "pfet")), None)
-        if model is None:
-            continue
-        terminals = tuple(tok[1:tok.index(model)])
-        raw[model] += 1
-        groups.add((model, _symmetric_terminals(terminals)))
-    combined: Counter = Counter()
-    for model, _terminals in groups:
-        combined[model] += 1
-    return raw, combined
-
-
-def extract_nets(netlist_text: str) -> list[str]:
-    nets: set[str] = set()
-    for line in netlist_text.splitlines():
-        tok = line.split()
-        if not tok or not tok[0].startswith("X"):
-            continue
-        model = next((t for t in tok if t.startswith("sky130_fd_pr__")
-                      or t in ("nfet", "pfet")), None)
-        if model is None:
-            continue
-        nets.update(tok[1:tok.index(model)])
-    return sorted(nets)
-
-
 def extracted_pins(netlist_text: str) -> list[list[str]]:
     """The extracted pin list, one entry per *pin*, each a list of the label
     texts that resolved to it.
@@ -1494,22 +1431,6 @@ def flavour_blind(counts: dict[str, int]) -> dict[str, int]:
 
 
 # --- flow ---------------------------------------------------------------------
-def klt_pin(klt: str) -> dict:
-    """The exact klt build, recorded with the evidence: the stream is
-    byte-reproducible at *this* build, so the reader has to be told which."""
-    r = run([klt, "version", "--format", "json"], check=False)
-    try:
-        d = json.loads(r.stdout)
-    except Exception:
-        return {"klt": "unknown"}
-    return {
-        "klt": d.get("version"),
-        "git_commit": d.get("git_commit"),
-        "reinstall_spec": d.get("reinstall_spec"),
-        "klayout": d.get("klayout_version"),
-    }
-
-
 def _ota_access(grid_um: float) -> dict:
     """One `ports_from_labels` `access` block.
 
@@ -1883,13 +1804,6 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
     return {"drc": drc, "extract": evidence, "route": route_summary}
 
 
-def emit(out_dir: Path, cell_dir: Path) -> None:
-    shutil.copyfile(out_dir / f"{TOP_CELL}.gds", cell_dir / f"{TOP_CELL}.gds")
-    for name in ("extract-device-count.json", "drc.report.json"):
-        shutil.copyfile(out_dir / name, cell_dir / name)
-    shutil.copyfile(out_dir / "route.summary.json", cell_dir / "route-summary.json")
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Generate and verify layout/analog/integrator/integrator.gds "
@@ -1930,7 +1844,7 @@ def main() -> int:
                 shutil.rmtree(tmp, ignore_errors=True)
 
     result = flow(args.klt, pdk_root, cell_dir / "_gen", cell_dir)
-    emit(cell_dir / "_gen", cell_dir)
+    emit(cell_dir / "_gen", cell_dir, TOP_CELL)
     drc = result["drc"]
     print(f"gen_integrator.py: wrote {TOP_CELL}.gds + evidence to {cell_dir} "
           f"(drc status={drc.get('status')!r}, "

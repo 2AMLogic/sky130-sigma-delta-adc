@@ -55,11 +55,19 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import subprocess
 import sys
 import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
+
+# layout_common is the shared plumbing module one directory up (issue #176);
+# the path insert is what lets `python3 layout/analog/ota_fd/gen_ota_fd.py`
+# run from any working directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from layout_common import (DBU, GRID_UM, PDK_ROOT_DEFAULT, PDK_VARIANT, emit,
+                           extract_nets, klt_pin, nm, parse_extract_devices,
+                           run, snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
 L_LI1 = (67, 20)
@@ -74,8 +82,6 @@ L_VIA3 = (70, 44)
 L_MET4 = (71, 20)
 
 # --- rule-derived geometry (sky130 deck minimums plus margin) -----------------
-DBU = 1000
-GRID_UM = 0.005          # manufacturing grid (*.ongrid.1)
 MCON_UM = 0.17           # ct.1 exact size
 VIA_UM = 0.15            # via.1a exact size
 VIA2_UM = 0.20           # via2.1a exact size
@@ -100,8 +106,6 @@ JOG_REACH_UM = 6.0       # how far a met1 jog may climb off a strap's own y
 BUCKET_NM = 2000         # y bucket for the met1 overlap index
 
 # --- PDK pin (mirrors sim/pdk.json) -------------------------------------------
-PDK_VARIANT = "sky130A"
-PDK_ROOT_DEFAULT = "~/.ciel"
 TOP_CELL = "ota_fd"
 
 # --- device groups ------------------------------------------------------------
@@ -262,15 +266,6 @@ EXPECTED_DEVICES = {
 }
 
 
-def nm(value_um: float) -> int:
-    return int(round(value_um * DBU))
-
-
-def snap(value_um: float) -> float:
-    """Round onto the PDK manufacturing grid (*.ongrid.1)."""
-    return round(round(value_um / GRID_UM) * GRID_UM, 6)
-
-
 class Rect:
     """An axis-aligned rectangle in integer nanometres."""
 
@@ -307,15 +302,6 @@ class Rect:
 
 class RouteError(RuntimeError):
     """The floorplan/router could not place a wire."""
-
-
-def run(cmd: list[str], cwd: Path | None = None, check: bool = True):
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
-    if check and result.returncode != 0:
-        raise RuntimeError(
-            f"command failed (rc={result.returncode}): {' '.join(cmd)}\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
-    return result
 
 
 # --- port expansion -----------------------------------------------------------
@@ -869,68 +855,6 @@ def build(blocks, reports, origins, port_nets):
 
 
 # --- device-count evidence ----------------------------------------------------
-def _symmetric_terminals(terminals: tuple[str, ...]) -> tuple[str, ...]:
-    """Normalise a device's terminal order over the terminals it is symmetric in.
-
-    A MOSFET's source and drain are interchangeable, and a multi-finger device
-    extracts with them alternating finger by finger (half the fingers come out
-    D-G-S-B, half S-G-D-B).  Without this they look like two different
-    devices and never combine, so a `fingers=16` tail current source would
-    count as two.  Resistors and capacitors are symmetric in both terminals.
-    """
-    if len(terminals) == 4:          # D G S B
-        d, g, src, b = terminals
-        lo, hi = sorted((d, src))
-        return (lo, g, hi, b)
-    if len(terminals) == 3:          # A B bulk (res)
-        a, b, bulk = terminals
-        lo, hi = sorted((a, b))
-        return (lo, hi, bulk)
-    return tuple(sorted(terminals))  # 2-terminal (cap)
-
-
-def parse_extract_devices(netlist_text: str) -> tuple[Counter, Counter]:
-    """Count extracted devices by model, merging parallel same-net devices.
-
-    One drawn transistor is one line, so a ``splits=8`` leg appears as eight
-    W=10 devices where the schematic declares one ``mult=8`` device, and a
-    16-finger ``mos_array`` appears as 16.  Counting therefore merges devices
-    sharing a model and all terminals -- what an LVS "combine parallel
-    devices" pass does -- and reports the raw counts beside the merged ones so
-    the merge is visible rather than silent.
-    """
-    raw: Counter = Counter()
-    groups: set[tuple[str, tuple[str, ...]]] = set()
-    for line in netlist_text.splitlines():
-        tok = line.split()
-        if not tok or not tok[0].startswith("X"):
-            continue
-        model = next((t for t in tok if "sky130_fd_pr__" in t), None)
-        if model is None:
-            continue
-        terminals = tuple(tok[1:tok.index(model)])
-        raw[model] += 1
-        groups.add((model, _symmetric_terminals(terminals)))
-    combined: Counter = Counter()
-    for model, _terminals in groups:
-        combined[model] += 1
-    return raw, combined
-
-
-def extract_nets(netlist_text: str) -> list[str]:
-    """Every distinct net name appearing on an extracted device terminal."""
-    nets: set[str] = set()
-    for line in netlist_text.splitlines():
-        tok = line.split()
-        if not tok or not tok[0].startswith("X"):
-            continue
-        model = next((t for t in tok if "sky130_fd_pr__" in t), None)
-        if model is None:
-            continue
-        nets.update(tok[1:tok.index(model)])
-    return sorted(nets)
-
-
 def count_check(combined: Counter) -> tuple[bool, dict]:
     found: dict[str, int] = {}
     other = dict(combined)
@@ -948,26 +872,6 @@ def count_check(combined: Counter) -> tuple[bool, dict]:
 
 
 # --- flow ---------------------------------------------------------------------
-def klt_pin(klt: str) -> dict:
-    """The exact klt build, recorded with the evidence.
-
-    The stream is byte-reproducible at *this* build: a generator change
-    upstream moves geometry, so `--check` is an assertion about one klt, and
-    the reader has to be told which one.
-    """
-    r = run([klt, "version", "--format", "json"], check=False)
-    try:
-        d = json.loads(r.stdout)
-    except Exception:
-        return {"klt": "unknown"}
-    return {
-        "klt": d.get("version"),
-        "git_commit": d.get("git_commit"),
-        "reinstall_spec": d.get("reinstall_spec"),
-        "klayout": d.get("klayout_version"),
-    }
-
-
 def flow(klt: str, pdk_root: Path, out_dir: Path, verbose: bool = True) -> dict:
     pdk_args = ["--pdk", PDK_VARIANT, "--pdk-root", str(pdk_root)]
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1089,13 +993,6 @@ DELIVERABLES = (f"{TOP_CELL}.gds", "extract-device-count.json", "drc.report.json
                 "route-summary.json", "compose-report.json")
 
 
-def emit(out_dir: Path, cell_dir: Path) -> None:
-    shutil.copyfile(out_dir / f"{TOP_CELL}.gds", cell_dir / f"{TOP_CELL}.gds")
-    for name in ("extract-device-count.json", "drc.report.json"):
-        shutil.copyfile(out_dir / name, cell_dir / name)
-    shutil.copyfile(out_dir / "route.summary.json", cell_dir / "route-summary.json")
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Generate and verify layout/analog/ota_fd/ota_fd.gds and "
@@ -1136,7 +1033,7 @@ def main() -> int:
                 shutil.rmtree(tmp, ignore_errors=True)
 
     result = flow(args.klt, pdk_root, cell_dir / "_gen")
-    emit(cell_dir / "_gen", cell_dir)
+    emit(cell_dir / "_gen", cell_dir, TOP_CELL)
     drc = result["drc"]
     print(f"gen_ota_fd.py: wrote {TOP_CELL}.gds + evidence to {cell_dir} "
           f"(drc status={drc.get('status')!r}, "
