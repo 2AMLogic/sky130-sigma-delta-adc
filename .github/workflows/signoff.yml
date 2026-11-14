@@ -61,6 +61,17 @@ jobs:
       - name: Check the item-8 characterization envelope still reproduces
         run: python3 -I attestation/item8_envelope.py --check
 
+      # Item 6 (digital partition) is discharged by a recorded
+      # `not_applicable`, which klt signoff hash-binds to two JSON files under
+      # spec/. klt cannot see that those files are a projection of the ratified
+      # Markdown, so this check binds that last link: it re-derives the row
+      # projection from spec/modulator-adc.md section 1.1 and fails if the
+      # Markdown no longer hashes to the value recorded in the projection.
+      # Editing the ratified spec therefore invalidates the claim loudly.
+      # Runs before the byte-compare below so the failure names the cause.
+      - name: Decimator spec projection is bound to the ratified spec (no EDA tools)
+        run: python3 -I -m unittest discover -s spec -p 'test_*.py'
+
       - name: Re-run klt signoff and compare against the committed record
         run: |
           set -uo pipefail
