@@ -1,0 +1,186 @@
+{
+  "netlist": "comparator_decision_trip.cir",
+  "engine": "ngspice",
+  "backend": "batch",
+  "models": {
+    "pdk": "sky130A",
+    "lib": "libs.tech/ngspice/sky130.lib.spice"
+  },
+  "corners": {
+    "process": [
+      "tt",
+      "ss",
+      "ff",
+      "sf",
+      "fs"
+    ],
+    "supply_v": {
+      "vdda": [
+        1.62,
+        1.8,
+        1.98
+      ]
+    },
+    "temperature_c": [
+      -40,
+      27,
+      125
+    ]
+  },
+  "analysis": {
+    "kind": "tran",
+    "args": "0.05n 4.8276e-06 0 5n"
+  },
+  "measurements": [
+    {
+      "name": "flip_up",
+      "expr": "vecmax(((time ge 7.8935e-07)*(time le 2.5471625e-06))*(v(dd) ge 0.5*v(vdda)))",
+      "limits": {
+        "min": 1
+      }
+    },
+    {
+      "name": "flip_dn",
+      "expr": "vecmax(((time ge 2.5471625e-06)*(time le 4.6956e-06))*(v(dd) le -0.5*v(vdda)))",
+      "limits": {
+        "min": 1
+      }
+    },
+    {
+      "name": "tflip_up",
+      "expr": "vecmin(time*(((time ge 7.8935e-07)*(time le 2.5471625e-06))*(v(dd) ge 0.5*v(vdda))) + 2.35385e-06*(1-(((time ge 7.8935e-07)*(time le 2.5471625e-06))*(v(dd) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "tflip_dn",
+      "expr": "vecmin(time*(((time ge 2.5471625e-06)*(time le 4.6956e-06))*(v(dd) le -0.5*v(vdda))) + 4.5022875e-06*(1-(((time ge 2.5471625e-06)*(time le 4.6956e-06))*(v(dd) le -0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "k_up",
+      "expr": "floor((tflip_up - 1.01e-08)/1.953125e-07)",
+      "limits": {
+        "min": 5,
+        "max": 12
+      }
+    },
+    {
+      "name": "k_dn",
+      "expr": "floor((tflip_dn - 1.01e-08)/1.953125e-07)",
+      "limits": {
+        "min": 15,
+        "max": 23
+      }
+    },
+    {
+      "name": "t_up",
+      "expr": "1.01e-08 + k_up*1.953125e-07",
+      "unit": "s"
+    },
+    {
+      "name": "t_dn",
+      "expr": "1.01e-08 + k_dn*1.953125e-07",
+      "unit": "s"
+    },
+    {
+      "name": "v_trip_up",
+      "expr": "mean(v(o2d)*((time ge (t_up+5e-08))*(time le (t_up+8e-08))))/mean((time ge (t_up+5e-08))*(time le (t_up+8e-08)))",
+      "unit": "V"
+    },
+    {
+      "name": "v_prev_up",
+      "expr": "mean(v(o2d)*((time ge (t_up-1.453125e-07))*(time le (t_up-1.153125e-07))))/mean((time ge (t_up-1.453125e-07))*(time le (t_up-1.153125e-07)))",
+      "unit": "V"
+    },
+    {
+      "name": "step_up",
+      "expr": "v_trip_up - v_prev_up",
+      "unit": "V",
+      "limits": {
+        "min": 2e-06
+      }
+    },
+    {
+      "name": "tphi1_up",
+      "expr": "vecmin(time*(((time ge (t_up-2e-09))*(time le (t_up+1.1e-07)))*(v(xmod.phi1) ge 0.5*v(vdda))) + 2.46385e-06*(1-(((time ge (t_up-2e-09))*(time le (t_up+1.1e-07)))*(v(xmod.phi1) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "tdec_up",
+      "expr": "tflip_up - tphi1_up",
+      "unit": "s"
+    },
+    {
+      "name": "v_trip_dn",
+      "expr": "mean(v(o2d)*((time ge (t_dn+5e-08))*(time le (t_dn+8e-08))))/mean((time ge (t_dn+5e-08))*(time le (t_dn+8e-08)))",
+      "unit": "V"
+    },
+    {
+      "name": "v_prev_dn",
+      "expr": "mean(v(o2d)*((time ge (t_dn-1.453125e-07))*(time le (t_dn-1.153125e-07))))/mean((time ge (t_dn-1.453125e-07))*(time le (t_dn-1.153125e-07)))",
+      "unit": "V"
+    },
+    {
+      "name": "step_dn",
+      "expr": "v_trip_dn - v_prev_dn",
+      "unit": "V",
+      "limits": {
+        "max": -2e-06
+      }
+    },
+    {
+      "name": "tphi1_dn",
+      "expr": "vecmin(time*(((time ge (t_dn-2e-09))*(time le (t_dn+1.1e-07)))*(v(xmod.phi1) ge 0.5*v(vdda))) + 4.6122875e-06*(1-(((time ge (t_dn-2e-09))*(time le (t_dn+1.1e-07)))*(v(xmod.phi1) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    },
+    {
+      "name": "tdec_dn",
+      "expr": "tflip_dn - tphi1_dn",
+      "unit": "s"
+    },
+    {
+      "name": "span_up",
+      "expr": "mean((v(o2d))*((time ge 2.40385e-06)*(time le 2.43385e-06)))/mean((time ge 2.40385e-06)*(time le 2.43385e-06)) - mean((v(o2d))*((time ge 8.4135e-07)*(time le 8.7135e-07)))/mean((time ge 8.4135e-07)*(time le 8.7135e-07))",
+      "unit": "V",
+      "limits": {
+        "min": 2e-06
+      }
+    },
+    {
+      "name": "span_dn",
+      "expr": "mean((v(o2d))*((time ge 4.5522875e-06)*(time le 4.5822875e-06)))/mean((time ge 4.5522875e-06)*(time le 4.5822875e-06)) - mean((v(o2d))*((time ge 2.794475e-06)*(time le 2.824475e-06)))/mean((time ge 2.794475e-06)*(time le 2.824475e-06))",
+      "unit": "V",
+      "limits": {
+        "max": -2e-06
+      }
+    },
+    {
+      "name": "vos_V",
+      "expr": "-0.5*(v_trip_up + v_trip_dn)",
+      "unit": "V"
+    },
+    {
+      "name": "hyst_V",
+      "expr": "v_trip_up - v_trip_dn",
+      "unit": "V"
+    },
+    {
+      "name": "phi1_width",
+      "expr": "vecmax(time*(((time ge 7.8935e-07)*(time le 9.4135e-07))*(v(xmod.phi1) ge 0.5*v(vdda)))) - vecmin(time*(((time ge 7.8935e-07)*(time le 9.4135e-07))*(v(xmod.phi1) ge 0.5*v(vdda))) + 9.4135e-07*(1-(((time ge 7.8935e-07)*(time le 9.4135e-07))*(v(xmod.phi1) ge 0.5*v(vdda)))))",
+      "unit": "s"
+    }
+  ],
+  "options": {
+    "timeout_s": 1700,
+    "keep_artifacts": false,
+    "ngspice_init": [
+      "set numdgt=12",
+      "set measureprec=12"
+    ]
+  },
+  "batch": {
+    "poll_timeout_s": 21600,
+    "capacity_wait_s": 600,
+    "job_ceiling_check": "split"
+  }
+}

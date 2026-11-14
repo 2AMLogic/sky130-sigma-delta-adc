@@ -1,0 +1,40 @@
+* OTA open-loop DC-gain bench (issue #126) -- circuit body for `klt sim`
+* (no .lib/.control/.end: klt sim owns those; corner = process/temp/Vdda).
+* Circuit under test: design/ota/ota_fd.spice (klt netlist --block of ota_fd.sch).
+*
+* Measures the open-loop differential gain of ota_fd at the bias it has in the
+* integrator's integrate phase: inputs at the summing-node potential VCM = 0.9 V,
+* outputs at the CMFB-set output common mode, ibias = 5 uA sunk from vdda
+* (DR-005 ideal boundary), load CL,eff = 1.8 pF per side (the value
+* design/ota/SIZING.md derives for the integrator, and the value its
+* single-corner AC probe used). The DC gain itself does not depend on that
+* load -- only the bandwidth does -- so the load is for comparability, not for
+* the number.
+*
+* Open loop at AC, closed loop at DC. Lf* = 1e12 H is a short at DC, so .op
+* biases the OTA in unity feedback with vod = 0 and both inputs at the output
+* common mode; at 1 Hz its 6.3e12 ohm swamps the ~1 Mohm output resistance by
+* seven orders of magnitude, so the swept solution is open loop. Cf* = 1 F is
+* the dual: open at DC, 0.16 ohm at 1 Hz, so the differential drive reaches the
+* gates without disturbing the bias. The negative-feedback pairing is
+* inp<->outn, inn<->outp (inp's drain path M1 -> fa -> outn inverts), the same
+* pairing design/integrator/integrator.sch wires through Ci.
+.include "../../design/ota/ota_fd.spice"
+Vdda vdda 0 1.8
+Vvcm vcm 0 0.9
+Ibias vdda ibias 5u
+Xota vdda 0 inp inn outp outn vcm ibias ota_fd
+* 1 V differential AC drive, split into an antiphase pair by ideal VCVSs
+Vid vid 0 DC 0 AC 1 0
+Eip insp 0 vid 0 0.5
+Ein insn 0 vid 0 -0.5
+Cfp insp inp 1
+Cfn insn inn 1
+* DC-only unity feedback (bench-only; not part of the cell)
+Lfp outn inp 1e12
+Lfn outp inn 1e12
+* load: CL,eff inside the integrator, 1.8 pF per side
+Clp outp 0 1.8p
+Cln outn 0 1.8p
+* differential output probe: ideal, linear, noiseless
+Evod vod 0 outp outn 1

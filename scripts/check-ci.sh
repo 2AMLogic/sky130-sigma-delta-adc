@@ -31,10 +31,14 @@ WORKFLOW=".github/workflows/signoff.yml"
 # interpreter chosen below at run time.
 CHECKS=(
   ".|python3 -I attestation/item8_envelope.py --check"
+  ".|python3 -I -m unittest discover -s spec -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s sim/bmodel -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s sim -p 'test_settling*.py'"
   ".|python3 -I -m unittest discover -s sim/integrator-settling -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'"
+  ".|python3 -I -m unittest discover -s sim/ota-gain -p 'test_*.py'"
+  ".|python3 -I -m unittest discover -s sim/integrator-noise -p 'test_*.py'"
+  ".|python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'"
   "verification/decimator|python3 response.py"
 )
 

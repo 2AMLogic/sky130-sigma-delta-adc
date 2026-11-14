@@ -184,7 +184,7 @@ supply plan and no inter-cell abutment.
 | Cell | Directory | Status |
 |---|---|---|
 | `ota_fd` — fully-differential folded-cascode OTA | `analog/ota_fd/` | generated, DRC `clean`, device count matches the netlist (#118) |
-| integrator | — | #119 |
+| `integrator` — switched-capacitor integrator + 1-bit feedback DAC | `analog/integrator/` | generated, DRC `clean`, device count matches the netlist per model including the low-Vth split (#119) |
 | clock generator | — | not started |
 
 ### `ota_fd` (#118)
@@ -225,3 +225,67 @@ a placer only. Nothing hand-drawn.
 
 Full floorplan, per-pair matching rationale, routing discipline and the klayout-tools
 gaps hit along the way: `analog/ota_fd/README.md`.
+
+### `integrator` (#119)
+
+`analog/integrator/integrator.gds`, top cell `integrator`, **493.67 x 313.32 um**
+(154,677 um^2, 3183 flattened polygons). Produced by
+`analog/integrator/gen_integrator.py` from `design/integrator/integrator.spice`:
+one `klt gen` call per distinct device geometry (9 of them cover all 44 netlist
+devices, one block per device — nothing folded into a shared array), ten
+`guard_ring` body-tie rings, the script's own floorplan and met1/met2 router,
+merged by `klt gen-compose` used as a placer only. **The OTA is instantiated,
+not redrawn**: a `blocks[].cell` entry naming the committed
+`analog/ota_fd/ota_fd.gds`. Nothing hand-drawn.
+
+- **Reproducing**: `python3 layout/analog/integrator/gen_integrator.py --check`
+  regenerates into a temp dir and **byte-compares** against the committed stream
+  (it passes; consecutive runs reproduce the 269,580-byte stream exactly).
+  Local-only, for the same reason as `ota_fd` — CI installs the pinned klt but
+  no PDK.
+- **Pinned inputs**: the generator asserts the sha256 of **both**
+  `analog/ota_fd/ota_fd.gds` (`27ace056…eeefe976`) and
+  `design/integrator/integrator.spice` (`18fc5147…4074d53`) before generating,
+  and aborts if either moved. That is what makes the stream detectably stale if
+  #143 resizes the OTA or #129/#147 resize a switch drawn here.
+- **Build that produced it**: klt `0.9.2.dev1022+g2a9c52b27ce7`, klayout
+  `0.30.13`, `sky130A` / open_pdks `f6eeac7`. A **later** build than the one that
+  produced `ota_fd.gds` (`dev964`); `blocks[].cell` does not regenerate the OTA,
+  so the OTA half of the stream is build-independent.
+- **DRC**: `klt drc` (sky130 curated deck) on `integrator.gds` is `clean` — **0
+  violations**, covering the OTA instance too; report
+  `analog/integrator/drc.report.json`. `layers_in_stream_without_rules`: `66/13`
+  (resistor-ID marker, from the OTA), `68/5` (`met1.pin`); `rules_skipped`: 51.
+  The 20 `lvtn` markers are checked (`lvtn.angle.1`, `lvtn.ongrid.1`). **Not** a
+  DRC-clean signoff claim — that stays with #31.
+- **Device count**: `klt extract` over the stream, minus `klt extract` over
+  `ota_fd.gds` alone in the same run, gives this cell's own **44 devices by
+  netlist model**: 9 `nfet_01v8`, 12 `nfet_01v8_lvt`, 9 `pfet_01v8`, 8
+  `pfet_01v8_lvt`, 6 `cap_mim_m3_1`, plus the OTA's 29 through its instance.
+  **The low-Vth split is confirmed by extraction**, contrary to the premise
+  #119's acceptance criterion was weakened on; `extract-device-count.json`
+  records both that result and the flavour-blind 21/17/6 the criterion asked
+  for, and explains the difference from the earlier probe.
+- **Pins and body ties**: the sixteen `.subckt` ports are labelled on `met1.pin`
+  and come back out of `klt extract`; `outp`/`outn` share a pin with the OTA's
+  own `outp`/`outn` labels, which is how the OTA's outputs are shown to be the
+  nets `Ci_p`/`Ci_n` sit on. 42 distinct device-terminal nets, the 29 this cell
+  declares plus the OTA's 21 less the 8 they share. Every nFET bulk extracts to
+  `vssa` and every pFET bulk to `vdda` through the ten tap rings.
+- **Mirror symmetry**: the cell has a horizontal axis at y = 143.43 um and each
+  capacitor group (`Csi`, `Csr`, `Ci`) is a true mirror pair about it, asserted
+  from the placed geometry on every run. The amplifier-side plate of all six is
+  bound to the MiM top plate, which is `design/integrator/SIZING.md:72-74`'s "to
+  be confirmed in layout" step — though extraction cannot read a plate binding
+  back, and whether `c0` is physically the top plate stays #146's question.
+- **Summing nodes**: `sump` 130.5 um, `sumn` 134.5 um of drawn wire, the
+  shortest nets in the cell that connect more than three anchors, symmetric to
+  3 %. Nothing is shielded, so all four met1 clock adjacencies (0.18–0.32 um,
+  all against `phi2`) and all fifteen met1/met2 clock crossings are listed in
+  `analog/integrator/route-summary.json` and in the cell's README.
+- LVS (#32), parasitic extraction (#35) and power-delivery checks (#39) are not
+  claimed.
+
+Full floorplan, plate-binding rationale, the OTA pin-access scheme, and the
+klayout-tools gaps hit along the way (#5607, #5608, #5609):
+`analog/integrator/README.md`.
