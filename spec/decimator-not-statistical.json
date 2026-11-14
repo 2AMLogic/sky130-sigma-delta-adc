@@ -1,0 +1,35 @@
+{
+  "comment": "Committed statement for T1 checklist item 6, digital partition: each decimation-filter row of the ratified specification is deterministic, so no row of this partition is validated by a statistical campaign. Cited from manifests/sky130-sigma-delta-adc.json under evidence.\"6.digital\".not_applicable alongside the row projection it accounts for, spec/decimator-rows.json, and hash-bound by it. klt signoff renders the outcome as not_applicable, never as met.",
+  "spec": {
+    "file": "spec/decimator-rows.json",
+    "comment": "The row set this statement accounts for, one entry below per row. spec/test_decimator_rows.py enforces the one-to-one cover."
+  },
+  "scope": "This statement speaks for the digital partition only, and only for the decimation-filter rows 6-10 of spec/modulator-adc.md section 1.1 that spec/decimator-rows.json projects. No other row of the ratified specification is graded by the digital partition, and no claim is made here about any of them. In particular it makes no claim about the analog partition's rows: row 2 (peak SNDR over the signal bandwidth) is statistical in substance and the analog half of this mixed-signal block owes it Monte Carlo evidence from a klt yield campaign, tracked in issue #34. The analog partition may not use this outcome at all, and item 6 analog stays unmet until that campaign lands.",
+  "rows": [
+    {
+      "id": "6",
+      "class": "deterministic-rate",
+      "reason": "The output word rate is a fixed integer division of the modulator clock: at a given operating point the filter emits one word every N clock cycles and N is a committed constant of the design, not a fabricated quantity. RTL simulation compares the emitted word stream bit-exactly against the reference model, so the row has a single reproducible value rather than a distribution, and its limit is an exact rate rather than a spread about a centre."
+    },
+    {
+      "id": "7",
+      "class": "deterministic-format",
+      "reason": "Output word width and number representation are structural properties of the RTL sources, fixed at elaboration and carried unchanged through synthesis. RTL simulation compares every output word bit for bit with the reference model. A word either is 16-bit two's complement or it is not; there is no population over which the property could vary and no limit expressed as a spread."
+    },
+    {
+      "id": "8",
+      "class": "deterministic-response",
+      "reason": "Passband ripple is a property of the filter's committed, fixed-point coefficient set and the integer arithmetic that implements it, both of which are design constants in the repository. The simulated transfer function is identical on every run, so the 0.1 dB limit bounds one reproducible response curve rather than a distribution over fabricated parts."
+    },
+    {
+      "id": "9",
+      "class": "deterministic-response",
+      "reason": "Alias-band attenuation follows from the same committed coefficient set and integer arithmetic as the passband row, and the whole-chain response is recomputed bit-exactly by verification/decimator/response.py on every CI run. The 90 dB and 75 dB limits bound a single deterministic transfer function, not a statistical limit over a population of parts."
+    },
+    {
+      "id": "10",
+      "class": "deterministic-structure",
+      "reason": "Filter order is a structural count of the committed architecture, the number of CIC integrator-comb stages and the FIR tap length in the RTL sources. It is readable directly from those sources and confirmed by bit-exact RTL simulation of the resulting response. A count of committed stages has no distribution and no spread to characterise."
+    }
+  ]
+}
