@@ -4,6 +4,16 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-15
 
+- **PR #193**: refactor(sim): share one measurement-dict helper across the six benches
+- **Issue #185** (closed): Share the measurement-dict helper e(): six identical copies in sim/*/make_request.py
+- **PR #181**: refactor: share the .partials/ sha staleness gate in settling_common.py
+- **Issue #174** (closed): Consolidate the triplicated .partials/ staleness gate into settling_common.py
+- **PR #200**: test: dedupe the by-path module loader into runner_test_common.load_runner
+- **Issue #165** (closed): Two by-path runner loaders remain in sim/ after #152: test_settling_common.py and comparator-decision/test_run_decision.py
+- **PR #189**: fix(layout): abort the analog generator flows on a non-clean klt drc verdict
+- **Issue #164** (closed): gen_integrator.py records klt drc but never asserts it, so a regeneration can emit a DRC-dirty stream with exit 0
+- **PR #196**: docs: grade characterization row 9 evidenced per DR-006, drop stale #18 citation
+- **Issue #170** (closed): characterization.md row 9 still cites #18 as pending, but #18 closed completed and DR-006 ratified the reading
 - **PR #188**: feat(layout): klt lvs the routed decimator against its as-built netlist and grade 4.digital met
 - **Issue #161** (closed): T1 item 4, digital only: klt lvs the routed decimator against its as-built netlist and cite it for 4.digital
 - **PR #184**: fix: evaluate gen --check at the klt build recorded in the cell's own provenance
