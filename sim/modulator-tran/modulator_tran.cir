@@ -28,6 +28,14 @@
 * the clock swings to that corner's Vdda instead of a fixed 1.8 V. A clock
 * that did not track the supply would leave the clkgen input inverter
 * partially on at Vdda = 1.98 V and pollute the row 13 power number.
+*
+* gmin is 1000x ngspice's 1e-12 default so the DC operating point of the
+* assembled modulator converges: the cross-coupled SR latch is bistable,
+* which is also the source of the expected `singular_matrix` warnings.
+* The cost is nA-scale leakage per node -- orders of magnitude below the
+* row 13 power record -- and a ~ms droop time constant against a 195 ns
+* clock; leakage only reduces swing, so it cannot create the row 11
+* railing.
 .options gmin=1e-9
 .include "../../design/ota/ota_fd.spice"
 .include "../../design/modulator/comparator/comparator.spice"
