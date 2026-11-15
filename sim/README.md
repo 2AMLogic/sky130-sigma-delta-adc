@@ -69,7 +69,10 @@ benches (`ota-settling`, `integrator-settling`, `integrator-ci`, `ota-gain`,
 `integrator-noise`, `comparator-decision`), plus the two toolchain helpers every
 local single-corner probe runner needs as well — `join_continuations()` (fold a
 netlist's `+` continuation lines back into the instance line that declares them)
-and `ngspice_version()`. `request()` builds the common 45-point grid request for
+and `ngspice_version()` (match the `ngspice-\d+` token anywhere in `ngspice -v`
+output; given a run log it prefers a token already captured there, which is how
+the two smoke benches — `smoke/`, `ota-op-smoke/` — stamp their records too).
+`request()` builds the common 45-point grid request for
 a transient or, since #126, for any other analysis kind. Its two
 record-validity gates — `grid_complete()` (all 45 DR-002 grid
 points returned) and `measurements_present(key=...)` (every one of them produced
