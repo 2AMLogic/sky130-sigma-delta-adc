@@ -84,7 +84,7 @@ Housekeeping already in pull requests: #152 (PR #157), #105 (PR #145), #103 (PR 
   is regenerated once): `layout/README.md` records 660 max-transition and 7
   max-capacitance violations at `ss_n40C_1v60`. Done when the committed STA report
   shows zero at every declared corner, or a decision record accepts them.
-- **Item 8**: turns `met` only when rows 1 to 3, 5, 9 and 11 to 14 of
+- **Item 8**: turns `met` only when rows 1 to 3, 5 and 11 to 14 of
   `measurements/characterization.md` leave `partial`/`pending` (#33, #34, #35).
 
 ## Later (each needs its question answered first)

@@ -27,7 +27,6 @@ What is pinned here:
   at `pass = false`.
 """
 import contextlib
-import importlib.util
 import io
 import json
 import os
@@ -39,18 +38,15 @@ import unittest
 from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parent
+# `sim/` is not on sys.path under `python3 -I`: isolated mode drops CWD and
+# PYTHONPATH, and `discover -s sim/comparator-decision` puts only the bench
+# directory there. The runner inserts it itself, inside rtc.load_runner()
+# below, which is too late for this import.
+sys.path.insert(0, str(HERE.parent))
 
+import runner_test_common as rtc                                    # noqa: E402
 
-def load_runner():
-    """Load run_decision.py by path: 'comparator-decision' is not importable."""
-    spec = importlib.util.spec_from_file_location(
-        "run_decision_under_test", HERE / "run_decision.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-RUNNER = load_runner()
+RUNNER = rtc.load_runner("run_decision_under_test", HERE / "run_decision.py")
 MR = RUNNER.MR
 SC = sys.modules["settling_common"]
 GRID_POINTS = SC.GRID_POINTS

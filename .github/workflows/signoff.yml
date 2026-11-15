@@ -150,6 +150,13 @@ jobs:
       - name: Digital P&R PDK-pin refusal unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s layout/digital -p 'test_*.py'
 
+      # The analog generators' DRC-verdict guard (issue #164): `klt drc` exits 3
+      # on violations but the call site passes check=False to capture the
+      # report, so the verdict is re-asserted in-process and a non-clean report
+      # aborts the flow. Fixtures only: synthetic report dicts, no klt, no PDK.
+      - name: Analog generator DRC-verdict guard unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s layout/analog -p 'test_*.py'
+
       - name: Decimator whole-chain response, spec rows 8-9 (no EDA tools)
         working-directory: verification/decimator
         run: python3 response.py
