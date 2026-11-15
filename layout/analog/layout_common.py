@@ -56,14 +56,14 @@ def emit(out_dir: Path, cell_dir: Path, top_cell: str) -> None:
     shutil.copyfile(out_dir / "route.summary.json", cell_dir / "route-summary.json")
 
 
-def klt_pin(klt: str) -> dict:
+def klt_pin(klt_cmd: list[str]) -> dict:
     """The exact klt build, recorded with the evidence.
 
     The stream is byte-reproducible at *this* build: a generator change
     upstream moves geometry, so `--check` is an assertion about one klt, and
     the reader has to be told which one.
     """
-    r = run([klt, "version", "--format", "json"], check=False)
+    r = run([*klt_cmd, "version", "--format", "json"], check=False)
     try:
         d = json.loads(r.stdout)
     except Exception:
@@ -74,6 +74,39 @@ def klt_pin(klt: str) -> dict:
         "reinstall_spec": d.get("reinstall_spec"),
         "klayout": d.get("klayout_version"),
     }
+
+
+class PinError(RuntimeError):
+    """`--check` cannot name the klt build it must assert against."""
+
+
+def recorded_pin(cell_dir: Path) -> dict:
+    """The klt pin recorded in this cell's committed DRC evidence.
+
+    `--check` asserts byte-reproducibility of the stream at one klt build
+    *and* one klayout version (the stream writer is klayout's); both are
+    read back from `drc.report.json` -> `provenance`
+    (`klt_version` / `klt_git_commit` / `klt_reinstall_spec` /
+    `klayout_version`) instead of being taken on faith from whatever `klt`
+    is on PATH.  A missing or unreadable pin is a hard error: a gate that
+    cannot name the build it asserts against must never pass.
+    """
+    path = cell_dir / "drc.report.json"
+    if not path.exists():
+        raise PinError(f"{path} does not exist -- no recorded klt pin")
+    try:
+        prov = json.loads(path.read_text()).get("provenance") or {}
+    except Exception as exc:
+        raise PinError(f"{path} is unreadable: {exc}") from exc
+    missing = [k for k in ("klt_version", "klt_git_commit",
+                           "klt_reinstall_spec", "klayout_version")
+               if not prov.get(k)]
+    if missing:
+        raise PinError(f"{path}: provenance lacks {', '.join(missing)}")
+    return {"klt": prov["klt_version"],
+            "git_commit": prov["klt_git_commit"],
+            "reinstall_spec": prov["klt_reinstall_spec"],
+            "klayout": prov["klayout_version"]}
 
 
 # --- extracted-netlist parsing ------------------------------------------------
