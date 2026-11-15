@@ -142,6 +142,14 @@ jobs:
       - name: Comparator decision record-admission unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'
 
+      # The digital-partition P&R runner's PDK-pin refusal (issue #158): the gate
+      # reads the stamp klt records at provenance.pdk.version, so a report whose
+      # PDK differs from sim/pdk.json -- or that records no PDK at all -- refuses
+      # with exit 2 instead of admitting an unpinned route as pinned evidence.
+      # Fixtures only: subprocess.run is patched, no klt, no openroad, no PDK.
+      - name: Digital P&R PDK-pin refusal unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s layout/digital -p 'test_*.py'
+
       - name: Decimator whole-chain response, spec rows 8-9 (no EDA tools)
         working-directory: verification/decimator
         run: python3 response.py
