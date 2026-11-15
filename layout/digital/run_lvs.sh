@@ -2,7 +2,7 @@
 # Reproduce layout/digital/lvs-decimator.report.json (issue #161).
 # Usage: layout/digital/run_lvs.sh [--check | --rerun]   (run from anywhere)
 # Default: regenerate the report (about 30 minutes; layout extraction of the
-# 5331 abstracted cell instances dominates). --check: klt lvs's native
+# 19688 abstracted cell instances dominates). --check: klt lvs's native
 # re-hash check of the committed report's layout/reference/deck hashes
 # (exit 0 consistent, 3 drifted, no compare re-run). --rerun: --check plus a
 # full compare re-run whose verdict-bearing fields are diffed against the
