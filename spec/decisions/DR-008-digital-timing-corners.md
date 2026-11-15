@@ -200,9 +200,10 @@ timing is graded; it sets no spec value.
   evidence landed, which would make the envelope's verdict uninformative rather
   than honest.
 - Digital-timing results stay met on the ten declared corners only.
-  `t1_met_count` does not move (9 before and after), and the item-8 envelope's
-  `status` stays `fail` for the reasons it already failed: seven `partial` spec
-  rows, rows 13 and 14 `pending`, and the decimator power row pending on #33.
+  `t1_met_count` is unchanged by this record, and the item-8 envelope's
+  `status` stays `fail` for the reasons it already failed: the `partial` spec
+  rows it already carried, rows 13 and 14 `pending`, and the decimator power
+  row pending on #33.
 - The decimator's `constraint_completeness: "incomplete"` is an expected value
   for the standalone block. The first run that may legitimately report
   `complete` is the one made under the assembled top's declared I/O budget
