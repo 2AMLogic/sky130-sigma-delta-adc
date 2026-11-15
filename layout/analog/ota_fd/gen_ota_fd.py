@@ -58,6 +58,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -331,11 +332,11 @@ def expand_ports(block_id: str, generator: str, params: dict) -> dict[str, str]:
     return out
 
 
-def gen_blocks(klt: str, pdk_args: list[str], out_dir: Path,
+def gen_blocks(klt_cmd: list[str], pdk_args: list[str], out_dir: Path,
                blocks: list[tuple[str, str, str, dict]]) -> dict[str, dict]:
     reports: dict[str, dict] = {}
     for block_id, generator, cell_name, params in blocks:
-        r = run([klt, "gen", generator, "--params", json.dumps(params, sort_keys=True)]
+        r = run([*klt_cmd, "gen", generator, "--params", json.dumps(params, sort_keys=True)]
                 + pdk_args + ["--cell-name", cell_name, "-o", f"{block_id}.gds",
                               "--format", "json"], cwd=out_dir)
         report = json.loads(r.stdout)
@@ -940,14 +941,14 @@ def count_check(combined: Counter) -> tuple[bool, dict]:
 
 
 # --- flow ---------------------------------------------------------------------
-def klt_pin(klt: str) -> dict:
+def klt_pin(klt_cmd: list[str]) -> dict:
     """The exact klt build, recorded with the evidence.
 
     The stream is byte-reproducible at *this* build: a generator change
     upstream moves geometry, so `--check` is an assertion about one klt, and
     the reader has to be told which one.
     """
-    r = run([klt, "version", "--format", "json"], check=False)
+    r = run([*klt_cmd, "version", "--format", "json"], check=False)
     try:
         d = json.loads(r.stdout)
     except Exception:
@@ -960,7 +961,38 @@ def klt_pin(klt: str) -> dict:
     }
 
 
-def flow(klt: str, pdk_root: Path, out_dir: Path, verbose: bool = True) -> dict:
+class PinError(RuntimeError):
+    """`--check` cannot name the klt build it must assert against."""
+
+
+def recorded_pin(cell_dir: Path) -> dict:
+    """The klt pin recorded in this cell's committed DRC evidence.
+
+    `--check` asserts byte-reproducibility of the stream at one klt build;
+    that build is read back from `drc.report.json` -> `provenance`
+    (`klt_version` / `klt_git_commit` / `klt_reinstall_spec`) instead of
+    being taken on faith from whatever `klt` is on PATH.  A missing or
+    unreadable pin is a hard error: a gate that cannot name the build it
+    asserts against must never pass.
+    """
+    path = cell_dir / "drc.report.json"
+    if not path.exists():
+        raise PinError(f"{path} does not exist -- no recorded klt pin")
+    try:
+        prov = json.loads(path.read_text()).get("provenance") or {}
+    except Exception as exc:
+        raise PinError(f"{path} is unreadable: {exc}") from exc
+    missing = [k for k in ("klt_version", "klt_git_commit",
+                           "klt_reinstall_spec") if not prov.get(k)]
+    if missing:
+        raise PinError(f"{path}: provenance lacks {', '.join(missing)}")
+    return {"klt": prov["klt_version"],
+            "git_commit": prov["klt_git_commit"],
+            "reinstall_spec": prov["klt_reinstall_spec"]}
+
+
+def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path,
+         verbose: bool = True) -> dict:
     pdk_args = ["--pdk", PDK_VARIANT, "--pdk-root", str(pdk_root)]
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -969,7 +1001,7 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, verbose: bool = True) -> dict:
             print(msg, flush=True)
 
     say("[1/6] klt gen device blocks")
-    reports = gen_blocks(klt, pdk_args, out_dir, BLOCKS)
+    reports = gen_blocks(klt_cmd, pdk_args, out_dir, BLOCKS)
 
     say("[2/6] floorplan + body-tie rings")
     origins, extents = place_rows(reports)
@@ -978,7 +1010,7 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, verbose: bool = True) -> dict:
         params, origin = ring_params(extents, ring_id)
         ring_blocks.append((ring_id, "guard_ring", ring_id.upper(), params))
         origins[ring_id] = origin
-    reports.update(gen_blocks(klt, pdk_args, out_dir, ring_blocks))
+    reports.update(gen_blocks(klt_cmd, pdk_args, out_dir, ring_blocks))
     blocks = BLOCKS + ring_blocks
     port_nets = {b: expand_ports(b, g, p) for b, g, _c, p in blocks}
     for block_id, _g, _c, _p in blocks:
@@ -1001,23 +1033,23 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, verbose: bool = True) -> dict:
         f"{route_summary['met2_columns']} met2 columns")
 
     say("[4/6] klt draw (routing cell) + klt gen-compose (explicit placement)")
-    r = run([klt, "draw", "--params", "draw.request.json", "--cell-name", "ROUTE",
+    r = run([*klt_cmd, "draw", "--params", "draw.request.json", "--cell-name", "ROUTE",
              "-o", "route.gds", "--format", "json"], cwd=out_dir)
     (out_dir / "draw.json").write_text(r.stdout)
-    run([klt, "gen-compose", "compose.request.json", "--format", "json"], cwd=out_dir)
+    run([*klt_cmd, "gen-compose", "compose.request.json", "--format", "json"], cwd=out_dir)
     gds = out_dir / f"{TOP_CELL}.gds"
     if not gds.exists():
         raise RuntimeError(f"gen-compose did not write {gds}")
 
     say("[5/6] klt drc (sky130 deck)")
-    r = run([klt, "drc", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
+    r = run([*klt_cmd, "drc", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
             + pdk_args + ["--format", "json"], cwd=out_dir, check=False)
     drc = json.loads(r.stdout) if r.stdout.strip() else {"error": r.stderr}
     (out_dir / "drc.report.json").write_text(json.dumps(drc, indent=2) + "\n")
     say(f"  drc: status={drc.get('status')!r} violations={drc.get('violation_count')}")
 
     say("[6/6] klt extract (device-count evidence)")
-    run([klt, "extract", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
+    run([*klt_cmd, "extract", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
         + pdk_args + ["-o", f"{TOP_CELL}.extract.spice", "--format", "json"],
         cwd=out_dir)
     netlist = (out_dir / f"{TOP_CELL}.extract.spice").read_text()
@@ -1046,7 +1078,7 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, verbose: bool = True) -> dict:
             f"two nets merged. extracted={extracted_nets} "
             f"schematic={sorted(schematic_nets)}")
     evidence = {
-        "tool": {**klt_pin(klt), "deck": "sky130", "top_cell": TOP_CELL,
+        "tool": {**klt_pin(klt_cmd), "deck": "sky130", "top_cell": TOP_CELL,
                  "pdk": PDK_VARIANT,
                  "pdk_sources": "open_pdks f6eeac7 (sim/pdk.json)"},
         "reference_netlist": "design/ota/ota_fd.spice",
@@ -1090,7 +1122,10 @@ def main() -> int:
                     "its committed evidence; see this directory's README.md.")
     parser.add_argument("--check", action="store_true",
                         help="regenerate into a temp dir and byte-compare the "
-                             "GDS against the committed stream; write nothing")
+                             "GDS against the committed stream, evaluated at "
+                             "the klt build recorded in drc.report.json; "
+                             "write nothing. Exit 0 pass, 1 geometry "
+                             "regression, 2 cannot verify")
     parser.add_argument("--klt", default="klt")
     parser.add_argument("--pdk-root", default=PDK_ROOT_DEFAULT)
     parser.add_argument("--keep-scratch", action="store_true",
@@ -1103,19 +1138,75 @@ def main() -> int:
     if args.check:
         committed = cell_dir / f"{TOP_CELL}.gds"
         if not committed.exists():
-            print(f"--check: {committed} does not exist yet", file=sys.stderr)
-            return 1
+            print(f"--check: CANNOT VERIFY -- {committed} does not exist yet",
+                  file=sys.stderr)
+            return 2
+        try:
+            pin = recorded_pin(cell_dir)
+        except PinError as exc:
+            print(f"gen_ota_fd.py --check: CANNOT VERIFY -- {exc}",
+                  file=sys.stderr)
+            return 2
+        try:
+            running = klt_pin([args.klt])
+        except OSError:
+            running = {"klt": "unknown"}
+        if running.get("git_commit") == pin["git_commit"]:
+            klt_cmd = [args.klt]
+            print("gen_ota_fd.py --check: host klt matches the recorded "
+                  f"build {pin['klt']} (drc.report.json provenance); "
+                  "byte-comparing directly", flush=True)
+        else:
+            uvx = shutil.which("uvx")
+            if uvx is None:
+                print("gen_ota_fd.py --check: CANNOT VERIFY -- host klt "
+                      f"{running.get('klt', 'unknown')} is not the recorded "
+                      f"build {pin['klt']} and uvx is not on PATH to resolve "
+                      "it. Run under the recorded build: "
+                      f'uvx --from "{pin["reinstall_spec"]}" klt ...',
+                      file=sys.stderr)
+                return 2
+            klt_cmd = [uvx, "--from", pin["reinstall_spec"], "klt"]
+            print("gen_ota_fd.py --check: host klt "
+                  f"{running.get('klt', 'unknown')} is not the recorded build "
+                  f"{pin['klt']} (drc.report.json provenance); evaluating the "
+                  "recorded build via uvx", flush=True)
+            probe = None
+            for attempt in range(3):
+                probe = run([*klt_cmd, "version", "--format", "json"],
+                            check=False)
+                if probe.returncode == 0:
+                    break
+                if attempt < 2:
+                    time.sleep(2)
+            if probe.returncode != 0:
+                print("gen_ota_fd.py --check: CANNOT VERIFY -- the recorded "
+                      f"build did not resolve ({' '.join(klt_cmd)}): "
+                      f"{probe.stderr.strip()[-300:]}", file=sys.stderr)
+                return 2
+            try:
+                got_commit = json.loads(probe.stdout).get("git_commit")
+            except Exception:
+                got_commit = None
+            if got_commit != pin["git_commit"]:
+                print("gen_ota_fd.py --check: CANNOT VERIFY -- uvx-resolved "
+                      f"klt commit {got_commit} is not the recorded pin "
+                      f"{pin['git_commit']}", file=sys.stderr)
+                return 2
         tmp = Path(tempfile.mkdtemp(prefix="ota-fd-check-"))
         try:
-            flow(args.klt, pdk_root, tmp, verbose=False)
+            flow(klt_cmd, pdk_root, tmp, verbose=False)
             a, b = committed.read_bytes(), (tmp / f"{TOP_CELL}.gds").read_bytes()
             if a == b:
                 print("gen_ota_fd.py --check: PASS -- regenerated GDS is "
-                      f"byte-identical to {committed.name} ({len(a)} bytes)")
+                      f"byte-identical to {committed.name} ({len(a)} bytes; "
+                      f"evaluated against recorded klt {pin['klt']})")
                 return 0
             print("gen_ota_fd.py --check: FAIL -- regenerated GDS differs "
-                  f"(committed {len(a)} bytes, fresh {len(b)} bytes)",
-                  file=sys.stderr)
+                  f"from {committed.name} under the recorded build "
+                  f"{pin['klt']} (committed {len(a)} bytes, fresh {len(b)} "
+                  "bytes) -- a generator or geometry regression, not a "
+                  "toolchain mismatch", file=sys.stderr)
             return 1
         finally:
             if args.keep_scratch:
@@ -1123,7 +1214,7 @@ def main() -> int:
             else:
                 shutil.rmtree(tmp, ignore_errors=True)
 
-    result = flow(args.klt, pdk_root, cell_dir / "_gen")
+    result = flow([args.klt], pdk_root, cell_dir / "_gen")
     emit(cell_dir / "_gen", cell_dir)
     drc = result["drc"]
     print(f"gen_ota_fd.py: wrote {TOP_CELL}.gds + evidence to {cell_dir} "
