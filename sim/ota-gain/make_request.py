@@ -4,7 +4,7 @@ import json, pathlib, sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from settling_common import request
+from settling_common import measurement as e, request
 
 # Swept band. The DC gain is the f -> 0 asymptote; it is read at F_LO, the
 # bottom of the sweep. Both bench-only networks are negligible across this
@@ -20,15 +20,6 @@ FLAT_MAX = 1e-2    # reference-validity gate (not a spec row), see README.md
 OPEN_MIN = 10.0    # reference-validity gate: a closed loop would read ~1 V/V
 VID_TOL = 1e-9     # reference-validity gate: the drive really is 1 V differential
 ACM_MAX = 1e-3     # reference-validity gate: the drive stays differential
-
-
-def e(name, expr, unit=None, limits=None):
-    m = {"name": name, "expr": expr}
-    if unit:
-        m["unit"] = unit
-    if limits:
-        m["limits"] = limits
-    return m
 
 
 # `mag()` makes each complex ac sample real so klt's scalar `expr` form can
