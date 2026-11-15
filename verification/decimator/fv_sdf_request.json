@@ -1,0 +1,21 @@
+{
+  "schema": "klt.functional_verification.request/1",
+  "engine": "icarus",
+  "sources": [
+    "../../layout/digital/decimator_pnr.v",
+    "../../../../.ciel/sky130A/libs.ref/sky130_fd_sc_hd/verilog/primitives.v",
+    "../../../../.ciel/sky130A/libs.ref/sky130_fd_sc_hd/verilog/sky130_fd_sc_hd.v"
+  ],
+  "hdl_toplevel": "decimator",
+  "testbench": {"module": "test_decimator"},
+  "options": {
+    "build_args": ["-g2012"],
+    "timescale": ["1ns", "1ps"],
+    "random_seed": 1,
+    "sdf": {
+      "file": "../../layout/digital/decimator.sdf",
+      "corner": "typ",
+      "entries": "all"
+    }
+  }
+}

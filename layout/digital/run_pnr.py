@@ -4,7 +4,8 @@
     python3 layout/digital/run_pnr.py [--pdk-root ROOT] [--check]
 
 Runs `klt place-and-route` on layout/digital/pnr_request.json against the pinned PDK
-(sim/pdk.json) and copies the routed GDS, DEF and as-built netlist next to the request.
+(sim/pdk.json) and copies the routed GDS, DEF, as-built netlist and post-route SDF next
+to the request.
 --check leaves the committed files alone and exits 3 if the fresh GDS differs from the
 committed one (raw bytes), else 0. The flow takes tens of minutes (detailed routing).
 Exit 2 = the PDK klt recorded in the report (provenance.pdk.version) is absent or
@@ -14,7 +15,20 @@ import argparse, hashlib, json, pathlib, shutil, subprocess, sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-OUT = {"gds_path": "decimator.gds", "def_path": "decimator.def", "verilog_path": "decimator_pnr.v"}
+OUT = {"gds_path": "decimator.gds", "def_path": "decimator.def", "verilog_path": "decimator_pnr.v",
+       "sdf_path": "decimator.sdf"}
+
+
+def out_source(rep, key):
+    """The fresh artifact path a report key names, or None when klt wrote none.
+
+    `sdf_path` is the one nested oddity: `post_route_sdf` writes it inside the
+    `spef_sta` block (klt #948/#1002), not at the top level the other three
+    keys use.
+    """
+    if key == "sdf_path":
+        return (rep.get("spef_sta") or {}).get(key)
+    return rep[key]
 
 
 def report_pdk_stamp(rep):
@@ -53,7 +67,11 @@ def main():
         return 2
     drift = False
     for key, name in OUT.items():
-        v = rep[key]
+        v = out_source(rep, key)
+        if not v:
+            print(f"{name}: klt reported no {key} (spef_sta null or SDF not "
+                  f"written; is post_route_sdf set?)", file=sys.stderr)
+            return 1
         src = pathlib.Path(v["path"] if isinstance(v, dict) else v)
         src = src if src.is_absolute() else REPO / src
         dst = HERE / name
