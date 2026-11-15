@@ -39,8 +39,8 @@
         }
       }
     },
-    "8.analog": {"file": "attestation/item8-envelope.json", "content_hash": "sha256:b82e1c5dc4a9851f121a0ffebc47e42f5ed00c0fbb01eabc940bc6bc19c5d4b4"},
-    "8.digital": {"file": "attestation/item8-envelope.json", "content_hash": "sha256:b82e1c5dc4a9851f121a0ffebc47e42f5ed00c0fbb01eabc940bc6bc19c5d4b4"},
+    "8.analog": {"file": "attestation/item8-envelope.json", "content_hash": "sha256:1d0c12dd1df94a6d85df3c01ea09e1c2eaa90e710b51a00b6f581ddb6cb34344"},
+    "8.digital": {"file": "attestation/item8-envelope.json", "content_hash": "sha256:1d0c12dd1df94a6d85df3c01ea09e1c2eaa90e710b51a00b6f581ddb6cb34344"},
     "9": {"file": "attestation/item9-envelope.json", "content_hash": "sha256:b8d3bb89fc360daeb8a34750603f42f01c3e5695b70e3b2424064ac38f985774"},
     "10": {
       "file": "attestation/item10-envelope.json",

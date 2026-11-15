@@ -14,7 +14,7 @@ modulator uses this cell twice (`xi1`, `xi2` in
 | `integrator.gds` | the generated stream, top cell `integrator` |
 | `extract-device-count.json` | `klt extract` device count vs the netlist, plus the extracted pin list and net count |
 | `drc.report.json` | `klt drc` (sky130 deck) over the committed stream |
-| `route-summary.json` | capacitor symmetry, summing-node evidence, per-block origins and orientations, per-net anchors, met2 columns, met1 spine tracks, every `lvtn` marker |
+| `route-summary.json` | capacitor symmetry, summing-node evidence, per-block origins and orientations, per-net anchors, reserved met2 columns, met1 spine tracks, every `lvtn` marker |
 
 Nothing here is hand-drawn or GUI-edited. Every polygon comes from one of three
 places: a `klt gen` call (one per distinct device geometry), the committed
@@ -80,9 +80,42 @@ exactly as it does for `ota_fd` and for the digital partition.
 This is **not** the klt CI pin (`0.8.0`), and it is a later build than the one
 that produced `ota_fd.gds` (`0.9.2.dev964`). Byte-reproducibility is an
 assertion about *this* klt build: a generator change upstream moves geometry, so
-`--check` on a different klt will fail even though the design did not change.
-Re-run the generator and commit the refreshed stream and envelopes in the same
-PR when the pin moves. `gen_compose`'s `blocks[].cell` path does **not**
+`--check` asserts the build recorded in this cell's own evidence, not whatever
+`klt` is on PATH. The pin is read back from `drc.report.json` → `provenance`
+(`klt_version` / `klt_git_commit` / `klt_reinstall_spec` / `klayout_version`):
+
+The klayout axis is part of the pin: `provenance.klt_reinstall_spec` pins
+**klayout-tools** only (upstream declares `klayout>=0.30`, a floor), so the
+klayout a fresh resolution installs can drift, and the committed bytes were
+written by the klayout recorded beside them. `--check` therefore compares the
+running/resolved `klayout_version` against the recorded one and refuses
+(exit 2) on a difference — a byte difference is only ever called a geometry
+regression when **both** axes match the recording.
+
+- **Host klt matches the recorded commit** — its klayout must equal the
+  recorded one too; then the regenerated GDS is byte-compared against
+  `integrator.gds` directly. A difference is a generator or geometry
+  regression: exit 1, `FAIL`.
+- **Host klt differs** — `--check` re-runs the flow under the recorded build
+  via `uvx --from "<provenance.klt_reinstall_spec>" klt` and byte-compares that
+  output, so the gate stays meaningful across host toolchain upgrades. The
+  resolution probe also verifies the resolved build's klayout equals the
+  recorded one; on drift it names both versions, prints the klayout-pinned
+  command (`uvx --from "<spec>" --with "klayout==<recorded>" klt ...`), and
+  exits 2. A byte difference is still exit 1 / `FAIL` (geometry), never
+  blamed on the toolchain.
+- **The gate cannot run** — `drc.report.json`/`provenance` missing or
+  unreadable, `uvx` unavailable, the recorded build failing to resolve, or a
+  klayout mismatch on either branch — is exit 2, `CANNOT VERIFY`, naming the
+  reason and the exact `uvx` command a human can run. It never reports a
+  pass. If `klt version --format json` omits `git_commit`, the direct branch
+  degrades to the uvx branch (identity is re-derived there) rather than
+  failing.
+
+When the recorded pin moves (a deliberate klt upgrade), re-run the generator
+and commit the refreshed stream and envelopes in the same PR — the new
+`provenance` becomes the pin `--check` asserts against.
+`gen_compose`'s `blocks[].cell` path does **not**
 re-generate the OTA, so the OTA half of the stream is whatever `ota_fd.gds`
 holds, independent of the klt build used here.
 
@@ -224,7 +257,7 @@ committed stream, which it could not do without a contacted tie.
 Inter-block gaps are 14 um, far wider than any DRC minimum. That is a routing
 constraint, not a matching one: the router gives every met2 trunk its own global
 x column on a 0.5 um grid, so the field has to be wide enough to hold one column
-per anchor. 168 columns are in use.
+per anchor. 168 columns are reserved (trunks plus riser keep-outs).
 
 ## How the OTA is reached
 
@@ -297,7 +330,8 @@ Three planes, the same split the sibling cell uses:
   onto a pad is met1; met2 carries per-anchor vertical trunks and nothing else.
 - **One global x column per trunk.** Columns sit on a 0.5 um grid and a trunk
   owns its column outright, so two met2 runs can never come within a pitch of
-  each other and no met2–met2 spacing search is needed. 168 columns are in use.
+  each other and no met2–met2 spacing search is needed. 168 columns are
+  reserved (trunks plus riser keep-outs).
 - **met3/met4 risers.** `cap_array` reports its bottom plate on met3 and its top
   plate on met4, so each capacitor terminal gets a same-layer run out of the
   block and a via stack down to met2. The eight OTA escapes use met3 as above.
