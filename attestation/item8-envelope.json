@@ -193,14 +193,14 @@
     ],
     "evidence_sha256": {
       "design/modulator/modulator.spice": "sha256:3a7b0cece4d81961e0dc06ee9cd6de06c3e1de199e372f0eecd99a8edbae8318",
-      "layout/README.md": "sha256:2076ba442b324c948217dca5bfb04f6eefab6a66b1ee9f79c919e497d8b42230",
+      "layout/README.md": "sha256:ed24e5161210f09df65fb87ff2b10a766ed283b7ca295e052b0a6125e03383f1",
       "layout/digital/decimator.gds": "sha256:211d42ef71f676bb26b16fb0feef6ed3db8fc9ec7c99033ce074e8a66458d676",
       "layout/digital/sta-decimator.report.json": "sha256:f39a9fcbc1220744fd0496aba1a68f366bcbe20aad736b8172032f05d06c57e2",
       "rtl/decimator.v": "sha256:2a77b51270910bdee6cfa421af221768bbd1dc0d9ca1afd69580b2f9c69b7376",
       "sim/bmodel/model.py": "sha256:04b9b299a656b039333baad926f3b0f35d67ce807d0885541beb1a5e4edd6ec2",
       "sim/bmodel/records/20261113T142853Z-f8b2fa44.json": "sha256:c2136d1f327973dbf05d8a39326c644641744f563c14675c0dc3ba6d8e34ab41",
       "sim/ota-settling/record-i51-rcm2M-cff100f.json": "sha256:c8f25c25f37cb18478240e025ed41b7521fc759e486f3899d310328ba729cdd8",
-      "spec/decisions/DR-008-digital-timing-corners.md": "sha256:3ce76f5e139b5c550868670cff55c430f9d30390e63db415bb850312a5eea3f6",
+      "spec/decisions/DR-008-digital-timing-corners.md": "sha256:fdd491bff163500b91a7e544cffea3739ceea33c8f6c6bff4f9f0b6b90fc9a46",
       "verification/decimator/record.json": "sha256:6a772739a0020e2fede4a90d801de3113de559ccdb6b8e93f9fe6495eb42e1bd"
     },
     "pending_issues": [
