@@ -10,6 +10,7 @@ source over the same 45-point grid.
 
     python3 -I sim/comparator-decision/make_request.py     # regenerate decks + requests
     python3 -I sim/comparator-decision/run_decision.py --probe loop   # one local corner
+    python3 -I sim/comparator-decision/run_trip_probe.py --write      # one-corner probe (issue #150)
     python3 -I sim/comparator-decision/run_decision.py --record      # the 45-point grid
 
 `run_decision.py` submits through `klt sim`, which sends the grid to the batch
@@ -351,15 +352,32 @@ comparator is symmetric and its latch is reset by `phi1` every clock, so it
 has no memory to carry hysteresis in.
 
 **One corner has no bracketed trip**: `sf`/1.620 V/−40 °C, where the decision
-never flipped on the way up (`flip_up` = 0) — the trip sits above the top of
-the ±2.25 mV sweep. It sets no headline number, it is named in
+never flipped on the way up (`flip_up` = 0). It fails the bracket gate on
+three grounds at once — `flip_up` (never flipped up), `k_dn` (the sentinel
+detection a full clock below the falling window), and `step_dn` (positive,
+carrying the rising step's sign) — all downstream of one never-high
+decision. It sets no headline number, it is named in
 `corners_without_a_bracketed_trip`, and it is why `record.json` has
 `pass: false` even though the decision-time claim passes at all 45 corners
-(`pass_by_claim` separates the two). Widening the sweep for it is
-[#150](https://github.com/2AMLogic/sky130-sigma-delta-adc/issues/150); note
-that it is also one of the corners where `sim/integrator-settling` records
-the integrator as unsettled, so the loop it sits in is not a working
-modulator there either.
+(`pass_by_claim` separates the two).
+
+A single-corner probe ([DR-007](../../spec/decisions/DR-007-comparator-trip-bracketing.md),
+`run_trip_probe.py` → `trip-probe-i150.json`) settled the direction by
+measurement: at every clock of the run the decision stayed y = −1 and the
+comparator never resolved to +1, while the sweep **as delivered** topped out
+at −1.410 mV (foot −6.909 mV; the designed sweep straddles zero) — the
+threshold lies above every value the bench presented. The probe also shows
+the staircase itself is malformed at this corner: integrator 1 held
++1.367 mV against its designed +1.000 mV on the way up and −0.415 mV
+against −1.000 mV on the way down, so the falling steps collapsed to
+~−168 µV and the falling span to −1.505 mV (healthy corners: ≈ −4.5 mV).
+The disposition is therefore **not separately bracketable**: widening the
+sweep would grade the integrator's failure at a corner where
+`sim/integrator-settling` records every VDDA = 1.620 V point as unsettled
+(`int1` fails all 15 of them, `int2` fails 35 of 45 including those same
+15), not the comparator. The one-sided measured bound at this corner is
+`v_trip` > −1.410 mV; the grid-level bounds above remain the 44-corner
+figures, and model B's parameters are unchanged.
 
 ### Kickback — reported, not graded
 

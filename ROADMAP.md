@@ -54,7 +54,7 @@ Evidence on `main` that does not yet move a row:
 | `Sin` input-sampling completeness over PVT | record and Ron-vs-input curve committed | #106 | PR #130, changes requested, conflicted |
 | Decimator STA with a propagated clock | `sta-decimator.report.json` reads a propagated clock mode; hold verdict includes clock-tree latency | #136 | PR #154 in review |
 | Record the digital-timing corner set and the 35-corner gap | spec text or decision record names the declared corners and what is uncovered | #131 | PR #156, changes requested, conflicted |
-| Comparator trip staircase that brackets at sf/1.620 V/-40 C | `sim/comparator-decision/record.json` brackets the trip point at that corner | #150 | triage; its cited blocker (PR #151) has merged |
+| Comparator trip staircase that brackets at sf/1.620 V/-40 C | `sim/comparator-decision/record.json` brackets the trip point at that corner, or a decision record says why it is not bracketable and gives the bound instead (the latter: DR-007, one-sided `v_trip` > −1.410 mV; probe `trip-probe-i150.json`) | #150 | disposition landed; re-graded only if `sim/integrator-settling` closes 1.620 V |
 | `ota_fd` MiM plate orientation and README row table | cap-group terminals match the netlist order; regenerated stream passes `--check` | #146 | labelled blocked; its cited blocker (PR #141) has merged |
 | Define the manifest `content_hash` for the item-8 envelope | the meaning is written down and the manifest value re-hashes | #155 | triage |
 | Decimator LVS, digital only (item 4) | `klt lvs` report on `decimator.gds` against `decimator_pnr.v` reads `status: match`, `power_connectivity` not `mismatch`; manifest cites `4.digital` | none (seed 1) | not filed; split from #32 as #82 was from #31 |
