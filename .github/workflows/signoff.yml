@@ -150,6 +150,13 @@ jobs:
       - name: Digital P&R PDK-pin refusal unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s layout/digital -p 'test_*.py'
 
+      # The analog generators' DRC-verdict guard (issue #164): `klt drc` exits 3
+      # on violations but the call site passes check=False to capture the
+      # report, so the verdict is re-asserted in-process and a non-clean report
+      # aborts the flow. Fixtures only: synthetic report dicts, no klt, no PDK.
+      - name: Analog generator DRC-verdict guard unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s layout/analog -p 'test_*.py'
+
       # The switch probes' pure parts: that the issue #106 pass-gate sweep still
       # covers the spec row 11 input range at the resolution it claims, and that
       # the probed device pair still matches design/integrator/integrator.spice.

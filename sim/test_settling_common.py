@@ -12,6 +12,7 @@ import io
 import unittest
 
 import settling_common as sc
+import runner_test_common as rtc
 
 PROCESS = ("tt", "ss", "ff", "sf", "fs")
 VDDA = ("1p620", "1p800", "1p980")
@@ -198,13 +199,10 @@ class CommittedRequestsAreUnmoved(unittest.TestCase):
         self.assertEqual(*self._rebuild("integrator-ci"))
 
     def _rebuild(self, bench):
-        import importlib.util
         import json
         import pathlib
         here = pathlib.Path(__file__).resolve().parent / bench
-        spec = importlib.util.spec_from_file_location(f"{bench}_mk", here / "make_request.py")
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
+        mod = rtc.load_runner(f"{bench}_mk", here / "make_request.py")
         on_disk, rebuilt = {}, {}
         for p in sorted(here.glob("request*.json")):
             on_disk[p.name] = json.loads(p.read_text())
