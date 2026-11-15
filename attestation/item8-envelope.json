@@ -3,10 +3,10 @@
   "kind": "generic",
   "status": "fail",
   "t1_item": 8,
-  "summary": "T1 item 8 (Characterization report): spec rows 5 evidenced, 7 partial, 2 pending; decimator Fmax/area/power 3/5 evidenced, 1 declared gap",
+  "summary": "T1 item 8 (Characterization report): spec rows 6 evidenced, 6 partial, 2 pending; decimator Fmax/area/power 3/5 evidenced, 1 declared gap",
   "source": "measurements/characterization.md",
   "metrics": {
-    "report_sha256": "sha256:43cd75b1e7c66560d426c6071993f5f9a0affb3422047b6b5b52b28f8bd257e8",
+    "report_sha256": "sha256:c4c760735d98e4373f7074a1bd219f057e23940a318cbade1d49a860f90cee65",
     "spec_rows": [
       {
         "row": 1,
@@ -83,13 +83,11 @@
       },
       {
         "row": 9,
-        "verdict": "partial",
+        "verdict": "evidenced",
         "evidence": [
           "verification/decimator/record.json"
         ],
-        "issues": [
-          "18"
-        ]
+        "issues": []
       },
       {
         "row": 10,
@@ -204,7 +202,6 @@
       "verification/decimator/record.json": "sha256:6a772739a0020e2fede4a90d801de3113de559ccdb6b8e93f9fe6495eb42e1bd"
     },
     "pending_issues": [
-      "18",
       "31",
       "32",
       "33",

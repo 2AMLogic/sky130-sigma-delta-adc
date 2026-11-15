@@ -14,8 +14,9 @@ only items 1, 9 and 10), so the pin-compatible form is the bare generic
 envelope that item 8 is graded on; see the CI step for what `--check` covers.
 
 **State as of this report: item 8 is not met.** Rows listed `pending` wait on
-the corner, Monte Carlo and post-layout work (#33, #34, #35) or on the row 9
-reading (#18). This report records that state; it does not relax a spec row.
+the corner, Monte Carlo and post-layout work (#33, #34, #35), the uncovered
+STA corners (#131) and DRC/LVS (#31, #32). This report records that state; it
+does not relax a spec row.
 
 ## Per-row characterization
 
@@ -35,7 +36,7 @@ corner in the cited record, or the only one it has.
 | 6 | Output rate 80 kSps | evidenced | tt/27C/1.80V (RTL sim) | `verification/decimator/record.json` | none for function; corner timing evidenced at the ten declared liberty corners (`layout/digital/sta-decimator.report.json`), which DR-008 sets as the digital partition's corner set; the other 35 DR-002 points are a declared gap under DR-008, not evidenced and not closable by a further STA run |
 | 7 | 16-bit two's complement word | evidenced | tt/27C/1.80V (RTL sim) | `verification/decimator/record.json` | none |
 | 8 | Passband ripple <= 0.1 dB | evidenced | analytic (0.0401 dB peak-to-peak) | `verification/decimator/record.json` | none |
-| 9 | Stopband >= 90 dB | partial | analytic (93.91 dB at 300 kHz, alias-band reading) | `verification/decimator/record.json` | row reading unconfirmed: pending (#18) |
+| 9 | Stopband >= 90 dB (alias bands), >= 75 dB (gaps) | evidenced | analytic (93.91 dB at 300 kHz alias bands, 79.20 dB at 284.5 kHz gaps) | `verification/decimator/record.json` | none |
 | 10 | CIC order >= 3, then FIR | evidenced | none (structure; CIC order 4, 41-tap FIR) | `rtl/decimator.v` | none |
 | 11 | Differential input <= 0.5 VREF | partial | none (ideal B parameters, -6 dBFS) | `sim/bmodel/records/20261113T142853Z-f8b2fa44.json` | T-level swing over corners: pending (#33) |
 | 12 | Supply 1.62-1.98 V | partial | sf/1.62V/125C (OTA only) | `sim/ota-settling/record-i51-rcm2M-cff100f.json` | assembled modulator and decimator over the supply range: pending (#33) |
@@ -75,10 +76,12 @@ corner in the cited record, or the only one it has.
 - **Rows 6-9 (RTL sim).** `verification/decimator/record.json`: cocotb/Icarus,
   8 testcases, 0 failed, at the single corner the RTL simulation has (functional,
   no timing). The row 8 and 9 figures are analytic from the quantized
-  coefficients (`verification/decimator/response.py`), 50 Hz grid. Row 9 uses the
-  alias-band reading; the literal reading (every frequency from fout - BW to
-  fs/2) is reported by `response.py` and not gated. Which reading is the spec's
-  is #18.
+  coefficients (`verification/decimator/response.py`), 50 Hz grid. Row 9 is
+  graded on the two lines DR-006 (`spec/decisions/DR-006-decimation-stopband-reading.md`)
+  ratified: at least 90 dB in the alias bands `k·fout ± BW` (worst 93.91 dB at
+  300 kHz) and at least 75 dB elsewhere from fout - BW to fs/2 (worst 79.20 dB
+  at 284.5 kHz). `response.py` gates and reports both lines, and both pass on
+  the cited record.
 - **Row 3.** The structure matches model B (`design/modulator/README.md`). The
   only transistor-level run of the assembled netlist is a load and phase check
   at tt/27C/1.80V that writes no record and makes no SNDR claim
