@@ -66,16 +66,28 @@ tests for the derivations and the record-admission gates, no EDA tools needed:
 
 `settling_common.py` holds the shared `klt sim` plumbing for the transistor-level
 benches (`ota-settling`, `integrator-settling`, `integrator-ci`, `ota-gain`,
-`integrator-noise`, `comparator-decision`). `request()` builds the common
-45-point grid request for a transient or, since #126, for any other analysis
-kind. Its two record-validity gates — `grid_complete()` (all 45 DR-002 grid
+`integrator-noise`, `comparator-decision`), plus the two toolchain helpers every
+local single-corner probe runner needs as well — `join_continuations()` (fold a
+netlist's `+` continuation lines back into the instance line that declares them)
+and `ngspice_version()`. `request()` builds the common 45-point grid request for
+a transient or, since #126, for any other analysis kind. Its two
+record-validity gates — `grid_complete()` (all 45 DR-002 grid
 points returned) and `measurements_present(key=...)` (every one of them produced
 the bench's own sentinel measurement, so a dead fleet job cannot become a
 record) — are covered by fixture tests, no EDA tools needed:
-`python3 -I -m unittest discover -s sim -p 'test_settling*.py'`. Each runner's
-own gates and derivations are covered the same way:
+`python3 -I -m unittest discover -s sim -p 'test_settling*.py'`. The shared
+`.partials/` sha gate (`shas`/`load_partial`/`save_partial`) is the third
+record-admission gate, exercised through the per-bench suites below. Each
+runner's own gates and derivations are covered the same way:
 
     python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'
     python3 -I -m unittest discover -s sim/ota-gain -p 'test_*.py'
     python3 -I -m unittest discover -s sim/integrator-noise -p 'test_*.py'
     python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'
+
+`runner_test_common.py` is the test-side counterpart: the harness those
+per-bench runner tests share (loading a runner by path, the DR-002 corner ids,
+a `RunnerCase` base that runs `main()` against a temporary `HERE` with
+`run_klt`/`pdk_stamp` patched, and the issue #94 admission tests as a mixin each
+bench binds to its own variants). It is deliberately not `test_`-prefixed, so no
+`unittest discover` pattern collects it with no runner bound.

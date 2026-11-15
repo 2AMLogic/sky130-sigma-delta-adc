@@ -33,9 +33,10 @@ import tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import (ANCHOR_SUBSET_NOTE, CAPACITY_WAIT_S,  # noqa: E402
-                             grid_complete, measurements_present, pdk_stamp,
-                             run_klt, sha256, summarize)
+import settling_common as sc  # noqa: E402
+from settling_common import (ANCHOR_SUBSET_NOTE, CAPACITY_WAIT_S, grid_complete,  # noqa: E402
+                             join_continuations, load_partial, measurements_present,
+                             pdk_stamp, run_klt, save_partial, sha256, summarize)
 
 sys.path.insert(0, str(HERE))
 import make_request as mk  # noqa: E402
@@ -57,16 +58,6 @@ VCM_SWITCHES = ("Sbi", "Sbr", "Sti", "Str")
 
 
 # --------------------------------------------------- netlist device areas ---
-def _join_continuations(text):
-    out = []
-    for line in text.splitlines():
-        if line.startswith("+") and out:
-            out[-1] += " " + line[1:].strip()
-        else:
-            out.append(line)
-    return out
-
-
 def switch_areas(netlist):
     """{switch_base: {"nmos": [(W, L)...], "pmos": [...]}} from a cell netlist.
 
@@ -75,7 +66,7 @@ def switch_areas(netlist):
     simulated and cannot drift from it.
     """
     areas = {}
-    for line in _join_continuations(pathlib.Path(netlist).read_text()):
+    for line in join_continuations(pathlib.Path(netlist).read_text()):
         m = re.match(r"^X(S[a-z]{2})_([pn])(_p)?\s", line)
         if not m:
             continue
@@ -103,7 +94,7 @@ def cap_ratio(netlist):
     injection.
     """
     out = {}
-    for line in _join_continuations(pathlib.Path(netlist).read_text()):
+    for line in join_continuations(pathlib.Path(netlist).read_text()):
         m = re.match(r"^X(Csi|Csr|Ci)_([pn])\s+.*\bW=([0-9.eE+-]+)\s+L=([0-9.eE+-]+)", line)
         if m:
             out.setdefault(m.group(1), []).append(float(m.group(3)) * float(m.group(4)))
@@ -168,39 +159,15 @@ def area_prediction(pre_netlist, post_netlist):
 
 # ------------------------------------------------------------- plumbing -----
 def shas(v):
-    return {"request_sha256": sha256(HERE / f"request_{v}.json"),
-            "deck_sha256": sha256(HERE / mk.deck_name(v))}
+    return sc.shas(HERE / f"request_{v}.json", HERE / mk.deck_name(v))
 
 
 def mc_shas(v):
-    return {"request_sha256": sha256(HERE / f"request_mc_{v}.json"),
-            "deck_sha256": sha256(HERE / mk.deck_name(v))}
+    return sc.shas(HERE / f"request_mc_{v}.json", HERE / mk.deck_name(v))
 
 
 def partial_path(v, mc):
     return PARTIALS / (f"mc-{v}.json" if mc else f"{v}.json")
-
-
-def load_partial(v, mc):
-    """A previously-run variant, if it matches the current request and deck."""
-    p = partial_path(v, mc)
-    if not p.exists():
-        return None
-    try:
-        d = json.loads(p.read_text())
-    except ValueError:
-        return None
-    cur = mc_shas(v) if mc else shas(v)
-    if {k: d.get(k) for k in cur} != cur:
-        print(f"NOTE: ignoring stale .partials/{p.name} (request or deck changed "
-              "since it ran)", file=sys.stderr)
-        return None
-    return d
-
-
-def save_partial(v, mc, result):
-    PARTIALS.mkdir(exist_ok=True)
-    partial_path(v, mc).write_text(json.dumps(result, indent=2) + "\n")
 
 
 def submit(v, mc, tmp, probe=False, probe_path=None, hosts=None,
@@ -889,7 +856,7 @@ def main():
         results = {}
         for v in want:
             if v not in run:
-                saved = load_partial(v, a.mc)
+                saved = load_partial(partial_path(v, a.mc), mc_shas(v) if a.mc else shas(v))
                 if saved:
                     print(f"{v}: reusing {partial_path(v, a.mc).name} ({saved['summary']})")
                     results[v] = saved
@@ -900,7 +867,7 @@ def main():
                 continue
             print(v, json.dumps(res["summary"], indent=2))
             results[v] = res
-            save_partial(v, a.mc, res)
+            save_partial(partial_path(v, a.mc), res)
 
         missing = [v for v in want if v not in results]
         if missing:

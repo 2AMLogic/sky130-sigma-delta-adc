@@ -1,0 +1,22 @@
+{
+  "layout": {
+    "file": "decimator.gds",
+    "deck": "sky130",
+    "top": "decimator",
+    "abstract_cells": ["sky130_fd_sc_hd__*"]
+  },
+  "reference": {
+    "netlist": "decimator_pnr.v",
+    "form": "gate-level-verilog",
+    "top": "decimator",
+    "library": "sky130_fd_sc_hd",
+    "pdk": "sky130A"
+  },
+  "engine": "klayout",
+  "options": {
+    "supply_nets": ["VDDD", "VSSD"],
+    "power_connectivity": {
+      "expected_nets": { "VPWR": "VDDD", "VGND": "VSSD" }
+    }
+  }
+}
