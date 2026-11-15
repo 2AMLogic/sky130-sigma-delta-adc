@@ -14,6 +14,10 @@ on:
 
 permissions:
   contents: read
+  # The item-8 cited-issue check below shells out to `gh issue view` once per
+  # issue cited by a partial/pending row. Read-only on issues is all it needs
+  # (issue #187); nothing here writes.
+  issues: read
 
 jobs:
   signoff:
@@ -60,6 +64,24 @@ jobs:
       # record that changed, a missing file, a pending row with no issue).
       - name: Check the item-8 characterization envelope still reproduces
         run: python3 -I attestation/item8_envelope.py --check
+
+      # Same envelope, plus: every issue a partial/pending row cites is still
+      # open (issue #187; a closed citation sat unnoticed for two weeks --
+      # #170). A second step, not a flag on the one above, so the offline
+      # `--check` step stays byte-identical to scripts/check-ci.sh's CHECKS;
+      # this one is declared in that file's WORKFLOW_ONLY. No `if:` fork gate:
+      # a skipped step is a green step (ci-principles.md rule 6). Fork PRs run
+      # this too: the script pins `-R` to this repo (gh would otherwise
+      # resolve the fork from the checkout's remote, where the cited issue
+      # numbers do not exist), and a fork PR's GITHUB_TOKEN is this repo's
+      # token downgraded to read-only -- which covers issues: read. When `gh`
+      # cannot answer (auth, rate limit, network) the script exits 3 with a
+      # plain "could not verify" message -- the step is red and says the
+      # check did not run; it never reports an open issue as closed.
+      - name: Cited issues for partial/pending rows are still open
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 -I attestation/item8_envelope.py --check --verify-issues
 
       # Item 6 (digital partition) is discharged by a recorded
       # `not_applicable`, which klt signoff hash-binds to two JSON files under

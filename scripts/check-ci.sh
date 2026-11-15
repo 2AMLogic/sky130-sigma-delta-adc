@@ -40,13 +40,26 @@ CHECKS=(
   ".|python3 -I -m unittest discover -s sim/integrator-noise -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s layout/digital -p 'test_*.py'"
+  # Pre-existing drift found while wiring #187: the #164 analog-DRC-guard
+  # step landed in the workflow without a CHECKS entry, which already fails
+  # the drift guard on main. Tool-free fixtures (no klt, no PDK).
+  ".|python3 -I -m unittest discover -s layout/analog -p 'test_*.py'"
   "verification/decimator|python3 response.py"
 )
 
 # Workflow commands that look tool-free to the drift guard (they invoke
 # `python3 -I` or `python3 response.py`) but are deliberately not run locally.
 # Keep empty unless a real case appears; say why in a comment when adding one.
-WORKFLOW_ONLY=()
+#
+# The item-8 cited-issue check (#187) is the first real case: it shells out to
+# `gh issue view` once per issue cited by a partial/pending row, so it needs a
+# GH_TOKEN and network and cannot run in this offline gate. CI runs it as its
+# own step in signoff.yml (permissions: issues: read). Run it by hand against
+# an authenticated gh when editing the report:
+#   python3 -I attestation/item8_envelope.py --check --verify-issues
+WORKFLOW_ONLY=(
+  "python3 -I attestation/item8_envelope.py --check --verify-issues"
+)
 
 # ---------------------------------------------------------------------------
 # Interpreter: prefer the repo-local .venv the README's Reproduce step creates,
