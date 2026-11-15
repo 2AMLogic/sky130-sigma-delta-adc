@@ -31,7 +31,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE))
-from settling_common import pdk_stamp
+from settling_common import join_continuations, ngspice_version, pdk_stamp
 import run_diag
 
 T_END, T_SAMPLE = run_diag.T_END, run_diag.T_SAMPLE
@@ -57,20 +57,6 @@ POINTS = [
     ("no_pmos_lvt_sf_1v80_125c", "no_pmos_lvt", "sf", 125, 1.800),
     ("fixed_sf_1v80_125c", "fixed", "sf", 125, 1.800),
 ]
-
-
-def join_continuations(txt):
-    out, cur = [], None
-    for ln in txt.splitlines():
-        if ln.startswith("+") and cur is not None:
-            cur += " " + ln[1:].strip()
-        else:
-            if cur is not None:
-                out.append(cur)
-            cur = ln
-    if cur is not None:
-        out.append(cur)
-    return out
 
 
 def transform(baseline, fixed, variant):
@@ -115,38 +101,23 @@ def probes_min():
     """Only the figures of merit record.json reports -- no device probes.
 
     run_diag.py's probe block names switch devices by their internal MOS
-    instance, which the `ideal` variant does not have; these four scalars are
-    defined exactly as there, so the numbers stay comparable.
+    instance, which the `ideal` variant does not have; these four scalars come
+    from run_diag.fom_lines(), the one definition that block uses too, so the
+    numbers stay comparable without a second copy to keep in step.
     """
     return "\n".join([
         ".control", "option gmin=1e-9",
         "save v(vod) v(voutp) v(voutn)",
         f"tran 10p {T_END:.6g} 0 0.1n",
-        "let vod_pre = v(vod)[0]",
-        "let vod_end = v(vod)[length(v(vod))-1]",
-        "let step_dv = vod_end - vod_pre",
-        f"meas tran vod_phase find v(vod) at={T_SAMPLE:.6g}",
-        "let err_phase = abs(vod_phase - vod_end)/abs(step_dv)",
-        "let step_err_vs_ideal = abs(abs(step_dv) - 0.9)/0.9",
-        f"let end_ripple_rel = (vecmax(v(vod)*(time gt {T_END-20e-9:.6g})"
-        f" - 10*(time le {T_END-20e-9:.6g}))"
-        f" - vecmin(v(vod)*(time gt {T_END-20e-9:.6g}) + 10*(time le {T_END-20e-9:.6g})))"
-        "/abs(step_dv)",
-        "print vod_pre vod_end step_dv vod_phase err_phase step_err_vs_ideal end_ripple_rel",
+        *run_diag.fom_lines(),
         ".endc"])
 
 
 def run(key, netlist_bytes, corner, temp, vdda, ng, pdk_lib, tmp):
     net = tmp / f"integrator-{key}.spice"
     net.write_bytes(netlist_bytes)
-    deck = ((HERE / "diag_1v62.cir.tmpl").read_text()
-            .replace("{{PDK_LIB}}", f'"{pdk_lib}"').replace("{{CORNER}}", corner)
-            .replace("{{TEMP}}", str(temp)).replace("{{VDDA}}", str(vdda))
-            .replace("{{LOAD}}", "0.1p")
-            .replace("{{OTA}}", f'"{REPO / "design/ota/ota_fd.spice"}"')
-            .replace("{{NETLIST}}", f'"{net}"')
-            .replace("{{XINT}}", run_diag.xint_line(netlist_bytes))
-            .replace("{{PROBES}}", probes_min()))
+    deck = run_diag.fill_deck(net, netlist_bytes, corner, temp, vdda, "0.1p",
+                              probes_min(), pdk_lib)
     d = tmp / f"deck-{key}.cir"
     d.write_text(deck)
     r = subprocess.run(["ngspice", "-b", str(d)], capture_output=True, text=True, cwd=ng)
@@ -184,17 +155,14 @@ def main():
     pdk_lib = ng / "sky130.lib.spice"
 
     fixed = (REPO / "design/integrator/integrator.spice").read_bytes()
-    base = subprocess.run(["git", "show", f"{a.baseline_rev}:design/integrator/integrator.spice"],
-                          cwd=REPO, capture_output=True)
-    if base.returncode:
-        print(f"REFUSE: cannot read the baseline netlist at {a.baseline_rev}: "
-              f"{base.stderr.decode()[-300:]}", file=sys.stderr)
+    base = run_diag.baseline_netlist(a.baseline_rev)
+    if base is None:
         return 2
 
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="integrator-variants-"))
     nets = {}
     for v in ("ideal", "no_pmos_std", "no_pmos_lvt", "fixed"):
-        nb, note = transform(base.stdout, fixed, v)
+        nb, note = transform(base, fixed, v)
         nets[v] = (nb, note)
 
     res = {
@@ -209,7 +177,7 @@ def main():
         "deck": "diag_1v62.cir.tmpl (same stimulus and timing as run_diag.py)",
         "pdk_sources_stamp": stamp,
         "pdk_pin": {"file": "sim/pdk.json", "open_pdks_revision": pin["open_pdks_revision"]},
-        "ngspice": run_diag._ngspice_version(),
+        "ngspice": ngspice_version(),
         "deck_sha256": run_diag.sha256_bytes((HERE / "diag_1v62.cir.tmpl").read_bytes()),
         "ota_netlist_sha256": run_diag.sha256_bytes((REPO / "design/ota/ota_fd.spice").read_bytes()),
         "baseline_rev": a.baseline_rev,

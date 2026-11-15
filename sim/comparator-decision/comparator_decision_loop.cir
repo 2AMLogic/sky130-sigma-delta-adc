@@ -1,0 +1,54 @@
+* Comparator decision bench (issue #127) -- circuit body for `klt sim`
+* (no .lib/.control/.end: klt sim owns those; corner = process/temp/Vdda).
+* Variant: loop. the modulator closed and running on the spec reference pair, with a steady 0.06 V differential input (0.05 FS). The decision time and the kickback are measured here, at the overdrives the loop itself presents to the comparator.
+*
+* Circuit under test: the WHOLE modulator (design/modulator/modulator.spice,
+* which carries `clkgen` and `integrator` in its own body) plus
+* design/ota/ota_fd.spice and the vendored
+* design/modulator/comparator/comparator.spice. The comparator therefore sits
+* in exactly the surroundings it has in the block: `clk` port on the real
+* `phi1` out of `clkgen`, inputs on the real integrator-2 OTA outputs
+* `o2p`/`o2n`, outputs into the cross-coupled NAND SR latch and the
+* `dp`/`dn`/`bs` inverter buffers, whose own load is the reference mux of
+* BOTH integrator cells. Nothing in the decision path is substituted.
+*
+* Boundary (DR-005): VCM 0.9 V, ibias 5 uA, all ideal. VREFP/VREFN are
+* 1.5/0.3 V for this variant (see the variant note above).
+* Clock: 5.12 MHz, first rising edge (50 %) at 10.1 ns, period 195.3125 ns,
+* 50 % high time exactly one half-period (97.65625 ns): PW is set to
+* 97.45625 ns so the 0.2 ns edges put the 50 % points a half-period apart.
+* `clk1` is a unit-amplitude pulse and `clk` scales it by v(vdda) so the
+* clock swings rail-to-rail at every supply corner; the analog boundary
+* (vcm, vrefp, vrefn, the input) does not scale with Vdda -- it is a
+* boundary input, not a rail (DR-005).
+* gmin: the same relaxed floor sim/modulator-load-check/modulator_load.cir
+* needs for this hierarchy to find a DC operating point. Over the longest
+* transient here it droops a held 2 pF integrator node by <0.3 %, which is
+* far below the staircase step the trip points are resolved to.
+.options gmin=1e-9
+.include "../../design/ota/ota_fd.spice"
+.include "../../design/modulator/comparator/comparator.spice"
+.include "../../design/modulator/modulator.spice"
+Vdda vdda 0 1.8
+Vvcm vcm 0 0.9
+Vrefp vrefp 0 1.5
+Vrefn vrefn 0 0.3
+Ibias vdda ibias 5u
+Vclk1 clk1 0 pulse(0 1 10n 0.2n 0.2n 97.45625n 195.3125n)
+Bclk clk 0 V='v(vdda)*v(clk1)'
+* differential input, volts; held at vcm common mode
+Vind ind 0 dc 0.06
+Bvinp vinp 0 V='0.9 + 0.5*v(ind)'
+Bvinn vinn 0 V='0.9 - 0.5*v(ind)'
+Xmod vdda 0 vinp vinn vrefp vrefn vcm ibias clk bs modulator
+* probes only (B-sources draw no current from the nodes they read)
+Bo2d o2d 0 V='v(xmod.o2p)-v(xmod.o2n)'
+Bo1d o1d 0 V='v(xmod.o1p)-v(xmod.o1n)'
+Bs2d s2d 0 V='v(xmod.xi2.sump)-v(xmod.xi2.sumn)'
+* dd  = +Vdda when the decision is y = +1 (dp high), -Vdda when y = -1
+Bdd dd 0 V='v(xmod.dp)-v(xmod.dn)'
+* cmpd = comparator outputs; 0 while phi1 is low (both outputs reset high),
+* +Vdda once the latch has resolved to y = +1 (outp high, outn low)
+Bcmpd cmpd 0 V='v(xmod.outp)-v(xmod.outn)'
+* qd = SR-latch outputs; +Vdda for y = +1 (q high). Holds between decisions.
+Bqd qd 0 V='v(xmod.q)-v(xmod.qb)'

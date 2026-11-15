@@ -6,6 +6,7 @@
   "t1_item_count": 22,
   "build_t1_item_count": 22,
   "t1_met_count": 9,
+  "t1_not_applicable_count": 1,
   "source_doc": "docs/design-evidence-tiers.md",
   "source_doc_content_hash": "sha256:a26b90262320d0fbd32b3f549a02b6300832706041797a559d8bf6bdb62efdc7",
   "build": {
@@ -385,10 +386,49 @@
       "partition": "digital",
       "text": "any accuracy, offset, or matching spec row is statistical; a corner matrix (or STA corner sweep) cannot validate it. This applies to whichever spec rows are actually statistical, regardless of block kind \u2014 most digital spec rows (functional correctness, Fmax, timing closure) are not, and a block whose spec has no statistical row must say so explicitly rather than omit the item. Where it does apply, MC runs need a recorded seed, sample count, a deterministic negative control, and results combined with (not instead of) process corners (#344). A `klt yield` JSON report \u2014 a yield estimate with its confidence interval, sample-size verdict, and Cpk/sigma-to-spec against the row's own limits \u2014 is the machine-checkable evidence for this item (`klt signoff`'s tier-verdict mode grades it the same way it grades the deterministic items above). **The campaign's own self-report is a grading input, not just a footnote** (issue #2467): a cited report whose `sample_size.verdict` is `insufficient` on any measurement renders `unmet` with `reason: \"undersized_sample\"`, and one whose declared negative control did not show the seeded degradation renders `unmet` with `reason: \"negative_control_not_detected\"` \u2014 the report's passing `status` answers only \"did every declared `target_yield` hold\", which a campaign declaring none can never fail. A campaign that declared **no** negative control at all is still `met`, but says so: `citation.yield_campaign.negative_control` reads `\"not_declared\"`, since `klt yield` itself treats that as a warning rather than a failure and whether it is acceptable for a given spec row is the claimant's call. See [`cli/signoff.md`](cli/signoff.md)'s \"Campaign discipline on item 6\". **This item's evidence verb needs the `yield` extra.** Unlike every other T1 item's evidence verb (`drc`, `lvs`, `extract`, `sim`, `pex`, `sta`, `functional-verification`, `erc`, `place-and-route`), `klt yield` requires the `klt_yield_native` Rust extension. It is published as the prebuilt `klt-yield-native` wheel (Linux x86_64, macOS arm64), reached by `pip install 'klayout-tools[yield]'`; a bare `pip install klayout-tools` and the git-pinned form do not include it. A consumer pinning a release that predates the first `klt-yield-native` publication, or on another platform, still needs a repo checkout with a Rust toolchain; see `docs/cli/yield.md`'s \"What the extra does and does not reach\" callout and `docs/releasing-native.md`. **When \"not applicable\" is legitimate** (issue #2865): a block whose ratified spec has *no* statistical row passes this item by a recorded \"not applicable\", not by a waiver at grant time and not by inventing a statistical claim. That holds only when the spec is ratified, a committed statement accounts for every spec row with the reason its row class is not statistical (for example \"timing rows are corner-bounded by STA at the PDK's characterised corners\"), and both are bound by content hash so editing either invalidates the claim. Any accuracy, offset, matching or yield row is statistical by definition: a spec carrying one \u2014 or a sigma, yield, Cpk or `3\u03c3`-style bound \u2014 cannot use the outcome and needs `klt yield` evidence for that row. The outcome is available to a digital partition only; an analog partition (including the analog half of a mixed-signal block) always requires Monte Carlo evidence. `klt signoff` reports it as `not_applicable`, never as `met`. **Several statistical rows, only some evidenced** (issue #2908): item 6 is a claim about *every* statistical row, so a manifest may declare the row set under `spec_rows.\"6\"` and cite one `klt yield` report per row set (`rows` on each citation). Item 6 grades `met` only when every declared row is covered by a passing citation against a ratified target. A row with no citation (`uncovered_rows`), a row declared a `gap` because no evidence can exist yet (`declared_gaps`), or a row declared `ratified: false` (`unratified_rows`, evidence against a proposed limit is provisional) grades `unmet` / `partial_coverage`, never `met`. Without a declaration the item grades as before; a `not_applicable` entry contradicts a declared row set and is `invalid_evidence`.",
       "notes": [],
-      "status": "unmet",
-      "reason": "no_evidence",
+      "status": "not_applicable",
+      "reason": null,
       "graded_by_build": true,
-      "citation": null
+      "citation": null,
+      "not_applicable": {
+        "spec": {
+          "file": "spec/decimator-rows.json",
+          "content_hash": "sha256:4961c9be68085e9af518f413f0cc6e28d0d7885403cac1ab069b7c233f319cdc",
+          "status": "ratified",
+          "row_count": 5
+        },
+        "statement": {
+          "file": "spec/decimator-not-statistical.json",
+          "content_hash": "sha256:24d25d54f65c965655c13d8910d76b7b1bc1f6cf3dc974ff4d848a8582eea706",
+          "rows": [
+            {
+              "id": "6",
+              "class": "deterministic-rate",
+              "reason": "The output word rate is a fixed integer division of the modulator clock: at a given operating point the filter emits one word every N clock cycles and N is a committed constant of the design, not a fabricated quantity. RTL simulation compares the emitted word stream bit-exactly against the reference model, so the row has a single reproducible value rather than a distribution, and its limit is an exact rate rather than a spread about a centre."
+            },
+            {
+              "id": "7",
+              "class": "deterministic-format",
+              "reason": "Output word width and number representation are structural properties of the RTL sources, fixed at elaboration and carried unchanged through synthesis. RTL simulation compares every output word bit for bit with the reference model. A word either is 16-bit two's complement or it is not; there is no population over which the property could vary and no limit expressed as a spread."
+            },
+            {
+              "id": "8",
+              "class": "deterministic-response",
+              "reason": "Passband ripple is a property of the filter's committed, fixed-point coefficient set and the integer arithmetic that implements it, both of which are design constants in the repository. The simulated transfer function is identical on every run, so the 0.1 dB limit bounds one reproducible response curve rather than a distribution over fabricated parts."
+            },
+            {
+              "id": "9",
+              "class": "deterministic-response",
+              "reason": "Alias-band attenuation follows from the same committed coefficient set and integer arithmetic as the passband row, and the whole-chain response is recomputed bit-exactly by verification/decimator/response.py on every CI run. The 90 dB and 75 dB limits bound a single deterministic transfer function, not a statistical limit over a population of parts."
+            },
+            {
+              "id": "10",
+              "class": "deterministic-structure",
+              "reason": "Filter order is a structural count of the committed architecture, the number of CIC integrator-comb stages and the FIR tap length in the RTL sources. It is readable directly from those sources and confirmed by bit-exact RTL simulation of the resulting response. A count of committed stages has no distribution and no spread to characterise."
+            }
+          ]
+        }
+      }
     },
     {
       "tier": "T1",
