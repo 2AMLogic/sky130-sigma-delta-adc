@@ -75,16 +75,18 @@ from pathlib import Path
 # directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from layout_common import (DBU, GRID_UM, PDK_ROOT_DEFAULT, PDK_VARIANT,
-                           PinError, emit, extract_nets, klt_pin, nm,
-                           parse_extract_devices, recorded_pin, run, snap)
+from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_VIA,
+                           PDK_ROOT_DEFAULT, PDK_VARIANT, TRACK_PITCH_UM,
+                           TRUNK_PITCH_UM, VIA_UM, WIRE_UM, Anchor, PinError,
+                           Rect, RouteError, Router as RouterBase, emit,
+                           extract_nets, klt_pin, nm, parse_extract_devices,
+                           recorded_pin, run, snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
+# The router core's layers (L_MCON/L_MET1/L_VIA) come from layout_common,
+# alongside the shared geometry constants it routes with.
 L_LI1 = (67, 20)
-L_MCON = (67, 44)
-L_MET1 = (68, 20)
 L_MET1_PIN = (68, 5)
-L_VIA = (68, 44)
 L_MET2 = (69, 20)
 L_VIA2 = (69, 44)
 L_MET3 = (70, 20)
@@ -95,13 +97,11 @@ L_LVTN = (125, 44)
 # --- rule-derived geometry (sky130 deck minimums plus margin) -----------------
 # Identical to the sibling OTA generator's table; see
 # layout/analog/ota_fd/gen_ota_fd.py for the per-constant derivation.
-# DBU/GRID_UM come from layout_common, alongside nm/snap which use them.
-MCON_UM = 0.17           # ct.1 exact size
-VIA_UM = 0.15            # via.1a exact size
+# DBU/GRID_UM and the router core's constants (MCON_UM/VIA_UM/WIRE_UM/
+# MET1_SPACE_UM, the two pitches, BUCKET_NM) come from layout_common,
+# alongside nm/snap which use them.
 VIA2_UM = 0.20           # via2.1a exact size
 VIA3_UM = 0.20           # via3.1a exact size
-WIRE_UM = 0.34           # met1/met2 wire width (via1 enclosure sets the floor)
-MET1_SPACE_UM = 0.14     # m1.2
 MET34_W_UM = 0.60        # met3/met4 wire width
 MET34_SPACE_UM = 0.30    # m3.2/m4.2
 PAD34_UM = 0.60          # met2/met3/met4 landing pad for a via2/via3
@@ -128,10 +128,7 @@ LANDING_MET1_UM = 0.34
 LANDING_MET2_UM = 0.38
 LANDING_MET3_UM = 0.49
 PAD_MARGIN_UM = 0.12     # keep an mcon this far inside its li1 pad's own edge
-TRUNK_PITCH_UM = 0.50    # x grid for met2 trunks
-TRACK_PITCH_UM = 0.50    # y grid for met1 spines
 JOG_REACH_UM = 6.0       # how far a met1 jog may climb off a strap's own y
-BUCKET_NM = 2000         # y bucket for the met1 overlap index
 
 #: `lvtn` enclosure of the device it marks.  sky130's own lvtn rules are not in
 #: klt's curated deck (the layer comes back under
@@ -434,44 +431,6 @@ def sha256_of(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-class Rect:
-    """An axis-aligned rectangle in integer nanometres."""
-
-    __slots__ = ("x0", "y0", "x1", "y1")
-
-    def __init__(self, x0: int, y0: int, x1: int, y1: int) -> None:
-        self.x0, self.y0, self.x1, self.y1 = x0, y0, x1, y1
-
-    @classmethod
-    def um(cls, x0: float, y0: float, x1: float, y1: float) -> "Rect":
-        return cls(nm(min(x0, x1)), nm(min(y0, y1)), nm(max(x0, x1)), nm(max(y0, y1)))
-
-    @classmethod
-    def centred(cls, cx: float, cy: float, w: float, h: float) -> "Rect":
-        return cls.um(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
-
-    @classmethod
-    def hwire(cls, xa: float, xb: float, y: float, w: float) -> "Rect":
-        lo, hi = sorted((xa, xb))
-        return cls.um(lo - w / 2, y - w / 2, hi + w / 2, y + w / 2)
-
-    @classmethod
-    def vwire(cls, x: float, ya: float, yb: float, w: float) -> "Rect":
-        lo, hi = sorted((ya, yb))
-        return cls.um(x - w / 2, lo - w / 2, x + w / 2, hi + w / 2)
-
-    def as_um(self) -> list[float]:
-        return [self.x0 / DBU, self.y0 / DBU, self.x1 / DBU, self.y1 / DBU]
-
-    def clashes(self, other: "Rect", clearance: int) -> bool:
-        return (self.x0 - clearance < other.x1 and other.x0 < self.x1 + clearance
-                and self.y0 - clearance < other.y1 and other.y0 < self.y1 + clearance)
-
-
-class RouteError(RuntimeError):
-    """The floorplan/router could not place a wire."""
-
-
 # --- orientation --------------------------------------------------------------
 #: `klt gen-compose`'s own `blocks[].orientation` point transforms, mirrored
 #: here so the floorplan can reason about a block's placed bbox and ports
@@ -759,33 +718,6 @@ def ring_request(extents: dict[str, tuple], ring_id: str) -> tuple[dict, dict]:
 
 
 # --- anchors ------------------------------------------------------------------
-class Anchor:
-    """One place a net can be reached inside one block.
-
-    ``plane`` is how a met2 trunk gets onto it: ``met1`` for an li1 pad or an
-    in-block met1 strap, ``cap3``/``cap4`` for a MiM terminal that needs a
-    same-layer run out of the block first, and ``ota`` for one of the eight
-    landing points inside the placed OTA instance.
-    """
-
-    __slots__ = ("net", "block", "plane", "y", "x0", "x1", "ports", "port_dir",
-                 "block_y0", "block_y1", "pad_xs", "jog_um")
-
-    def __init__(self, net, block, plane, y, x0, x1, ports,
-                 port_dir=0, block_y0=0.0, block_y1=0.0, pad_xs=(), jog_um=0.0):
-        self.net, self.block, self.plane = net, block, plane
-        self.y, self.x0, self.x1 = y, x0, x1
-        self.ports = ports
-        self.port_dir = port_dir
-        self.block_y0, self.block_y1 = block_y0, block_y1
-        self.pad_xs = tuple(pad_xs) if pad_xs else (x0,)
-        self.jog_um = jog_um
-
-    @property
-    def xmid(self) -> float:
-        return (self.x0 + self.x1) / 2
-
-
 def collect_anchors(blocks: dict[str, Block]):
     """Turn every block's ports into anchors, one per (block, net, pad row).
 
@@ -859,30 +791,25 @@ def collect_anchors(blocks: dict[str, Block]):
 
 
 # --- router -------------------------------------------------------------------
-class Router:
+class Router(RouterBase):
     """met1 horizontal + met2 vertical, one global x column per trunk.
 
     Same discipline as the sibling OTA generator: every trunk owns its x column
     outright, so no met2-met2 spacing search is needed; met1 is the only layer
     the greedy search has to keep clear; met3/met4 carry only the MiM risers
-    and the eight OTA escapes.
+    and the eight OTA escapes.  The shared core lives in
+    layout_common.Router; the overrides below are the parts this generator
+    does differently -- the per-net shape bookkeeping (`by_net`, read back by
+    `summing_node_report()`), the boundary-clipped column proposal, a
+    48-column search budget per anchor with the fuller exhaust message, and
+    zero-height trunks skipped.
     """
 
     def __init__(self, x_lo: float, x_hi: float, y_lo: float, y_hi: float) -> None:
-        self.x_lo, self.x_hi, self.y_lo, self.y_hi = x_lo, x_hi, y_lo, y_hi
-        self.shapes: list[tuple[tuple[int, int], Rect]] = []
-        self.labels: list[tuple[tuple[int, int], str, float, float]] = []
-        self.met1: list[tuple[str, Rect]] = []
-        self.met1_index: dict[int, list[tuple[str, Rect]]] = defaultdict(list)
-        self.met3: list[tuple[str, Rect]] = []
-        self.met4: list[tuple[str, Rect]] = []
-        self.used_cols: set[int] = set()
+        super().__init__(x_lo, x_hi, y_lo, y_hi)
         #: Every routed rectangle, keyed by (net, layer).  Only used after the
         #: fact, by `summing_node_report()`.
         self.by_net: dict[tuple[str, tuple[int, int]], list[Rect]] = defaultdict(list)
-        self.trunk_y: dict[tuple[str, float], list[float]] = defaultdict(list)
-        self.via1_y: dict[tuple[str, float], list[float]] = defaultdict(list)
-        self.wire_um: dict[str, float] = defaultdict(float)
 
     # -- geometry bookkeeping -------------------------------------------------
     def add_shape(self, layer, rect: Rect, net: str | None = None) -> None:
@@ -904,44 +831,6 @@ class Router:
             self.add_shape(layer, rect, net)
             self.wire_um[net] += (rect.x1 - rect.x0 + rect.y1 - rect.y0) / DBU
 
-    def add_mcon(self, x: float, y: float) -> None:
-        rect = Rect.centred(x, y, MCON_UM, MCON_UM)
-        self.add_shape(L_MCON, rect)
-
-    def add_trunk_via(self, net: str, col: float, y: float) -> None:
-        """Drop a met1<->met2 via1 on this net's column, and grow the trunk."""
-        self.trunk_y[(net, col)].append(y)
-        if any(abs(y - prev) < WIRE_UM for prev in self.via1_y[(net, col)]):
-            return
-        self.add_shape(L_VIA, Rect.centred(col, y, VIA_UM, VIA_UM))
-        self.via1_y[(net, col)].append(y)
-
-    @staticmethod
-    def _ok(rect: Rect, placed: Rect, same_net: bool, gap: int) -> bool:
-        if not rect.clashes(placed, gap):
-            return True
-        return same_net and rect.clashes(placed, 0)
-
-    @classmethod
-    def _free(cls, store, net: str, rects: list[Rect], clearance: float) -> bool:
-        gap = nm(clearance)
-        for owner, placed in store:
-            for rect in rects:
-                if not cls._ok(rect, placed, owner == net, gap):
-                    return False
-        return True
-
-    def met1_free(self, net: str, rects: list[Rect]) -> bool:
-        gap = nm(MET1_SPACE_UM)
-        for rect in rects:
-            lo = (rect.y0 - gap) // BUCKET_NM
-            hi = (rect.y1 + gap) // BUCKET_NM
-            for b in range(lo, hi + 1):
-                for owner, placed in self.met1_index.get(b, ()):
-                    if not self._ok(rect, placed, owner == net, gap):
-                        return False
-        return True
-
     # -- candidate orders ------------------------------------------------------
     def columns(self, x0: float, x1: float, pref: float):
         k0 = int((self.x_lo - 2.0) // TRUNK_PITCH_UM)
@@ -951,23 +840,6 @@ class Router:
         cands.sort(key=lambda c: (0 if x0 - 1e-9 <= c <= x1 + 1e-9 else 1,
                                   abs(c - pref), c))
         return [c for c in cands if nm(c) not in self.used_cols]
-
-    def neighbours_free(self, col: float) -> bool:
-        return not any(nm(snap(col + d * TRUNK_PITCH_UM)) in self.used_cols
-                       for d in (-1, 1))
-
-    def reserve_column(self, col: float, neighbours: bool = False) -> None:
-        self.used_cols.add(nm(col))
-        if neighbours:
-            self.used_cols.add(nm(snap(col - TRUNK_PITCH_UM)))
-            self.used_cols.add(nm(snap(col + TRUNK_PITCH_UM)))
-
-    def tracks(self, pref: float):
-        k0 = int((self.y_lo - 2.0) // TRACK_PITCH_UM)
-        k1 = int((self.y_hi + 2.0) // TRACK_PITCH_UM) + 1
-        cands = [snap(k * TRACK_PITCH_UM) for k in range(k0, k1 + 1)]
-        cands.sort(key=lambda y: (abs(y - pref), y))
-        return cands
 
     # -- the ways a net reaches a block ---------------------------------------
     def connect_met1(self, a: Anchor, col_budget: int = 48) -> tuple[float, float]:
@@ -996,16 +868,6 @@ class Router:
             f"no free met2 column for {a.net} at {a.block} y={a.y}: "
             f"{len(self.used_cols)} columns already taken, "
             f"{len(cols)} free within the budget")
-
-    def jog_tracks(self, a: Anchor) -> list[float]:
-        if a.jog_um <= 0:
-            return [a.y]
-        n = int(a.jog_um / TRACK_PITCH_UM)
-        ys = {a.y}
-        for i in range(1, n + 1):
-            ys.add(snap(a.y + i * TRACK_PITCH_UM))
-            ys.add(snap(a.y - i * TRACK_PITCH_UM))
-        return sorted(ys, key=lambda y: (abs(y - a.y), y))
 
     def connect_cap(self, a: Anchor) -> tuple[float, float]:
         """A MiM terminal: a same-layer run out of the block, then a via stack
@@ -1077,18 +939,7 @@ class Router:
         return col, y
 
     # -- trunk-to-trunk spine --------------------------------------------------
-    def route_spine(self, net: str, ca: float, ya: float,
-                    cb: float, yb: float) -> float:
-        for y in self.tracks((ya + yb) / 2):
-            rect = Rect.hwire(ca, cb, y, WIRE_UM)
-            if not self.met1_free(net, [rect]):
-                continue
-            self.add_met1(net, [rect])
-            self.add_trunk_via(net, ca, y)
-            self.add_trunk_via(net, cb, y)
-            return y
-        raise RouteError(f"no free met1 track for {net} spine {ca} <-> {cb}")
-
+    # route_spine is the shared base's; only the trunk finish differs here.
     def finish_trunks(self) -> None:
         for (net, col), ys in sorted(self.trunk_y.items()):
             lo, hi = min(ys), max(ys)
