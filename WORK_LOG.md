@@ -2,6 +2,24 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-15
+
+- **PR #188**: feat(layout): klt lvs the routed decimator against its as-built netlist and grade 4.digital met
+- **Issue #161** (closed): T1 item 4, digital only: klt lvs the routed decimator against its as-built netlist and cite it for 4.digital
+- **PR #184**: fix: evaluate gen --check at the klt build recorded in the cell's own provenance
+- **Issue #172** (closed): gen_ota_fd.py --check cannot pass: the committed ota_fd.gds no longer reproduces under a newer klt
+- **PR #179**: refactor: share the layout/analog generator plumbing in one layout_common module
+- **Issue #176** (closed): Share the plumbing copy-pasted between gen_ota_fd.py and gen_integrator.py: four identical helpers, and two extract parsers that have already drifted
+- **PR #178**: fix: one column-reservation site; route summaries report reserved met2 columns
+- **Issue #168** (closed): gen_ota_fd.py: one column-reservation site, and a met2_columns that does not count met2 columns (117 vs 105)
+- **PR #167**: fix(pnr): refuse on the PDK stamp klt actually records, and test it
+- **Issue #158** (closed): run_pnr.py's PDK-pin refusal can never fire: it reads a top-level `pdk.version` that klt reports do not have
+- **PR #160**: docs: roadmap as of 2026-11-13
+- **PR #154**: evidence(sta): grade the decimator with a propagated clock, not an ideal one
+- **Issue #136** (closed): Decimator STA: cite the propagated-clock run so the hold verdict includes clock-tree latency
+- **PR #145**: refactor(sim): share the SPICE joiner, figure-of-merit block, deck fill and baseline read across the issue #92 probe runners
+- **Issue #105** (closed): Share the pasted helpers in the issue #92 probe runners: three copies of the SPICE line joiner, two of the figure-of-merit block
+
 ### 2026-11-14
 
 - **PR #173**: refactor(layout): drop the never-called mcon spacing guard and the wrong DELIVERABLES tuple
