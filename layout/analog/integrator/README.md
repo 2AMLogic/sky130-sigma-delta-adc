@@ -80,9 +80,42 @@ exactly as it does for `ota_fd` and for the digital partition.
 This is **not** the klt CI pin (`0.8.0`), and it is a later build than the one
 that produced `ota_fd.gds` (`0.9.2.dev964`). Byte-reproducibility is an
 assertion about *this* klt build: a generator change upstream moves geometry, so
-`--check` on a different klt will fail even though the design did not change.
-Re-run the generator and commit the refreshed stream and envelopes in the same
-PR when the pin moves. `gen_compose`'s `blocks[].cell` path does **not**
+`--check` asserts the build recorded in this cell's own evidence, not whatever
+`klt` is on PATH. The pin is read back from `drc.report.json` → `provenance`
+(`klt_version` / `klt_git_commit` / `klt_reinstall_spec` / `klayout_version`):
+
+The klayout axis is part of the pin: `provenance.klt_reinstall_spec` pins
+**klayout-tools** only (upstream declares `klayout>=0.30`, a floor), so the
+klayout a fresh resolution installs can drift, and the committed bytes were
+written by the klayout recorded beside them. `--check` therefore compares the
+running/resolved `klayout_version` against the recorded one and refuses
+(exit 2) on a difference — a byte difference is only ever called a geometry
+regression when **both** axes match the recording.
+
+- **Host klt matches the recorded commit** — its klayout must equal the
+  recorded one too; then the regenerated GDS is byte-compared against
+  `integrator.gds` directly. A difference is a generator or geometry
+  regression: exit 1, `FAIL`.
+- **Host klt differs** — `--check` re-runs the flow under the recorded build
+  via `uvx --from "<provenance.klt_reinstall_spec>" klt` and byte-compares that
+  output, so the gate stays meaningful across host toolchain upgrades. The
+  resolution probe also verifies the resolved build's klayout equals the
+  recorded one; on drift it names both versions, prints the klayout-pinned
+  command (`uvx --from "<spec>" --with "klayout==<recorded>" klt ...`), and
+  exits 2. A byte difference is still exit 1 / `FAIL` (geometry), never
+  blamed on the toolchain.
+- **The gate cannot run** — `drc.report.json`/`provenance` missing or
+  unreadable, `uvx` unavailable, the recorded build failing to resolve, or a
+  klayout mismatch on either branch — is exit 2, `CANNOT VERIFY`, naming the
+  reason and the exact `uvx` command a human can run. It never reports a
+  pass. If `klt version --format json` omits `git_commit`, the direct branch
+  degrades to the uvx branch (identity is re-derived there) rather than
+  failing.
+
+When the recorded pin moves (a deliberate klt upgrade), re-run the generator
+and commit the refreshed stream and envelopes in the same PR — the new
+`provenance` becomes the pin `--check` asserts against.
+`gen_compose`'s `blocks[].cell` path does **not**
 re-generate the OTA, so the OTA half of the stream is whatever `ota_fd.gds`
 holds, independent of the klt build used here.
 
