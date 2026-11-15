@@ -2,8 +2,35 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-14
+
+- **PR #173**: refactor(layout): drop the never-called mcon spacing guard and the wrong DELIVERABLES tuple
+- **Issue #166** (closed): Remove the never-called mcon/met2 spacing guard and the wrong DELIVERABLES tuple from gen_ota_fd.py
+- **PR #171**: sim: measure the integrate-phase noise where it accumulates, and split it per device
+- **Issue #140** (closed): First-integrator amplifier noise: sampled-data-correct referral of 1/f noise and a per-device flicker/thermal split (sim/integrator-noise)
+- **PR #159**: feat(layout): generate the SC integrator cell GDS with the OTA instantiated
+- **Issue #119** (closed): Analog layout 2/3: generated GDS of the SC integrator cell with its capacitors and switches
+- **PR #157**: test(sim): share one klt-sim runner harness across the two benches
+- **Issue #152** (closed): Share the two klt-sim runner test harnesses: RunnerCase and the issue #94 admission test class are copied per bench
+- **PR #151**: sim: measure the comparator's decision time, offset, hysteresis and kickback over the DR-002 grid
+- **Issue #127** (closed): T1 item 5 (analog 3/4): comparator decision time, systematic offset and hysteresis in the modulator over the 45-corner grid
+- **PR #139**: feat(sim): extract OTA DC gain and integrator thermal noise over the 45-corner grid
+- **Issue #126** (closed): T1 item 5 (analog 2/4): OTA DC gain and integrator thermal noise over the 45-corner grid, as model B parameters
+- **PR #134**: feat(signoff): bind a not_applicable record to T1 item 6 (digital)
+- **Issue #123** (closed): T1 item 6 (digital partition): hash-bound not_applicable statement for decimator spec rows 6-10
+- **PR #133**: chore: drop never-matched build ignores, ignore the cocotb runners' scratch
+- **Issue #103** (closed): Prune .gitignore rules that match nothing, and ignore the build scratch the cocotb runners actually leave
+
 ### 2026-11-13
 
+- **PR #144**: ci: fetch full history so the pre-#92 fixture comparison runs
+- **Issue #120** (closed): Make the pre-#92 fixture check run in CI: it is skipped on every run because the checkout is shallow
+- **PR #141**: feat(layout): generate the ota_fd OTA cell GDS from the netlist
+- **Issue #118** (closed): Analog layout 1/3: generated GDS of the fully-differential OTA cell (ota_fd)
+- **PR #135**: feat(ci): run the tool-free signoff checks in the local check:ci gate
+- **Issue #104** (closed): Make npm test run the tool-free tests CI already runs: check:ci parses two JSON files and runs no tests
+- **PR #132**: feat(verification): grade decimator timing at ten liberty corners and cite item 5 digital
+- **Issue #124** (closed): T1 item 5 (digital): klt sta on the routed decimator across the sky130_fd_sc_hd corners, plus a klt functional-verification report
 - **Issue #27** (closed): T1 item 1 (design sources, analog partition): xschem schematic and derived netlist of the 2nd-order switched-capacitor modulator
 - **PR #116**: feat(attest): attest the analog design sources for T1 item 1
 - **Issue #42** (closed): T1 item 1 (analog 4/4): attestation inventory, manifest evidence, regenerated verdict

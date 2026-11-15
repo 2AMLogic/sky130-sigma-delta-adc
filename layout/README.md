@@ -11,7 +11,7 @@ gate-level netlist `rtl/netlist/decimator_synth.v`. Not hand-edited.
 | `pnr_request.json` | the P&R request: cell library, floorplan, PDN, clock |
 | `run_pnr.py` | driver; `python3 layout/digital/run_pnr.py` regenerates, `--check` compares |
 | `decimator.gds` | routed layout (T1 item 2, digital); hash-pinned by `design/attest/item2-digital-envelope.json` |
-| `decimator.def`, `decimator_pnr.v` | routed DEF and as-built netlist (CTS buffers included): the LVS reference for #32 |
+| `decimator.def`, `decimator_pnr.v` | routed DEF and as-built netlist (CTS buffers included): the LVS reference for the digital partition (item 4, below); analog-partition and assembled-top LVS stay with #32 |
 | `sta_request.json` | the multi-corner `klt sta` request on the routed DEF |
 | `sta-decimator.report.json` | the committed STA report (T1 item 5, digital, with `verification/decimator/fv-decimator.report.json`) |
 
@@ -54,27 +54,93 @@ spans corners down to 1.28 V, below the spec's 1.62 V supply bound; the STA belo
 only corners at or above 1.60 V and sees those electrical violations at one corner
 (`ss_n40C_1v60`).
 
+## LVS (T1 item 4, digital)
+
+`klt lvs` (pinned klt 0.8.0, klayout 0.30.13, `sky130` extraction deck, content hash
+`sha256:ba0f97887e3d231aec8b54f1f52f2941ded0228f0234b6759712bcaca0e942e6`) on
+`decimator.gds`, top `decimator`, against the as-built gate-level netlist
+`decimator_pnr.v` (`form: "gate-level-verilog"`, `library: sky130_fd_sc_hd`) is
+`match` with 0 errors; report `digital/lvs-decimator.report.json`, request
+`digital/lvs_request.json`. Reproduce with `digital/run_lvs.sh --check` (cheap
+re-hash of the committed inputs; exit 0 consistent, 3 drifted), or
+`digital/run_lvs.sh` to regenerate (about 30 minutes; the layout extraction of
+19688 abstracted cell instances dominates), or `--rerun` for the full compare
+re-run. Standard cells are compared at cell-instance level
+(`abstract_cells: sky130_fd_sc_hd__*`, pins resolved from the cells' own
+in-layout labels; every abstracted black box carries its signal pins plus
+`VGND`/`VPB`/`VPWR` — `VNB` has no in-cell substrate-tie label and is dropped,
+which the signal-only Verilog reference never carries anyway).
+
+`power_connectivity.status` is `match` (0 findings): the request declares
+`expected_nets` `VPWR: VDDD`, `VGND: VSSD` (`supply_nets: VDDD, VSSD`, which the
+deck's default allowlist does not contain), and the per-instance pin-to-net
+check covers all 19688 abstracted instances against the power-pin universe
+derived from the layout (`VGND`, `VPB`, `VPWR`, declared by every one of the
+103 instantiated masters, corroborated). The declared mapping verifies
+`VPWR`→`VDDD` and `VGND`→`VSSD` on every instance; `VPB` is unnamed in the
+declaration and gets the relative-consistency check instead — the verdict says
+every instance's `VPB` reaches the same net, and does not name which. This
+checks per-cell-instance pin-to-net correctness, not the geometric rails:
+power-delivery evidence stays with item 11 (`klt erc`, #39).
+
+Warnings-only disclosures (all five report entries, none an error; the verdict
+is `match` with these listed, per the item-4 grading rule): three `topology`
+entries for device classes `nfet`/`pfet`/`pnp` that have no counterpart on
+either side and no extracted devices (an artifact of the cell-level compare);
+`topology.power_only_pruned` — the five layout-side circuits whose every pin is
+a power pin (`sky130_fd_sc_hd__fill_1/2/4/8`, `tapvpwrvgnd_1`) are pruned before
+comparing, since the Verilog reference structurally cannot carry them;
+`topology.top_level_pins_anchored` — 20 top-level pins anchored by name
+(`options.anchor_top_level_pins` defaults on for this reference form), which is
+what stops a bit-reversed `dout[15:0]` from comparing clean.
+
+Analog-partition and assembled-top LVS stay with #32.
+
+One provenance blemish, recorded as the tool wrote it: the report's
+`provenance.pin_order_sources[].path` embeds the resolved library file as an
+absolute home path, which `klt env-provenance scan` itself flags as a leak
+(klt's own hygiene rule says such paths are never emitted — pin by identity
+instead). Not hand-edited out; filed generically as
+`2AMLogic/klayout-tools#5812`. Every other path in the report and the signoff
+record is repo-relative or tilde-rooted.
+
 ## Multi-corner STA (T1 item 5, digital)
 
 `klt sta` (pinned klt 0.8.0, OpenROAD `26Q3-1510-g6cb3f2b704`) on the committed
-`digital/decimator.def` — `geometry_source: "routed"`, clock `clk` at 195.3125 ns — with
+`digital/decimator.def` — `geometry_source: "routed"`, clock `clk` at 195.3125 ns,
+`constraints.propagated_clock: true` — with
 `pdk.corners` naming ten corners, so one fixed geometry is characterized at all ten in a
 single request. (`klt place-and-route` re-run per corner would give ten *different*
 placements and routings, which is not a characterization of this layout.) Request
 `digital/sta_request.json`, report `digital/sta-decimator.report.json`. Reproduce with:
 
 ```sh
-# from the repo root; takes about a minute
-PDK_ROOT=$(klt pdk find --pdk sky130A --format json | jq -r .root) \
-  klt sta layout/digital/sta_request.json --pdk sky130A --format json \
-  > layout/digital/sta-decimator.report.json
+# from the repo root; takes about half a minute. Pinned klt, not the host klt,
+# and an explicit --pdk-root: both reach the committed report's own provenance
+# (`provenance.klt_version`, `pdk.source: "--pdk-root flag"`).
+uvx --from "klayout-tools==$(cat .github/klt-version)" klt sta \
+  layout/digital/sta_request.json --pdk sky130A \
+  --pdk-root "$(klt pdk find --pdk sky130A --format json | jq -r .root)" \
+  --format json > layout/digital/sta-decimator.report.json
 ```
+
+A re-run reproduces every timing number exactly, but **not** the file byte-for-byte:
+each corner's `engine_log.invocation_id` is a fresh UUID, and `engine_log.script_sha256`
+covers a generated TCL that embeds the checkout's absolute `read_def` path. Compare with
+`jq -S 'del(.corners[].engine_log)'` on both sides, not `diff`.
 
 **Result**: every one of the ten corners is `timing_status: "constrained"` with
 non-negative setup and hold slack and zero setup/hold violations. Worst setup slack
-157.898 ns of the 195.3125 ns period at `ss_n40C_1v60` (Fmax 26.73 MHz); worst hold slack
-0.2586 ns at `ff_n40C_1v95`; best Fmax 110.05 MHz at `ff_n40C_1v95`. The clock is 5.12 MHz,
+157.838 ns of the 195.3125 ns period at `ss_n40C_1v60` (Fmax 26.69 MHz); worst hold slack
+0.2698 ns at `ff_n40C_1v95`; best Fmax 109.79 MHz at `ff_n40C_1v95`. The clock is 5.12 MHz,
 so the slowest declared corner leaves a 5.2x frequency margin.
+
+These supersede the ideal-clock figures this report carried before #136 (worst setup
+157.898 ns at `ss_n40C_1v60`, Fmax 26.73 MHz; worst hold 0.2586 ns at `ff_n40C_1v95`; best
+Fmax 110.05 MHz), kept here so the replaced result stays readable. Propagating the clock
+costs setup (insertion delay lands on the launch edge) and *earns* hold (it lands on the
+capture edge too): worst setup fell 0.060 ns and worst hold rose 0.0112 ns. Both signs are
+what a real clock tree does, and neither moves the verdict.
 
 **Which DR-002 point each declared corner stands in for.** Spec §2 (DR-002) asks for 45
 points: {tt, ss, ff, sf, fs} x {-40, 27, 125 C} x {1.62, 1.80, 1.98 V}. `sky130_fd_sc_hd`
@@ -110,9 +176,16 @@ tracked in #131.
 - **No SPEF.** Routed-DEF timing with no extracted wire parasitics
   (`spef_path: null`, `power_basis.parasitics: "estimate_only"`). Parasitic-annotated
   timing is #35.
-- **Ideal clock.** `clock_mode: "ideal"` — `create_clock` with no
-  `set_propagated_clock`, so the clock tree's insertion delay never reaches the numbers.
-  Measured `clock_skew_ns` is ~0.013 ns and is not evidence of propagation.
+- **Propagated clock.** `clock_mode: "propagated"` — the session issues
+  `set_propagated_clock [get_clocks clk]`, so the DEF's own clock tree carries insertion
+  delay into both the launch and the capture edge of every check. The
+  `clock_propagation` evidence block per corner reports the worst network latency actually
+  reached: 0.3204 ns at `ff_n40C_1v95` up to 0.9745 ns at `ss_n40C_1v60`, i.e. up to 0.5 %
+  of the 195.3125 ns period. Its `clock_sinks` count (2-3) is **not** the size of the tree:
+  `report_clock_latency` prints only the min- and max-latency sinks, and `clock_sinks_sample`
+  is a diagnostic sample. The latency is computed from the routed DEF's own interconnect
+  with no SPEF, so it is an estimate of insertion delay, not an extracted one. The separate
+  aggregate `clock_skew_ns` metric is unchanged at ~0.013 ns by propagation.
 - **Register-to-register only.** Every corner reports
   `constraint_completeness.status: "incomplete"` with 17 unconstrained endpoints
   (`dout[15:0]`, `dout_valid`) and 0 unclocked registers. No block-boundary input/output

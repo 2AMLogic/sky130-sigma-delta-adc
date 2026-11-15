@@ -17,7 +17,7 @@ import argparse, hashlib, json, pathlib, re, subprocess, sys, tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import pdk_stamp
+from settling_common import join_continuations, ngspice_version, pdk_stamp
 
 BASELINE_REV = "ffbbb3b"   # merge of PR #93: the netlists record.json was taken on
 
@@ -27,6 +27,28 @@ T_STEP, T_PHASE, T_END = 35.0e-9, 97.66e-9, 335e-9
 T_SAMPLE = T_STEP + T_PHASE
 T_MID = 100e-9      # inside the integrate phase
 T_EDGE = 40e-9      # just after the phi2 edge, where a slewing OTA would show
+
+
+def fom_lines():
+    """The record's own figures of merit, as .control lines, defined once.
+
+    Both probe blocks in this directory build on this list: `probes()` below,
+    and `run_variants.probes_min()`, which keeps its own smaller, device-probe-
+    free block but must report the *same* scalars under the same definitions
+    for its numbers to stay comparable with record.json. One list means that
+    holds by construction rather than by two hand-kept copies agreeing.
+    """
+    return [
+        "let vod_pre = v(vod)[0]",
+        "let vod_end = v(vod)[length(v(vod))-1]",
+        "let step_dv = vod_end - vod_pre",
+        f"meas tran vod_phase find v(vod) at={T_SAMPLE:.6g}",
+        "let err_phase = abs(vod_phase - vod_end)/abs(step_dv)",
+        "let step_err_vs_ideal = abs(abs(step_dv) - 0.9)/0.9",
+        f"let end_ripple_rel = (vecmax(v(vod)*(time gt {T_END-20e-9:.6g}) - 10*(time le {T_END-20e-9:.6g}))"
+        f" - vecmin(v(vod)*(time gt {T_END-20e-9:.6g}) + 10*(time le {T_END-20e-9:.6g})))/abs(step_dv)",
+        "print vod_pre vod_end step_dv vod_phase err_phase step_err_vs_ideal end_ripple_rel",
+    ]
 
 
 def probes(nsw, psw):
@@ -53,26 +75,18 @@ def probes(nsw, psw):
          f"+ {saves}",
          f"+ {ota}.xmt.msky130_fd_pr__nfet_01v8[id] {ota}.xm1.msky130_fd_pr__nfet_01v8[id]",
          f"+ {ota}.xm2.msky130_fd_pr__nfet_01v8[id]",
-         f"tran 10p {T_END:.6g} 0 0.1n",
-         # --- the same figures of merit record.json reports ---
-         "let vod_pre = v(vod)[0]",
-         "let vod_end = v(vod)[length(v(vod))-1]",
-         "let step_dv = vod_end - vod_pre",
-         f"meas tran vod_phase find v(vod) at={T_SAMPLE:.6g}",
-         "let err_phase = abs(vod_phase - vod_end)/abs(step_dv)",
-         "let step_err_vs_ideal = abs(abs(step_dv) - 0.9)/0.9",
-         f"let end_ripple_rel = (vecmax(v(vod)*(time gt {T_END-20e-9:.6g}) - 10*(time le {T_END-20e-9:.6g}))"
-         f" - vecmin(v(vod)*(time gt {T_END-20e-9:.6g}) + 10*(time le {T_END-20e-9:.6g})))/abs(step_dv)",
-         "print vod_pre vod_end step_dv vod_phase err_phase step_err_vs_ideal end_ripple_rel",
-         # --- switch evidence, mid-integrate ---
-         "let vgs_sti = v(phi2) - v(xint.sump)",
-         "let vgs_sbi = v(phi2) - v(vcm)",
-         "let drop_sti = v(xint.tpi_p) - v(xint.sump)",
-         "let drop_sbi = v(xint.bpi_p) - v(vcm)",
-         "let drop_str = v(xint.tpr_p) - v(xint.sump)",
-         "let drop_sbr = v(xint.bpr_p) - v(vcm)",
-         "let vocm = (v(voutp)+v(voutn))/2",
-         "let vsum_diff = v(xint.sump) - v(xint.sumn)"]
+         f"tran 10p {T_END:.6g} 0 0.1n"]
+    # --- the same figures of merit record.json reports ---
+    L += fom_lines()
+    # --- switch evidence, mid-integrate ---
+    L += ["let vgs_sti = v(phi2) - v(xint.sump)",
+          "let vgs_sbi = v(phi2) - v(vcm)",
+          "let drop_sti = v(xint.tpi_p) - v(xint.sump)",
+          "let drop_sbi = v(xint.bpi_p) - v(vcm)",
+          "let drop_str = v(xint.tpr_p) - v(xint.sump)",
+          "let drop_sbr = v(xint.bpr_p) - v(vcm)",
+          "let vocm = (v(voutp)+v(voutn))/2",
+          "let vsum_diff = v(xint.sump) - v(xint.sumn)"]
     for nm, ex in (("vgs_sti", "vgs_sti"), ("vgs_sbi", "vgs_sbi"),
                    ("vth_sti", f"{sti}[vth]"), ("vth_sbi", f"{sbi}[vth]"),
                    ("vth_str", f"{str_}[vth]"), ("vth_sbr", f"{sbr}[vth]"),
@@ -118,17 +132,7 @@ def xint_line(netlist_bytes):
     derived rather than hard-coded. Every port maps to the bench net of the same
     name except vssa, which is the bench ground.
     """
-    txt = netlist_bytes.decode()
-    lines, cur = [], None
-    for ln in txt.splitlines():
-        if ln.startswith("+") and cur is not None:
-            cur += " " + ln[1:].strip()
-        else:
-            if cur is not None:
-                lines.append(cur)
-            cur = ln
-    if cur is not None:
-        lines.append(cur)
+    lines = join_continuations(netlist_bytes.decode())
     decl = next((l for l in lines if l.lower().startswith(".subckt integrator")), None)
     if decl is None:
         sys.exit("REFUSE: no '.subckt integrator' line in the netlist")
@@ -141,20 +145,47 @@ def xint_line(netlist_bytes):
     return "Xint " + " ".join(nets) + " integrator"
 
 
-def run(tag, netlist_bytes, corner, temp, vdda, load, ng, pdk_lib, tmp):
-    nsw = ("msky130_fd_pr__nfet_01v8_lvt" if b"nfet_01v8_lvt" in netlist_bytes
-           else "msky130_fd_pr__nfet_01v8")
-    psw = "msky130_fd_pr__pfet_01v8_lvt" if b"pfet_01v8_lvt" in netlist_bytes else None
-    net = tmp / f"integrator-{tag}.spice"
-    net.write_bytes(netlist_bytes)
-    deck = ((HERE / "diag_1v62.cir.tmpl").read_text()
+def fill_deck(net, netlist_bytes, corner, temp, vdda, load, probe_block, pdk_lib):
+    """Fill diag_1v62.cir.tmpl for one transient.
+
+    `net` is the netlist file the deck reads; `netlist_bytes` is its content,
+    which the `Xint` instance line is derived from. `load` and `probe_block`
+    are what the two benches on this deck differ in -- everything else about
+    the fill is the same, so a change to the deck's placeholders lands in both.
+    """
+    return ((HERE / "diag_1v62.cir.tmpl").read_text()
             .replace("{{PDK_LIB}}", f'"{pdk_lib}"').replace("{{CORNER}}", corner)
             .replace("{{TEMP}}", str(temp)).replace("{{VDDA}}", str(vdda))
             .replace("{{LOAD}}", load)
             .replace("{{OTA}}", f'"{REPO / "design/ota/ota_fd.spice"}"')
             .replace("{{NETLIST}}", f'"{net}"')
             .replace("{{XINT}}", xint_line(netlist_bytes))
-            .replace("{{PROBES}}", probes(nsw, psw)))
+            .replace("{{PROBES}}", probe_block))
+
+
+def baseline_netlist(rev):
+    """design/integrator/integrator.spice as of `rev`, or None after a REFUSE.
+
+    The diagnosis benches run the pre-fix cell, so the baseline comes out of
+    git rather than the working tree and stays reproducible after a fix lands.
+    A caller that gets None has already had the reason printed on stderr.
+    """
+    r = subprocess.run(["git", "show", f"{rev}:design/integrator/integrator.spice"],
+                       cwd=REPO, capture_output=True)
+    if r.returncode:
+        print(f"REFUSE: cannot read the baseline netlist at {rev}: "
+              f"{r.stderr.decode()[-300:]}", file=sys.stderr)
+        return None
+    return r.stdout
+
+
+def run(tag, netlist_bytes, corner, temp, vdda, load, ng, pdk_lib, tmp):
+    nsw = ("msky130_fd_pr__nfet_01v8_lvt" if b"nfet_01v8_lvt" in netlist_bytes
+           else "msky130_fd_pr__nfet_01v8")
+    psw = "msky130_fd_pr__pfet_01v8_lvt" if b"pfet_01v8_lvt" in netlist_bytes else None
+    net = tmp / f"integrator-{tag}.spice"
+    net.write_bytes(netlist_bytes)
+    deck = fill_deck(net, netlist_bytes, corner, temp, vdda, load, probes(nsw, psw), pdk_lib)
     d = tmp / f"deck-{tag}.cir"
     d.write_text(deck)
     r = subprocess.run(["ngspice", "-b", str(d)], capture_output=True, text=True, cwd=ng)
@@ -169,18 +200,6 @@ def run(tag, netlist_bytes, corner, temp, vdda, load, ng, pdk_lib, tmp):
             "switch_nmos_model": nsw.removeprefix("m"),
             "switch_pmos_half": psw.removeprefix("m") if psw else None,
             "values": vals}
-
-
-def _ngspice_version():
-    """Return e.g. 'ngspice-47', or 'unknown'.
-
-    `ngspice -v` line 1 is the banner's '******' rule, not the version, so
-    match the version token anywhere in the output (same convention as
-    sim/smoke/run_smoke.py and sim/ota-op-smoke/run_op.py).
-    """
-    m = re.search(r"ngspice-\d+",
-                  subprocess.run(["ngspice", "-v"], capture_output=True, text=True).stdout)
-    return m.group(0) if m else "unknown"
 
 
 def main():
@@ -209,11 +228,8 @@ def main():
     pdk_lib = ng / "sky130.lib.spice"
 
     cur = (REPO / "design/integrator/integrator.spice").read_bytes()
-    base = subprocess.run(["git", "show", f"{a.baseline_rev}:design/integrator/integrator.spice"],
-                          cwd=REPO, capture_output=True)
-    if base.returncode:
-        print(f"REFUSE: cannot read the baseline netlist at {a.baseline_rev}: "
-              f"{base.stderr.decode()[-300:]}", file=sys.stderr)
+    base = baseline_netlist(a.baseline_rev)
+    if base is None:
         return 2
 
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="integrator-diag-"))
@@ -230,13 +246,13 @@ def main():
         "pass_criterion": "err_phase <= 1e-4 (DR-005), same definition as record.json",
         "pdk_sources_stamp": stamp,
         "pdk_pin": {"file": "sim/pdk.json", "open_pdks_revision": pin["open_pdks_revision"]},
-        "ngspice": _ngspice_version(),
+        "ngspice": ngspice_version(),
         "deck_sha256": sha256_bytes((HERE / "diag_1v62.cir.tmpl").read_bytes()),
         "ota_netlist_sha256": sha256_bytes((REPO / "design/ota/ota_fd.spice").read_bytes()),
         "baseline_rev": a.baseline_rev,
         "runs": {},
     }
-    res["runs"]["as_built"] = run("as-built", base.stdout, a.corner, a.temp, a.vdda, a.load,
+    res["runs"]["as_built"] = run("as-built", base, a.corner, a.temp, a.vdda, a.load,
                                   ng, pdk_lib, tmp)
     res["runs"]["fixed"] = run("fixed", cur, a.corner, a.temp, a.vdda, a.load, ng, pdk_lib, tmp)
     txt = json.dumps(res, indent=2) + "\n"
