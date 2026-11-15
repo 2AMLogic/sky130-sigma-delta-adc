@@ -107,23 +107,26 @@ datum is given where one exists; it is a reference point, not a bound.
   with slow PMOS, or the reverse — is unmodelled for the digital partition. For
   setup it is covered in effect, because `ss` is slow on *both* device types
   where a mixed corner is slow on only one, so no mixed corner's path delay
-  exceeds the `ss` path delay; the declared worst setup slack is 157.898 ns of
-  the 195.3125 ns period at `ss_n40C_1v60`, 80.8 % of the period in hand.
+  exceeds the `ss` path delay; the declared worst setup slack is 157.838 ns of
+  the 195.3125 ns period at `ss_n40C_1v60`, 80.8 % of the period in hand
+  (the committed propagated-clock run, `clock_mode: "propagated"`; the
+  superseded ideal-clock run read 157.898 ns).
   **Hold is not covered by that argument**: hold depends on the *difference*
   between a launch and a capture path, not on both being slow, and a mixed
   corner can make one fast while the other is slow — which neither `ss` nor `ff`
   reproduces. The declared worst hold
-  slack is 0.25861 ns at `ff_n40C_1v95`, and nothing bounds how much of that a
+  slack is 0.26977 ns at `ff_n40C_1v95`, and nothing bounds how much of that a
   mixed corner consumes.
 - **Nothing at 1.98 V; `ff_*_1v95` is 30 mV short, in the optimistic direction
   for hold.** A higher supply makes cells faster, which shrinks hold margin, so
-  the 1.98 V hold margin is extrapolated from the 0.25861 ns at
+  the 1.98 V hold margin is extrapolated from the 0.26977 ns at
   `ff_n40C_1v95` rather than bounded by any shipped file. This is the single
   most exposed point in the declared set. For setup the same 30 mV is
   pessimistic, so setup at 1.98 V is bounded.
 - **Nothing above 100 °C against the 125 °C bound.** At 1.60 V the library is
-  *slower cold than hot* — the committed report gives Fmax 26.73 MHz at
-  `ss_n40C_1v60` against 31.11 MHz at `ss_100C_1v60` — so at the low-supply end
+  *slower cold than hot* — the committed report (`clock_mode: "propagated"`)
+  gives Fmax 26.685 MHz at `ss_n40C_1v60` against 31.0669 MHz at
+  `ss_100C_1v60` — so at the low-supply end
   the binding setup corner is the −40 °C file that **is** declared, and
   extrapolating to 125 °C from the 100 °C file goes in the faster direction.
   What 125 °C leaves unbounded is therefore not the setup headroom but
