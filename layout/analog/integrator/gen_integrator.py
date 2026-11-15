@@ -1510,12 +1510,13 @@ class PinError(RuntimeError):
 def recorded_pin(cell_dir: Path) -> dict:
     """The klt pin recorded in this cell's committed DRC evidence.
 
-    `--check` asserts byte-reproducibility of the stream at one klt build;
-    that build is read back from `drc.report.json` -> `provenance`
-    (`klt_version` / `klt_git_commit` / `klt_reinstall_spec`) instead of
-    being taken on faith from whatever `klt` is on PATH.  A missing or
-    unreadable pin is a hard error: a gate that cannot name the build it
-    asserts against must never pass.
+    `--check` asserts byte-reproducibility of the stream at one klt build
+    *and* one klayout version (the stream writer is klayout's); both are
+    read back from `drc.report.json` -> `provenance`
+    (`klt_version` / `klt_git_commit` / `klt_reinstall_spec` /
+    `klayout_version`) instead of being taken on faith from whatever `klt`
+    is on PATH.  A missing or unreadable pin is a hard error: a gate that
+    cannot name the build it asserts against must never pass.
     """
     path = cell_dir / "drc.report.json"
     if not path.exists():
@@ -1525,12 +1526,14 @@ def recorded_pin(cell_dir: Path) -> dict:
     except Exception as exc:
         raise PinError(f"{path} is unreadable: {exc}") from exc
     missing = [k for k in ("klt_version", "klt_git_commit",
-                           "klt_reinstall_spec") if not prov.get(k)]
+                           "klt_reinstall_spec", "klayout_version")
+               if not prov.get(k)]
     if missing:
         raise PinError(f"{path}: provenance lacks {', '.join(missing)}")
     return {"klt": prov["klt_version"],
             "git_commit": prov["klt_git_commit"],
-            "reinstall_spec": prov["klt_reinstall_spec"]}
+            "reinstall_spec": prov["klt_reinstall_spec"],
+            "klayout": prov["klayout_version"]}
 
 
 def _ota_access(grid_um: float) -> dict:
@@ -1920,9 +1923,9 @@ def main() -> int:
     parser.add_argument("--check", action="store_true",
                         help="regenerate into a temp dir and byte-compare the "
                              "GDS against the committed stream, evaluated at "
-                             "the klt build recorded in drc.report.json; "
-                             "write nothing. Exit 0 pass, 1 geometry "
-                             "regression, 2 cannot verify")
+                             "the klt build and klayout version recorded in "
+                             "drc.report.json; write nothing. Exit 0 pass, "
+                             "1 geometry regression, 2 cannot verify")
     parser.add_argument("--klt", default="klt")
     parser.add_argument("--pdk-root", default=PDK_ROOT_DEFAULT)
     parser.add_argument("--keep-scratch", action="store_true",
@@ -1949,10 +1952,27 @@ def main() -> int:
         except OSError:
             running = {"klt": "unknown"}
         if running.get("git_commit") == pin["git_commit"]:
+            got_layout = running.get("klayout")
+            if got_layout != pin["klayout"]:
+                saw = (f"runs klayout {got_layout}, not the recorded "
+                       f"{pin['klayout']}" if got_layout else
+                       "does not report a klayout version, so the recorded "
+                       f"one ({pin['klayout']}) cannot be checked")
+                print("gen_integrator.py --check: CANNOT VERIFY -- host klt "
+                      f"matches the recorded build {pin['klt']} but {saw} "
+                      "(drc.report.json provenance); the committed bytes "
+                      "were written by the recorded klayout, so a byte "
+                      "difference could not be attributed. Run under the "
+                      "recorded environment: "
+                      f'uvx --from "{pin["reinstall_spec"]}" '
+                      f'--with "klayout=={pin["klayout"]}" klt ...',
+                      file=sys.stderr)
+                return 2
             klt_cmd = [args.klt]
             print("gen_integrator.py --check: host klt matches the recorded "
-                  f"build {pin['klt']} (drc.report.json provenance); "
-                  "byte-comparing directly", flush=True)
+                  f"build {pin['klt']} and klayout {got_layout} "
+                  "(drc.report.json provenance); byte-comparing directly",
+                  flush=True)
         else:
             uvx = shutil.which("uvx")
             if uvx is None:
@@ -1968,7 +1988,6 @@ def main() -> int:
                   f"{running.get('klt', 'unknown')} is not the recorded build "
                   f"{pin['klt']} (drc.report.json provenance); evaluating the "
                   "recorded build via uvx", flush=True)
-            probe = None
             for attempt in range(3):
                 probe = run([*klt_cmd, "version", "--format", "json"],
                             check=False)
@@ -1982,13 +2001,28 @@ def main() -> int:
                       f"{probe.stderr.strip()[-300:]}", file=sys.stderr)
                 return 2
             try:
-                got_commit = json.loads(probe.stdout).get("git_commit")
+                resolved = json.loads(probe.stdout)
             except Exception:
-                got_commit = None
-            if got_commit != pin["git_commit"]:
+                resolved = {}
+            if resolved.get("git_commit") != pin["git_commit"]:
                 print("gen_integrator.py --check: CANNOT VERIFY -- "
-                      f"uvx-resolved klt commit {got_commit} is not the "
-                      f"recorded pin {pin['git_commit']}", file=sys.stderr)
+                      f"uvx-resolved klt commit {resolved.get('git_commit')} "
+                      f"is not the recorded pin {pin['git_commit']}",
+                      file=sys.stderr)
+                return 2
+            got_layout = resolved.get("klayout_version")
+            if got_layout != pin["klayout"]:
+                print("gen_integrator.py --check: CANNOT VERIFY -- the "
+                      f"recorded build resolved with klayout {got_layout}, "
+                      f"not the recorded {pin['klayout']}: the reinstall "
+                      "spec pins klayout-tools only (klayout is a >=0.30 "
+                      "floor there), so a fresh resolution can drift. The "
+                      "committed bytes were written by the recorded "
+                      "klayout, so a byte difference could not be "
+                      "attributed. Pin it: "
+                      f'uvx --from "{pin["reinstall_spec"]}" '
+                      f'--with "klayout=={pin["klayout"]}" klt ...',
+                      file=sys.stderr)
                 return 2
         tmp = Path(tempfile.mkdtemp(prefix="integrator-check-"))
         try:
