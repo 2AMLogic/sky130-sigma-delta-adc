@@ -34,8 +34,10 @@ import tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import (CAPACITY_WAIT_S, grid_complete,  # noqa: E402
-                             measurements_present, pdk_stamp, run_klt, sha256)
+import settling_common as sc  # noqa: E402
+from settling_common import (CAPACITY_WAIT_S, grid_complete, load_partial,  # noqa: E402
+                             measurements_present, pdk_stamp, run_klt, save_partial,
+                             sha256)
 sys.path.insert(0, str(HERE))
 import make_request as MR  # noqa: E402
 
@@ -412,24 +414,7 @@ def keys_for(variant):
 
 
 def shas(v):
-    return {"request_sha256": sha256(HERE / f"request_{v}.json"),
-            "deck_sha256": sha256(HERE / f"comparator_decision_{v}.cir")}
-
-
-def load_partial(v):
-    p = PARTIALS / f"{v}.json"
-    if not p.exists():
-        return None
-    try:
-        d = json.loads(p.read_text())
-    except ValueError:
-        return None
-    cur = shas(v)
-    if {k: d.get(k) for k in cur} != cur:
-        print(f"NOTE: ignoring stale .partials/{v}.json (request or deck changed since it ran)",
-              file=sys.stderr)
-        return None
-    return d
+    return sc.shas(HERE / f"request_{v}.json", HERE / f"comparator_decision_{v}.cir")
 
 
 def usable(v, corners):
@@ -443,11 +428,6 @@ def usable(v, corners):
     that did not ask for this variant.
     """
     return grid_complete([corners]) and measurements_present([corners], key=ADMIT_KEY[v])
-
-
-def save_partial(v, result):
-    PARTIALS.mkdir(exist_ok=True)
-    (PARTIALS / f"{v}.json").write_text(json.dumps(result, indent=2) + "\n")
 
 
 def summarize(variant, corners):
@@ -512,7 +492,7 @@ def main():
     results = {}
     for v in (run if a.probe else VARIANTS):
         if v not in run:
-            saved = load_partial(v)
+            saved = load_partial(PARTIALS / f"{v}.json", shas(v))
             if saved:
                 print(f"{v}: reusing .partials/{v}.json ({saved['summary']})")
                 results[v] = saved
@@ -538,7 +518,7 @@ def main():
                       **shas(v)}
         if not a.probe:
             if usable(v, corners):
-                save_partial(v, results[v])
+                save_partial(PARTIALS / f"{v}.json", results[v])
             else:
                 print(f"{v}: not cached in .partials/ -- this result cannot stand "
                       "in a record on its own; re-run this variant", file=sys.stderr)
