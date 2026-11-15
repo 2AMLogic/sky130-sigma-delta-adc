@@ -1,0 +1,210 @@
+{
+  "tool": {
+    "klt": "0.9.2.dev1022+g2a9c52b27ce7",
+    "git_commit": "2a9c52b27ce7986b4372ae5d73129dac4773e02c",
+    "reinstall_spec": "klayout-tools @ git+https://github.com/2AMLogic/klayout-tools@2a9c52b27ce7986b4372ae5d73129dac4773e02c",
+    "klayout": "0.30.13",
+    "deck": "sky130",
+    "top_cell": "integrator",
+    "pdk": "sky130A",
+    "pdk_sources": "open_pdks f6eeac7 (sim/pdk.json)"
+  },
+  "reference_netlist": "design/integrator/integrator.spice",
+  "integrator_netlist_sha256": "18fc51475f667eea993fbef4e9a3abe7eaa35863ae88f86c25bfb56bc4074d53",
+  "ota_gds": "layout/analog/ota_fd/ota_fd.gds",
+  "ota_gds_sha256": "27ace056b255428e05c0fd6293dd08239fe97ba67379f6a330c30a94eeefe976",
+  "method": "klt extract over layout/analog/integrator/integrator.gds, which the extractor flattens through the placed ota_fd instance, minus klt extract over the committed layout/analog/ota_fd/ota_fd.gds on its own in the same run. The difference is this cell's own 44 devices. Counts are merged first (devices sharing a model and all terminals, after normalising the terminals a device is symmetric in), which is what an LVS combine-parallel-devices pass does and what makes the 4-finger phi2b inverter devices count once each.",
+  "comparison_basis": "merged_counts(integrator) - merged_counts(ota_fd) vs the 44 primitive X-lines of design/integrator/integrator.spice",
+  "expected_own_devices": {
+    "sky130_fd_pr__nfet_01v8": 9,
+    "sky130_fd_pr__nfet_01v8_lvt": 12,
+    "sky130_fd_pr__pfet_01v8": 9,
+    "sky130_fd_pr__pfet_01v8_lvt": 8,
+    "sky130_fd_pr__cap_mim_m3_1": 6,
+    "total": 44
+  },
+  "found_own_devices": {
+    "sky130_fd_pr__cap_mim_m3_1": 6,
+    "sky130_fd_pr__nfet_01v8": 9,
+    "sky130_fd_pr__nfet_01v8_lvt": 12,
+    "sky130_fd_pr__pfet_01v8": 9,
+    "sky130_fd_pr__pfet_01v8_lvt": 8,
+    "total": 44
+  },
+  "lvt_split_confirmed_by_extraction": true,
+  "lvt_split_note": "Issue #119's acceptance criterion was weakened to a flavour-blind 21 nfet / 17 pfet / 6 cap_mim total, on the strength of a curator probe that found klt extract --deck sky130 ignoring an lvtn (125/44) marker drawn over a two-column mos_array. On this cell's geometry it does not ignore it: the extracted netlist names sky130_fd_pr__nfet_01v8_lvt and sky130_fd_pr__pfet_01v8_lvt and gets all twenty right. The marker here covers a whole single-finger device plus a 0.38um enclosure, which is the condition klayout-tools#5301 says the deck needs (a marker that ends inside a shared source/drain diffusion mis-classifies). Both the stronger per-model result and the criterion as written are recorded below; the generator asserts the stronger one.",
+  "flavour_blind_check": {
+    "expected": {
+      "nfet": 21,
+      "pfet": 17,
+      "cap_mim": 6
+    },
+    "found": {
+      "nfet": 21,
+      "pfet": 17,
+      "cap_mim": 6
+    },
+    "basis": "issue #119's acceptance criterion as written"
+  },
+  "merged_counts": {
+    "integrator": {
+      "sky130_fd_pr__cap_mim_m3_1": 9,
+      "sky130_fd_pr__nfet_01v8": 23,
+      "sky130_fd_pr__nfet_01v8_lvt": 12,
+      "sky130_fd_pr__pfet_01v8": 18,
+      "sky130_fd_pr__pfet_01v8_lvt": 8,
+      "sky130_fd_pr__res_high_po": 1,
+      "sky130_fd_pr__res_xhigh_po": 2
+    },
+    "ota_fd": {
+      "sky130_fd_pr__cap_mim_m3_1": 3,
+      "sky130_fd_pr__nfet_01v8": 14,
+      "sky130_fd_pr__pfet_01v8": 9,
+      "sky130_fd_pr__res_high_po": 1,
+      "sky130_fd_pr__res_xhigh_po": 2
+    }
+  },
+  "raw_counts": {
+    "integrator": {
+      "sky130_fd_pr__cap_mim_m3_1": 9,
+      "sky130_fd_pr__nfet_01v8": 62,
+      "sky130_fd_pr__nfet_01v8_lvt": 12,
+      "sky130_fd_pr__pfet_01v8": 43,
+      "sky130_fd_pr__pfet_01v8_lvt": 8,
+      "sky130_fd_pr__res_high_po": 1,
+      "sky130_fd_pr__res_xhigh_po": 2
+    },
+    "ota_fd": {
+      "sky130_fd_pr__cap_mim_m3_1": 3,
+      "sky130_fd_pr__nfet_01v8": 50,
+      "sky130_fd_pr__pfet_01v8": 31,
+      "sky130_fd_pr__res_high_po": 1,
+      "sky130_fd_pr__res_xhigh_po": 2
+    }
+  },
+  "lvtn_markers_drawn": 20,
+  "extracted_pins": [
+    [
+      "dn"
+    ],
+    [
+      "dp"
+    ],
+    [
+      "ibias"
+    ],
+    [
+      "inn"
+    ],
+    [
+      "inp"
+    ],
+    [
+      "outn",
+      "voutn"
+    ],
+    [
+      "outp",
+      "voutp"
+    ],
+    [
+      "phi1"
+    ],
+    [
+      "phi1b"
+    ],
+    [
+      "phi1e"
+    ],
+    [
+      "phi2"
+    ],
+    [
+      "vcm"
+    ],
+    [
+      "vdda"
+    ],
+    [
+      "vinn"
+    ],
+    [
+      "vinp"
+    ],
+    [
+      "vrefn"
+    ],
+    [
+      "vrefp"
+    ],
+    [
+      "vssa"
+    ]
+  ],
+  "expected_pins": [
+    [
+      "dn"
+    ],
+    [
+      "dp"
+    ],
+    [
+      "ibias"
+    ],
+    [
+      "inn"
+    ],
+    [
+      "inp"
+    ],
+    [
+      "outn",
+      "voutn"
+    ],
+    [
+      "outp",
+      "voutp"
+    ],
+    [
+      "phi1"
+    ],
+    [
+      "phi1b"
+    ],
+    [
+      "phi1e"
+    ],
+    [
+      "phi2"
+    ],
+    [
+      "vcm"
+    ],
+    [
+      "vdda"
+    ],
+    [
+      "vinn"
+    ],
+    [
+      "vinp"
+    ],
+    [
+      "vrefn"
+    ],
+    [
+      "vrefp"
+    ],
+    [
+      "vssa"
+    ]
+  ],
+  "extracted_pins_note": "Twenty label texts on eighteen pins. The four beyond this cell's sixteen .subckt ports (inp, inn, outp, outn) are the OTA cell's own met1.pin labels, carried in through the instance. outp/outn share a pin with this cell's voutp/voutn -- which is what shows the OTA's outputs are the nets Ci_p/Ci_n sit on -- while inp/inn stand alone on sumn/sump, which this cell does not export.",
+  "net_count": {
+    "schematic_integrator": 29,
+    "ota_internal_extracted": 21,
+    "expected_total": 42,
+    "extracted_total": 42
+  },
+  "pass": true
+}

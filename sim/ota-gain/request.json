@@ -1,0 +1,93 @@
+{
+  "netlist": "ota_gain.cir",
+  "engine": "ngspice",
+  "backend": "batch",
+  "models": {
+    "pdk": "sky130A",
+    "lib": "libs.tech/ngspice/sky130.lib.spice"
+  },
+  "corners": {
+    "process": [
+      "tt",
+      "ss",
+      "ff",
+      "sf",
+      "fs"
+    ],
+    "supply_v": {
+      "vdda": [
+        1.62,
+        1.8,
+        1.98
+      ]
+    },
+    "temperature_c": [
+      -40,
+      27,
+      125
+    ]
+  },
+  "analysis": {
+    "kind": "ac",
+    "args": "dec 10 1 1000"
+  },
+  "measurements": [
+    {
+      "name": "vid_mag",
+      "expr": "vecmin(mag(v(vid)))",
+      "unit": "V",
+      "limits": {
+        "min": 0.999999999,
+        "max": 1.000000001
+      }
+    },
+    {
+      "name": "a0_lo",
+      "expr": "mag(v(vod))[0]",
+      "unit": "V/V",
+      "limits": {
+        "min": 10.0
+      }
+    },
+    {
+      "name": "a0_min",
+      "expr": "vecmin(mag(v(vod)))",
+      "unit": "V/V"
+    },
+    {
+      "name": "a0_max",
+      "expr": "vecmax(mag(v(vod)))",
+      "unit": "V/V"
+    },
+    {
+      "name": "a0_flat_rel",
+      "expr": "(vecmax(mag(v(vod))) - vecmin(mag(v(vod))))/vecmin(mag(v(vod)))",
+      "limits": {
+        "max": 0.01
+      }
+    },
+    {
+      "name": "acm_max",
+      "expr": "vecmax(mag(0.5*(v(outp) + v(outn))))",
+      "unit": "V/V"
+    },
+    {
+      "name": "acm_rel",
+      "expr": "acm_max/a0_lo",
+      "limits": {
+        "max": 0.001
+      }
+    }
+  ],
+  "options": {
+    "ngspice_init": [
+      "set numdgt=12"
+    ],
+    "timeout_s": 300,
+    "keep_artifacts": false
+  },
+  "batch": {
+    "poll_timeout_s": 5400,
+    "capacity_wait_s": 600
+  }
+}

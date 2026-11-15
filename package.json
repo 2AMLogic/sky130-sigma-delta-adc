@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "worktree:return": "./.loom/scripts/worktree-return.sh",
-    "check:ci": "python3 -I -c \"import json,pathlib,sys; fs=sorted(pathlib.Path('manifests').rglob('*.json')); assert fs, 'no manifests found'; [json.load(open(f)) for f in fs]; print('ok:', len(fs), 'manifest JSON files parse')\"",
+    "check:ci": "./scripts/check-ci.sh",
     "check:all": "npm run check:ci",
     "test": "npm run check:ci"
   }
