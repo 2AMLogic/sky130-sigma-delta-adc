@@ -213,9 +213,12 @@ class CommittedRequestsAreUnmoved(unittest.TestCase):
                 rebuilt[p.name] = sc.request(f"integrator_settling_{name}.cir", mod.MEASUREMENTS,
                                              mod.T_END, timeout_s=60, poll_timeout_s=7200)
             else:
-                v = name.replace("mc_", "", 1)
-                rebuilt[p.name] = (mod.mc_request(v) if name.startswith("mc_")
-                                   else mod.nominal_request(v))
+                if name.startswith("mc_"):
+                    rebuilt[p.name] = mod.mc_request(name.replace("mc_", "", 1))
+                elif name.startswith("i106_"):
+                    rebuilt[p.name] = mod.i106_request(name.replace("i106_", "", 1))
+                else:
+                    rebuilt[p.name] = mod.nominal_request(name)
         self.assertTrue(on_disk, f"no committed requests found for {bench}")
         return on_disk, rebuilt
 
