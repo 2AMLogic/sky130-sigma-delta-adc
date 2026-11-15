@@ -61,11 +61,11 @@ window's opening, and why `k_dn` collapses to the sentinel clock 12.
 
 **The staircase itself is malformed at this corner, which is why widening is
 the wrong answer.** Integrator 1 does not deliver its commanded targets: it
-held ≈ +1.366 … 1.368 mV against the designed +1.000 mV through the up sweep
-(error +366 … 368 µV) and ≈ −0.4115 … −0.4195 mV against −1.000 mV through
+held ≈ +1.357 … 1.368 mV against the designed +1.000 mV through the up sweep
+(error +357 … 368 µV) and ≈ −0.4115 … −0.4195 mV against −1.000 mV through
 the down sweep (error +580 … 589 µV, i.e. barely 41 % of the commanded
 magnitude). The staircase step is `(Cs/Ci)·o1d`, so the falling steps came
-out −165.5 … −170.4 µV instead of the designed −500 µV — monotonic and in
+out −164.6 … −170.4 µV instead of the designed −500 µV — monotonic and in
 the right direction, but the falling half contracted to
 `span_dn` = −1.505 mV against ≈ −4.5 mV at healthy corners (`step_dn` ≈
 −501 µV there). The rising steps are likewise off design (576 µV at the

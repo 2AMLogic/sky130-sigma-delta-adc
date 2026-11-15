@@ -20,6 +20,9 @@ delta-sigma ADC.
     bias boundary
   - [DR-006](decisions/DR-006-decimation-stopband-reading.md) — decimation
     stopband (row 9) graded in the alias bands, with a gap floor
+  - [DR-007](decisions/DR-007-comparator-trip-bracketing.md) — the comparator
+    offset is not separately bracketable at `sf`/1.620 V/−40 °C; one-sided
+    measured bound
 
 Pinned sibling references live in [`../reuse.lock.json`](../reuse.lock.json).
 
