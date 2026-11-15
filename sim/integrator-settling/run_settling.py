@@ -16,8 +16,9 @@ import argparse, json, pathlib, subprocess, sys, tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import (grid_complete, measurements_present, pdk_stamp, run_klt,
-                             sha256, summarize)
+import settling_common as sc
+from settling_common import (grid_complete, load_partial, measurements_present,
+                             pdk_stamp, run_klt, save_partial, sha256, summarize)
 
 VARIANTS = ("int1", "int2")
 PARTIALS = HERE / ".partials"      # per-variant results, gitignored (see README)
@@ -25,30 +26,7 @@ ARTIFACTS = HERE / ".artifacts"    # raw klt report / batch receipt, gitignored
 
 
 def shas(v):
-    return {"request_sha256": sha256(HERE / f"request_{v}.json"),
-            "deck_sha256": sha256(HERE / f"integrator_settling_{v}.cir")}
-
-
-def load_partial(v):
-    """A previously-run variant, if it matches the current request and deck."""
-    p = PARTIALS / f"{v}.json"
-    if not p.exists():
-        return None
-    try:
-        d = json.loads(p.read_text())
-    except ValueError:
-        return None
-    cur = shas(v)
-    if {k: d.get(k) for k in cur} != cur:
-        print(f"NOTE: ignoring stale .partials/{v}.json (request or deck changed since it ran)",
-              file=sys.stderr)
-        return None
-    return d
-
-
-def save_partial(v, result):
-    PARTIALS.mkdir(exist_ok=True)
-    (PARTIALS / f"{v}.json").write_text(json.dumps(result, indent=2) + "\n")
+    return sc.shas(HERE / f"request_{v}.json", HERE / f"integrator_settling_{v}.cir")
 
 
 def main():
@@ -82,7 +60,7 @@ def main():
     results = {}
     for v in VARIANTS if not a.probe else run:
         if v not in run:                       # not asked for this time
-            saved = load_partial(v)
+            saved = load_partial(PARTIALS / f"{v}.json", shas(v))
             if saved:
                 print(f"{v}: reusing .partials/{v}.json ({saved['summary']})")
                 results[v] = saved
@@ -104,7 +82,7 @@ def main():
                   "remote": e.get("remote"), **shas(v)}
         results[v] = result
         if not a.probe:
-            save_partial(v, result)
+            save_partial(PARTIALS / f"{v}.json", result)
 
     if a.probe:
         if a.probe not in results:
