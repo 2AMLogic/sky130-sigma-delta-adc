@@ -612,8 +612,10 @@ def build_record(results, pin, stamp):
             "phi1 rise to dp/dn carrying the new decision fits inside the phi1 high "
             "time that corner actually delivers; plus n_flip >= 2 so a corner that "
             "never changed dp/dn cannot pass with no evidence. trip: flip_up and "
-            "flip_dn found, k_up/k_dn strictly inside the staircase, and the sweep "
-            "spans at least +/-3.5 mV, so the trip points are bracketed. Kickback "
+            "flip_dn found, k_up/k_dn strictly inside the staircase, and "
+            "step_up/step_dn/span_up/span_dn moved in the intended direction by "
+            f"at least {MR.SWEEP_FLOOR_V * 1e6:g} uV -- a direction floor, not a "
+            "span requirement -- so the trip points are bracketed. Kickback "
             "is reported, never graded: this repo has no kickback limit of its own "
             "and none is invented here."),
         "pdk_sources_stamp": stamp,

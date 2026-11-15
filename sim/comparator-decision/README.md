@@ -361,6 +361,24 @@ that it is also one of the corners where `sim/integrator-settling` records
 the integrator as unsettled, so the loop it sits in is not a working
 modulator there either.
 
+**About the committed record's own `pass_criterion` prose (2026-11-15):** it
+describes the `trip` gate as "the sweep spans at least +/-3.5 mV". No such
+span gate has ever been enforced: `bracketed()` checks only that
+`step_up`/`step_dn`/`span_up`/`span_dn` moved in the intended direction by at
+least `SWEEP_FLOOR_V` = 2 µV — the direction floor described under
+"Staircase" above — and no magnitude beyond it. The 3.5 mV figure described
+what the nominal bench happens to deliver, not what was graded: three real
+corners bracket on spans below or straddling it (`ss`/1.620 V/−40 °C at
++45.0 µV/−59.4 µV, `ss`/1.620 V/27 °C at +3.569/−3.470 mV, `tt`/1.620 V/−40 °C
+at +1.430/−1.831 mV), and an absolute span would have failed them for the
+*integrator's* behaviour rather than the comparator's — the reasoning
+"Staircase" already gives. The generator's prose now states the gate as
+implemented, with the threshold interpolated from `SWEEP_FLOOR_V` so the
+criterion cannot drift from the gate again. Every verdict, number, and corner
+in `record.json` is unchanged by this, and the record stays byte-identical
+because records are append-only: this note supersedes its `pass_criterion`
+wording, not its results.
+
 ### Kickback — reported, not graded
 
 At the binding decision-time corner, `sf`/1.620 V/−40 °C, peak deviation

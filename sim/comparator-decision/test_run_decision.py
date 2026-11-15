@@ -147,6 +147,21 @@ class DerivationCase(unittest.TestCase):
             c[key] = bad
             self.assertFalse(RUNNER.bracketed(c), f"{key}={bad} should not bracket")
 
+    def test_bracketed_accepts_the_corner_the_old_criterion_prose_misdescribed(self):
+        # ss/1.620V/-40C on the 2026-11-13 grid: both spans clear the
+        # SWEEP_FLOOR_V direction floor by >20x yet sit far below any mV
+        # figure. It brackets, and it always did -- the committed record's
+        # pass_criterion claimed a "+/-3.5 mV" span gate bracketed() never
+        # enforced (issue #190).
+        c = trip_corner()
+        c["span_up"] = 4.501356182004e-05
+        c["span_dn"] = -5.94389624179e-05
+        self.assertTrue(RUNNER.bracketed(c))
+        # "at least" is the right word: a move of exactly the floor is a move
+        c = trip_corner()
+        c["step_up"] = MR.SWEEP_FLOOR_V
+        self.assertTrue(RUNNER.bracketed(c))
+
     def test_bracket_margin_says_how_central_each_trip_was(self):
         mid = (MR.TRIP_UP_FIRST + MR.TRIP_UP_LAST) // 2
         m = RUNNER.bracket_margin({"k_up": mid, "k_dn": MR.TRIP_DN_LAST})
@@ -492,6 +507,42 @@ class RunnerCase(unittest.TestCase):
         self.assertEqual(
             pbc["trip_points_bracketed_so_offset_and_hysteresis_are_bounded"]
                ["corners_bracketed"], GRID_POINTS)
+
+    def test_the_trip_criterion_names_no_span_the_gate_does_not_enforce(self):
+        # the committed record's pass_criterion claimed "the sweep spans at
+        # least +/-3.5 mV"; bracketed() enforces direction plus a
+        # SWEEP_FLOOR_V floor and no magnitude, and the generated prose must
+        # say exactly that -- reintroducing the mV span claim fails here
+        rc, out = self.run_main({"loop": grid(loop_corner), "trip": grid(trip_corner)},
+                                ["--record"])
+        self.assertEqual(rc, 0, out)
+        crit = json.loads((self.here / "record.json").read_text())["pass_criterion"]
+        trip = crit.split("trip:", 1)[1].split("Kickback", 1)[0]
+        self.assertIn(f"{MR.SWEEP_FLOOR_V * 1e6:g} uV", trip)   # threshold from the constant
+        self.assertIn("at least", trip)      # a move of exactly the floor is a move
+        self.assertIn("direction floor", trip)
+        self.assertNotIn("mV", trip)         # no span magnitude is gated
+        # the loop and kickback clauses of the same string are untouched
+        self.assertTrue(crit.startswith(
+            "loop: tdec_frac <= 1 at every corner, i.e. the worst delay from the "
+            "phi1 rise to dp/dn carrying the new decision fits inside the phi1 high "
+            "time that corner actually delivers; plus n_flip >= 2 so a corner that "
+            "never changed dp/dn cannot pass with no evidence. trip:"))
+        self.assertTrue(crit.endswith(
+            "Kickback is reported, never graded: this repo has no kickback limit "
+            "of its own and none is invented here."))
+
+    def test_the_trip_criterion_threshold_is_derived_not_retyped(self):
+        # change the constant, regenerate: the prose follows it, so criterion
+        # and gate cannot drift apart the way the "+/-3.5 mV" wording did
+        with mock.patch.object(MR, "SWEEP_FLOOR_V", 3e-6):
+            rc, out = self.run_main({"loop": grid(loop_corner), "trip": grid(trip_corner)},
+                                    ["--record"])
+        self.assertEqual(rc, 0, out)
+        crit = json.loads((self.here / "record.json").read_text())["pass_criterion"]
+        trip = crit.split("trip:", 1)[1].split("Kickback", 1)[0]
+        self.assertIn("3 uV", trip)
+        self.assertNotIn("2 uV", trip)
 
     def test_a_partial_grid_writes_no_record(self):
         rc, out = self.run_main({"loop": grid(loop_corner, n=44),
