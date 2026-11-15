@@ -925,6 +925,14 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path,
     say("[3/6] strap + route")
     draw_params, compose_request, route_summary = build(
         blocks, reports, origins, port_nets)
+    # Per-row footprints, keyed by the ROWS ids the README's floorplan table
+    # quotes: the authoritative row spans, emitted so the README does not have
+    # to hand-transcribe them (a ring's span is not a row's span).
+    route_summary["row_extents_um"] = {
+        row_id: {"x0": round(e[0], 3), "y0": round(e[1], 3),
+                 "x1": round(e[2], 3), "y1": round(e[3], 3)}
+        for row_id, e in extents.items()
+    }
     (out_dir / "draw.request.json").write_text(
         json.dumps(draw_params, indent=1) + "\n")
     (out_dir / "compose.request.json").write_text(
