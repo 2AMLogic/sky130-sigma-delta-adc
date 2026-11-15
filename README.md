@@ -157,6 +157,18 @@ uvx --from "klayout-tools==$(cat .github/klt-version)" klt signoff --attest 10 \
     --check attestation/item10-envelope.json
 ```
 
+`--check` never rewrites the envelope: when a PR edits a file the envelope's
+hygiene hashes pin (e.g. `.github/workflows/signoff.yml` or this README),
+it reports the stale hash and exits 3. Regenerate and commit the envelope in
+the same PR with the write form `-o`, which re-runs the inventory's
+`local_only` audit checks and so needs Python and numpy:
+
+```
+uvx --from "klayout-tools==$(cat .github/klt-version)" klt signoff --attest 10 \
+    --inventory attestation/item10-inventory.json \
+    -o attestation/item10-envelope.json
+```
+
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE).
