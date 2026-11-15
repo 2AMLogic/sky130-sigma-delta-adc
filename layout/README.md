@@ -57,24 +57,40 @@ only corners at or above 1.60 V and sees those electrical violations at one corn
 ## Multi-corner STA (T1 item 5, digital)
 
 `klt sta` (pinned klt 0.8.0, OpenROAD `26Q3-1510-g6cb3f2b704`) on the committed
-`digital/decimator.def` — `geometry_source: "routed"`, clock `clk` at 195.3125 ns — with
+`digital/decimator.def` — `geometry_source: "routed"`, clock `clk` at 195.3125 ns,
+`constraints.propagated_clock: true` — with
 `pdk.corners` naming ten corners, so one fixed geometry is characterized at all ten in a
 single request. (`klt place-and-route` re-run per corner would give ten *different*
 placements and routings, which is not a characterization of this layout.) Request
 `digital/sta_request.json`, report `digital/sta-decimator.report.json`. Reproduce with:
 
 ```sh
-# from the repo root; takes about a minute
-PDK_ROOT=$(klt pdk find --pdk sky130A --format json | jq -r .root) \
-  klt sta layout/digital/sta_request.json --pdk sky130A --format json \
-  > layout/digital/sta-decimator.report.json
+# from the repo root; takes about half a minute. Pinned klt, not the host klt,
+# and an explicit --pdk-root: both reach the committed report's own provenance
+# (`provenance.klt_version`, `pdk.source: "--pdk-root flag"`).
+uvx --from "klayout-tools==$(cat .github/klt-version)" klt sta \
+  layout/digital/sta_request.json --pdk sky130A \
+  --pdk-root "$(klt pdk find --pdk sky130A --format json | jq -r .root)" \
+  --format json > layout/digital/sta-decimator.report.json
 ```
+
+A re-run reproduces every timing number exactly, but **not** the file byte-for-byte:
+each corner's `engine_log.invocation_id` is a fresh UUID, and `engine_log.script_sha256`
+covers a generated TCL that embeds the checkout's absolute `read_def` path. Compare with
+`jq -S 'del(.corners[].engine_log)'` on both sides, not `diff`.
 
 **Result**: every one of the ten corners is `timing_status: "constrained"` with
 non-negative setup and hold slack and zero setup/hold violations. Worst setup slack
-157.898 ns of the 195.3125 ns period at `ss_n40C_1v60` (Fmax 26.73 MHz); worst hold slack
-0.2586 ns at `ff_n40C_1v95`; best Fmax 110.05 MHz at `ff_n40C_1v95`. The clock is 5.12 MHz,
+157.838 ns of the 195.3125 ns period at `ss_n40C_1v60` (Fmax 26.69 MHz); worst hold slack
+0.2698 ns at `ff_n40C_1v95`; best Fmax 109.79 MHz at `ff_n40C_1v95`. The clock is 5.12 MHz,
 so the slowest declared corner leaves a 5.2x frequency margin.
+
+These supersede the ideal-clock figures this report carried before #136 (worst setup
+157.898 ns at `ss_n40C_1v60`, Fmax 26.73 MHz; worst hold 0.2586 ns at `ff_n40C_1v95`; best
+Fmax 110.05 MHz), kept here so the replaced result stays readable. Propagating the clock
+costs setup (insertion delay lands on the launch edge) and *earns* hold (it lands on the
+capture edge too): worst setup fell 0.060 ns and worst hold rose 0.0112 ns. Both signs are
+what a real clock tree does, and neither moves the verdict.
 
 **Which DR-002 point each declared corner stands in for.** Spec §2 (DR-002) asks for 45
 points: {tt, ss, ff, sf, fs} x {-40, 27, 125 C} x {1.62, 1.80, 1.98 V}. `sky130_fd_sc_hd`
@@ -110,9 +126,16 @@ tracked in #131.
 - **No SPEF.** Routed-DEF timing with no extracted wire parasitics
   (`spef_path: null`, `power_basis.parasitics: "estimate_only"`). Parasitic-annotated
   timing is #35.
-- **Ideal clock.** `clock_mode: "ideal"` — `create_clock` with no
-  `set_propagated_clock`, so the clock tree's insertion delay never reaches the numbers.
-  Measured `clock_skew_ns` is ~0.013 ns and is not evidence of propagation.
+- **Propagated clock.** `clock_mode: "propagated"` — the session issues
+  `set_propagated_clock [get_clocks clk]`, so the DEF's own clock tree carries insertion
+  delay into both the launch and the capture edge of every check. The
+  `clock_propagation` evidence block per corner reports the worst network latency actually
+  reached: 0.3204 ns at `ff_n40C_1v95` up to 0.9745 ns at `ss_n40C_1v60`, i.e. up to 0.5 %
+  of the 195.3125 ns period. Its `clock_sinks` count (2-3) is **not** the size of the tree:
+  `report_clock_latency` prints only the min- and max-latency sinks, and `clock_sinks_sample`
+  is a diagnostic sample. The latency is computed from the routed DEF's own interconnect
+  with no SPEF, so it is an estimate of insertion delay, not an extracted one. The separate
+  aggregate `clock_skew_ns` metric is unchanged at ~0.013 ns by propagation.
 - **Register-to-register only.** Every corner reports
   `constraint_completeness.status: "incomplete"` with 17 unconstrained endpoints
   (`dout[15:0]`, `dout_valid`) and 0 unclocked registers. No block-boundary input/output

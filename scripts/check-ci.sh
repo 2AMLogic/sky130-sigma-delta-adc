@@ -39,6 +39,7 @@ CHECKS=(
   ".|python3 -I -m unittest discover -s sim/ota-gain -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s sim/integrator-noise -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'"
+  ".|python3 -I -m unittest discover -s layout/digital -p 'test_*.py'"
   "verification/decimator|python3 response.py"
 )
 
