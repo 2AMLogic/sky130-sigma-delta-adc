@@ -11,7 +11,7 @@ gate-level netlist `rtl/netlist/decimator_synth.v`. Not hand-edited.
 | `pnr_request.json` | the P&R request: cell library, floorplan, PDN, clock |
 | `run_pnr.py` | driver; `python3 layout/digital/run_pnr.py` regenerates, `--check` compares |
 | `decimator.gds` | routed layout (T1 item 2, digital); hash-pinned by `design/attest/item2-digital-envelope.json` |
-| `decimator.def`, `decimator_pnr.v` | routed DEF and as-built netlist (CTS buffers included): the LVS reference for #32 |
+| `decimator.def`, `decimator_pnr.v` | routed DEF and as-built netlist (CTS buffers included): the LVS reference for the digital partition (item 4, below); analog-partition and assembled-top LVS stay with #32 |
 | `sta_request.json` | the multi-corner `klt sta` request on the routed DEF |
 | `sta-decimator.report.json` | the committed STA report (T1 item 5, digital, with `verification/decimator/fv-decimator.report.json`) |
 
@@ -53,6 +53,56 @@ max-capacitance (43) violations against the library limits, concentrated in the 
 spans corners down to 1.28 V, below the spec's 1.62 V supply bound; the STA below declares
 only corners at or above 1.60 V and sees those electrical violations at one corner
 (`ss_n40C_1v60`).
+
+## LVS (T1 item 4, digital)
+
+`klt lvs` (pinned klt 0.8.0, klayout 0.30.13, `sky130` extraction deck, content hash
+`sha256:ba0f97887e3d231aec8b54f1f52f2941ded0228f0234b6759712bcaca0e942e6`) on
+`decimator.gds`, top `decimator`, against the as-built gate-level netlist
+`decimator_pnr.v` (`form: "gate-level-verilog"`, `library: sky130_fd_sc_hd`) is
+`match` with 0 errors; report `digital/lvs-decimator.report.json`, request
+`digital/lvs_request.json`. Reproduce with `digital/run_lvs.sh --check` (cheap
+re-hash of the committed inputs; exit 0 consistent, 3 drifted), or
+`digital/run_lvs.sh` to regenerate (about 30 minutes; the layout extraction of
+19688 abstracted cell instances dominates), or `--rerun` for the full compare
+re-run. Standard cells are compared at cell-instance level
+(`abstract_cells: sky130_fd_sc_hd__*`, pins resolved from the cells' own
+in-layout labels; every abstracted black box carries its signal pins plus
+`VGND`/`VPB`/`VPWR` — `VNB` has no in-cell substrate-tie label and is dropped,
+which the signal-only Verilog reference never carries anyway).
+
+`power_connectivity.status` is `match` (0 findings): the request declares
+`expected_nets` `VPWR: VDDD`, `VGND: VSSD` (`supply_nets: VDDD, VSSD`, which the
+deck's default allowlist does not contain), and the per-instance pin-to-net
+check covers all 19688 abstracted instances against the power-pin universe
+derived from the layout (`VGND`, `VPB`, `VPWR`, declared by every one of the
+103 instantiated masters, corroborated). The declared mapping verifies
+`VPWR`→`VDDD` and `VGND`→`VSSD` on every instance; `VPB` is unnamed in the
+declaration and gets the relative-consistency check instead — the verdict says
+every instance's `VPB` reaches the same net, and does not name which. This
+checks per-cell-instance pin-to-net correctness, not the geometric rails:
+power-delivery evidence stays with item 11 (`klt erc`, #39).
+
+Warnings-only disclosures (all five report entries, none an error; the verdict
+is `match` with these listed, per the item-4 grading rule): three `topology`
+entries for device classes `nfet`/`pfet`/`pnp` that have no counterpart on
+either side and no extracted devices (an artifact of the cell-level compare);
+`topology.power_only_pruned` — the five layout-side circuits whose every pin is
+a power pin (`sky130_fd_sc_hd__fill_1/2/4/8`, `tapvpwrvgnd_1`) are pruned before
+comparing, since the Verilog reference structurally cannot carry them;
+`topology.top_level_pins_anchored` — 20 top-level pins anchored by name
+(`options.anchor_top_level_pins` defaults on for this reference form), which is
+what stops a bit-reversed `dout[15:0]` from comparing clean.
+
+Analog-partition and assembled-top LVS stay with #32.
+
+One provenance blemish, recorded as the tool wrote it: the report's
+`provenance.pin_order_sources[].path` embeds the resolved library file as an
+absolute home path, which `klt env-provenance scan` itself flags as a leak
+(klt's own hygiene rule says such paths are never emitted — pin by identity
+instead). Not hand-edited out; filed generically as
+`2AMLogic/klayout-tools#5812`. Every other path in the report and the signoff
+record is repo-relative or tilde-rooted.
 
 ## Multi-corner STA (T1 item 5, digital)
 
