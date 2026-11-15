@@ -317,6 +317,32 @@ def run(cmd: list[str], cwd: Path | None = None, check: bool = True):
     return result
 
 
+def assert_drc_clean(drc: dict, report_path: str) -> None:
+    """Raise unless `klt drc` reported a clean verdict.
+
+    `klt drc` already exits 3 on violations; the call site passes
+    ``check=False`` to capture stdout, so the verdict has to be re-read here
+    or it is lost.  Only an explicit ``clean`` with zero violations passes:
+    ``coverage_unknown`` (exit 4 -- the deck resolved no marker layer for a
+    family) is an unverified DRC, not a pass, and ``clean_partial`` arises
+    only from ``--rules`` subsetting, which this generator never passes.  A
+    report with no verdict at all (klt wrote nothing to stdout) has neither
+    field and fails the same way.
+    """
+    status = drc.get("status")
+    violations = drc.get("violation_count")
+    if status == "clean" and violations == 0:
+        return
+    rules = ", ".join(f"{rule}={count}"
+                      for rule, count
+                      in sorted((drc.get("rule_counts") or {}).items())) \
+        or "none reported"
+    raise RuntimeError(
+        f"klt drc status={status!r} violations={violations!r} "
+        f"(expected 'clean'/0): {rules}. Report written to {report_path} "
+        "before this raise; the flow aborts and nothing is emitted.")
+
+
 # --- port expansion -----------------------------------------------------------
 def expand_ports(block_id: str, generator: str, params: dict) -> dict[str, str]:
     """{generated port name: net}, from LEG_NETS plus the generator's own
@@ -1051,6 +1077,7 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path,
             + pdk_args + ["--format", "json"], cwd=out_dir, check=False)
     drc = json.loads(r.stdout) if r.stdout.strip() else {"error": r.stderr}
     (out_dir / "drc.report.json").write_text(json.dumps(drc, indent=2) + "\n")
+    assert_drc_clean(drc, str(out_dir / "drc.report.json"))
     say(f"  drc: status={drc.get('status')!r} violations={drc.get('violation_count')}")
 
     say("[6/6] klt extract (device-count evidence)")
