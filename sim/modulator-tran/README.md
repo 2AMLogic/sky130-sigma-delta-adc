@@ -96,6 +96,11 @@ So the record binds itself three ways rather than trusting that field:
   `klt --version` at record time — this is a shared host that re-provisions
   its tools under running work, so the two genuinely can differ.
 
+The deck is hash-bound evidence of a past run, so prose *about* the deck
+(why `gmin` is what it is, for example) lives here rather than in deck
+comments; a deck edit without a re-run breaks the first binding above and
+reads as drift.
+
 ## What it measures, and against what
 
 Every measurement below carries `limits` and a `spec_row` tag in the `klt sim`
@@ -246,6 +251,11 @@ Every corner therefore reports `status: "fail"` and `record.json` has
   the sha256 of every netlist it simulated; a record whose hashes do not match
   the tree is a record of a different netlist.
 - The operating point of the assembled modulator is hard (a cross-coupled
-  latch is bistable). `.options gmin=1e-9` is in the deck and gmin/source
-  stepping warnings are expected; any corner that actually fails to converge
-  is reported `error` and refused by gate 2 above.
+  latch is bistable). `.options gmin=1e-9` is in the deck — 1000x ngspice's
+  1e-12 default — chosen so that operating point converges; it is also the
+  source of the expected gmin/source stepping warnings, and any corner that
+  actually fails to converge is reported `error` and refused by gate 2 above.
+  Its cost is **estimated, not measured**: nA-scale leakage per node, orders
+  of magnitude below the row 13 power record, and a ~ms droop time constant
+  against a 195 ns clock. The direction is what matters: leakage only reduces
+  integrator swing, so it cannot manufacture the row 11 railing.

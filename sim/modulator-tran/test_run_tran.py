@@ -2,7 +2,9 @@
 python3 -I -m unittest discover -s sim/modulator-tran -p 'test_*.py'
 
 No fleet, no ngspice, no klt: every test works on synthetic klt sim reports, so
-the committed record and samples are never read or written.
+no run is repeated and the committed samples are never touched. The one
+exception is `RecordBindings`, which reads the committed `record.json` only to
+re-derive its deck/request hashes against the committed tree.
 
 What is pinned here:
 
@@ -17,6 +19,10 @@ What is pinned here:
   and `spec_row`, a coherent tone, per-clock sample cards on every recorded
   clock, and every `cycle_mean`/`energy` signal named in `save_vectors`
   (klt only auto-saves vectors named by `expr`/`spice`/`crossings`).
+- The record binds itself to the tree: `deck_sha256`/`request_sha256` equal
+  the sha256 of the committed deck and request. The design-netlist hashes are
+  deliberately unbound -- a mismatch there is the record's signal that it
+  describes an older netlist, not a failure.
 - The per-clock reduction: the sampling grid, the analytic u[n], and the
   bitstream polarity.
 """
@@ -363,6 +369,25 @@ class RequestShape(unittest.TestCase):
         self.assertFalse(rec["sndr"]["computed"])
         self.assertIn("subset", rec["corner_set"]["subset_statement"])
         self.assertIn("simulated", rec["result_kind"])
+
+
+class RecordBindings(unittest.TestCase):
+    def test_record_binds_the_committed_deck_and_request(self):
+        # record.json's first binding is the deck and request it simulated:
+        # both are the bench's own files and cannot change without a re-run,
+        # so a mismatch can only mean a post-run edit (a comment-only one broke
+        # this once and was indistinguishable from real drift). The three
+        # design-netlist hashes are deliberately NOT tested here: a mismatch
+        # there is the record's own signal that it describes an older netlist
+        # (#106), not an error.
+        import hashlib
+        record = json.loads((HERE / "record.json").read_text())
+        self.assertEqual(
+            record["deck_sha256"],
+            hashlib.sha256((HERE / MK.DECK).read_bytes()).hexdigest())
+        self.assertEqual(
+            record["request_sha256"],
+            hashlib.sha256((HERE / "request.json").read_bytes()).hexdigest())
 
 
 if __name__ == "__main__":
