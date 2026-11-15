@@ -64,6 +64,33 @@ VARIANTS = {
                  "amplifier half of that split"),
         "referred_to": "integrator differential output",
     },
+    # The same static phi2 state as `amp`, read at a different place: the
+    # differential voltage across the two Ci. Times Ci that is the charge on
+    # the integrating capacitors, which IS the integrator's state -- the part
+    # that survives the phi1 reset and accumulates cycle on cycle. `amp` reads
+    # v(vod), which also carries the summing-node excursion that does NOT
+    # accumulate, so the two differ by exactly the transfer issue #140 asks
+    # for, measured per corner as the ratio of the two band integrals.
+    "ampq": {
+        "clocks": {"PHI1": "0", "PHI1B": "1", "PHI1E": "0", "PHI2": "1"},
+        "note": "phi2 integrate state, read across Ci (accumulating charge)",
+        "output": "v(nqci)",
+        "extra": """* nqci: the differential voltage across the two integrating capacitors,
+* (voutp - sump) - (voutn - sumn), built by two chained ideal VCVSs -- ideal,
+* linear and noiseless, so they neither load nor contribute, like nqp/nqn.
+* Ci times this voltage is the charge on Ci, i.e. the integrator's state. An
+* OTA input-referred noise Vn puts the summing node at vcm+Vn in phi2 while
+* the Cs top plates were reset to vcm in phi1, so the charge that ends up on
+* Ci -- and only that charge -- is what the next phi1 reset leaves behind.
+Eqcip nqcip 0 voutp xint.sump 1
+Eqci nqci nqcip xint.sumn voutn 1
+""",
+        "what": ("integrate phase, accumulating part only: the same OTA and phi2 "
+                 "switches as `amp`, read as the differential voltage across Ci, "
+                 "which is the per-cycle output increment the next phi1 reset "
+                 "leaves on the integrator's state"),
+        "referred_to": "integrator accumulated per-cycle output increment",
+    },
 }
 
 
@@ -137,15 +164,32 @@ def variant_request(v):
                    options={"ngspice_init": ["set numdgt=12"]})
 
 
+def deck_text(v, tmpl=None):
+    """The deck for variant `v`, substituted from the template.
+
+    The ONE place the substitution happens, called by both `__main__` and
+    test_run_noise.py's committed-deck check: a test that re-implemented these
+    replacements inline would silently stop checking a newly added one, which
+    is exactly what adding @EXTRAPROBES@ for issue #140 did.
+    """
+    d = VARIANTS[v]
+    if tmpl is None:
+        tmpl = (HERE / "integrator_noise.cir.tmpl").read_text()
+    deck = tmpl.replace("@VARIANT@", v).replace("@VARIANTNOTE@", d["note"])
+    # Order-independent: the closing delimiter keeps @PHI1@ from matching
+    # inside @PHI1B@/@PHI1E@, so no substitution can shadow another.
+    for k, val in d["clocks"].items():
+        deck = deck.replace(f"@{k}@", val)
+    # Variant-local probes. The placeholder sits on its own line and is
+    # replaced INCLUDING its newline, so a variant without extra probes
+    # (ktc, amp) regenerates byte-identically to the pre-#140 deck and its
+    # recorded `deck_sha256` in record.json still matches what is committed.
+    return deck.replace("@EXTRAPROBES@\n", d.get("extra", ""))
+
+
 if __name__ == "__main__":
-    tmpl = (HERE / "integrator_noise.cir.tmpl").read_text()
-    for v, d in VARIANTS.items():
-        deck = tmpl.replace("@VARIANT@", v).replace("@VARIANTNOTE@", d["note"])
-        # Order-independent: the closing delimiter keeps @PHI1@ from matching
-        # inside @PHI1B@/@PHI1E@, so no substitution can shadow another.
-        for k, val in d["clocks"].items():
-            deck = deck.replace(f"@{k}@", val)
-        (HERE / f"integrator_noise_{v}.cir").write_text(deck)
+    for v in VARIANTS:
+        (HERE / f"integrator_noise_{v}.cir").write_text(deck_text(v))
         (HERE / f"request_{v}.json").write_text(
             json.dumps(variant_request(v), indent=2) + "\n")
     print(f"wrote {len(VARIANTS)} decks and requests")
