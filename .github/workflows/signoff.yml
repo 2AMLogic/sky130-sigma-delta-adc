@@ -157,6 +157,18 @@ jobs:
       - name: Analog generator DRC-verdict guard unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s layout/analog -p 'test_*.py'
 
+      # The shared extracted-netlist parsers in layout/analog/layout_common.py
+      # (issue #191): parse_extract_devices and extract_nets turn `klt extract`
+      # output into the device- and net-count evidence both analog cells commit
+      # (extract-device-count.json), and since #179 nothing else executes them.
+      # The suite asserts the parsers against real captured netlists
+      # (layout/analog/fixtures/) and each cell's committed evidence, and pins
+      # the _symmetric_terminals/_is_model_token predicates -- a regression in
+      # either parser restates that evidence for every analog cell at once.
+      # Fixtures only: no klt, no PDK, no network.
+      - name: Analog extracted-netlist parser unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s layout/analog -p 'test_layout_common.py'
+
       - name: Decimator whole-chain response, spec rows 8-9 (no EDA tools)
         working-directory: verification/decimator
         run: python3 response.py
