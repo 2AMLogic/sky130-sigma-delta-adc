@@ -83,9 +83,12 @@ covered by fixture tests, no EDA tools needed:
 
 `settling_common.py` holds the shared `klt sim` plumbing for the transistor-level
 benches (`ota-settling`, `integrator-settling`, `integrator-ci`, `ota-gain`,
-`integrator-noise`, `comparator-decision`, `modulator-tran`). `request()` builds the common
-45-point grid request for a transient or, since #126, for any other analysis
-kind. Its two record-validity gates — `grid_complete()` (all 45 DR-002 grid
+`integrator-noise`, `comparator-decision`, `modulator-tran`), plus the two
+toolchain helpers every local single-corner probe runner needs as well —
+`join_continuations()` (fold a netlist's `+` continuation lines back into the
+instance line that declares them) and `ngspice_version()`. `request()` builds
+the common 45-point grid request for a transient or, since #126, for any other
+analysis kind. Its two record-validity gates — `grid_complete()` (all 45 DR-002 grid
 points returned) and `measurements_present(key=...)` (every one of them produced
 the bench's own sentinel measurement, so a dead fleet job cannot become a
 record) — are covered by fixture tests, no EDA tools needed:

@@ -5,7 +5,7 @@
   "tier": null,
   "t1_item_count": 22,
   "build_t1_item_count": 22,
-  "t1_met_count": 9,
+  "t1_met_count": 10,
   "t1_not_applicable_count": 1,
   "source_doc": "docs/design-evidence-tiers.md",
   "source_doc_content_hash": "sha256:a26b90262320d0fbd32b3f549a02b6300832706041797a559d8bf6bdb62efdc7",
@@ -294,10 +294,18 @@
       "partition": "digital",
       "text": "latest LVS report `status: match`, fresh, engine named, checked against the netlist from item 1 (schematic netlist for analog, synthesized/routed gate-level netlist for digital), **and that same report's `power_connectivity.status` not `\"mismatch\"`**. Those are two verdicts, not one: `klt lvs`'s top-level `status` is the *signal*- connectivity compare's own result, and since issue #1952 the power/ground half is reported beside it in its own `power_connectivity` block (`docs/cli/lvs.md` \u2192 \"Power/ground connectivity\"). `klt signoff` already grades this item on both \u2014 an `lvs`-kind check passes only on `status == \"match\"` **and** `power_connectivity.status != \"mismatch\"` (issue #1965) \u2014 so a claim resting on `status: match` alone is weaker than the tool that grades it. What the check verifies is per-standard-cell-instance *pin-to-net* correctness: on every abstracted instance, each pin the PDK library declares power/ground must reach the net the caller declared (`options.power_connectivity.expected_nets`) or, absent a declaration, the same net every other instance's same-named pin reaches; a disagreement renders `power.inconsistent_pin_net` / `power.unexpected_pin_net`, and a pin on no net at all renders `power.unconnected_pin`. **The check's reach is narrower than \"the power grid is verified\", and a claim must not say otherwise.** A `power_connectivity.status` of `\"unchecked\"` \u2014 every `reference.form` other than `gate-level-verilog`, an explicit `options.power_connectivity: false`, or a layout whose instances declare no PG pins at all \u2014 means the question was never asked; this item and `klt signoff` both read it as \"does not apply here\", never as \"verified\", so a fleet policy of \"re-run LVS, look for `match`\" is not by itself power-connectivity evidence (#1985). And even where it does run it is *not* a geometric rail/grid continuity check: whether a rail is an unbroken annulus, and whether the grid carries the current, stay `klt ring-check`, `klt power`, and the DRC deck's business \u2014 see \"Power/IR-drop + EM evidence\" below for what is and is not covered. Warnings-only mismatches must be listed with the claim. A second, independent engine's concurring verdict (#343) strengthens this from \"one toolchain agrees with itself\" to a cross-checked result. **PDK-runset path (issue #2870, operator ruling of 2026-10-08).** For device families the PDK's own open KLayout LVS runset recognises and the curated extraction deck does not, a `klt lvs` report with `\"engine\": \"klayout-runset\"` is accepted evidence for this item, on four conditions: (1) the runset is the PDK's own at a pinned revision \u2014 `klt signoff` checks `provenance.runset.content_hash` against a signoff-side allowlist (`signoff_runset.PINNED_RUNSETS`, hash \u2192 PDK revision), not against a field the block declares, and the runset file named by the report must still re-hash to that value; (2) the report is a `klt` envelope with the same `--check` re-hash guarantees as a curated-deck report (layout hash, reference netlist hash, plus the runset hash); (3) the report names its engine, and `klt signoff` carries `engine` and the runset hash distinctly in the check detail and the `met` citation; (4) every device is recognised \u2014 a non-empty `coverage.declared_not_recognized`, or a `device_census` whose per-class layout and reference counts differ, is a failure (`runset_unrecognised_device`), never a warning, even when `status` reads `match`. A report from a runset that is not in the allowlist is refused `runset_not_pinned`; one whose runset file changed since the run, `runset_hash_mismatch`. **This does not change** the default: curated decks stay the route wherever they recognise every device in the block, and a block may not choose the runset to avoid a curated-deck finding. The allowlist is empty as of this change (2026-10-17) until a published runset's digest is reviewed into it, so no runset report grades `met` before then.",
       "notes": [],
-      "status": "unmet",
-      "reason": "no_evidence",
+      "status": "met",
+      "reason": null,
       "graded_by_build": true,
-      "citation": null
+      "citation": {
+        "file": "layout/digital/lvs-decimator.report.json",
+        "command": null,
+        "kind": "lvs",
+        "check_status": "match",
+        "content_hash": "sha256:211d42ef71f676bb26b16fb0feef6ed3db8fc9ec7c99033ce074e8a66458d676",
+        "input_verified": true,
+        "exit_status": 0
+      }
     },
     {
       "tier": "T1",
