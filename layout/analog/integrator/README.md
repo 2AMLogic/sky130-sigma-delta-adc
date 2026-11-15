@@ -14,7 +14,7 @@ modulator uses this cell twice (`xi1`, `xi2` in
 | `integrator.gds` | the generated stream, top cell `integrator` |
 | `extract-device-count.json` | `klt extract` device count vs the netlist, plus the extracted pin list and net count |
 | `drc.report.json` | `klt drc` (sky130 deck) over the committed stream |
-| `route-summary.json` | capacitor symmetry, summing-node evidence, per-block origins and orientations, per-net anchors, met2 columns, met1 spine tracks, every `lvtn` marker |
+| `route-summary.json` | capacitor symmetry, summing-node evidence, per-block origins and orientations, per-net anchors, reserved met2 columns, met1 spine tracks, every `lvtn` marker |
 
 Nothing here is hand-drawn or GUI-edited. Every polygon comes from one of three
 places: a `klt gen` call (one per distinct device geometry), the committed
@@ -224,7 +224,7 @@ committed stream, which it could not do without a contacted tie.
 Inter-block gaps are 14 um, far wider than any DRC minimum. That is a routing
 constraint, not a matching one: the router gives every met2 trunk its own global
 x column on a 0.5 um grid, so the field has to be wide enough to hold one column
-per anchor. 168 columns are in use.
+per anchor. 168 columns are reserved (trunks plus riser keep-outs).
 
 ## How the OTA is reached
 
@@ -297,7 +297,8 @@ Three planes, the same split the sibling cell uses:
   onto a pad is met1; met2 carries per-anchor vertical trunks and nothing else.
 - **One global x column per trunk.** Columns sit on a 0.5 um grid and a trunk
   owns its column outright, so two met2 runs can never come within a pitch of
-  each other and no met2–met2 spacing search is needed. 168 columns are in use.
+  each other and no met2–met2 spacing search is needed. 168 columns are
+  reserved (trunks plus riser keep-outs).
 - **met3/met4 risers.** `cap_array` reports its bottom plate on met3 and its top
   plate on met4, so each capacitor terminal gets a same-layer run out of the
   block and a via stack down to met2. The eight OTA escapes use met3 as above.

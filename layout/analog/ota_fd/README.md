@@ -11,7 +11,7 @@ Generated GDS of the fully-differential folded-cascode OTA
 | `ota_fd.gds` | the generated stream, top cell `ota_fd` |
 | `extract-device-count.json` | `klt extract` device count vs the netlist, plus the extracted pin list and net count |
 | `drc.report.json` | `klt drc` (sky130 deck) over the committed stream |
-| `route-summary.json` | where every net was routed: per-block origins, per-net anchors, met2 columns, met1 spine tracks |
+| `route-summary.json` | where every net was routed: per-block origins, per-net anchors, reserved met2 columns, met1 spine tracks |
 
 Nothing here is hand-drawn or GUI-edited. Every polygon comes either from a
 `klt gen` call (one per device group) or from this script's own floorplan and
@@ -199,14 +199,17 @@ Routing discipline, two layers plus a MiM riser:
   onto a pad is met1; met2 carries per-anchor vertical trunks and nothing else.
 - **One global x column per trunk.** Columns sit on a 0.5 um grid and a trunk
   owns its column outright, so two met2 runs can never come within a pitch of
-  each other and no met2-met2 spacing search is needed. 117 columns are in use.
+  each other and no met2-met2 spacing search is needed. 117 columns are
+  reserved (trunks plus riser keep-outs).
 - **MiM risers.** `cap_array` reports its bottom plate on met3 and its top
   plate on met4, so each capacitor terminal gets a same-layer run out of the
   block followed by a via3/via2 stack down to met2. Filed as a tool gap:
   2AMLogic/klayout-tools#5556.
 
 `route-summary.json` records every block origin, every net's anchors with the
-met2 column and y each landed on, and every met1 spine track.
+reserved met2 column and y each landed on, and every met1 spine track. The
+reserved count includes the MiM risers' ±1-pitch spacing keep-outs, so it is
+not a count of columns that carry a met2 trunk.
 
 ## Verification
 
