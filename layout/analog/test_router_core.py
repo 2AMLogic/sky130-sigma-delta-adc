@@ -43,7 +43,6 @@ generators' override. The generators themselves are not imported.
 """
 import unittest
 
-import layout_common
 from layout_common import (Anchor, BUCKET_NM, L_VIA, MET1_SPACE_UM, Rect,
                            RouteError, Router, VIA_UM, WIRE_UM, nm)
 
