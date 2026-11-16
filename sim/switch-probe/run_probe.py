@@ -7,7 +7,7 @@ and not a performance claim: it is the testbench behind the switch-resistance
 arguments in design/integrator/SIZING.md -> "Switch sizes" and "Why the `vcm`
 switches need a PMOS half".
 
-Three probe kinds, in two point sets:
+Three probe kinds, in three point sets:
 
   i92 set, one device per row:
     ron       the switch passes vcm = 0.9 V with a 10 mV drain-source bias and
@@ -24,9 +24,21 @@ Three probe kinds, in two point sets:
               reported too. Near vcm at Vdda = 1.620 V neither half has
               overdrive, which is the mechanism issue #106 filed.
 
-    python3 -I sim/switch-probe/run_probe.py                       # print both sets
+  i147 set, the top-plate hold switch, same tg kind on a generalized deck:
+    tg        the as-built `Sci_*`/`Scr_*` switch is a LONE `nfet_01v8_lvt`
+              (W 12, L 0.15) with no PMOS half, and during phi1e it must sink
+              the bottom-plate-coupled charge to vcm -- so on the side driven
+              up it holds a voltage ABOVE vcm, where its Vgs = Vdda - Vin
+              collapses. That is 98 % of the fs/1.620 V/-40 C sampling error
+              in sim/integrator-ci/record-i106.json. The set probes the
+              as-built NMOS alone, the two PMOS-half precedents already in the
+              cell (Sti W 4 / Sbi W 24) added to it, and a widened-NMOS-only
+              counterfactual, over the same condition grid as i106.
+
+    python3 -I sim/switch-probe/run_probe.py                       # print all sets
     python3 -I sim/switch-probe/run_probe.py --set i106 --write     # probe-i106.json
     python3 -I sim/switch-probe/run_probe.py --set i92  --write     # probe-i92.json
+    python3 -I sim/switch-probe/run_probe.py --set i147 --write     # probe-i147.json
 """
 import argparse, hashlib, json, pathlib, re, subprocess, sys, tempfile
 
@@ -145,6 +157,68 @@ def tg_points():
 TG_POINTS = tg_points()
 
 
+# --------------------------------------- issue #147: the top-plate hold ----
+# The as-built top-plate hold switch, read off design/integrator/integrator.spice
+# (`XSci_p` / `XSci_n`, and identically `Scr_p` / `Scr_n`): a lone low-Vth NMOS,
+# no PMOS half. Unlike `Sin` it does not pass a voltage FROM somewhere -- during
+# phi1e it must SINK the bottom-plate-coupled charge to vcm, so on the side
+# driven up it holds a voltage ABOVE vcm, where its Vgs = Vdda - Vin falls
+# toward and below threshold. Issue #92 found the same mechanism on the phi2
+# `vcm` switches and gave those PMOS halves; `Sci`/`Scr` were left out.
+SCI_NMOS = ("sky130_fd_pr__nfet_01v8_lvt", 12, 0.15)
+
+# The two PMOS-half precedents already in the cell, at their #92 sizes: the
+# top-plate-to-summing-node half (`XSti_*_p`, the nearer precedent -- same
+# top plate, but `Sci` additionally carries the coupled charge) and the
+# bottom-plate half (`XSbi_*_p`). Both `pfet_01v8_lvt` L 0.35.
+SCI_PMOS_STI = ("sky130_fd_pr__pfet_01v8_lvt", 4, 0.35)
+SCI_PMOS_SBI = ("sky130_fd_pr__pfet_01v8_lvt", 24, 0.35)
+
+# Widened-NMOS-only counterfactual: SIZING.md records that widening the NMOS
+# alone does not rescue the sibling gate (`ron_nfet_w96_fs`: 456 k -> 180 k);
+# this set re-derives that for `Sci` so the decision cites its own evidence.
+SCI_NMOS_WIDE = ("sky130_fd_pr__nfet_01v8_lvt", 96, 0.15)
+
+# variant -> (NMOS pair, PMOS pair or None, what the row names itself as in the
+# record). Pure data; `sci_points()` and the runner read this.
+SCI_VARIANTS = {
+    "as_built": (SCI_NMOS, None,
+                 "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half"),
+    "p_sti4": (SCI_NMOS, SCI_PMOS_STI,
+               "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)"),
+    "p_sbi24": (SCI_NMOS, SCI_PMOS_SBI,
+                "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)"),
+    "n96": (SCI_NMOS_WIDE, None,
+            "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)"),
+}
+# The two candidate remedies the decision must compare get the whole condition
+# grid; the size cross-check (`p_sbi24`) and the widened-NMOS counterfactual
+# (`n96`) are decision evidence at the binding corner only -- fs/-40 C/1.620 V,
+# where record-i106.json pins the 78.9 mV top-plate offset.
+SCI_FULL_CONDITION_VARIANTS = ("as_built", "p_sti4")
+
+
+def sci_points():
+    """The `Sci` top-plate-hold sweep rows, one ngspice .op each.
+
+    Pure: no PDK, no simulator. Same measurement grid and condition list as the
+    i106 pass-gate sweep (TG_VIN / TG_CONDITIONS, reused verbatim so the two
+    curves read side by side); only the device under probe differs.
+    """
+    rows = []
+    for name, (nmos, pmos, switch) in SCI_VARIANTS.items():
+        conds = (TG_CONDITIONS if name in SCI_FULL_CONDITION_VARIANTS
+                 else (("fs", -40, 1.620),))
+        for corner, temp, vdda in conds:
+            for vin in TG_VIN:
+                rows.append((f"tg_sci_{name}_{corner}_{vtag(temp)}c_{vtag(vdda)}v_{vtag(vin)}v",
+                             name, corner, temp, vdda, vin))
+    return rows
+
+
+SCI_POINTS = sci_points()
+
+
 def run(key, model, w, l, corner, temp, vdda, kind, ng, pdk_lib, tmp):
     pmos = "pfet" in model
     bias = RON_BIAS if kind == "ron" else LEAK_BIAS
@@ -179,18 +253,36 @@ def run(key, model, w, l, corner, temp, vdda, kind, ng, pdk_lib, tmp):
     return out
 
 
-def run_tg(key, corner, temp, vdda, vin, ng, pdk_lib, tmp):
-    """One pass-gate operating point: both halves in parallel, Ron = bias / I."""
-    nmodel, nw, nl = TG_NMOS
-    pmodel, pw, pl = TG_PMOS
-    deck = ((HERE / "tg_probe.cir.tmpl").read_text()
+def run_tg(key, corner, temp, vdda, vin, ng, pdk_lib, tmp, *,
+           switch="Sin (and Sr, Mra, Mrb -- same device pair)",
+           nmos=TG_NMOS, pmos=TG_PMOS, tmpl="tg_probe.cir.tmpl"):
+    """One pass-gate operating point: both halves in parallel, Ron = bias / I.
+
+    Generalized for issue #147: the device pair is a parameter and the PMOS
+    half may be `None` (the as-built `Sci` has none). `tmpl` selects the deck:
+    the i106 template substitutes the PMOS model/geometry in place, the i147
+    template takes the whole PMOS line as one `{{PMOS_LINE}}` placeholder so it
+    can be absent.
+    """
+    nmodel, nw, nl = nmos
+    deck = ((HERE / tmpl).read_text()
             .replace("{{PDK_LIB}}", f'"{pdk_lib}"').replace("{{CORNER}}", corner)
             .replace("{{TEMP}}", str(temp)).replace("{{VDDA}}", str(vdda))
             .replace("{{VS}}", f"{vin:.6g}").replace("{{VD}}", f"{vin + RON_BIAS:.6g}")
             .replace("{{VGN}}", f"{vdda:g}").replace("{{VGP}}", "0")
             .replace("{{NMODEL}}", nmodel).replace("{{NGEOM}}", geom(nw, nl))
-            .replace("{{PMODEL}}", pmodel).replace("{{PGEOM}}", geom(pw, pl))
             .replace("{{BIAS}}", f"{RON_BIAS:g}"))
+    if "{{PMOS_LINE}}" in deck:
+        if pmos is None:
+            deck = deck.replace("{{PMOS_LINE}}",
+                                "* (as built: no PMOS half on this gate)")
+        else:
+            pmodel, pw, pl = pmos
+            deck = deck.replace("{{PMOS_LINE}}",
+                                f"X2 dp gp s vdda {pmodel} {geom(pw, pl)}")
+    else:
+        pmodel, pw, pl = pmos
+        deck = deck.replace("{{PMODEL}}", pmodel).replace("{{PGEOM}}", geom(pw, pl))
     left = sorted({w for w in deck.split() if w.startswith("{{") and w.endswith("}}")})
     if left:
         sys.exit(f"REFUSE: unsubstituted placeholder(s) in the tg deck for '{key}': {left}")
@@ -204,12 +296,20 @@ def run_tg(key, corner, temp, vdda, vin, ng, pdk_lib, tmp):
     if r.returncode or any(k not in vals for k in need):
         print(log[-3000:], file=sys.stderr)
         sys.exit(f"REFUSE: ngspice did not produce the pass-gate scalars for '{key}'")
+    # The deck takes abs() of each half's current independently; if the halves
+    # ever ran counter to one another their currents would be summed rather
+    # than cancelled and the shares could exceed 1 (README.md, "What validates
+    # the split"). Every committed i106 row holds the sum to 1e-6; a row that
+    # does not is the halves fighting, and it refuses instead of measuring.
+    if abs(vals["i_nmos"] + vals["i_pmos"] - vals["i_dev"]) > 1e-6 * max(vals["i_dev"], 1e-15):
+        sys.exit(f"REFUSE: half currents do not sum to the gate current for '{key}' "
+                 f"({vals['i_nmos']:.6g} + {vals['i_pmos']:.6g} != {vals['i_dev']:.6g})")
     # Which half carries the current decides what a remedy should change: a
     # low-Vth NMOS half, or a wider PMOS half. Reported, never interpreted here.
     share = vals["i_nmos"] / vals["i_dev"] if vals["i_dev"] else None
-    return {"kind": "tg", "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+    return {"kind": "tg", "switch": switch,
             "nmos": {"model": nmodel, "W_um": nw, "L_um": nl},
-            "pmos": {"model": pmodel, "W_um": pw, "L_um": pl},
+            "pmos": ({"model": pmodel, "W_um": pw, "L_um": pl} if pmos else None),
             "corner": corner, "temperature_c": temp, "vdda_V": vdda,
             "vin_V": vin, "bias_V": RON_BIAS,
             "current_A": vals["i_dev"], "ron_ohm": vals["r_on"],
@@ -218,7 +318,7 @@ def run_tg(key, corner, temp, vdda, vin, ng, pdk_lib, tmp):
 
 
 # (set name) -> (what the rows are, the metadata the set contributes)
-POINT_SETS = ("i92", "i106")
+POINT_SETS = ("i92", "i106", "i147")
 
 
 def main():
@@ -227,7 +327,8 @@ def main():
     ap.add_argument("--pdk-root", default=None)
     ap.add_argument("--set", choices=POINT_SETS + ("all",), default="all",
                     help="which point set to run: i92 (single-device ron/leakage), "
-                         "i106 (pass-gate Ron vs input), or all (default; print only)")
+                         "i106 (pass-gate Ron vs input), i147 (Sci top-plate hold vs "
+                         "top-plate voltage), or all (default; print only)")
     ap.add_argument("--out", default=None,
                     help="result file name (default: probe-<set>.json)")
     ap.add_argument("--write", action="store_true", help="save the result file")
@@ -235,7 +336,7 @@ def main():
     sets = POINT_SETS if a.set == "all" else (a.set,)
     if a.write and a.set == "all":
         print("REFUSE: --write needs one point set, because each set has its own "
-              "result file; use --set i92 or --set i106", file=sys.stderr)
+              "result file; use --set i92, --set i106 or --set i147", file=sys.stderr)
         return 2
 
     pin = json.load(open(REPO / "sim/pdk.json"))
@@ -256,6 +357,10 @@ def main():
         "i92": "Single-switch DC probes: on-state Ron and off-state leakage (issue #92)",
         "i106": "Transmission-gate DC probe: `Sin` pass-gate Ron versus the voltage it "
                 "passes, over the five process skews at Vdda = 1.620 V / -40 C (issue #106)",
+        "i147": "Top-plate hold switch DC probe: the as-built `Sci` NMOS (a lone "
+                "nfet_01v8_lvt, no PMOS half) Ron versus the top-plate voltage it must "
+                "hold to vcm, with the #92-precedent PMOS halves and a widened-NMOS "
+                "counterfactual as variants, over the same condition grid (issue #147)",
     }
     purpose = {
         "i92": "give the switch-resistance and leakage numbers in "
@@ -263,6 +368,10 @@ def main():
         "i106": "give the `Sin` sampling-resistance finding in issue #106 a committed "
                 "testbench: Ron versus input for the as-built pass gate, which the "
                 "single-device `ron` kind cannot show",
+        "i147": "give the `Sci` top-plate-hold finding (98 % of the fs/1.620 V/-40 C "
+                "0.6 V-input sampling error in sim/integrator-ci/record-i106.json) a "
+                "committed mechanism testbench, and the change-or-accept decision its "
+                "own evidence",
     }
     method = {}
     if "i92" in sets:
@@ -275,6 +384,21 @@ def main():
                         f"{RON_BIAS*1e3:g} mV above it, NMOS gate at Vdda and PMOS gate at "
                         "vssa (fully on), bulks on their static rails; Ron = bias / I, and "
                         "each half's share of I is reported separately")
+    if "i147" in sets:
+        method["sci_tg"] = ("the tg measurement on the top-plate hold switch: the swept "
+                            "terminal is the TOP PLATE, and during phi1e the switch sinks "
+                            "the coupled charge to vcm, so the informative half of the "
+                            "sweep is the half ABOVE vcm = 0.9 V -- the opposite half from "
+                            "the `Sin` gate's, whose binding half is below it. The whole "
+                            "range is swept anyway so both gates read on one grid. The "
+                            "10 mV probe bias is direction-agnostic; the physical hold "
+                            "current flows top plate -> vcm. Variants in "
+                            f"{', '.join(SCI_VARIANTS)}: as_built and p_sti4 over every "
+                            "TG_CONDITIONS condition, p_sbi24 and n96 at the binding "
+                            "fs/-40 C/1.620 V corner only. NMOS gate at Vdda (phi1e's "
+                            "high rail); a PMOS half, when present, gates at 0 (the low "
+                            "rail a local phi1eb inverter would deliver) with its n-well "
+                            "at vdda")
     method["geometry"] = ("ad = as = 0.29*W, pd = ps = 2*W + 0.58, nrd = nrs = 0.29/W -- the "
                           "rule the committed netlist itself uses")
     method["geometry_self_check"] = (f"{checked} switch lines in "
@@ -296,6 +420,9 @@ def main():
     if "i106" in sets:
         res["tg_deck_sha256"] = hashlib.sha256(
             (HERE / "tg_probe.cir.tmpl").read_bytes()).hexdigest()
+    if "i147" in sets:
+        res["sci_deck_sha256"] = hashlib.sha256(
+            (HERE / "sci_probe.cir.tmpl").read_bytes()).hexdigest()
     res["integrator_netlist_sha256"] = hashlib.sha256(
         (REPO / "design/integrator/integrator.spice").read_bytes()).hexdigest()
     res["points"] = {}
@@ -312,6 +439,17 @@ def main():
             p = res["points"][key]
             print(f"  {key:34s} tg       Ron = {p['ron_ohm']:10.4g} ohm   "
                   f"(NMOS {100 * p['nmos_current_share']:5.1f} % of I)", file=sys.stderr)
+    if "i147" in sets:
+        for key, variant, corner, temp, vdda, vin in SCI_POINTS:
+            nmos, pmos, switch = SCI_VARIANTS[variant]
+            res["points"][key] = run_tg(key, corner, temp, vdda, vin, ng, pdk_lib, tmp,
+                                        switch=switch, nmos=nmos, pmos=pmos,
+                                        tmpl="sci_probe.cir.tmpl")
+            p = res["points"][key]
+            share = (f"(NMOS {100 * p['nmos_current_share']:5.1f} % of I)"
+                     if p["pmos"] else "(NMOS only, as built)")
+            print(f"  {key:46s} tg       Ron = {p['ron_ohm']:10.4g} ohm   {share}",
+                  file=sys.stderr)
 
     txt = json.dumps(res, indent=2) + "\n"
     if a.write:
