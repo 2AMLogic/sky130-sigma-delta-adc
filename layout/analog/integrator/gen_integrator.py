@@ -1890,10 +1890,12 @@ def main() -> int:
                       f"{running.get('klt', 'unknown')} is not the recorded "
                       f"build {pin['klt']} and uvx is not on PATH to resolve "
                       "it. Run under the recorded build: "
-                      f'uvx --from "{pin["reinstall_spec"]}" klt ...',
+                      f'uvx --from "{pin["reinstall_spec"]}" '
+                      f'--with "klayout=={pin["klayout"]}" klt ...',
                       file=sys.stderr)
                 return 2
-            klt_cmd = [uvx, "--from", pin["reinstall_spec"], "klt"]
+            klt_cmd = [uvx, "--from", pin["reinstall_spec"],
+                       "--with", f"klayout=={pin['klayout']}", "klt"]
             print("gen_integrator.py --check: host klt "
                   f"{running.get('klt', 'unknown')} is not the recorded build "
                   f"{pin['klt']} (drc.report.json provenance); evaluating the "
@@ -1923,15 +1925,18 @@ def main() -> int:
             got_layout = resolved.get("klayout_version")
             if got_layout != pin["klayout"]:
                 print("gen_integrator.py --check: CANNOT VERIFY -- the "
-                      f"recorded build resolved with klayout {got_layout}, "
-                      f"not the recorded {pin['klayout']}: the reinstall "
-                      "spec pins klayout-tools only (klayout is a >=0.30 "
-                      "floor there), so a fresh resolution can drift. The "
-                      "committed bytes were written by the recorded "
-                      "klayout, so a byte difference could not be "
-                      "attributed. Pin it: "
+                      "pinned resolution resolved with klayout "
+                      f"{got_layout}, not the recorded {pin['klayout']}: "
+                      "the uvx invocation already carries "
+                      f'--with "klayout=={pin["klayout"]}", so the pin was '
+                      "not honoured (a stale cached environment, or the "
+                      "recorded release being yanked or unavailable for "
+                      "this platform). The committed bytes were written by "
+                      "the recorded klayout, so a byte difference could not "
+                      "be attributed. Diagnose the resolution: "
                       f'uvx --from "{pin["reinstall_spec"]}" '
-                      f'--with "klayout=={pin["klayout"]}" klt ...',
+                      f'--with "klayout=={pin["klayout"]}" --refresh '
+                      "klt version --format json",
                       file=sys.stderr)
                 return 2
         tmp = Path(tempfile.mkdtemp(prefix="integrator-check-"))

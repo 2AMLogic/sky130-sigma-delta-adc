@@ -7,8 +7,6 @@ V^2 -> FS^2 conversion, the two in-band links and the OSR factor between
 them, kT/C -> Cs_eff, the per-corner budget verdicts -- and that a partial or
 unmeasured grid is refused as a record.
 """
-import contextlib
-import io
 import math
 import pathlib
 import sys
@@ -19,6 +17,7 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE))
 import make_request as mkn
 import run_noise as rn
+import runner_test_common as rtc
 import settling_common as sc
 
 PROCESS = ("tt", "ss", "ff", "sf", "fs")
@@ -48,20 +47,15 @@ def measured(rms=1.207258251372e-4, bb=None, audio=None, status="pass", diagnost
 
 
 def unmeasured(status="fail", diagnostics=("batch_job_failed",)):
-    c = {"status": status, "diagnostics": list(diagnostics)}
-    c.update({k: None for k in rn.KEYS})
-    return c
+    return rtc.unmeasured(rn.KEYS, status=status, diagnostics=diagnostics)
 
 
 def corner_set(n=sc.GRID_POINTS, factory=measured, **kw):
-    return {cid: factory(**kw) for cid in CORNER_IDS[:n]}
+    return rtc.corner_set(CORNER_IDS, n, factory, **kw)
 
 
 def call(fn, *args, **kw):
-    err = io.StringIO()
-    with contextlib.redirect_stderr(err):
-        verdict = fn(*args, **kw)
-    return verdict, err.getvalue()
+    return rtc.call(fn, *args, **kw)
 
 
 class InputReferral(unittest.TestCase):

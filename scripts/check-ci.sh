@@ -31,6 +31,12 @@ WORKFLOW=".github/workflows/signoff.yml"
 # interpreter chosen below at run time.
 CHECKS=(
   ".|python3 -I attestation/item8_envelope.py --check"
+  # The #155 manifest content-hash step landed on main without CHECKS
+  # entries, like #164 below -- declared while resolving the #213 merge
+  # conflict so the merged workflow passes the drift guard. Tool-free
+  # (pure Python over manifests/, no klt, no PDK, no network).
+  ".|python3 -I -m unittest discover -s manifests -p 'test_check_content_hashes.py'"
+  ".|python3 -I manifests/check_content_hashes.py"
   ".|python3 -I -m unittest discover -s spec -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s sim/bmodel -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s sim -p 'test_settling*.py'"
