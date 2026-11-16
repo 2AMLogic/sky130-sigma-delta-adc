@@ -35,13 +35,10 @@ Judge-approved PRs under a hold (`loom:blocked` or `loom:operator`) — only a h
 
 Human-approved issues ready for implementation (`loom:issue`).
 
-- **#169**: Confirm klayout-tools#1962 actually describes the #121 blocker that parks analog items 2, 3, 4, 7, 11
-- **#201**: gen_ota_fd/gen_integrator: two of the seven kept Router overrides differ only by a default budget and a one-sided message, and finish_trunks disagrees on a zero-height trunk
 - **#204**: parse_extract_devices silently drops an X-line whose model token sits on a SPICE continuation line
 - **#210**: test_layout_common.py mis-attributes check.found as a parser-independent source (it is parse_extract_devices' own output)
 - **#211**: signoff.yml's two layout/analog unittest steps overlap: the DRC-guard step's test_*.py pattern already runs test_layout_common.py
 - **#221**: ROADMAP.md T1 counts and row 4 are stale vs the verdict of record; nothing in CI gates a prose count
-- **#223**: item9-envelope provenance.klt_version now names an unpinned klt dev build; .github/klt-version pins 0.8.0
 
 ## In Progress
 
@@ -49,19 +46,21 @@ Issues currently being built (`loom:building`).
 
 - **#106**: Input sampling switch Sin is ~46% incomplete near vcm at ss/1.620 V/-40 C
 - **#108**: Ideal B-model peak SNDR sits ~8 dB below the spec section 5.1 quantization-noise ceiling
-- **#125**: T1 item 5 (analog 1/4): short full-modulator transistor-level transient on the DR-002 anchor set, with power and swing limits
+- **#128**: T1 item 5 (analog 4/4): per-corner model B parameters, DR-001 cross-check on the anchors, and the item-5 analog citation
 - **#131**: Decimator STA: 35 of the 45 DR-002 corners have no liberty file, and the block-boundary I/O timing budget is undeclared
 - **#142**: Decision record: add an amplifier 1/f line to the spec 5.3 noise budget without changing the 80 dB total
+- **#148**: Integrator output swing exceeds spec 5.4 at every DR-002 anchor: the loop's 0.5/0.5 scaling rails integrator 1
 - **#150**: comparator-decision: the trip staircase does not bracket the comparator's trip point at sf/1.620V/-40C
+- **#169**: Confirm klayout-tools#1962 actually describes the #121 blocker that parks analog items 2, 3, 4, 7, 11
 - **#187**: CI never runs item8_envelope.py --verify-issues, so characterization.md can cite a closed issue indefinitely
-- **#234**: check_content_hashes.py: a cited JSON file whose top level is not an object crashes provenance_input_hash
+- **#223**: item9-envelope provenance.klt_version now names an unpinned klt dev build; .github/klt-version pins 0.8.0
+- **#239**: layout_common.Router: by_net comment says the OTA cell's dict stays empty, but the shared finish_trunks tags every trunk
 
 ## PRs Awaiting Review
 
 PRs waiting on Judge (`loom:review-requested`).
 
-- **#149**: feat(sim): short full-modulator transient bench on the DR-002 anchor set
-- **#235**: fix: treat a non-object cited JSON file as provenance-less in content-hash check
+- **#242**: fix: regenerate item9 attest under the klt pin and document the rule
 
 ## Approved (Awaiting Merge)
 
@@ -81,20 +80,20 @@ Issues carrying `loom:curated`.
 - **#106**: Input sampling switch Sin is ~46% incomplete near vcm at ss/1.620 V/-40 C *(curated)*
 - **#108**: Ideal B-model peak SNDR sits ~8 dB below the spec section 5.1 quantization-noise ceiling *(curated)*
 - **#121**: Analog layout 3/3: generated GDS of the non-overlapping clock generator cell (clkgen) *(curated)*
-- **#125**: T1 item 5 (analog 1/4): short full-modulator transistor-level transient on the DR-002 anchor set, with power and swing limits *(curated)*
+- **#128**: T1 item 5 (analog 4/4): per-corner model B parameters, DR-001 cross-check on the anchors, and the item-5 analog citation *(curated)*
 - **#131**: Decimator STA: 35 of the 45 DR-002 corners have no liberty file, and the block-boundary I/O timing budget is undeclared *(curated)*
 - **#142**: Decision record: add an amplifier 1/f line to the spec 5.3 noise budget without changing the 80 dB total *(curated)*
+- **#148**: Integrator output swing exceeds spec 5.4 at every DR-002 anchor: the loop's 0.5/0.5 scaling rails integrator 1 *(curated)*
 - **#150**: comparator-decision: the trip staircase does not bracket the comparator's trip point at sf/1.620V/-40C *(curated)*
 - **#162**: T1 item 7, digital only: SDF-annotated klt functional-verification of the routed decimator, cited for 7.digital *(curated)*
 - **#169**: Confirm klayout-tools#1962 actually describes the #121 blocker that parks analog items 2, 3, 4, 7, 11 *(curated)*
 - **#187**: CI never runs item8_envelope.py --verify-issues, so characterization.md can cite a closed issue indefinitely *(curated)*
-- **#201**: gen_ota_fd/gen_integrator: two of the seven kept Router overrides differ only by a default budget and a one-sided message, and finish_trunks disagrees on a zero-height trunk *(curated)*
 - **#204**: parse_extract_devices silently drops an X-line whose model token sits on a SPICE continuation line *(curated)*
 - **#210**: test_layout_common.py mis-attributes check.found as a parser-independent source (it is parse_extract_devices' own output) *(curated)*
 - **#211**: signoff.yml's two layout/analog unittest steps overlap: the DRC-guard step's test_*.py pattern already runs test_layout_common.py *(curated)*
 - **#221**: ROADMAP.md T1 counts and row 4 are stale vs the verdict of record; nothing in CI gates a prose count *(curated)*
 - **#223**: item9-envelope provenance.klt_version now names an unpinned klt dev build; .github/klt-version pins 0.8.0 *(curated)*
-- **#234**: check_content_hashes.py: a cited JSON file whose top level is not an object crashes provenance_input_hash *(curated)*
+- **#239**: layout_common.Router: by_net comment says the OTA cell's dict stays empty, but the shared finish_trunks tags every trunk *(curated)*
 
 ## Proposed (Architect / Hermit)
 
@@ -114,9 +113,9 @@ _None._
 | Operator merge-risk holds | 5 |
 | Very important | 1 |
 | Important | 7 |
-| Ready (`loom:issue`) | 7 |
-| In Progress (`loom:building`) | 8 |
-| PRs awaiting review | 2 |
+| Ready (`loom:issue`) | 4 |
+| In Progress (`loom:building`) | 11 |
+| PRs awaiting review | 1 |
 | Approved PRs awaiting merge | 5 |
 | Curated | 18 |
 | Architect / Hermit proposals | 4 |
