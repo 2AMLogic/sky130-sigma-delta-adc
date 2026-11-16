@@ -67,10 +67,12 @@ jobs:
       # a pin on a file with no provenance block is a latent blocker it
       # grades unverifiable_provenance (masked while the item also fails its
       # own check; issue #155). This step asserts the repo invariant
-      # directly: a citation declares a pin iff the cited file carries
-      # provenance.input.content_hash and equals it; a not_applicable
-      # spec/statement binding pins the cited file's own sha256. Runs before
-      # the byte-compare below so a violation names the offending key.
+      # directly, in both directions: a citation declares a pin iff the
+      # cited file carries provenance.input.content_hash and equals it --
+      # a missing pin where the file carries one fails too (issue #215);
+      # a not_applicable spec/statement binding pins the cited file's own
+      # sha256. Runs before the byte-compare below so a violation names
+      # the offending key.
       - name: Manifest content-hash pins are verifiable (no EDA tools)
         run: |
           python3 -I -m unittest discover -s manifests -p 'test_check_content_hashes.py'

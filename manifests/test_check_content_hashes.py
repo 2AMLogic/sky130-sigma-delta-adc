@@ -8,8 +8,11 @@ Covers the invariant's three failure modes and its two valid shapes:
   * a citation whose pin differs from the declared input hash fails;
   * a `not_applicable` binding whose pin is not the cited file's own sha256
     fails (and one that matches passes);
-  * a citation declaring no pin passes -- absence is valid, `5.digital[1]`
-    today;
+  * a citation omitting the pin on a file that carries
+    `provenance.input.content_hash` fails -- the invariant's other half,
+    enforced since issue #215;
+  * a citation declaring no pin on a file with no provenance hash passes
+    (`5.digital[1]` today);
   * two entries citing different files that attest the same declared input
     pass on one shared pin value (`2.digital`/`3.digital` today) -- pins are
     compared per entry, never for uniqueness across the manifest.
@@ -84,7 +87,11 @@ class FixtureTree(unittest.TestCase):
 
 
 class CitationTests(FixtureTree):
-    """The citation branch: a pin is declared iff the file declares an input."""
+    """The citation branch: a pin is declared iff the file declares an input.
+
+    Both directions are enforced (issue #215): a pin the file cannot verify
+    fails, and a missing pin where the file declares one fails too.
+    """
 
     def test_matching_pin_passes(self) -> None:
         cited = self.envelope(provenance_hash=GOOD)
@@ -116,8 +123,18 @@ class CitationTests(FixtureTree):
         self.assertIn(GOOD, violations[0])
         self.assertIn("provenance", violations[0])
 
-    def test_no_pin_passes(self) -> None:
-        # Absence is valid (5.digital[1] today): no pin, no claim for klt.
+    def test_missing_pin_on_provenance_carrying_file_fails(self) -> None:
+        # The iff's other half (issue #215): a file that carries
+        # provenance.input.content_hash must be pinned by its citation.
+        cited = self.envelope(provenance_hash=GOOD)
+        violations = self.violations_for({"1.analog": {"file": cited}})
+        self.assertEqual(len(violations), 1, violations)
+        self.assertIn("1.analog", violations[0])
+        self.assertIn(GOOD, violations[0])
+
+    def test_no_pin_on_file_without_provenance_passes(self) -> None:
+        # Absence is valid only where the cited file itself carries no
+        # provenance hash (5.digital[1] today): no pin, no claim for klt.
         cited = self.envelope(provenance_hash=None)
         self.assertEqual(self.violations_for({"5.digital": {"file": cited}}), [])
 
@@ -208,6 +225,13 @@ class EdgeCaseTests(FixtureTree):
         self.assertEqual(len(violations), 1, violations)
         self.assertIn("5.digital[1]", violations[0])
         self.assertNotIn("5.digital[0]", violations[0])
+
+    def test_unreadable_cited_file_with_no_pin_stays_valid(self) -> None:
+        # Omitting a pin must not turn a non-JSON cited file into a new
+        # read failure (issue #215): with nothing declared there is nothing
+        # to compare, so the citation stays valid.
+        cited = self.write_bytes("attest/blob.json", b"\xff\xfe not json")
+        self.assertEqual(self.violations_for({"7": {"file": cited}}), [])
 
     def test_manifest_without_evidence_fails_cleanly(self) -> None:
         self.write_json("manifests/manifest.json", {"block": "x"})
