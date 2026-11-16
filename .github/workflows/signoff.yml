@@ -67,6 +67,21 @@ jobs:
       - name: Item-8 envelope grammar unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s attestation -p 'test_*.py'
 
+      # The manifest's content_hash pins are the claim that a citation names
+      # a particular declared input, and klt signoff verifies a citation's
+      # pin only against the cited file's provenance.input.content_hash --
+      # a pin on a file with no provenance block is a latent blocker it
+      # grades unverifiable_provenance (masked while the item also fails its
+      # own check; issue #155). This step asserts the repo invariant
+      # directly: a citation declares a pin iff the cited file carries
+      # provenance.input.content_hash and equals it; a not_applicable
+      # spec/statement binding pins the cited file's own sha256. Runs before
+      # the byte-compare below so a violation names the offending key.
+      - name: Manifest content-hash pins are verifiable (no EDA tools)
+        run: |
+          python3 -I -m unittest discover -s manifests -p 'test_check_content_hashes.py'
+          python3 -I manifests/check_content_hashes.py
+
       # Item 6 (digital partition) is discharged by a recorded
       # `not_applicable`, which klt signoff hash-binds to two JSON files under
       # spec/. klt cannot see that those files are a projection of the ratified

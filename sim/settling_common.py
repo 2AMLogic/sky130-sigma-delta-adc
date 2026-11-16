@@ -146,6 +146,20 @@ def anchor_units(process_map=None):
             for p, v, t in ANCHOR_POINTS]
 
 
+def measurement(name, expr, unit=None, limits=None):
+    """One entry of a request's `measurements` list.
+
+    Hoisted from the six benches' identical local `e()` (issue #185); callers
+    import it aliased as `e` so their measurement lists keep their spelling.
+    """
+    m = {"name": name, "expr": expr}
+    if unit:
+        m["unit"] = unit
+    if limits:
+        m["limits"] = limits
+    return m
+
+
 def request(deck, measurements, t_end=None, timeout_s=None, poll_timeout_s=None, *,
             analysis=None, options=None):
     """The common DR-002 full-grid batch request for `deck`.
