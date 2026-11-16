@@ -10,6 +10,7 @@ requires a non-null `err_phase` at every one of them.
 import contextlib
 import io
 import unittest
+from unittest import mock
 
 import settling_common as sc
 import runner_test_common as rtc
@@ -183,6 +184,36 @@ class Request(unittest.TestCase):
             sc.request("d.cir", self.MEAS, t_end=1e-9, poll_timeout_s=600)
         with self.assertRaises(ValueError):
             sc.request("d.cir", self.MEAS, t_end=1e-9, timeout_s=60)
+
+
+class NgspiceVersion(unittest.TestCase):
+    """`ngspice_version()`'s branches, with no ngspice on the path.
+
+    `subprocess.run` raising is the assertion: a log hit must never shell out,
+    and every miss must fall back to `ngspice -v` exactly as #145 shipped it.
+    """
+
+    def test_log_hit_answers_from_the_log_without_spawning_ngspice(self):
+        boom = mock.Mock(side_effect=AssertionError("log hit must not run ngspice -v"))
+        with mock.patch.object(sc.subprocess, "run", boom):
+            self.assertEqual(sc.ngspice_version("banner\nngspice-46\nmore"), "ngspice-46")
+
+    def test_empty_log_falls_back_to_ngspice_v(self):
+        out = mock.Mock(stdout="warning\nngspice-44 compiled for ...")
+        with mock.patch.object(sc.subprocess, "run", return_value=out) as run:
+            self.assertEqual(sc.ngspice_version(""), "ngspice-44")
+            self.assertEqual(run.call_args[0][0], ["ngspice", "-v"])
+
+    def test_tokenless_log_falls_back_to_ngspice_v(self):
+        out = mock.Mock(stdout="ngspice-44: circuit level 1.6.0")
+        with mock.patch.object(sc.subprocess, "run", return_value=out):
+            self.assertEqual(sc.ngspice_version("log without a version token"),
+                             "ngspice-44")
+
+    def test_no_version_anywhere_returns_unknown(self):
+        out = mock.Mock(stdout="")
+        with mock.patch.object(sc.subprocess, "run", return_value=out):
+            self.assertEqual(sc.ngspice_version("no token here"), "unknown")
 
 
 class CommittedRequestsAreUnmoved(unittest.TestCase):
