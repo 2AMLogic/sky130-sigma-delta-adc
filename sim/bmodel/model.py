@@ -3,14 +3,20 @@
 Units: the 1-bit feedback is +/-1, so +/-1 is full scale and
 ``amplitude_dbfs = 20*log10(A)``. Spec row 11 (0.5*VREF peak) is -6 dBFS.
 
-Loop (delaying integrators, fixed Boser-Wooley coefficients 0.5 / 0.5,
-written into every record, not parameters)::
+Loop (delaying integrators, fixed coefficients C1 = C2 = 0.3 per DR-007,
+written into every record, not parameters; they were 0.5 / 0.5 before DR-007,
+which railed integrator 1 -- issue #148)::
 
     y[n]    = sign(x2[n] + comparator_offset)        (with hysteresis)
     x1[n+1] = p*x1[n] + k*(u[n] - y[n]) + ci_offset + ktc[n]
     x2[n+1] = p*x2[n] + k2*(x1[n] - y[n])
 
-With ideal parameters p = 1, k = k2 = 0.5 and NTF = (1-z^-1)^2 / (1 - 1.5 z^-1 + 0.75 z^-2).
+With ideal parameters p = 1, k = k2 = 0.3 and NTF = (1-z^-1)^2 / (1 - 1.7 z^-1 + 0.79 z^-2)
+(general: 1 + (k2-2) z^-1 + (1 - k2 + k1*k2) z^-2).
+
+The bitstream depends on C1 only: x2 feeds a sign() decision, so C2 scales
+integrator 2's swing and the meaning of FS-unit comparator terms but not the
+ideal bits. C1 is the SNDR lever; C2 is chosen for swing (DR-007).
 
 Parameter conventions (the T-extraction issues map onto these names):
 
@@ -38,8 +44,10 @@ import json
 
 import numpy as np
 
-C1 = 0.5
-C2 = 0.5
+# DR-007: C1 = Cs/Ci of integrator 1, C2 of integrator 2. The one integrator
+# cell (design/integrator, Cs 1.000 pF, Ci 3.334 pF) realises both.
+C1 = 0.3
+C2 = 0.3
 FS_HZ = 5.12e6
 
 PARAM_DEFAULTS = {

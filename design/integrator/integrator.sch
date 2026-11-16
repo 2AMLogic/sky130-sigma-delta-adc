@@ -1,13 +1,13 @@
 v {xschem version=3.4.7 file_version=1.2
 * integrator -- fully-differential switched-capacitor integrator with 1-bit
-* feedback DAC (issue #40). One cell, used twice (coefficients C1 = C2 = 0.5).
-* Cs_in = Cs_ref = 1 pF (spec 5.3 planning value), Ci = 2 pF (Cs/Ci = 0.5,
-* model B, sim/bmodel/model.py:41-42). Sizing trace: design/integrator/SIZING.md.
+* feedback DAC (issue #40). One cell, used twice (coefficients C1 = C2 = 0.3, DR-007).
+* Cs_in = Cs_ref = 1 pF (spec 5.3 planning value), Ci = 3.334 pF (Cs/Ci = 0.30,
+* model B, sim/bmodel/model.py C1/C2, DR-007). Sizing trace: design/integrator/SIZING.md.
 *
 * Charge transfer polarity: the OTA drives outp inverting from inn and outn
 * inverting from inp, so the p-side sampling caps sum at the OTA inn node
 * (net sump, feedback Ci_p to outp) and the n-side caps at inp (net sumn,
-* Ci_n to outn). Then outp-outn steps by +0.5*(vin_diff + rsel_p - rsel_n).
+* Ci_n to outn). Then outp-outn steps by +0.3*(vin_diff + rsel_p - rsel_n).
 *
 * Phases (generated outside this block): phi1 sample / phi1b its complement /
 * phi1e early phi1 (top plates open first: bottom-plate sampling) / phi2
@@ -384,8 +384,8 @@ C {devices/lab_pin.sym} 2000 550 0 0 {name=l60 lab=bpr_p}
 * p-side integrating cap Ci between the summing node and the output
 C {sky130_fd_pr/cap_mim_m3_1.sym} 2550 0 0 0 {name=Ci_p
 model=cap_mim_m3_1
-W=31.43
-L=31.43
+W=40.64
+L=40.64
 MF=1
 spiceprefix=X}
 N 2550 -30 2550 -50 {}
@@ -753,8 +753,8 @@ C {devices/lab_pin.sym} 2000 2050 0 0 {name=l122 lab=bpr_n}
 * n-side integrating cap Ci between the summing node and the output
 C {sky130_fd_pr/cap_mim_m3_1.sym} 2550 1500 0 0 {name=Ci_n
 model=cap_mim_m3_1
-W=31.43
-L=31.43
+W=40.64
+L=40.64
 MF=1
 spiceprefix=X}
 N 2550 1470 2550 1450 {}
