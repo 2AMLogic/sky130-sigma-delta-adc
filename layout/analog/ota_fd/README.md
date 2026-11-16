@@ -77,13 +77,15 @@ regression when **both** axes match the recording.
   `ota_fd.gds` directly. A difference is a generator or geometry regression:
   exit 1, `FAIL`.
 - **Host klt differs** — `--check` re-runs the flow under the recorded build
-  via `uvx --from "<provenance.klt_reinstall_spec>" klt` and byte-compares that
-  output, so the gate stays meaningful across host toolchain upgrades. The
-  resolution probe also verifies the resolved build's klayout equals the
-  recorded one; on drift it names both versions, prints the klayout-pinned
-  command (`uvx --from "<spec>" --with "klayout==<recorded>" klt ...`), and
-  exits 2. A byte difference is still exit 1 / `FAIL` (geometry), never
-  blamed on the toolchain.
+  via `uvx --from "<provenance.klt_reinstall_spec>" --with "klayout==<recorded>" klt`
+  (both axes pinned) and byte-compares that output, so the gate stays meaningful
+  across host toolchain upgrades. The resolution probe also verifies the
+  resolved build's klayout equals the recorded one; the invocation itself
+  carries the klayout pin, so a mismatch there means the pin was not honoured
+  (stale cache, or the recorded release unavailable on this platform) — it
+  names both versions, prints a diagnostic command, and exits 2. A byte
+  difference is still exit 1 / `FAIL` (geometry), never blamed on the
+  toolchain.
 - **The gate cannot run** — `drc.report.json`/`provenance` missing or
   unreadable, `uvx` unavailable, the recorded build failing to resolve, or a
   klayout mismatch on either branch — is exit 2, `CANNOT VERIFY`, naming the
