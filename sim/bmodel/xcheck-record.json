@@ -1,0 +1,851 @@
+{
+  "source": "cross-check (B vs T)",
+  "result_kind": "simulated (behavioural model B with T-extracted corner parameters compared against the short transistor-level transient; DR-001 item 3)",
+  "method_basis": "spec/decisions/DR-001-evidence-split.md item 3; T side sim/modulator-tran (issue #125)",
+  "acceptance_gates": {
+    "inband_power_3db": "|10*log10(P_inband_B/P_inband_T)| <= 3.0 dB -- DR-001's tolerance verbatim, applied to the computable ancestor of its in-band SNDR leg",
+    "span_10pct": "integrator span agreement, both integrators",
+    "duty_0p05": "loop duty agreement",
+    "fixed_when": "fixed before any corner other than tt was run; tt was inspected while the metrics were designed and that inspection is disclosed here"
+  },
+  "dr001_acceptance": "incomplete at every corner: the in-band SNDR leg is not computable at the committed T record length (sndr_inband_db.reason). A corner whose computable legs all pass is reported 'incomplete', never 'passed': DR-001 item 3 acceptance needs both legs. Lengthening the T record or changing the 3 dB tolerance is a new decision record.",
+  "corners": [
+    {
+      "corner_id": "ff/1.980V/125C",
+      "dr002_set": "anchor",
+      "corner_params_file": "sim/bmodel/corners/ff-1.980V-125C.json",
+      "corner_params_sha256": "sha256:f395b1714d146388c4ed18838f754ef656616c18efbdf7015906096c4e343265",
+      "b_side_file": "sim/bmodel/xcheck-sides/bx-ff-1.980V-125C.json",
+      "b_side_sha256": "sha256:be2ad78a32fa7a0593b2665b3e034bb033e8c8280b30bd3ce126a61006347d5c",
+      "t_samples_file": "sim/modulator-tran/samples/ff-1.980V-125C.json",
+      "t_samples_sha256": "sha256:047959acb9b11912e943c9e6959c584a0dc75591d7ad62d518f2aeb88d50ae5a",
+      "record_length_clocks": 1024,
+      "window": "Blackman-Harris 4-term",
+      "bin_bw_hz": 5000.0,
+      "band_hz": [
+        0,
+        20000.0
+      ],
+      "amplitude_dbfs": -6.0,
+      "amplitude_note": "the T bench drove spec row 11's 0.5*VREF (-6 dBFS nominal); the committed u_diff_v is the analytic tone sample values",
+      "tone_hz": 15000.0,
+      "tone_bin": 3,
+      "compared_bins": {
+        "inband": "1..4",
+        "dc_excluded": [
+          0,
+          0
+        ],
+        "out_of_band_noise": "5..512 excluding tone lobe -1..7"
+      },
+      "sndr_inband_db": {
+        "b": null,
+        "t": null,
+        "computable": false,
+        "reason": "1024 modulator clocks give 5 kHz bins on the bitstream, so the 20 kHz band of spec row 1 is four bins wide while the 4-term Blackman-Harris main lobe (+/- 4 bins) covers all of them: DR-001's lobe-summed signal / in-band-noise split has no in-band noise bins to sum. The decimated route (8 output samples at OSR 128) cannot resolve the band either and its tone is incoherent (3 cycles over 1024 clocks = 3/8 cycle over 8 output samples). sim/modulator-tran/README.md 'What it does not claim' anticipated exactly this; DR-001 flags the short record and the 3 dB tolerance as its first-revisit items. Lengthening the T record or changing the tolerance is a new decision record, not done here."
+      },
+      "inband_power_fs_norm": {
+        "b": 16515.258427989666,
+        "t": 16372.60467394955,
+        "delta_db": 0.03767598190237518
+      },
+      "out_of_band_noise_power": {
+        "b": 119207.10540678514,
+        "t": 118599.07077325488,
+        "delta_db": 0.022208562101671714,
+        "note": "auxiliary gross-mismatch detector; not a DR-001 leg"
+      },
+      "waveforms": {
+        "o1_fs": {
+          "b": {
+            "mean": -0.00028310784667968936,
+            "std": 0.49245774987088375,
+            "p2p": 2.535343486
+          },
+          "t": {
+            "mean": 0.0004981520996093641,
+            "std": 0.4892113380628578,
+            "p2p": 2.4692083333333334
+          },
+          "span_rel_diff": 0.026783950051467158
+        },
+        "o2_fs": {
+          "b": {
+            "mean": -0.007721702453125007,
+            "std": 0.3395082288428912,
+            "p2p": 1.793115737
+          },
+          "t": {
+            "mean": -0.00331418717447916,
+            "std": 0.33570413771405044,
+            "p2p": 1.6845375
+          },
+          "span_rel_diff": 0.06445581472659404
+        },
+        "units": "1 model-B FS = 1.2 V differential (run.py FS_VOLTS)",
+        "sample_wise_reported_not_gated": {
+          "o1": {
+            "rms_fs": 0.4988959215683046,
+            "rel_to_t_p2p": 0.20204691310709083
+          },
+          "o2": {
+            "rms_fs": 0.4405802072156943,
+            "rel_to_t_p2p": 0.2615437217727087
+          },
+          "bit_disagree_frac": 0.453125,
+          "why_not_gated": "a single-bit loop is chaotic; B and T decorrelate sample-wise within a few clocks whatever the model's quality (sim/modulator-tran/README.md), so these metrics measure the chaos, not the model"
+        }
+      },
+      "duty": {
+        "b": 0.0,
+        "t": 0.0
+      },
+      "legs": {
+        "inband_power_3db": {
+          "pass": true,
+          "limit_db": 3.0,
+          "delta_db": 0.03767598190237518,
+          "what": "total windowed power in band bins 1..4 (0, 20 kHz] of B over T, same 1024-clock window, same 4-term Blackman-Harris window; the tone is identical by construction"
+        },
+        "span_10pct": {
+          "pass": true,
+          "limit_rel": 0.1,
+          "o1_rel": 0.026783950051467158,
+          "o2_rel": 0.06445581472659404
+        },
+        "duty_0p05": {
+          "pass": true,
+          "limit": 0.05,
+          "b": 0.0,
+          "t": 0.0
+        }
+      },
+      "legs_passed": [
+        "inband_power_3db",
+        "span_10pct",
+        "duty_0p05"
+      ],
+      "legs_failed": [],
+      "cross_check_status": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, span_10pct, duty_0p05. Model B numbers at this corner are reported uncross-checked and are not used for row 2."
+    },
+    {
+      "corner_id": "ff/1.980V/-40C",
+      "dr002_set": "anchor",
+      "corner_params_file": "sim/bmodel/corners/ff-1.980V-m40C.json",
+      "corner_params_sha256": "sha256:f04469e6b80fc9761ce4e2bb56bb685a113ad7cd9b09de9eb5b56fb8b0b8f3d1",
+      "b_side_file": "sim/bmodel/xcheck-sides/bx-ff-1.980V-m40C.json",
+      "b_side_sha256": "sha256:ae3e36ab07063dbef28c638d32b9109f81bcca041ae16728591d58322cdfb136",
+      "t_samples_file": "sim/modulator-tran/samples/ff-1.980V-m40C.json",
+      "t_samples_sha256": "sha256:be2d59d0168a66dd48fe1bef2de30ddeaabbb97ce7f3129a30dbe1a9c855da53",
+      "record_length_clocks": 1024,
+      "window": "Blackman-Harris 4-term",
+      "bin_bw_hz": 5000.0,
+      "band_hz": [
+        0,
+        20000.0
+      ],
+      "amplitude_dbfs": -6.0,
+      "amplitude_note": "the T bench drove spec row 11's 0.5*VREF (-6 dBFS nominal); the committed u_diff_v is the analytic tone sample values",
+      "tone_hz": 15000.0,
+      "tone_bin": 3,
+      "compared_bins": {
+        "inband": "1..4",
+        "dc_excluded": [
+          0,
+          0
+        ],
+        "out_of_band_noise": "5..512 excluding tone lobe -1..7"
+      },
+      "sndr_inband_db": {
+        "b": null,
+        "t": null,
+        "computable": false,
+        "reason": "1024 modulator clocks give 5 kHz bins on the bitstream, so the 20 kHz band of spec row 1 is four bins wide while the 4-term Blackman-Harris main lobe (+/- 4 bins) covers all of them: DR-001's lobe-summed signal / in-band-noise split has no in-band noise bins to sum. The decimated route (8 output samples at OSR 128) cannot resolve the band either and its tone is incoherent (3 cycles over 1024 clocks = 3/8 cycle over 8 output samples). sim/modulator-tran/README.md 'What it does not claim' anticipated exactly this; DR-001 flags the short record and the 3 dB tolerance as its first-revisit items. Lengthening the T record or changing the tolerance is a new decision record, not done here."
+      },
+      "inband_power_fs_norm": {
+        "b": 16548.165660162238,
+        "t": 16423.19533398602,
+        "delta_db": 0.03292201554803392
+      },
+      "out_of_band_noise_power": {
+        "b": 118447.84998958567,
+        "t": 118509.20480187636,
+        "delta_db": -0.002249019936122163,
+        "note": "auxiliary gross-mismatch detector; not a DR-001 leg"
+      },
+      "waveforms": {
+        "o1_fs": {
+          "b": {
+            "mean": -0.00015125427246093226,
+            "std": 0.48535559309552345,
+            "p2p": 2.5457092919999997
+          },
+          "t": {
+            "mean": 0.0011327689615885234,
+            "std": 0.4876435547835322,
+            "p2p": 2.4891
+          },
+          "span_rel_diff": 0.02274287573821849
+        },
+        "o2_fs": {
+          "b": {
+            "mean": 0.00023742828125000032,
+            "std": 0.3282777632255881,
+            "p2p": 1.7983757649999998
+          },
+          "t": {
+            "mean": -0.000729231770833328,
+            "std": 0.33200186025849376,
+            "p2p": 1.7011850000000002
+          },
+          "span_rel_diff": 0.05713121441818478
+        },
+        "units": "1 model-B FS = 1.2 V differential (run.py FS_VOLTS)",
+        "sample_wise_reported_not_gated": {
+          "o1": {
+            "rms_fs": 0.4656730126276418,
+            "rel_to_t_p2p": 0.187084895194103
+          },
+          "o2": {
+            "rms_fs": 0.4119505406096855,
+            "rel_to_t_p2p": 0.24215505110242888
+          },
+          "bit_disagree_frac": 0.470703125,
+          "why_not_gated": "a single-bit loop is chaotic; B and T decorrelate sample-wise within a few clocks whatever the model's quality (sim/modulator-tran/README.md), so these metrics measure the chaos, not the model"
+        }
+      },
+      "duty": {
+        "b": 0.0,
+        "t": 0.0
+      },
+      "legs": {
+        "inband_power_3db": {
+          "pass": true,
+          "limit_db": 3.0,
+          "delta_db": 0.03292201554803392,
+          "what": "total windowed power in band bins 1..4 (0, 20 kHz] of B over T, same 1024-clock window, same 4-term Blackman-Harris window; the tone is identical by construction"
+        },
+        "span_10pct": {
+          "pass": true,
+          "limit_rel": 0.1,
+          "o1_rel": 0.02274287573821849,
+          "o2_rel": 0.05713121441818478
+        },
+        "duty_0p05": {
+          "pass": true,
+          "limit": 0.05,
+          "b": 0.0,
+          "t": 0.0
+        }
+      },
+      "legs_passed": [
+        "inband_power_3db",
+        "span_10pct",
+        "duty_0p05"
+      ],
+      "legs_failed": [],
+      "cross_check_status": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, span_10pct, duty_0p05. Model B numbers at this corner are reported uncross-checked and are not used for row 2."
+    },
+    {
+      "corner_id": "fs/1.800V/27C",
+      "dr002_set": "anchor",
+      "corner_params_file": "sim/bmodel/corners/fs-1.800V-27C.json",
+      "corner_params_sha256": "sha256:86e93e58b935c3f937254ac9d20d5376c7b223f52fbfe85686ea5aef37a395f0",
+      "b_side_file": "sim/bmodel/xcheck-sides/bx-fs-1.800V-27C.json",
+      "b_side_sha256": "sha256:38e7425c315456f5ba7713040668e202736bab8c811211e2945292491e311aa8",
+      "t_samples_file": "sim/modulator-tran/samples/fs-1.800V-27C.json",
+      "t_samples_sha256": "sha256:65a966f62b0edfbeed8948288f1f9ad72817396b33f041514529f887a87d6403",
+      "record_length_clocks": 1024,
+      "window": "Blackman-Harris 4-term",
+      "bin_bw_hz": 5000.0,
+      "band_hz": [
+        0,
+        20000.0
+      ],
+      "amplitude_dbfs": -6.0,
+      "amplitude_note": "the T bench drove spec row 11's 0.5*VREF (-6 dBFS nominal); the committed u_diff_v is the analytic tone sample values",
+      "tone_hz": 15000.0,
+      "tone_bin": 3,
+      "compared_bins": {
+        "inband": "1..4",
+        "dc_excluded": [
+          0,
+          0
+        ],
+        "out_of_band_noise": "5..512 excluding tone lobe -1..7"
+      },
+      "sndr_inband_db": {
+        "b": null,
+        "t": null,
+        "computable": false,
+        "reason": "1024 modulator clocks give 5 kHz bins on the bitstream, so the 20 kHz band of spec row 1 is four bins wide while the 4-term Blackman-Harris main lobe (+/- 4 bins) covers all of them: DR-001's lobe-summed signal / in-band-noise split has no in-band noise bins to sum. The decimated route (8 output samples at OSR 128) cannot resolve the band either and its tone is incoherent (3 cycles over 1024 clocks = 3/8 cycle over 8 output samples). sim/modulator-tran/README.md 'What it does not claim' anticipated exactly this; DR-001 flags the short record and the 3 dB tolerance as its first-revisit items. Lengthening the T record or changing the tolerance is a new decision record, not done here."
+      },
+      "inband_power_fs_norm": {
+        "b": 16533.36201793606,
+        "t": 16301.87001963421,
+        "delta_db": 0.061237492142004066
+      },
+      "out_of_band_noise_power": {
+        "b": 118411.8763561188,
+        "t": 118714.07697057954,
+        "delta_db": -0.01106957112886851,
+        "note": "auxiliary gross-mismatch detector; not a DR-001 leg"
+      },
+      "waveforms": {
+        "o1_fs": {
+          "b": {
+            "mean": 8.312544531249161e-05,
+            "std": 0.4952989924840243,
+            "p2p": 2.4611311789999997
+          },
+          "t": {
+            "mean": 0.0005197289225260388,
+            "std": 0.4804550165141693,
+            "p2p": 2.38605
+          },
+          "span_rel_diff": 0.03146672492194198
+        },
+        "o2_fs": {
+          "b": {
+            "mean": -0.0010731111347656256,
+            "std": 0.34361150995648054,
+            "p2p": 1.709277009
+          },
+          "t": {
+            "mean": 0.004090253255208339,
+            "std": 0.32265949765373686,
+            "p2p": 1.5985991666666668
+          },
+          "span_rel_diff": 0.06923426750191175
+        },
+        "units": "1 model-B FS = 1.2 V differential (run.py FS_VOLTS)",
+        "sample_wise_reported_not_gated": {
+          "o1": {
+            "rms_fs": 0.48135558186375577,
+            "rel_to_t_p2p": 0.2017374245568013
+          },
+          "o2": {
+            "rms_fs": 0.4202277199256561,
+            "rel_to_t_p2p": 0.26287247528215446
+          },
+          "bit_disagree_frac": 0.4443359375,
+          "why_not_gated": "a single-bit loop is chaotic; B and T decorrelate sample-wise within a few clocks whatever the model's quality (sim/modulator-tran/README.md), so these metrics measure the chaos, not the model"
+        }
+      },
+      "duty": {
+        "b": -0.001953125,
+        "t": 0.0
+      },
+      "legs": {
+        "inband_power_3db": {
+          "pass": true,
+          "limit_db": 3.0,
+          "delta_db": 0.061237492142004066,
+          "what": "total windowed power in band bins 1..4 (0, 20 kHz] of B over T, same 1024-clock window, same 4-term Blackman-Harris window; the tone is identical by construction"
+        },
+        "span_10pct": {
+          "pass": true,
+          "limit_rel": 0.1,
+          "o1_rel": 0.03146672492194198,
+          "o2_rel": 0.06923426750191175
+        },
+        "duty_0p05": {
+          "pass": true,
+          "limit": 0.05,
+          "b": -0.001953125,
+          "t": 0.0
+        }
+      },
+      "legs_passed": [
+        "inband_power_3db",
+        "span_10pct",
+        "duty_0p05"
+      ],
+      "legs_failed": [],
+      "cross_check_status": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, span_10pct, duty_0p05. Model B numbers at this corner are reported uncross-checked and are not used for row 2."
+    },
+    {
+      "corner_id": "sf/1.800V/27C",
+      "dr002_set": "anchor",
+      "corner_params_file": "sim/bmodel/corners/sf-1.800V-27C.json",
+      "corner_params_sha256": "sha256:be66b8db283171c60058347d088a1d1fc02074ddf91aabca156f1d78d8b8b5c2",
+      "b_side_file": "sim/bmodel/xcheck-sides/bx-sf-1.800V-27C.json",
+      "b_side_sha256": "sha256:fc18355707bfebe382ff18d4f57389cf5dccd7fd80b0babd0d7b0baf4ae10a98",
+      "t_samples_file": "sim/modulator-tran/samples/sf-1.800V-27C.json",
+      "t_samples_sha256": "sha256:420ab435c583164262872b0911047f12c8068e4457e53ac5d70bec5901de332f",
+      "record_length_clocks": 1024,
+      "window": "Blackman-Harris 4-term",
+      "bin_bw_hz": 5000.0,
+      "band_hz": [
+        0,
+        20000.0
+      ],
+      "amplitude_dbfs": -6.0,
+      "amplitude_note": "the T bench drove spec row 11's 0.5*VREF (-6 dBFS nominal); the committed u_diff_v is the analytic tone sample values",
+      "tone_hz": 15000.0,
+      "tone_bin": 3,
+      "compared_bins": {
+        "inband": "1..4",
+        "dc_excluded": [
+          0,
+          0
+        ],
+        "out_of_band_noise": "5..512 excluding tone lobe -1..7"
+      },
+      "sndr_inband_db": {
+        "b": null,
+        "t": null,
+        "computable": false,
+        "reason": "1024 modulator clocks give 5 kHz bins on the bitstream, so the 20 kHz band of spec row 1 is four bins wide while the 4-term Blackman-Harris main lobe (+/- 4 bins) covers all of them: DR-001's lobe-summed signal / in-band-noise split has no in-band noise bins to sum. The decimated route (8 output samples at OSR 128) cannot resolve the band either and its tone is incoherent (3 cycles over 1024 clocks = 3/8 cycle over 8 output samples). sim/modulator-tran/README.md 'What it does not claim' anticipated exactly this; DR-001 flags the short record and the 3 dB tolerance as its first-revisit items. Lengthening the T record or changing the tolerance is a new decision record, not done here."
+      },
+      "inband_power_fs_norm": {
+        "b": 16553.88590434249,
+        "t": 16468.51945454505,
+        "delta_db": 0.022454003740959648
+      },
+      "out_of_band_noise_power": {
+        "b": 118656.14438524027,
+        "t": 118577.26599703493,
+        "delta_db": 0.0028879954089241545,
+        "note": "auxiliary gross-mismatch detector; not a DR-001 leg"
+      },
+      "waveforms": {
+        "o1_fs": {
+          "b": {
+            "mean": -0.0005632229345703052,
+            "std": 0.484852809235314,
+            "p2p": 2.500025737
+          },
+          "t": {
+            "mean": 0.0003336348470052014,
+            "std": 0.48447672489778415,
+            "p2p": 2.432216666666667
+          },
+          "span_rel_diff": 0.02787953526618363
+        },
+        "o2_fs": {
+          "b": {
+            "mean": -0.0017768274658203145,
+            "std": 0.3244233117040623,
+            "p2p": 1.643681091
+          },
+          "t": {
+            "mean": 0.003569813720703129,
+            "std": 0.3315928578377355,
+            "p2p": 1.6708041666666666
+          },
+          "span_rel_diff": 0.016233545622990956
+        },
+        "units": "1 model-B FS = 1.2 V differential (run.py FS_VOLTS)",
+        "sample_wise_reported_not_gated": {
+          "o1": {
+            "rms_fs": 0.46014287916456886,
+            "rel_to_t_p2p": 0.18918663187815044
+          },
+          "o2": {
+            "rms_fs": 0.40628834074014347,
+            "rel_to_t_p2p": 0.24316933656606085
+          },
+          "bit_disagree_frac": 0.509765625,
+          "why_not_gated": "a single-bit loop is chaotic; B and T decorrelate sample-wise within a few clocks whatever the model's quality (sim/modulator-tran/README.md), so these metrics measure the chaos, not the model"
+        }
+      },
+      "duty": {
+        "b": 0.0,
+        "t": 0.0
+      },
+      "legs": {
+        "inband_power_3db": {
+          "pass": true,
+          "limit_db": 3.0,
+          "delta_db": 0.022454003740959648,
+          "what": "total windowed power in band bins 1..4 (0, 20 kHz] of B over T, same 1024-clock window, same 4-term Blackman-Harris window; the tone is identical by construction"
+        },
+        "span_10pct": {
+          "pass": true,
+          "limit_rel": 0.1,
+          "o1_rel": 0.02787953526618363,
+          "o2_rel": 0.016233545622990956
+        },
+        "duty_0p05": {
+          "pass": true,
+          "limit": 0.05,
+          "b": 0.0,
+          "t": 0.0
+        }
+      },
+      "legs_passed": [
+        "inband_power_3db",
+        "span_10pct",
+        "duty_0p05"
+      ],
+      "legs_failed": [],
+      "cross_check_status": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, span_10pct, duty_0p05. Model B numbers at this corner are reported uncross-checked and are not used for row 2."
+    },
+    {
+      "corner_id": "ss/1.620V/125C",
+      "dr002_set": "anchor",
+      "corner_params_file": "sim/bmodel/corners/ss-1.620V-125C.json",
+      "corner_params_sha256": "sha256:422128da1c43b618b104b12c082c4392d24503e7761ca26328295772a26c99ef",
+      "b_side_file": "sim/bmodel/xcheck-sides/bx-ss-1.620V-125C.json",
+      "b_side_sha256": "sha256:374cd6b95750c89b4fbb2fe031631f41712f87cb848442b06a77a49090cc1396",
+      "t_samples_file": "sim/modulator-tran/samples/ss-1.620V-125C.json",
+      "t_samples_sha256": "sha256:9d87cba80b8cf93068282237120d70de00f3e97ed758412315766d56758b84b4",
+      "record_length_clocks": 1024,
+      "window": "Blackman-Harris 4-term",
+      "bin_bw_hz": 5000.0,
+      "band_hz": [
+        0,
+        20000.0
+      ],
+      "amplitude_dbfs": -6.0,
+      "amplitude_note": "the T bench drove spec row 11's 0.5*VREF (-6 dBFS nominal); the committed u_diff_v is the analytic tone sample values",
+      "tone_hz": 15000.0,
+      "tone_bin": 3,
+      "compared_bins": {
+        "inband": "1..4",
+        "dc_excluded": [
+          0,
+          0
+        ],
+        "out_of_band_noise": "5..512 excluding tone lobe -1..7"
+      },
+      "sndr_inband_db": {
+        "b": null,
+        "t": null,
+        "computable": false,
+        "reason": "1024 modulator clocks give 5 kHz bins on the bitstream, so the 20 kHz band of spec row 1 is four bins wide while the 4-term Blackman-Harris main lobe (+/- 4 bins) covers all of them: DR-001's lobe-summed signal / in-band-noise split has no in-band noise bins to sum. The decimated route (8 output samples at OSR 128) cannot resolve the band either and its tone is incoherent (3 cycles over 1024 clocks = 3/8 cycle over 8 output samples). sim/modulator-tran/README.md 'What it does not claim' anticipated exactly this; DR-001 flags the short record and the 3 dB tolerance as its first-revisit items. Lengthening the T record or changing the tolerance is a new decision record, not done here."
+      },
+      "inband_power_fs_norm": {
+        "b": 16538.811239398885,
+        "t": 16274.503278445882,
+        "delta_db": 0.06996548399519908
+      },
+      "out_of_band_noise_power": {
+        "b": 118411.84565473799,
+        "t": 118779.39528954789,
+        "delta_db": -0.01345959533359949,
+        "note": "auxiliary gross-mismatch detector; not a DR-001 leg"
+      },
+      "waveforms": {
+        "o1_fs": {
+          "b": {
+            "mean": -0.000830237065429687,
+            "std": 0.48869586815041227,
+            "p2p": 2.501607939
+          },
+          "t": {
+            "mean": 5.0686035156372045e-06,
+            "std": 0.47593832849584455,
+            "p2p": 2.1391083333333336
+          },
+          "span_rel_diff": 0.16946294865851405
+        },
+        "o2_fs": {
+          "b": {
+            "mean": -0.015944371972656246,
+            "std": 0.3380312044237588,
+            "p2p": 1.759125121
+          },
+          "t": {
+            "mean": 0.01157715478515625,
+            "std": 0.3120860076339506,
+            "p2p": 1.3546516666666668
+          },
+          "span_rel_diff": 0.29858115136609525
+        },
+        "units": "1 model-B FS = 1.2 V differential (run.py FS_VOLTS)",
+        "sample_wise_reported_not_gated": {
+          "o1": {
+            "rms_fs": 0.47853537225900517,
+            "rel_to_t_p2p": 0.2237078715472592
+          },
+          "o2": {
+            "rms_fs": 0.4196893452916089,
+            "rel_to_t_p2p": 0.30981347871096665
+          },
+          "bit_disagree_frac": 0.43359375,
+          "why_not_gated": "a single-bit loop is chaotic; B and T decorrelate sample-wise within a few clocks whatever the model's quality (sim/modulator-tran/README.md), so these metrics measure the chaos, not the model"
+        }
+      },
+      "duty": {
+        "b": 0.0,
+        "t": 0.0
+      },
+      "legs": {
+        "inband_power_3db": {
+          "pass": true,
+          "limit_db": 3.0,
+          "delta_db": 0.06996548399519908,
+          "what": "total windowed power in band bins 1..4 (0, 20 kHz] of B over T, same 1024-clock window, same 4-term Blackman-Harris window; the tone is identical by construction"
+        },
+        "span_10pct": {
+          "pass": false,
+          "limit_rel": 0.1,
+          "o1_rel": 0.16946294865851405,
+          "o2_rel": 0.29858115136609525
+        },
+        "duty_0p05": {
+          "pass": true,
+          "limit": 0.05,
+          "b": 0.0,
+          "t": 0.0
+        }
+      },
+      "legs_passed": [
+        "inband_power_3db",
+        "duty_0p05"
+      ],
+      "legs_failed": [
+        "span_10pct"
+      ],
+      "cross_check_status": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, duty_0p05; FAILED legs: span_10pct. Model B numbers at this corner are reported uncross-checked and are not used for row 2."
+    },
+    {
+      "corner_id": "ss/1.620V/-40C",
+      "dr002_set": "anchor",
+      "corner_params_file": "sim/bmodel/corners/ss-1.620V-m40C.json",
+      "corner_params_sha256": "sha256:b2c48d150ec5eaae453a937a205ae4a5652aa131b01ae965024e16a0b5356a05",
+      "b_side_file": "sim/bmodel/xcheck-sides/bx-ss-1.620V-m40C.json",
+      "b_side_sha256": "sha256:1faccdefa5cc379132a2d6f30018fe5cb1824e60966e073917e279ab14b8e6b8",
+      "t_samples_file": "sim/modulator-tran/samples/ss-1.620V-m40C.json",
+      "t_samples_sha256": "sha256:f82751f3295a1d6b97a9e530948994612b62598e8b55b5d2eed44e931df8b176",
+      "record_length_clocks": 1024,
+      "window": "Blackman-Harris 4-term",
+      "bin_bw_hz": 5000.0,
+      "band_hz": [
+        0,
+        20000.0
+      ],
+      "amplitude_dbfs": -6.0,
+      "amplitude_note": "the T bench drove spec row 11's 0.5*VREF (-6 dBFS nominal); the committed u_diff_v is the analytic tone sample values",
+      "tone_hz": 15000.0,
+      "tone_bin": 3,
+      "compared_bins": {
+        "inband": "1..4",
+        "dc_excluded": [
+          0,
+          0
+        ],
+        "out_of_band_noise": "5..512 excluding tone lobe -1..7"
+      },
+      "sndr_inband_db": {
+        "b": null,
+        "t": null,
+        "computable": false,
+        "reason": "1024 modulator clocks give 5 kHz bins on the bitstream, so the 20 kHz band of spec row 1 is four bins wide while the 4-term Blackman-Harris main lobe (+/- 4 bins) covers all of them: DR-001's lobe-summed signal / in-band-noise split has no in-band noise bins to sum. The decimated route (8 output samples at OSR 128) cannot resolve the band either and its tone is incoherent (3 cycles over 1024 clocks = 3/8 cycle over 8 output samples). sim/modulator-tran/README.md 'What it does not claim' anticipated exactly this; DR-001 flags the short record and the 3 dB tolerance as its first-revisit items. Lengthening the T record or changing the tolerance is a new decision record, not done here."
+      },
+      "inband_power_fs_norm": {
+        "b": 16579.805283234684,
+        "t": 16997.982754559955,
+        "delta_db": -0.10817958490056834
+      },
+      "out_of_band_noise_power": {
+        "b": 118367.71475742053,
+        "t": 118804.31558210221,
+        "delta_db": -0.015989536613403445,
+        "note": "auxiliary gross-mismatch detector; not a DR-001 leg"
+      },
+      "waveforms": {
+        "o1_fs": {
+          "b": {
+            "mean": 0.00016063921093750072,
+            "std": 0.4854303540884106,
+            "p2p": 2.463592073
+          },
+          "t": {
+            "mean": -0.0003516968587239516,
+            "std": 0.46160135100488603,
+            "p2p": 2.215883333333333
+          },
+          "span_rel_diff": 0.11178780757109665
+        },
+        "o2_fs": {
+          "b": {
+            "mean": -0.002128691016601564,
+            "std": 0.3264597483195722,
+            "p2p": 1.63052048
+          },
+          "t": {
+            "mean": 0.002382186442057288,
+            "std": 0.2916732516702708,
+            "p2p": 1.5362466666666668
+          },
+          "span_rel_diff": 0.061366325720261836
+        },
+        "units": "1 model-B FS = 1.2 V differential (run.py FS_VOLTS)",
+        "sample_wise_reported_not_gated": {
+          "o1": {
+            "rms_fs": 0.4256508441512565,
+            "rel_to_t_p2p": 0.19209081892906057
+          },
+          "o2": {
+            "rms_fs": 0.38007800759551663,
+            "rel_to_t_p2p": 0.24740688838740085
+          },
+          "bit_disagree_frac": 0.466796875,
+          "why_not_gated": "a single-bit loop is chaotic; B and T decorrelate sample-wise within a few clocks whatever the model's quality (sim/modulator-tran/README.md), so these metrics measure the chaos, not the model"
+        }
+      },
+      "duty": {
+        "b": -0.001953125,
+        "t": 0.001953125
+      },
+      "legs": {
+        "inband_power_3db": {
+          "pass": true,
+          "limit_db": 3.0,
+          "delta_db": -0.10817958490056834,
+          "what": "total windowed power in band bins 1..4 (0, 20 kHz] of B over T, same 1024-clock window, same 4-term Blackman-Harris window; the tone is identical by construction"
+        },
+        "span_10pct": {
+          "pass": false,
+          "limit_rel": 0.1,
+          "o1_rel": 0.11178780757109665,
+          "o2_rel": 0.061366325720261836
+        },
+        "duty_0p05": {
+          "pass": true,
+          "limit": 0.05,
+          "b": -0.001953125,
+          "t": 0.001953125
+        }
+      },
+      "legs_passed": [
+        "inband_power_3db",
+        "duty_0p05"
+      ],
+      "legs_failed": [
+        "span_10pct"
+      ],
+      "cross_check_status": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, duty_0p05; FAILED legs: span_10pct. Model B numbers at this corner are reported uncross-checked and are not used for row 2."
+    },
+    {
+      "corner_id": "tt/1.800V/27C",
+      "dr002_set": "anchor",
+      "corner_params_file": "sim/bmodel/corners/tt-1.800V-27C.json",
+      "corner_params_sha256": "sha256:66480d8e30ed471d4fe623ac18ce621267503cd331c5c5847d957cac1a2085fc",
+      "b_side_file": "sim/bmodel/xcheck-sides/bx-tt-1.800V-27C.json",
+      "b_side_sha256": "sha256:5d23cca9d26fcb300a725a87da6b1cd5e604c28a39eada52e299dbda9dc90c43",
+      "t_samples_file": "sim/modulator-tran/samples/tt-1.800V-27C.json",
+      "t_samples_sha256": "sha256:019fb3d4f51ffaaa540067fff59133463cb7521fcab3ca6f9c95f9604ab8c072",
+      "record_length_clocks": 1024,
+      "window": "Blackman-Harris 4-term",
+      "bin_bw_hz": 5000.0,
+      "band_hz": [
+        0,
+        20000.0
+      ],
+      "amplitude_dbfs": -6.0,
+      "amplitude_note": "the T bench drove spec row 11's 0.5*VREF (-6 dBFS nominal); the committed u_diff_v is the analytic tone sample values",
+      "tone_hz": 15000.0,
+      "tone_bin": 3,
+      "compared_bins": {
+        "inband": "1..4",
+        "dc_excluded": [
+          0,
+          0
+        ],
+        "out_of_band_noise": "5..512 excluding tone lobe -1..7"
+      },
+      "sndr_inband_db": {
+        "b": null,
+        "t": null,
+        "computable": false,
+        "reason": "1024 modulator clocks give 5 kHz bins on the bitstream, so the 20 kHz band of spec row 1 is four bins wide while the 4-term Blackman-Harris main lobe (+/- 4 bins) covers all of them: DR-001's lobe-summed signal / in-band-noise split has no in-band noise bins to sum. The decimated route (8 output samples at OSR 128) cannot resolve the band either and its tone is incoherent (3 cycles over 1024 clocks = 3/8 cycle over 8 output samples). sim/modulator-tran/README.md 'What it does not claim' anticipated exactly this; DR-001 flags the short record and the 3 dB tolerance as its first-revisit items. Lengthening the T record or changing the tolerance is a new decision record, not done here."
+      },
+      "inband_power_fs_norm": {
+        "b": 16561.330976347297,
+        "t": 16480.377556230153,
+        "delta_db": 0.02128079663940569
+      },
+      "out_of_band_noise_power": {
+        "b": 118917.25553890754,
+        "t": 119238.05397436145,
+        "delta_db": -0.011700018350975469,
+        "note": "auxiliary gross-mismatch detector; not a DR-001 leg"
+      },
+      "waveforms": {
+        "o1_fs": {
+          "b": {
+            "mean": 2.4382511718747113e-05,
+            "std": 0.4869889598885422,
+            "p2p": 2.397857494
+          },
+          "t": {
+            "mean": 0.0005381807454426998,
+            "std": 0.4816377582156484,
+            "p2p": 2.44465
+          },
+          "span_rel_diff": 0.01914077925265378
+        },
+        "o2_fs": {
+          "b": {
+            "mean": -0.0019340716181640624,
+            "std": 0.33594176836537104,
+            "p2p": 1.6173896650000001
+          },
+          "t": {
+            "mean": 0.007364101318359378,
+            "std": 0.3147487419620957,
+            "p2p": 1.6374883333333337
+          },
+          "span_rel_diff": 0.012274083377693383
+        },
+        "units": "1 model-B FS = 1.2 V differential (run.py FS_VOLTS)",
+        "sample_wise_reported_not_gated": {
+          "o1": {
+            "rms_fs": 0.44775419692813506,
+            "rel_to_t_p2p": 0.18315676965133457
+          },
+          "o2": {
+            "rms_fs": 0.39236395136191643,
+            "rel_to_t_p2p": 0.23961328051919945
+          },
+          "bit_disagree_frac": 0.5146484375,
+          "why_not_gated": "a single-bit loop is chaotic; B and T decorrelate sample-wise within a few clocks whatever the model's quality (sim/modulator-tran/README.md), so these metrics measure the chaos, not the model"
+        }
+      },
+      "duty": {
+        "b": -0.001953125,
+        "t": 0.0
+      },
+      "legs": {
+        "inband_power_3db": {
+          "pass": true,
+          "limit_db": 3.0,
+          "delta_db": 0.02128079663940569,
+          "what": "total windowed power in band bins 1..4 (0, 20 kHz] of B over T, same 1024-clock window, same 4-term Blackman-Harris window; the tone is identical by construction"
+        },
+        "span_10pct": {
+          "pass": true,
+          "limit_rel": 0.1,
+          "o1_rel": 0.01914077925265378,
+          "o2_rel": 0.012274083377693383
+        },
+        "duty_0p05": {
+          "pass": true,
+          "limit": 0.05,
+          "b": -0.001953125,
+          "t": 0.0
+        }
+      },
+      "legs_passed": [
+        "inband_power_3db",
+        "span_10pct",
+        "duty_0p05"
+      ],
+      "legs_failed": [],
+      "cross_check_status": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, span_10pct, duty_0p05. Model B numbers at this corner are reported uncross-checked and are not used for row 2."
+    }
+  ],
+  "record_len_note": "per DR-001 item 5 each comparison states record length, window, bin bandwidth and amplitude; every number here is simulated, nothing measured",
+  "git_commit": "9fa9dd8286654c1e851a011c89af0881e4ee80fd",
+  "git_dirty": true,
+  "code_sha256": {
+    "sim/bmodel/model.py": "470a03379c7676890f65122a29496faf4ba6701389012ba555b5e85d7f10a839",
+    "sim/bmodel/sndr.py": "afc75b3a312443aee5a1f819fcf8f2bcf31429f74cbba34f75cc97d47b7e33ef",
+    "sim/bmodel/run.py": "6f51b30618fc610c3b3ed2c0ce7d97b5955f1c88eec23f1e72cfbc0e5869e58a",
+    "sim/bmodel/xcheck.py": "5e08c3c2a370895ce3ea40daf71f6609545ea81dc0712bf90f71d588ed4a9226"
+  }
+}

@@ -17,7 +17,7 @@
         "role": "hygiene",
         "path": ".github/klt-version",
         "passed": true,
-        "content_hash": "sha256:a66780da23103beaf12432b418508966b31a2a3a787f9468a5b6cdaa8667c1ef"
+        "content_hash": "sha256:f34248c2449a022d41c918d1e995ad85859a1e9f0e6f89d0af23ae4a55519f71"
       },
       {
         "check": "present",
@@ -76,7 +76,7 @@
     ]
   },
   "provenance": {
-    "klt_version": "0.8.0",
+    "klt_version": "0.9.2",
     "klayout_version": null,
     "pdk": null,
     "deck": null,
