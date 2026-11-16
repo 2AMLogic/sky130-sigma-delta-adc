@@ -189,6 +189,13 @@ jobs:
       - name: Analog generator DRC-verdict guard unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s layout/analog -p 'test_*.py'
 
+      # The switch probes' pure parts: that the issue #106 pass-gate sweep still
+      # covers the spec row 11 input range at the resolution it claims, and that
+      # the probed device pair still matches design/integrator/integrator.spice.
+      # Fixtures only: no fleet, no ngspice, no klt.
+      - name: Switch-probe sweep-coverage unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s sim/switch-probe -p 'test_*.py'
+
       # The shared extracted-netlist parsers in layout/analog/layout_common.py
       # (issue #191): parse_extract_devices and extract_nets turn `klt extract`
       # output into the device- and net-count evidence both analog cells commit

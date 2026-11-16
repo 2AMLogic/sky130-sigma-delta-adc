@@ -42,6 +42,7 @@ CHECKS=(
   ".|python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s layout/digital -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s layout/analog -p 'test_*.py'"
+  ".|python3 -I -m unittest discover -s sim/switch-probe -p 'test_*.py'"
   "verification/decimator|python3 response.py"
 )
 
