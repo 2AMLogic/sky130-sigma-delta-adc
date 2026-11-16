@@ -9,6 +9,9 @@ Judge-approved PRs under a hold (`loom:blocked` or `loom:operator`) — only a h
 
 - **#115**: fix(spec): correct the section 5.1 ideal ceiling for the single-bit full-scale convention
 - **#175**: docs(spec): add DR-009 amplifier 1/f line to the 5.3 noise budget, total unchanged
+- **#199**: comparator-decision: settle the sf/1.620V/-40C trip corner by measurement (DR-007, grounds reporting)
+- **#213**: ci: run the item-8 cited-issue check on every push and pull request
+- **#220**: chore(loom): resync installed Loom to v0.19.1302
 
 ## Very Important
 
@@ -33,7 +36,12 @@ Judge-approved PRs under a hold (`loom:blocked` or `loom:operator`) — only a h
 Human-approved issues ready for implementation (`loom:issue`).
 
 - **#169**: Confirm klayout-tools#1962 actually describes the #121 blocker that parks analog items 2, 3, 4, 7, 11
-- **#187**: CI never runs item8_envelope.py --verify-issues, so characterization.md can cite a closed issue indefinitely
+- **#201**: gen_ota_fd/gen_integrator: two of the seven kept Router overrides differ only by a default budget and a one-sided message, and finish_trunks disagrees on a zero-height trunk
+- **#204**: parse_extract_devices silently drops an X-line whose model token sits on a SPICE continuation line
+- **#210**: test_layout_common.py mis-attributes check.found as a parser-independent source (it is parse_extract_devices' own output)
+- **#211**: signoff.yml's two layout/analog unittest steps overlap: the DRC-guard step's test_*.py pattern already runs test_layout_common.py
+- **#221**: ROADMAP.md T1 counts and row 4 are stale vs the verdict of record; nothing in CI gates a prose count
+- **#223**: item9-envelope provenance.klt_version now names an unpinned klt dev build; .github/klt-version pins 0.8.0
 
 ## In Progress
 
@@ -44,37 +52,25 @@ Issues currently being built (`loom:building`).
 - **#125**: T1 item 5 (analog 1/4): short full-modulator transistor-level transient on the DR-002 anchor set, with power and swing limits
 - **#131**: Decimator STA: 35 of the 45 DR-002 corners have no liberty file, and the block-boundary I/O timing budget is undeclared
 - **#142**: Decision record: add an amplifier 1/f line to the spec 5.3 noise budget without changing the 80 dB total
-- **#146**: ota_fd layout: MiM plate orientation differs from the netlist's terminal order for one cap group; README row table quotes ring extents
 - **#150**: comparator-decision: the trip staircase does not bracket the comparator's trip point at sf/1.620V/-40C
-- **#153**: Two more ngspice-version lookups could reach settling_common.ngspice_version() (log-first variant)
-- **#155**: Manifest content_hash for item8-envelope.json is stale, and the field's meaning is undefined for a generic envelope
-- **#163**: README status and maturity position are stale: state what the verdict of record says, and re-attest item 10
-- **#182**: Share the Rect/Anchor/Router classes copy-pasted between gen_ota_fd.py and gen_integrator.py
-- **#190**: comparator-decision: pass_criterion prose claims a +/-3.5 mV span requirement that bracketed() does not enforce
-- **#191**: layout/analog/layout_common.py has no CI-executed test: the parsers behind both cells' device-count evidence are never run by signoff.yml
-- **#198**: DR-006's Consequences bullet is stale: it says record.json predates the gap line, but the committed record carries it
+- **#187**: CI never runs item8_envelope.py --verify-issues, so characterization.md can cite a closed issue indefinitely
+- **#215**: check_content_hashes.py enforces only half the documented content_hash "if and only if" invariant
 
 ## PRs Awaiting Review
 
 PRs waiting on Judge (`loom:review-requested`).
 
-- **#130**: sim: extract Sin input-sampling completeness over PVT and its Ron-vs-input curve
-- **#149**: feat(sim): short full-modulator transient bench on the DR-002 anchor set
-- **#177**: fix(manifest): drop the unverifiable item-8 content_hash pins and gate the pin invariant
-- **#180**: docs: README status matches the verdict of record; item-10 envelope re-attested
-- **#205**: test: CI-execute layout_common's extracted-netlist parsers with captured klt fixtures
-- **#207**: ota_fd: emit row extents from place_rows, requote the README table, record the cap-plate LVS probe
+_None._
 
 ## Approved (Awaiting Merge)
 
 PRs that passed review and are queued for Champion auto-merge (`loom:pr`).
 
 - **#115**: fix(spec): correct the section 5.1 ideal ceiling for the single-bit full-scale convention
-- **#156**: spec: record the digital-timing corner set and declare the 35-corner gap
 - **#175**: docs(spec): add DR-009 amplifier 1/f line to the 5.3 noise budget, total unchanged
-- **#195**: comparator-decision: state the trip gate as implemented in pass_criterion
 - **#199**: comparator-decision: settle the sf/1.620V/-40C trip corner by measurement (DR-007, grounds reporting)
-- **#206**: docs(spec): corrigendum for DR-006's stale record.json Consequences bullet
+- **#213**: ci: run the item-8 cited-issue check on every push and pull request
+- **#220**: chore(loom): resync installed Loom to v0.19.1302
 
 ## Proposed
 
@@ -87,19 +83,17 @@ Issues carrying `loom:curated`.
 - **#125**: T1 item 5 (analog 1/4): short full-modulator transistor-level transient on the DR-002 anchor set, with power and swing limits *(curated)*
 - **#131**: Decimator STA: 35 of the 45 DR-002 corners have no liberty file, and the block-boundary I/O timing budget is undeclared *(curated)*
 - **#142**: Decision record: add an amplifier 1/f line to the spec 5.3 noise budget without changing the 80 dB total *(curated)*
-- **#146**: ota_fd layout: MiM plate orientation differs from the netlist's terminal order for one cap group; README row table quotes ring extents *(curated)*
 - **#150**: comparator-decision: the trip staircase does not bracket the comparator's trip point at sf/1.620V/-40C *(curated)*
-- **#153**: Two more ngspice-version lookups could reach settling_common.ngspice_version() (log-first variant) *(curated)*
-- **#155**: Manifest content_hash for item8-envelope.json is stale, and the field's meaning is undefined for a generic envelope *(curated)*
 - **#162**: T1 item 7, digital only: SDF-annotated klt functional-verification of the routed decimator, cited for 7.digital *(curated)*
-- **#163**: README status and maturity position are stale: state what the verdict of record says, and re-attest item 10 *(curated)*
 - **#169**: Confirm klayout-tools#1962 actually describes the #121 blocker that parks analog items 2, 3, 4, 7, 11 *(curated)*
-- **#186**: Pin klayout in the --check uvx resolution: the gate degrades to CANNOT VERIFY on the next klayout release *(curated)*
 - **#187**: CI never runs item8_envelope.py --verify-issues, so characterization.md can cite a closed issue indefinitely *(curated)*
-- **#190**: comparator-decision: pass_criterion prose claims a +/-3.5 mV span requirement that bracketed() does not enforce *(curated)*
-- **#191**: layout/analog/layout_common.py has no CI-executed test: the parsers behind both cells' device-count evidence are never run by signoff.yml *(curated)*
-- **#192**: sim/ota-settling/request.json is intentionally stale: record-pinned; regeneration drifts by capacity_wait_s *(curated)*
-- **#198**: DR-006's Consequences bullet is stale: it says record.json predates the gap line, but the committed record carries it *(curated)*
+- **#201**: gen_ota_fd/gen_integrator: two of the seven kept Router overrides differ only by a default budget and a one-sided message, and finish_trunks disagrees on a zero-height trunk *(curated)*
+- **#204**: parse_extract_devices silently drops an X-line whose model token sits on a SPICE continuation line *(curated)*
+- **#210**: test_layout_common.py mis-attributes check.found as a parser-independent source (it is parse_extract_devices' own output) *(curated)*
+- **#211**: signoff.yml's two layout/analog unittest steps overlap: the DRC-guard step's test_*.py pattern already runs test_layout_common.py *(curated)*
+- **#215**: check_content_hashes.py enforces only half the documented content_hash "if and only if" invariant *(curated)*
+- **#221**: ROADMAP.md T1 counts and row 4 are stale vs the verdict of record; nothing in CI gates a prose count *(curated)*
+- **#223**: item9-envelope provenance.klt_version now names an unpinned klt dev build; .github/klt-version pins 0.8.0 *(curated)*
 
 ## Proposed (Architect / Hermit)
 
@@ -116,14 +110,14 @@ _None._
 
 | Bucket | Count |
 |------|-------|
-| Operator merge-risk holds | 2 |
+| Operator merge-risk holds | 5 |
 | Very important | 1 |
 | Important | 7 |
-| Ready (`loom:issue`) | 2 |
-| In Progress (`loom:building`) | 14 |
-| PRs awaiting review | 6 |
-| Approved PRs awaiting merge | 6 |
-| Curated | 20 |
+| Ready (`loom:issue`) | 7 |
+| In Progress (`loom:building`) | 8 |
+| PRs awaiting review | 0 |
+| Approved PRs awaiting merge | 5 |
+| Curated | 18 |
 | Architect / Hermit proposals | 4 |
 | Active epics | 0 |
 <!-- guide:plan-body:end -->

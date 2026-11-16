@@ -4,6 +4,7 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-16
 
+- **Issue #216** (closed): Merge pipeline stalled: strict required-status-checks policy blocks every behind PR and nothing updates them
 - **Issue #224** (closed): ngspice_version() has no committed test for its no-argument path, the one three probe runners use
 - **Issue #225** (closed): Move duplicated assert_drc_clean into layout_common: two byte-identical copies in the analog generators
 - **Issue #146** (closed): ota_fd layout: MiM plate orientation differs from the netlist's terminal order for one cap group; README row table quotes ring extents
