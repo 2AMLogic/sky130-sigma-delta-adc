@@ -4,7 +4,7 @@
   "evidence": {
     "1.analog": {
       "file": "design/attest/item1-analog-envelope.json",
-      "content_hash": "sha256:7e278564c29d8056c7422d9e9ea4876408f335798d3525188cd88069251d1333"
+      "content_hash": "sha256:fcbad8b3bb5e4997e8e5f2da021979471b76045ac6662211d1dfee7932ac9e2c"
     },
     "1.digital": {
       "file": "design/attest/item1-digital-envelope.json",
