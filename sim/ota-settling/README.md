@@ -48,6 +48,19 @@ id is in the record's `remote` field. It never falls back to a local grid.
 `--record-name record-<label>.json` for a re-run after a sizing change.
 `python3 -I sim/ota-settling/make_request.py` regenerates `request.json`.
 
+**Do not commit the regenerated `request.json` on its own.** The committed
+file is intentionally stale: it predates 6df6862, which made
+`settling_common.request()` always emit `capacity_wait_s`, so regenerating
+adds exactly that one key — and both records below pin the committed file's
+hash (`request_sha256: 83ada7cf…`). Committing the regenerated file alone
+silently orphans both recorded results from the request that produced them.
+If a new run is ever needed, resolve the drift the evidence-safe way:
+regenerate, record the new `request_sha256` in a **new** append-only record,
+and commit the regenerated request together with that record. The
+pinned-digest guard in `sim/test_settling_common.py` (`RecordRequestPinsResolve`)
+fails while the drift is unresolved — that failure is the retention decision
+being forced, not a bug.
+
 ## Records
 
 - `record.json` - issue #48, the original sizing (square-law CMFB sense, 40 uA
@@ -55,6 +68,10 @@ id is in the record's `remote` field. It never falls back to a local grid.
 - `record-i51-rcm2M-cff100f.json` - issue #51, resistive CMFB sense, 80 uA
   tail, ~3.9 pF + 5.5 kohm CM compensation: 45 of 45 corners pass, worst
   `err_phase` 6.8e-5.
+
+Both records pin the committed `request.json`'s sha256, which predates the
+`capacity_wait_s` emission — see the warning under Running before touching
+that file.
 
 The fleet runner has been klt 0.7.0; a newer client's submit fails with
 `batch_job_failed` (exit 87) and nothing is simulated. Run with a throwaway

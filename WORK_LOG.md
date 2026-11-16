@@ -2,8 +2,60 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-16
+
+- **PR #240**: fix: report a non-object manifest as a violation, not a traceback
+- **PR #238**: refactor: unify connect_met1, finish_trunks and add_shape into the shared Router base
+- **PR #235**: fix: treat a non-object cited JSON file as provenance-less in content-hash check
+- **PR #149**: feat(sim): short full-modulator transient bench on the DR-002 anchor set
+- **Issue #237** (closed): check_content_hashes.py: a non-object manifest top level crashes check_manifest with a traceback
+- **Issue #234** (closed): check_content_hashes.py: a cited JSON file whose top level is not an object crashes provenance_input_hash
+- **Issue #201** (closed): gen_ota_fd/gen_integrator: two of the seven kept Router overrides differ only by a default budget and a one-sided message, and finish_trunks disagrees on a zero-height trunk
+- **Issue #125** (closed): T1 item 5 (analog 1/4): short full-modulator transistor-level transient on the DR-002 anchor set, with power and swing limits
+- **PR #222**: fix: enforce both directions of the manifest content_hash iff invariant
+- **Issue #215** (closed): check_content_hashes.py enforces only half the documented content_hash "if and only if" invariant
+- **Issue #216** (closed): Merge pipeline stalled: strict required-status-checks policy blocks every behind PR and nothing updates them
+- **Issue #224** (closed): ngspice_version() has no committed test for its no-argument path, the one three probe runners use
+- **Issue #225** (closed): Move duplicated assert_drc_clean into layout_common: two byte-identical copies in the analog generators
+- **Issue #146** (closed): ota_fd layout: MiM plate orientation differs from the netlist's terminal order for one cap group; README row table quotes ring extents
+- **Issue #153** (closed): Two more ngspice-version lookups could reach settling_common.ngspice_version() (log-first variant)
+- **Issue #155** (closed): Manifest content_hash for item8-envelope.json is stale, and the field's meaning is undefined for a generic envelope
+- **Issue #163** (closed): README status and maturity position are stale: state what the verdict of record says, and re-attest item 10
+- **Issue #182** (closed): Share the Rect/Anchor/Router classes copy-pasted between gen_ota_fd.py and gen_integrator.py
+- **Issue #186** (closed): Pin klayout in the --check uvx resolution: the gate degrades to CANNOT VERIFY on the next klayout release
+- **Issue #190** (closed): comparator-decision: pass_criterion prose claims a +/-3.5 mV span requirement that bracketed() does not enforce
+- **Issue #191** (closed): layout/analog/layout_common.py has no CI-executed test: the parsers behind both cells' device-count evidence are never run by signoff.yml
+- **Issue #192** (closed): sim/ota-settling/request.json is intentionally stale: record-pinned; regeneration drifts by capacity_wait_s
+- **Issue #198** (closed): DR-006's Consequences bullet is stale: it says record.json predates the gap line, but the committed record carries it
+- **Issue #212** (closed): Share the unmeasured/corner_set/call test helpers: three near-identical copies in sim/ test benches
+- **Issue #226** (closed): layout_common's router/DRC-spacing core has no CI-executed test: #191 closed the gap for the parsers only
+- **PR #231**: test: pin ngspice_version()'s no-argument path in NgspiceVersion
+- **PR #229**: refactor: dedupe assert_drc_clean into layout_common
+- **PR #177**: fix(manifest): drop the unverifiable item-8 content_hash pins and gate the pin invariant
+- **PR #180**: docs: README status matches the verdict of record; item-10 envelope re-attested
+- **PR #195**: comparator-decision: state the trip gate as implemented in pass_criterion
+- **PR #197**: refactor(layout): share the Rect/Anchor/Router core via layout_common
+- **PR #205**: test: CI-execute layout_common's extracted-netlist parsers with captured klt fixtures
+- **PR #206**: docs(spec): corrigendum for DR-006's stale record.json Consequences bullet
+- **PR #207**: ota_fd: emit row extents from place_rows, requote the README table, record the cap-plate LVS probe
+- **PR #208**: refactor(sim): fold the log-first ngspice version lookup into settling_common.ngspice_version()
+- **PR #214**: test(sim): share one unmeasured/corner_set/call fixture harness across the benches
+- **PR #217**: test: guard every committed record's request_sha256 pin from orphaning
+- **PR #219**: fix: pin the klayout axis in the --check gates' uvx resolution
+- **PR #228**: test: pin layout_common's Rect/Router geometry core with 26 unit tests
+
 ### 2026-11-15
 
+- **PR #193**: refactor(sim): share one measurement-dict helper across the six benches
+- **Issue #185** (closed): Share the measurement-dict helper e(): six identical copies in sim/*/make_request.py
+- **PR #181**: refactor: share the .partials/ sha staleness gate in settling_common.py
+- **Issue #174** (closed): Consolidate the triplicated .partials/ staleness gate into settling_common.py
+- **PR #200**: test: dedupe the by-path module loader into runner_test_common.load_runner
+- **Issue #165** (closed): Two by-path runner loaders remain in sim/ after #152: test_settling_common.py and comparator-decision/test_run_decision.py
+- **PR #189**: fix(layout): abort the analog generator flows on a non-clean klt drc verdict
+- **Issue #164** (closed): gen_integrator.py records klt drc but never asserts it, so a regeneration can emit a DRC-dirty stream with exit 0
+- **PR #196**: docs: grade characterization row 9 evidenced per DR-006, drop stale #18 citation
+- **Issue #170** (closed): characterization.md row 9 still cites #18 as pending, but #18 closed completed and DR-006 ratified the reading
 - **PR #188**: feat(layout): klt lvs the routed decimator against its as-built netlist and grade 4.digital met
 - **Issue #161** (closed): T1 item 4, digital only: klt lvs the routed decimator against its as-built netlist and cite it for 4.digital
 - **PR #184**: fix: evaluate gen --check at the klt build recorded in the cell's own provenance

@@ -8,17 +8,22 @@ Covers the invariant's three failure modes and its two valid shapes:
   * a citation whose pin differs from the declared input hash fails;
   * a `not_applicable` binding whose pin is not the cited file's own sha256
     fails (and one that matches passes);
-  * a citation declaring no pin passes -- absence is valid, `5.digital[1]`
-    today;
+  * a citation omitting the pin on a file that carries
+    `provenance.input.content_hash` fails -- the invariant's other half,
+    enforced since issue #215;
+  * a citation declaring no pin on a file with no provenance hash passes
+    (`5.digital[1]` today);
   * two entries citing different files that attest the same declared input
     pass on one shared pin value (`2.digital`/`3.digital` today) -- pins are
     compared per entry, never for uniqueness across the manifest.
 
 Plus the edge cases the CI step cannot show on its own: a missing cited file
 fails with a clear message rather than a traceback, a citation list is
-handled per element, the committed manifest itself satisfies the invariant,
-and re-adding a pin to `8.analog` reproduces exactly the defect issue #155
-fixes (the regression guard from its test plan).
+handled per element, a cited file whose JSON top level is not an object
+behaves exactly like a provenance-less file (issue #234), the committed
+manifest itself satisfies the invariant, and re-adding a pin to `8.analog`
+reproduces exactly the defect issue #155 fixes (the regression guard from
+its test plan).
 
 Run directly:  python3 -I -m unittest discover -s manifests -p 'test_*.py'
 """
@@ -84,7 +89,11 @@ class FixtureTree(unittest.TestCase):
 
 
 class CitationTests(FixtureTree):
-    """The citation branch: a pin is declared iff the file declares an input."""
+    """The citation branch: a pin is declared iff the file declares an input.
+
+    Both directions are enforced (issue #215): a pin the file cannot verify
+    fails, and a missing pin where the file declares one fails too.
+    """
 
     def test_matching_pin_passes(self) -> None:
         cited = self.envelope(provenance_hash=GOOD)
@@ -116,8 +125,18 @@ class CitationTests(FixtureTree):
         self.assertIn(GOOD, violations[0])
         self.assertIn("provenance", violations[0])
 
-    def test_no_pin_passes(self) -> None:
-        # Absence is valid (5.digital[1] today): no pin, no claim for klt.
+    def test_missing_pin_on_provenance_carrying_file_fails(self) -> None:
+        # The iff's other half (issue #215): a file that carries
+        # provenance.input.content_hash must be pinned by its citation.
+        cited = self.envelope(provenance_hash=GOOD)
+        violations = self.violations_for({"1.analog": {"file": cited}})
+        self.assertEqual(len(violations), 1, violations)
+        self.assertIn("1.analog", violations[0])
+        self.assertIn(GOOD, violations[0])
+
+    def test_no_pin_on_file_without_provenance_passes(self) -> None:
+        # Absence is valid only where the cited file itself carries no
+        # provenance hash (5.digital[1] today): no pin, no claim for klt.
         cited = self.envelope(provenance_hash=None)
         self.assertEqual(self.violations_for({"5.digital": {"file": cited}}), [])
 
@@ -209,12 +228,66 @@ class EdgeCaseTests(FixtureTree):
         self.assertIn("5.digital[1]", violations[0])
         self.assertNotIn("5.digital[0]", violations[0])
 
+    def test_unreadable_cited_file_with_no_pin_stays_valid(self) -> None:
+        # Omitting a pin must not turn a non-JSON cited file into a new
+        # read failure (issue #215): with nothing declared there is nothing
+        # to compare, so the citation stays valid.
+        cited = self.write_bytes("attest/blob.json", b"\xff\xfe not json")
+        self.assertEqual(self.violations_for({"7": {"file": cited}}), [])
+
+    def test_non_object_cited_file_with_no_pin_stays_valid(self) -> None:
+        # Valid JSON whose top level is not an object (issue #234) carries
+        # no provenance block to read: with no pin declared there is
+        # nothing to compare, so the citation stays valid instead of dying
+        # on data.get().
+        for payload in (b"[1, 2, 3]", b'"a string"', b"42", b"null"):
+            cited = self.write_bytes("attest/nonobject.json", payload)
+            self.assertEqual(self.violations_for({"7": {"file": cited}}), [])
+
+    def test_non_object_cited_file_with_a_pin_fails_naming_the_key(self) -> None:
+        # A pin on a non-object cited file is unverifiable, exactly like a
+        # pin on a provenance-less file (issue #234): one violation naming
+        # the evidence key, not a traceback.
+        cited = self.write_bytes("attest/array.json", b"[1, 2, 3]")
+        violations = self.violations_for(
+            {"8.analog": {"file": cited, "content_hash": GOOD}}
+        )
+        self.assertEqual(len(violations), 1, violations)
+        self.assertIn("8.analog", violations[0])
+        self.assertIn(GOOD, violations[0])
+
     def test_manifest_without_evidence_fails_cleanly(self) -> None:
         self.write_json("manifests/manifest.json", {"block": "x"})
         self.assertEqual(
             cch.check_manifest(self.root / "manifests" / "manifest.json"),
             ['manifest has no "evidence" object to check'],
         )
+
+    def test_non_object_manifest_fails_cleanly(self) -> None:
+        # Valid JSON whose top level is not an object (issue #237) has no
+        # "evidence" to fetch: the check reports that instead of dying on
+        # manifest.get(), exactly as it does for the cited-file case
+        # (issue #234).
+        for payload in (b"[1, 2, 3]", b'"a string"', b"42", b"null"):
+            self.write_bytes("manifests/manifest.json", payload)
+            self.assertEqual(
+                cch.check_manifest(self.root / "manifests" / "manifest.json"),
+                ["manifest top level is not a JSON object"],
+            )
+
+    def test_main_reports_non_object_manifest_as_annotation(self) -> None:
+        # The --manifest contract (module docstring): exit 1 with one
+        # ::error line, never a traceback, whatever the manifest contains.
+        self.write_bytes("manifests/manifest.json", b"[1, 2, 3]")
+        path = self.root / "manifests" / "manifest.json"
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = cch.main(["--manifest", str(path)])
+        self.assertEqual(rc, 1)
+        self.assertEqual(out.getvalue().count("::error"), 1, out.getvalue())
+        self.assertIn(f"::error file={path}::", out.getvalue())
+        self.assertIn("manifest top level is not a JSON object", out.getvalue())
+        self.assertNotIn("Traceback", out.getvalue())
 
     def test_main_reports_violations_as_annotations_and_exits_nonzero(self) -> None:
         cited = self.envelope(provenance_hash=None)
@@ -269,6 +342,36 @@ class CommittedManifestTests(unittest.TestCase):
             violations = cch.check_manifest(path)
         self.assertEqual(len(violations), 1, violations)
         self.assertIn("8.analog", violations[0])
+
+    def test_dropping_the_item9_pin_reproduces_issue_215(self) -> None:
+        # Regression guard (issue #234 adjunct, #215's direction against a
+        # real envelope): drop item 9's pin and confirm the check bites --
+        # item9-envelope.json carries provenance.input.content_hash, so the
+        # citation must fail rather than pass silently.
+        manifest = json.loads(COMMITTED_MANIFEST.read_text(encoding="utf-8"))
+        entry = manifest["evidence"]["9"]
+        self.assertIn("content_hash", entry, "the issue's fix is no longer in place")
+        del entry["content_hash"]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            # Mirror every repo directory the manifest cites so the only
+            # violation is the dropped pin, not a forest of missing files.
+            cited: list[str] = []
+            for value in manifest["evidence"].values():
+                if isinstance(value, list):
+                    cited.extend(b["file"] for b in value)
+                elif isinstance(value, dict) and isinstance(value.get("not_applicable"), dict):
+                    cited.extend(b["file"] for b in value["not_applicable"].values())
+                elif isinstance(value, dict):
+                    cited.append(value["file"])
+            for name in sorted({Path(f).parts[0] for f in cited}):
+                (root / name).symlink_to(REPO_ROOT / name, target_is_directory=True)
+            (root / "manifests").mkdir()
+            path = root / "manifests" / "manifest.json"
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            violations = cch.check_manifest(path)
+        self.assertEqual(len(violations), 1, violations)
+        self.assertIn("9", violations[0])
 
 
 if __name__ == "__main__":
