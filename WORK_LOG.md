@@ -2,6 +2,33 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-16
+
+- **Issue #146** (closed): ota_fd layout: MiM plate orientation differs from the netlist's terminal order for one cap group; README row table quotes ring extents
+- **Issue #153** (closed): Two more ngspice-version lookups could reach settling_common.ngspice_version() (log-first variant)
+- **Issue #155** (closed): Manifest content_hash for item8-envelope.json is stale, and the field's meaning is undefined for a generic envelope
+- **Issue #163** (closed): README status and maturity position are stale: state what the verdict of record says, and re-attest item 10
+- **Issue #182** (closed): Share the Rect/Anchor/Router classes copy-pasted between gen_ota_fd.py and gen_integrator.py
+- **Issue #186** (closed): Pin klayout in the --check uvx resolution: the gate degrades to CANNOT VERIFY on the next klayout release
+- **Issue #190** (closed): comparator-decision: pass_criterion prose claims a +/-3.5 mV span requirement that bracketed() does not enforce
+- **Issue #191** (closed): layout/analog/layout_common.py has no CI-executed test: the parsers behind both cells' device-count evidence are never run by signoff.yml
+- **Issue #192** (closed): sim/ota-settling/request.json is intentionally stale: record-pinned; regeneration drifts by capacity_wait_s
+- **Issue #198** (closed): DR-006's Consequences bullet is stale: it says record.json predates the gap line, but the committed record carries it
+- **Issue #212** (closed): Share the unmeasured/corner_set/call test helpers: three near-identical copies in sim/ test benches
+- **Issue #226** (closed): layout_common's router/DRC-spacing core has no CI-executed test: #191 closed the gap for the parsers only
+- **PR #177**: fix(manifest): drop the unverifiable item-8 content_hash pins and gate the pin invariant
+- **PR #180**: docs: README status matches the verdict of record; item-10 envelope re-attested
+- **PR #195**: comparator-decision: state the trip gate as implemented in pass_criterion
+- **PR #197**: refactor(layout): share the Rect/Anchor/Router core via layout_common
+- **PR #205**: test: CI-execute layout_common's extracted-netlist parsers with captured klt fixtures
+- **PR #206**: docs(spec): corrigendum for DR-006's stale record.json Consequences bullet
+- **PR #207**: ota_fd: emit row extents from place_rows, requote the README table, record the cap-plate LVS probe
+- **PR #208**: refactor(sim): fold the log-first ngspice version lookup into settling_common.ngspice_version()
+- **PR #214**: test(sim): share one unmeasured/corner_set/call fixture harness across the benches
+- **PR #217**: test: guard every committed record's request_sha256 pin from orphaning
+- **PR #219**: fix: pin the klayout axis in the --check gates' uvx resolution
+- **PR #228**: test: pin layout_common's Rect/Router geometry core with 26 unit tests
+
 ### 2026-11-15
 
 - **PR #193**: refactor(sim): share one measurement-dict helper across the six benches
