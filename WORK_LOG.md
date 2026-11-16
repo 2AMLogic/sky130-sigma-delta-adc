@@ -4,6 +4,14 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-16
 
+- **PR #240**: fix: report a non-object manifest as a violation, not a traceback
+- **PR #238**: refactor: unify connect_met1, finish_trunks and add_shape into the shared Router base
+- **PR #235**: fix: treat a non-object cited JSON file as provenance-less in content-hash check
+- **PR #149**: feat(sim): short full-modulator transient bench on the DR-002 anchor set
+- **Issue #237** (closed): check_content_hashes.py: a non-object manifest top level crashes check_manifest with a traceback
+- **Issue #234** (closed): check_content_hashes.py: a cited JSON file whose top level is not an object crashes provenance_input_hash
+- **Issue #201** (closed): gen_ota_fd/gen_integrator: two of the seven kept Router overrides differ only by a default budget and a one-sided message, and finish_trunks disagrees on a zero-height trunk
+- **Issue #125** (closed): T1 item 5 (analog 1/4): short full-modulator transistor-level transient on the DR-002 anchor set, with power and swing limits
 - **PR #222**: fix: enforce both directions of the manifest content_hash iff invariant
 - **Issue #215** (closed): check_content_hashes.py enforces only half the documented content_hash "if and only if" invariant
 - **Issue #216** (closed): Merge pipeline stalled: strict required-status-checks policy blocks every behind PR and nothing updates them
