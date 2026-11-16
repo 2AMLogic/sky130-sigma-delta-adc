@@ -108,15 +108,17 @@ def join_continuations(text):
     return out
 
 
-def ngspice_version():
+def ngspice_version(log=None):
     """Return e.g. 'ngspice-47', or 'unknown'.
 
     `ngspice -v` line 1 is the banner's '******' rule, not the version, so
-    match the version token anywhere in the output (same convention as
-    sim/smoke/run_smoke.py and sim/ota-op-smoke/run_op.py).
+    match the version token anywhere in the output. With `log`, prefer a
+    version token already captured in a run log over a fresh `ngspice -v`.
     """
-    m = re.search(r"ngspice-\d+",
-                  subprocess.run(["ngspice", "-v"], capture_output=True, text=True).stdout)
+    m = re.search(r"ngspice-\d+", log) if log else None
+    if m is None:
+        m = re.search(r"ngspice-\d+",
+                      subprocess.run(["ngspice", "-v"], capture_output=True, text=True).stdout)
     return m.group(0) if m else "unknown"
 
 
