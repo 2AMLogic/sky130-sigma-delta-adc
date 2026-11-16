@@ -54,13 +54,14 @@ Issues currently being built (`loom:building`).
 - **#142**: Decision record: add an amplifier 1/f line to the spec 5.3 noise budget without changing the 80 dB total
 - **#150**: comparator-decision: the trip staircase does not bracket the comparator's trip point at sf/1.620V/-40C
 - **#187**: CI never runs item8_envelope.py --verify-issues, so characterization.md can cite a closed issue indefinitely
-- **#215**: check_content_hashes.py enforces only half the documented content_hash "if and only if" invariant
+- **#234**: check_content_hashes.py: a cited JSON file whose top level is not an object crashes provenance_input_hash
 
 ## PRs Awaiting Review
 
 PRs waiting on Judge (`loom:review-requested`).
 
-_None._
+- **#149**: feat(sim): short full-modulator transient bench on the DR-002 anchor set
+- **#235**: fix: treat a non-object cited JSON file as provenance-less in content-hash check
 
 ## Approved (Awaiting Merge)
 
@@ -91,9 +92,9 @@ Issues carrying `loom:curated`.
 - **#204**: parse_extract_devices silently drops an X-line whose model token sits on a SPICE continuation line *(curated)*
 - **#210**: test_layout_common.py mis-attributes check.found as a parser-independent source (it is parse_extract_devices' own output) *(curated)*
 - **#211**: signoff.yml's two layout/analog unittest steps overlap: the DRC-guard step's test_*.py pattern already runs test_layout_common.py *(curated)*
-- **#215**: check_content_hashes.py enforces only half the documented content_hash "if and only if" invariant *(curated)*
 - **#221**: ROADMAP.md T1 counts and row 4 are stale vs the verdict of record; nothing in CI gates a prose count *(curated)*
 - **#223**: item9-envelope provenance.klt_version now names an unpinned klt dev build; .github/klt-version pins 0.8.0 *(curated)*
+- **#234**: check_content_hashes.py: a cited JSON file whose top level is not an object crashes provenance_input_hash *(curated)*
 
 ## Proposed (Architect / Hermit)
 
@@ -115,7 +116,7 @@ _None._
 | Important | 7 |
 | Ready (`loom:issue`) | 7 |
 | In Progress (`loom:building`) | 8 |
-| PRs awaiting review | 0 |
+| PRs awaiting review | 2 |
 | Approved PRs awaiting merge | 5 |
 | Curated | 18 |
 | Architect / Hermit proposals | 4 |
