@@ -1,5 +1,5 @@
 # DR-007: The comparator's offset is not separately bracketable at
-`sf`/1.620 V/−40 °C — the corner stays filed, with a one-sided measured bound
+`sf`/1.620 V/−40 °C — the corner stays filed, with a one-sided simulated bound
 
 - **Status**: proposed; ratified by the operator's approval of the PR that
   lands it (issue #150)
@@ -8,6 +8,10 @@
 - **Evidence**: `sim/comparator-decision/record.json` (2026-11-13 grid),
   `sim/comparator-decision/trip-probe-i150.json` (single-corner probe,
   2026-11-15), `sim/integrator-settling/record.json`
+- **Evidence class**: **simulated** (ngspice, transistor-level), never
+  measured — the standing disclaimer of every bench cited above
+  (`sim/comparator-decision/README.md`). "Measured" below means measured in
+  the bench, not in silicon.
 
 ## Context
 

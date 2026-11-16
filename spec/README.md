@@ -22,7 +22,7 @@ delta-sigma ADC.
     stopband (row 9) graded in the alias bands, with a gap floor
   - [DR-007](decisions/DR-007-comparator-trip-bracketing.md) — the comparator
     offset is not separately bracketable at `sf`/1.620 V/−40 °C; one-sided
-    measured bound
+    simulated bound
 
 Pinned sibling references live in [`../reuse.lock.json`](../reuse.lock.json).
 
