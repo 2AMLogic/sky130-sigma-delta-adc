@@ -4,6 +4,9 @@ import argparse, hashlib, json, pathlib, re, subprocess, sys, tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
+sys.path.insert(0, str(HERE.parent))
+from settling_common import ngspice_version
+
 VCM = 0.9
 CM_TOL = 0.050    # output common mode within 50 mV of VCM
 SYM_TOL = 0.001   # outp - outn within 1 mV at zero differential input
@@ -72,14 +75,13 @@ def main():
         "ivdda_within_sanity_band": IVDD_BAND[0] <= ivdd <= IVDD_BAND[1],
     }
     ok = all(checks.values())
-    ver = re.search(r"ngspice-\d+", log) or re.search(
-        r"ngspice-\d+", subprocess.run(["ngspice", "-v"], capture_output=True, text=True).stdout)
+    ver = ngspice_version(log)
     rec = {
         "fixture": "operating-point smoke check, not a performance claim",
         "result_kind": "simulated (ngspice, transistor-level, single operating point)",
         "conditions": {"corner": "tt", "temp_C": 27, "vdda_V": 1.8, "vcm_V": VCM,
                        "ibias_uA": 5, "vin_diff_V": 0.0},
-        "ngspice": ver.group(0) if ver else "unknown",
+        "ngspice": ver,
         "pdk_sources_stamp": stamp,
         "model_sha256": {str(p.relative_to(root)): sha256(p) for p in [
             lib, ng / "corners/tt.spice",
