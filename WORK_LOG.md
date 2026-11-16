@@ -4,6 +4,10 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-16
 
+- **PR #242**: fix: regenerate item9 attest under the klt pin and document the rule
+- **PR #156**: spec: record the digital-timing corner set and declare the 35-corner gap
+- **Issue #223** (closed): item9-envelope provenance.klt_version now names an unpinned klt dev build; .github/klt-version pins 0.8.0
+- **Issue #131** (closed): Decimator STA: 35 of the 45 DR-002 corners have no liberty file, and the block-boundary I/O timing budget is undeclared
 - **PR #240**: fix: report a non-object manifest as a violation, not a traceback
 - **PR #238**: refactor: unify connect_met1, finish_trunks and add_shape into the shared Router base
 - **PR #235**: fix: treat a non-object cited JSON file as provenance-less in content-hash check
