@@ -42,6 +42,56 @@ def sha256_file(rel):
     return "sha256:" + hashlib.sha256((REPO / rel).read_bytes()).hexdigest()
 
 
+def build_records(recs):
+    """The per-record provenance block: one entry per committed record.
+
+    Every derived field is read from the record the entry names; main()
+    re-derives them from the file on disk and refuses the envelope if any
+    entry disagrees.
+    """
+    records = []
+    for cid, rel in RECORDS.items():
+        rec = recs[cid]
+        records.append({
+            "corner_id": cid,
+            "file": rel,
+            "sha256": sha256_file(rel),
+            "corner_params_file": rec.get("corner_params_file", {}).get("path"),
+            "corner_params_sha256": rec.get("corner_params_file", {}).get("sha256"),
+            "peak_sndr_db_uncross_checked": rec["peak_sndr_db"],
+            "cross_check": rec["cross_check"],
+        })
+    return records
+
+
+def check_records(records):
+    """Re-derive every records[] entry from the file it names; exit on drift.
+
+    The first revision of this block was a comprehension that referenced a
+    leaked outer name, so every entry carried the last RECORDS entry's
+    values while `corner_id`/`file` stayed correctly bound -- six corners'
+    peak SNDR attributed to the wrong corner and two ss corners' span
+    failures replaced by a passing string. Reading the fields back from the
+    file each entry's own `file` names catches exactly that: the derived
+    fields and the `file` are bound independently.
+    """
+    for entry in records:
+        rec = json.loads((REPO / entry["file"]).read_text())
+        for key, want in (
+            ("corner_params_file", rec.get("corner_params_file", {}).get("path")),
+            ("corner_params_sha256", rec.get("corner_params_file", {}).get("sha256")),
+            ("peak_sndr_db_uncross_checked", rec["peak_sndr_db"]),
+            ("cross_check", rec["cross_check"]),
+        ):
+            got = entry[key]
+            if got != want:
+                sys.exit(
+                    f"refusing: records[] entry for {entry['corner_id']} carries "
+                    f"{key} = {got!r}, but {entry['file']} says {want!r}"
+                )
+    return records
+
+
 def main():
     recs = {cid: json.loads((REPO / rel).read_text()) for cid, rel in RECORDS.items()}
 
@@ -96,18 +146,7 @@ def main():
             "are uncross-checked and the manifest declares row 2 a gap."),
         "measurements": [row1, row4],
         "corners": corners,
-        "records": [
-            {
-                "corner_id": cid,
-                "file": rel,
-                "sha256": sha256_file(rel),
-                "corner_params_file": rec.get("corner_params_file", {}).get("path"),
-                "corner_params_sha256": rec.get("corner_params_file", {}).get("sha256"),
-                "peak_sndr_db_uncross_checked": rec["peak_sndr_db"],
-                "cross_check": rec["cross_check"],
-            }
-            for cid, rel in RECORDS.items()
-        ],
+        "records": check_records(build_records(recs)),
         "provenance": {
             "input": {
                 "path": {

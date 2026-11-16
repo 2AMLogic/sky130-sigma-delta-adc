@@ -24,7 +24,7 @@
         "role": "testbench",
         "path": "sim/bmodel/test_bmodel.py",
         "passed": true,
-        "content_hash": "sha256:89a7728604f461277696c02b8ff4e3af836466ab8421a7f174cd3e954838db71"
+        "content_hash": "sha256:955d7e640db4796740931bcc3167c07734ba8411c1b84fa8eb8c028482d3b62a"
       },
       {
         "check": "present",

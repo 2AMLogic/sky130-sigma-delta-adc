@@ -14,6 +14,7 @@ import unittest
 import numpy as np
 
 import model
+import make_item5_envelope
 import run
 import sndr
 import xcheck
@@ -423,6 +424,70 @@ class CodeIdentity(unittest.TestCase):
             self.assertNotEqual(hashlib.sha256(fake.read_bytes()).hexdigest(),
                                 base["sim/bmodel/sndr.py"])
         self.assertEqual(run.code_state()["code_sha256"], base)
+
+
+class Item5EnvelopeRecords(unittest.TestCase):
+    """`make_item5_envelope` binds every records[] field to the record its
+    entry names, and the committed envelope agrees with the records on disk.
+
+    The first revision of the generator built `records[]` with a
+    comprehension that referenced a leaked outer name -- always the last
+    RECORDS entry (fs/1.800V/27C) -- so all seven committed entries carried
+    fs's corner_params_file, corner_params_sha256, peak SNDR and
+    cross_check. Six corners' peak SNDR was attributed to the wrong corner,
+    and the two ss corners' span_10pct failures ("a corner that fails is
+    reported as failed", item #128's acceptance criteria) were replaced by
+    fs's all-computable-legs string. The content-hash gate cannot catch
+    this: it proves the envelope has not been edited since the manifest was
+    written, not that the generator put the right corner's values in it.
+    """
+
+    @staticmethod
+    def _committed_recs():
+        return {cid: json.loads((REPO / rel).read_text())
+                for cid, rel in make_item5_envelope.RECORDS.items()}
+
+    @staticmethod
+    def _assert_entry_matches_record(test, entry):
+        rec = json.loads((REPO / entry["file"]).read_text())
+        test.assertEqual(entry["corner_params_file"], rec["corner_params_file"]["path"])
+        test.assertEqual(entry["corner_params_sha256"], rec["corner_params_file"]["sha256"])
+        test.assertEqual(entry["peak_sndr_db_uncross_checked"], rec["peak_sndr_db"])
+        test.assertEqual(entry["cross_check"], rec["cross_check"])
+
+    def test_entry_fields_come_from_the_named_record(self):
+        entries = make_item5_envelope.build_records(self._committed_recs())
+        self.assertEqual([e["corner_id"] for e in entries],
+                         list(make_item5_envelope.RECORDS))
+        for entry in entries:
+            self.assertEqual(entry["file"], make_item5_envelope.RECORDS[entry["corner_id"]])
+            self._assert_entry_matches_record(self, entry)
+
+    def test_ss_corners_carry_their_span_failure(self):
+        entries = {e["corner_id"]: e
+                   for e in make_item5_envelope.build_records(self._committed_recs())}
+        for cid in ("ss/1.620V/125C", "ss/1.620V/-40C"):
+            self.assertIn("FAILED legs: span_10pct", entries[cid]["cross_check"])
+            self.assertNotEqual(entries[cid]["peak_sndr_db_uncross_checked"],
+                                entries["fs/1.800V/27C"]["peak_sndr_db_uncross_checked"])
+
+    def test_check_records_refuses_leaked_values(self):
+        """The defect shape itself: `file` bound per corner, values leaked
+        from the last RECORDS entry. The re-derivation guard must refuse."""
+        entries = make_item5_envelope.build_records(self._committed_recs())
+        leaked = entries[-1]
+        for key in ("corner_params_file", "corner_params_sha256",
+                    "peak_sndr_db_uncross_checked", "cross_check"):
+            entries[0][key] = leaked[key]
+        with self.assertRaises(SystemExit):
+            make_item5_envelope.check_records(entries)
+
+    def test_committed_envelope_matches_its_records(self):
+        envelope = json.loads((HERE / "item5-model-run.json").read_text())
+        self.assertEqual([e["corner_id"] for e in envelope["records"]],
+                         list(make_item5_envelope.RECORDS))
+        for entry in envelope["records"]:
+            self._assert_entry_matches_record(self, entry)
 
 
 if __name__ == "__main__":
