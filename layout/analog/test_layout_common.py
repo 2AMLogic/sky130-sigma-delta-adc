@@ -118,9 +118,12 @@ class FixtureDrivenParserTests(unittest.TestCase):
         # The merge must do visible work, not merely run: raw != merged on the
         # ota_fd fixture, with the mult-expanded unit devices collapsing
         # 50 -> 14 nfet and 31 -> 9 pfet, and the merged basis equalling the
-        # committed check block (which the generator derived from the
-        # reference netlist's 29 X-lines -- a source independent of this
-        # parser).
+        # committed check.expected block (EXPECTED_DEVICES, transcribed from
+        # the 29 X-lines of design/ota/ota_fd.spice -- a source independent
+        # of this parser). The sibling check.found block is NOT independent:
+        # the generator writes it from this same parser's merged counts,
+        # re-expressed in short model names, so asserting against it would
+        # compare the parser with itself.
         raw, merged = PARSED["ota_fd"]
         evidence = EVIDENCE["ota_fd"]
         self.assertNotEqual(dict(raw), dict(merged))
@@ -129,10 +132,10 @@ class FixtureDrivenParserTests(unittest.TestCase):
         self.assertEqual(raw["sky130_fd_pr__pfet_01v8"], 31)
         self.assertEqual(merged["sky130_fd_pr__pfet_01v8"], 9)
         # The committed check block uses the models' short names plus a total.
-        found = evidence["check"]["found"]
+        expected = evidence["check"]["expected"]
         for model, count in merged.items():
-            self.assertEqual(count, found[model.split("__", 1)[-1]], model)
-        self.assertEqual(sum(merged.values()), found["total"])
+            self.assertEqual(count, expected[model.split("__", 1)[-1]], model)
+        self.assertEqual(sum(merged.values()), expected["total"])
 
     def test_merged_collapses_to_per_model_distinct_groups(self):
         # merged[model] must be the number of distinct symmetric-terminal
