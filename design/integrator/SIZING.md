@@ -146,7 +146,7 @@ NMOS plus a PMOS half on the phi2 switches in issue #92.
 input is **54.3 % unsampled** when `phi1e` opens, and the error is strongly
 input-level dependent (0.8 % at a 0.6 V input at that same corner). 8 of 45 grid
 points exceed 1e-4 at 0.2 V, 2 of 45 at 0.6 V, and the 1.980 V points are
-exact to the reported precision — 43 of those 45 read `error_rel` exactly 0,
+exact to the reported precision — 28 of those 30 read `error_rel` exactly 0,
 and the two that do not (`ss` and `sf` at 1.980 V/125 °C, 0.6 V) read
 1.7e-7, which is the 7-digit print resolution and three orders below the
 reference line.
