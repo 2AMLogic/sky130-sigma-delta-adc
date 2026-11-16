@@ -4,7 +4,8 @@ PDK and tool pins (`pdk.json`, `toolchain.json`) and the analog smoke fixture in
 `smoke/`. The transistor-level benches are `ota-settling/`, `integrator-settling/`,
 `integrator-ci/`, `comparator-decision/`, `ota-gain/` and `integrator-noise/`;
 each has its own README with the run command (`python3 -I sim/<bench>/run_*.py
---probe` for one corner, `--record` for the DR-002 full grid), and the shared
+--probe` for one corner, `--record` for the DR-002 full grid; on some benches
+`--probe` takes a variant argument — see each bench's README), and the shared
 45-corner request plumbing is `settling_common.py`.
 
 `bmodel/` is the behavioural modulator model B (DR-001): `python3 -I sim/bmodel/run.py --params sim/bmodel/ideal.json`
