@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """OTA operating-point smoke runner (smoke check, not a performance claim). See README.md."""
-import argparse, hashlib, json, pathlib, re, subprocess, sys, tempfile
+import argparse, json, pathlib, re, subprocess, sys, tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import ngspice_version
+from settling_common import ngspice_version, sha256
 
 VCM = 0.9
 CM_TOL = 0.050    # output common mode within 50 mV of VCM
@@ -16,10 +16,6 @@ SYM_TOL = 0.001   # outp - outn within 1 mV at zero differential input
 IVDD_BAND = (100e-6, 250e-6)
 NODES = ("outp", "outn", "xota.cr", "xota.vcn", "xota.vcp", "xota.tail",
          "xota.fa", "xota.fb", "xota.sa", "xota.sb")
-
-
-def sha256(p):
-    return hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
 
 
 def resolve_root(variant, pdk_root):
