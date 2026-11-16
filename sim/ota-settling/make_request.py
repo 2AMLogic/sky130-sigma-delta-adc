@@ -4,7 +4,7 @@ import json, pathlib, sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from settling_common import request
+from settling_common import measurement as e, request
 
 T_STEP = 3.0e-9       # step mid-edge (Vsp/Vsn PULSE: 2.99 ns delay, 20 ps edge)
 T_PHASE = 97.66e-9    # 1 / (2 * 5.12 MHz), spec row 5
@@ -14,15 +14,6 @@ IDEAL_DV = 0.9        # |vod| after settling, ideal charge transfer: (Cs/Ci) * 1
 ERR_MAX = 1e-4        # 0.01 %, the level design/ota/SIZING.md targets
 RIPPLE_MAX = 1e-3     # reference-validity gate (not a spec row), see README.md
 IDEAL_TOL = 0.05      # reference-validity gate (not a spec row), see README.md
-
-
-def e(name, expr, unit=None, limits=None):
-    m = {"name": name, "expr": expr}
-    if unit:
-        m["unit"] = unit
-    if limits:
-        m["limits"] = limits
-    return m
 
 
 # `lt`/`gt`: bare < > are shell redirections in ngspice's control language.
