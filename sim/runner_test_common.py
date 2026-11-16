@@ -1,7 +1,10 @@
 """Shared test harness for the `klt sim` bench runners.
 
 Imported by the per-bench test modules (`sim/integrator-ci/test_run_ci.py`,
-`sim/integrator-settling/test_run_settling.py`). The module name is
+`sim/integrator-settling/test_run_settling.py`,
+`sim/comparator-decision/test_run_decision.py`, `sim/test_settling_common.py`,
+`sim/ota-gain/test_run_gain.py`, `sim/integrator-noise/test_run_noise.py`).
+The module name is
 deliberately NOT `test_`-prefixed: neither
 `python3 -I -m unittest discover -s sim -p 'test_settling*.py'` nor a
 per-bench `discover -s sim/<bench> -p 'test_*.py'` may collect it, because
@@ -56,6 +59,35 @@ def load_runner(module_name, path):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+# ---- shared fixture helpers (issue #212) --------------------------------
+#
+# The benches' hand-built corner fixtures shared three constructors that had
+# already started to drift. One definition each, here; a bench binds its own
+# `KEYS` and its own `CORNER_IDS` shape through thin wrappers in its test
+# module, so no bench is retargeted onto another bench's corner ids.
+
+def unmeasured(keys, status="fail", diagnostics=("batch_job_failed",)):
+    """The shape a dead fleet job returns: an entry, but no measured values."""
+    c = {"status": status}
+    c.update({k: None for k in keys})
+    c["diagnostics"] = list(diagnostics)
+    return c
+
+
+def corner_set(corner_ids, n, factory, **kwargs):
+    """The first `n` corners of `corner_ids`, each built by `factory(**kwargs)`."""
+    assert n <= len(corner_ids)
+    return {cid: factory(**kwargs) for cid in corner_ids[:n]}
+
+
+def call(fn, *args, **kw):
+    """Run a gate, returning (verdict, stderr) -- the gates print on refusal."""
+    err = io.StringIO()
+    with contextlib.redirect_stderr(err):
+        verdict = fn(*args, **kw)
+    return verdict, err.getvalue()
 
 
 class RunnerCase(unittest.TestCase):

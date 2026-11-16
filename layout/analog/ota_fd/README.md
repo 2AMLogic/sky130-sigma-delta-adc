@@ -11,7 +11,9 @@ Generated GDS of the fully-differential folded-cascode OTA
 | `ota_fd.gds` | the generated stream, top cell `ota_fd` |
 | `extract-device-count.json` | `klt extract` device count vs the netlist, plus the extracted pin list and net count |
 | `drc.report.json` | `klt drc` (sky130 deck) over the committed stream |
-| `route-summary.json` | where every net was routed: per-block origins, per-net anchors, reserved met2 columns, met1 spine tracks |
+| `route-summary.json` | where every net was routed: per-block origins, per-net anchors, reserved met2 columns, met1 spine tracks, and per-row floorplan extents (`row_extents_um` — the source of the floorplan table below) |
+| `lvs-plate-probe.request.json` | the terminal-order probe's request document (issue #146): inline extraction from the committed stream vs the pinned netlist, so `klt lvs --check` reproduces the report |
+| `lvs-plate-probe.report.json` | the probe's committed report — a scoped diagnostic for the cap-plate question, **not** #32 signoff evidence |
 
 Nothing here is hand-drawn or GUI-edited. Every polygon comes either from a
 `klt gen` call (one per device group) or from this script's own floorplan and
@@ -77,13 +79,15 @@ regression when **both** axes match the recording.
   `ota_fd.gds` directly. A difference is a generator or geometry regression:
   exit 1, `FAIL`.
 - **Host klt differs** — `--check` re-runs the flow under the recorded build
-  via `uvx --from "<provenance.klt_reinstall_spec>" klt` and byte-compares that
-  output, so the gate stays meaningful across host toolchain upgrades. The
-  resolution probe also verifies the resolved build's klayout equals the
-  recorded one; on drift it names both versions, prints the klayout-pinned
-  command (`uvx --from "<spec>" --with "klayout==<recorded>" klt ...`), and
-  exits 2. A byte difference is still exit 1 / `FAIL` (geometry), never
-  blamed on the toolchain.
+  via `uvx --from "<provenance.klt_reinstall_spec>" --with "klayout==<recorded>" klt`
+  (both axes pinned) and byte-compares that output, so the gate stays meaningful
+  across host toolchain upgrades. The resolution probe also verifies the
+  resolved build's klayout equals the recorded one; the invocation itself
+  carries the klayout pin, so a mismatch there means the pin was not honoured
+  (stale cache, or the recorded release unavailable on this platform) — it
+  names both versions, prints a diagnostic command, and exits 2. A byte
+  difference is still exit 1 / `FAIL` (geometry), never blamed on the
+  toolchain.
 - **The gate cannot run** — `drc.report.json`/`provenance` missing or
   unreadable, `uvx` unavailable, the recorded build failing to resolve, or a
   klayout mismatch on either branch — is exit 2, `CANNOT VERIFY`, naming the
@@ -205,15 +209,22 @@ terminal to `vssa` and every pFET's to `vdda` in the committed stream
 
 ## Floorplan and routing
 
-Five rows, bottom to top, each separated by a routing channel:
+Five rows, bottom to top, each separated by a routing channel. The y ranges
+are quoted from `route-summary.json` → `row_extents_um`, which
+`gen_ota_fd.py` emits from `place_rows()`'s own per-row extents — the same
+numbers the router and the guard rings are built from — rather than
+hand-transcribed: an earlier hand-copied version of this table quoted the two
+guard rings' outer spans (`69 - 110` for `ptapring`, `116 - 144` for
+`ntapring`) instead of the rows they enclose, which made the two nFET rows
+overlap on paper.
 
 | y (um) | Row | Blocks |
 |---|---|---|
-| 0 - 5 | passives | `rcm` (the 351 um CM-sense strip) |
-| 14 - 60 | MiM caps | `ccm`, `cff`, `rz` |
-| 69 - 110 | nFET bias (inside `ptapring`) | `mb1`, `mbn1`, `mbn2`, `mbcn`, `mct`, `cmfbin`, `mtail`, `nsink` |
-| 89 - 108 | nFET signal (inside `ptapring`) | `inpair`, `ncasc` |
-| 116 - 144 | pFET (inside `ntapring`) | `ptop`, `pcasc`, `cmfbld`, `mbp1`, `mbp2`, `mbcp` |
+| 0 - 5.2 | passives | `rcm` (the 351 um CM-sense strip) |
+| 14.2 - 60.32 | MiM caps | `ccm`, `cff`, `rz` |
+| 71.32 - 77.96 | nFET bias (inside `ptapring`) | `mb1`, `mbn1`, `mbn2`, `mbcn`, `mct`, `cmfbin`, `mtail`, `nsink` |
+| 88.96 - 107.6 | nFET signal (inside `ptapring`) | `inpair`, `ncasc` |
+| 118.6 - 141.54 | pFET (inside `ntapring`) | `ptop`, `pcasc`, `cmfbld`, `mbp1`, `mbp2`, `mbcp` |
 
 Routing discipline, two layers plus a MiM riser:
 
@@ -293,15 +304,83 @@ extracts, as an extra node on an otherwise correct device, so the device count
 alone cannot see it; this count can, and it caught two real routing defects
 during development.
 
+## MiM cap plates, and the terminal-order probe (issue #146)
+
+The sky130 `cap_mim_m3_1` model declares its terminals `c0 c1` — two
+terminals, no substrate pin, and neither the model nor the extractor gives
+either a top/bottom meaning. But the generator's plate binding (`LEG_NETS` in
+`gen_ota_fd.py`) chooses which drawn plate lands on which net, and that is
+what fixes where the bottom-plate parasitic sits. Intended plates, one cap at
+a time:
+
+- `Cff1` — bottom plate **`outp`**, top plate **`cmx`**.
+- `Cff2` — bottom plate **`outn`**, top plate **`cmx`**.
+- `Ccm` — bottom plate **`vdda`**, top plate **`nz`**.
+
+Reason: as drawn, the bottom plate is on the low-impedance side — the outputs
+for `Cff1`/`Cff2`, the supply for `Ccm` — the conventional analog choice,
+which keeps the bottom-plate parasitic off `nz`, the internal compensation
+node. The schematic's own call order (`XCff1 outp cmx`, `XCff2 outn cmx`,
+`XCcm nz vdda`) agrees for `Cff1`/`Cff2` and is reversed for `Ccm`: one cap
+group is plate-swapped relative to the schematic's terminal order.
+
+Does that matter? Measured: **not to LVS**. The probe
+(`layout/analog/ota_fd/lvs-plate-probe.report.json`, request document
+`layout/analog/ota_fd/lvs-plate-probe.request.json`, run as
+`klt lvs layout/analog/ota_fd/lvs-plate-probe.request.json -o layout/analog/ota_fd/lvs-plate-probe.report.json --format json`
+from the repo root; klt `0.9.2.dev964+g02db14ecf46b` — the build recorded in
+`drc.report.json`'s provenance — with klayout `0.30.13`, PDK `open_pdks
+f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7` per `~/.ciel/sky130A/SOURCES`)
+compares the committed `ota_fd.gds` against `design/ota/ota_fd.spice` and
+records:
+
+- **No error-severity finding, and no connectivity or topology finding,
+  names a capacitor or a cap net.** All three MiM caps match — in either
+  terminal order. Two *warnings* do name the MiM cap class; the last bullet
+  below records both and what they exclude from the compare. A negative
+  control (the same compare re-run from scratch with `XCcm`'s reference
+  terminals flipped to
+  `XCcm vdda nz`) returned a verdict-identical report: the comparer permutes
+  a capacitor's two pins, so the schematic's call order for `Ccm` is not a
+  defect LVS can see. The netlist reorder this probe was scoped to motivate
+  is **not** motivated: `design/` is untouched by this issue, and the
+  terminal-order question the device-count check cannot see stays invisible
+  to `klt lvs` as well — by symmetry, not by omission.
+- The probe's overall status is still **`mismatch`** (21 findings, 14
+  errors) — from differences this cell already records elsewhere, not from
+  the caps: the per-device `W` property on the half-`W` cross-quad draws
+  (`MCPS`/`MCPR`), a handful of unpaired nfet/pfet devices from the same
+  cross-quad unit bookkeeping, and `inp`/`inn` reported merged/split. Those
+  findings belong to **#32's** verdict; this probe neither settles nor
+  contradicts it.
+- Two warnings do name the MiM class, and between them they bound what the
+  probe verified: the caps matched on **topology alone, pin permutation
+  allowed** — neither capacitance nor plate area took part.
+  `device.geometry_not_compared` is the plate-**area** non-check: `A`/`P`
+  are KLayout-declared *secondary* parameters for the cap class, so none of
+  them took part in the compare. `device.placeholder_value` is the
+  **capacitance** non-check: with `reference.form: "subckt-call"` the
+  reference `C` is the literal-0 placeholder on all three reference
+  instances, so `C` was excluded from the compare on both sides. That still
+  fully supports the terminal-order conclusion above — but it means the
+  probe says nothing about cap *value*, and this record should not be read
+  as if it did.
+
+This report is a **scoped diagnostic for the plate question only — it is not
+item-4 (#32) signoff evidence**, and #32's envelope must not find it sitting
+where that envelope belongs.
+
 ## What this cell does *not* claim
 
 - A **DRC-clean signoff** verdict: #31, against the deck and klt build it
   chooses. The 0-violation run above is this issue's evidence that the geometry
   is sane, not a tier claim.
 - An **LVS match**: #32. The extracted netlist does correspond device-for-device
-  and net-for-net to `design/ota/ota_fd.spice`, but no `klt lvs` compare was run
-  and no reference-vs-layout envelope is committed, and #32 will have to decide
-  how to treat the two half-`W` groups above.
+  and net-for-net to `design/ota/ota_fd.spice`, but no reference-vs-layout
+  signoff envelope is committed and no `match` verdict is claimed here — the
+  #146 plate probe above is a cell-level diagnostic whose own report is
+  `mismatch` on the differences the half-`W` groups above produce, and #32
+  will have to decide how to treat them.
 - **Parasitic extraction** (#35) and **power-delivery checks** (#39).
 - Any **simulated or measured** result. Nothing here was simulated; no number on
   this page comes from ngspice.
