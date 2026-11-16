@@ -171,6 +171,52 @@ def _is_model_token(t: str) -> bool:
     return t.startswith("sky130_fd_pr__") or t in ("nfet", "pfet")
 
 
+def _logical_lines(netlist_text: str) -> list[str]:
+    """Fold SPICE `+` continuation lines into the line they continue.
+
+    The semantics are `sim/settling_common.py:join_continuations` verbatim
+    (the repo's documented joiner, whose docstring names this exact failure):
+    a `+` line contributes its text with the `+` stripped and one space in
+    front of whatever precedes it, and a `+` line with nothing before it is
+    kept as it stands. Duplicated rather than imported on purpose:
+    `settling_common` is `klt sim` bench plumbing (corner grids, the
+    `.partials/` cache) and the layout generators import nothing from the
+    sim tree.
+    """
+    out, cur = [], None
+    for ln in netlist_text.splitlines():
+        if ln.startswith("+") and cur is not None:
+            cur += " " + ln[1:].strip()
+        else:
+            if cur is not None:
+                out.append(cur)
+            cur = ln
+    if cur is not None:
+        out.append(cur)
+    return out
+
+
+def _x_devices(netlist_text: str):
+    """Yield `(model, terminals)` for every X-device in an extracted netlist.
+
+    Continuation lines are folded first (`_logical_lines`), so an X-line the
+    writer wrapped at any token -- the model token included -- parses as one
+    logical line. Without the fold, a wrapped model token made the X-line
+    fail the model scan and the `+` line fail the `X` test, silently
+    dropping the device from the counts and the nets (issue #204). Both
+    extract parsers iterate this one generator, so they cannot disagree
+    about which lines are devices.
+    """
+    for line in _logical_lines(netlist_text):
+        tok = line.split()
+        if not tok or not tok[0].startswith("X"):
+            continue
+        model = next((t for t in tok if _is_model_token(t)), None)
+        if model is None:
+            continue
+        yield model, tuple(tok[1:tok.index(model)])
+
+
 def parse_extract_devices(netlist_text: str) -> tuple[Counter, Counter]:
     """Count extracted devices by model, merging parallel same-net devices.
 
@@ -183,14 +229,7 @@ def parse_extract_devices(netlist_text: str) -> tuple[Counter, Counter]:
     """
     raw: Counter = Counter()
     groups: set[tuple[str, tuple[str, ...]]] = set()
-    for line in netlist_text.splitlines():
-        tok = line.split()
-        if not tok or not tok[0].startswith("X"):
-            continue
-        model = next((t for t in tok if _is_model_token(t)), None)
-        if model is None:
-            continue
-        terminals = tuple(tok[1:tok.index(model)])
+    for model, terminals in _x_devices(netlist_text):
         raw[model] += 1
         groups.add((model, _symmetric_terminals(terminals)))
     combined: Counter = Counter()
@@ -202,14 +241,8 @@ def parse_extract_devices(netlist_text: str) -> tuple[Counter, Counter]:
 def extract_nets(netlist_text: str) -> list[str]:
     """Every distinct net name appearing on an extracted device terminal."""
     nets: set[str] = set()
-    for line in netlist_text.splitlines():
-        tok = line.split()
-        if not tok or not tok[0].startswith("X"):
-            continue
-        model = next((t for t in tok if _is_model_token(t)), None)
-        if model is None:
-            continue
-        nets.update(tok[1:tok.index(model)])
+    for _model, terminals in _x_devices(netlist_text):
+        nets.update(terminals)
     return sorted(nets)
 
 
