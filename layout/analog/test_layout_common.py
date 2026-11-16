@@ -39,8 +39,11 @@ What is pinned here:
   reproduces the committed found_own_devices: this cell's own 44 devices.
 - Parser edges: empty and comment-only netlists return empty counters and
   an empty net list rather than raising; a `+` continuation line is never
-  parsed as a device (both captured netlists wrap PS=/PD= onto one); a
-  joined-label net name (`outn|voutn`) survives extract_nets intact.
+  parsed as a device (both captured netlists wrap PS=/PD= onto one); an
+  X-device wrapped at any token -- the model token or the terminals on the
+  `+` line -- folds into one logical line and is counted exactly once
+  (issue #204: the wrapped shapes used to be dropped silently); a joined
+  label net name (`outn|voutn`) survives extract_nets intact.
 """
 import json
 import pathlib
@@ -215,6 +218,73 @@ class ParserEdgeCaseTests(unittest.TestCase):
         self.assertEqual(dict(raw), {"sky130_fd_pr__nfet_01v8": 1})
         self.assertEqual(dict(merged), {"sky130_fd_pr__nfet_01v8": 1})
         self.assertEqual(layout_common.extract_nets(text), ["a", "b", "c", "d"])
+
+    def test_wrapped_model_token_is_counted(self):
+        # A writer may break an X-line at any token, the model token
+        # included; the device must be counted from the folded logical
+        # line, not silently dropped (issue #204 -- before the fold this
+        # returned empty counters and no nets: the X-line found no model
+        # token and the '+' line does not start with X).
+        text = "X$1 a b c d\n+ sky130_fd_pr__nfet_01v8 L=0.5 W=2\n"
+        raw, merged = layout_common.parse_extract_devices(text)
+        self.assertEqual(dict(raw), {"sky130_fd_pr__nfet_01v8": 1})
+        self.assertEqual(dict(merged), {"sky130_fd_pr__nfet_01v8": 1})
+        self.assertEqual(layout_common.extract_nets(text), ["a", "b", "c", "d"])
+
+    def test_wrapped_terminals_and_model_are_counted(self):
+        # Terminals precede the model token on an X-line, so a tight wrap
+        # can push both onto the '+' line; the same fold must still count
+        # the one device and collect all four terminals.
+        text = "X$1 a b\n+ c d sky130_fd_pr__nfet_01v8 L=0.5 W=2\n"
+        raw, merged = layout_common.parse_extract_devices(text)
+        self.assertEqual(dict(raw), {"sky130_fd_pr__nfet_01v8": 1})
+        self.assertEqual(dict(merged), {"sky130_fd_pr__nfet_01v8": 1})
+        self.assertEqual(layout_common.extract_nets(text), ["a", "b", "c", "d"])
+
+    def test_multiple_continuations_fold_into_one_device(self):
+        # Several '+' lines are one logical line: counted exactly once,
+        # and every wrapped net reaches extract_nets exactly once.
+        text = "X$1 a b\n" \
+               "+ c d sky130_fd_pr__nfet_01v8\n" \
+               "+ L=0.5 W=2\n" \
+               "+ PS=4.84 PD=4.84\n"
+        raw, merged = layout_common.parse_extract_devices(text)
+        self.assertEqual(dict(raw), {"sky130_fd_pr__nfet_01v8": 1})
+        self.assertEqual(dict(merged), {"sky130_fd_pr__nfet_01v8": 1})
+        self.assertEqual(layout_common.extract_nets(text), ["a", "b", "c", "d"])
+
+    def test_orphan_continuation_line_yields_nothing(self):
+        # A '+' line with nothing before it has no line to fold into (the
+        # joiner keeps it as it stands); it starts with '+', not X, so it
+        # is neither a device nor a net source.
+        text = "+ sky130_fd_pr__nfet_01v8 L=0.5 W=2\n"
+        raw, merged = layout_common.parse_extract_devices(text)
+        self.assertEqual(raw, Counter())
+        self.assertEqual(merged, Counter())
+        self.assertEqual(layout_common.extract_nets(text), [])
+
+    def test_continuation_after_comment_line_is_not_a_device(self):
+        # A '+' line folds onto whatever precedes it, a comment included;
+        # the folded logical line still starts with '*' and must count no
+        # device even though it now carries a device-shaped body.
+        text = "* device instance $1 r0 *1 6.795,72.47 nfet\n" \
+               "+ X$1 a b c d sky130_fd_pr__nfet_01v8\n"
+        raw, merged = layout_common.parse_extract_devices(text)
+        self.assertEqual(raw, Counter())
+        self.assertEqual(merged, Counter())
+        self.assertEqual(layout_common.extract_nets(text), [])
+
+    def test_continuation_of_subckt_port_list_is_not_a_device(self):
+        # The integrator fixture wraps the .SUBCKT port list onto a '+'
+        # line; folded, the logical line starts with .SUBCKT and must stay
+        # a non-device.
+        text = ".SUBCKT integrator dn dp ibias inn inp outn|voutn outp|voutp" \
+               " phi1 phi1b phi1e\n" \
+               "+ phi2 vcm vdda vinn vinp vrefn vrefp vssa\n"
+        raw, merged = layout_common.parse_extract_devices(text)
+        self.assertEqual(raw, Counter())
+        self.assertEqual(merged, Counter())
+        self.assertEqual(layout_common.extract_nets(text), [])
 
     def test_non_device_lines_are_ignored(self):
         text = ".SUBCKT ota_fd ibias vdda vssa\n" \
