@@ -30,15 +30,23 @@
 * each half's share of the current readable, which is what says whether a
 * remedy should add a PMOS half and at what width.
 *
+* The deck prints the three branch currents only. Ron = bias / I is derived by
+* run_probe.py from the printed current, NOT here: on the as-built NMOS-only
+* rows at the top of the sweep the current underflows to the 1e-15 gmin floor
+* and an in-deck `0.01/i_dev` would abort the point on a divide by zero
+* (both first attempts hit exactly that, at tt/-40 C/1.620 V/1.5 V). The
+* runner reports such a row as ron_ohm = null with current_at_gmin_floor =
+* true -- effectively open, not a floored fake number.
+*
 * run_probe.py substitutes the doubled-brace placeholders: PDK library and
 * corner, temperature, supply, the NMOS model and geometry (and the PMOS line,
-* whole), the two gate biases, and the two terminal voltages.
+* whole), and the two gate and terminal voltages.
 .lib {{PDK_LIB}} {{CORNER}}
 .temp {{TEMP}}
 Vdda vdda 0 {{VDDA}}
 * Source sits at the top-plate voltage being held; drain is offset by the probe
 * bias, so the current through Vd is the whole switch current and
-* Ron = bias / I(Vd).
+* Ron = bias / I(Vd), derived by the runner from the printed currents.
 * NMOS half: bulk in the p-substrate at vssa, gate at phi1e's high rail (Vdda).
 * A PMOS half, when substituted: bulk in its n-well at vdda, gate at the low
 * rail (0) a local phi1eb inverter would deliver -- the static rails the
@@ -57,7 +65,6 @@ op
 let i_dev = abs(i(vd))
 let i_nmos = abs(i(van))
 let i_pmos = abs(i(vap))
-let r_on = {{BIAS}}/i_dev
-print i_dev i_nmos i_pmos r_on
+print i_dev i_nmos i_pmos
 .endc
 .end

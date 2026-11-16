@@ -49,6 +49,21 @@ from settling_common import join_continuations, ngspice_version, pdk_stamp
 
 VCM = 0.9
 RON_BIAS = 0.010      # 10 mV across the closed switch
+GMIN_FLOOR = 1e-15    # the decks' `option gmin`; currents at/below it are "effectively open"
+
+
+def ron_from_current(i_dev):
+    """Ron = bias / I, with the gmin floor made explicit.
+
+    The runner (not the deck) computes Ron, so a point where the branch
+    current underflows to the gmin floor reports honestly: `None`, plus the
+    row's `current_at_gmin_floor` flag -- at or below 1e-15 A the switch is
+    effectively open (Ron >= bias/gmin = 1e13 ohm), and a finite number there
+    would be the floor, not a measurement.
+    """
+    if i_dev > GMIN_FLOOR:
+        return RON_BIAS / i_dev
+    return None
 LEAK_BIAS = 0.300     # 0.3 V across the open switch
 
 
@@ -292,7 +307,7 @@ def run_tg(key, corner, temp, vdda, vin, ng, pdk_lib, tmp, *,
     log = r.stdout + r.stderr
     vals = {k: float(x) for k, x in
             re.findall(r"^([a-z_0-9]+)\s*=\s*([-+0-9.eE]+)\s*$", log, re.M)}
-    need = ("i_dev", "i_nmos", "i_pmos", "r_on")
+    need = ("i_dev", "i_nmos", "i_pmos")
     if r.returncode or any(k not in vals for k in need):
         print(log[-3000:], file=sys.stderr)
         sys.exit(f"REFUSE: ngspice did not produce the pass-gate scalars for '{key}'")
@@ -312,7 +327,9 @@ def run_tg(key, corner, temp, vdda, vin, ng, pdk_lib, tmp, *,
             "pmos": ({"model": pmodel, "W_um": pw, "L_um": pl} if pmos else None),
             "corner": corner, "temperature_c": temp, "vdda_V": vdda,
             "vin_V": vin, "bias_V": RON_BIAS,
-            "current_A": vals["i_dev"], "ron_ohm": vals["r_on"],
+            "current_A": vals["i_dev"],
+            "ron_ohm": ron_from_current(vals["i_dev"]),
+            "current_at_gmin_floor": vals["i_dev"] <= GMIN_FLOOR,
             "current_nmos_A": vals["i_nmos"], "current_pmos_A": vals["i_pmos"],
             "nmos_current_share": share}
 
@@ -399,6 +416,12 @@ def main():
                             "high rail); a PMOS half, when present, gates at 0 (the low "
                             "rail a local phi1eb inverter would deliver) with its n-well "
                             "at vdda")
+        method["ron"] = ("derived by the runner as bias / I from the deck's printed "
+                         "branch currents, not in the deck: on NMOS-only rows the "
+                         "current underflows to the deck's 1e-15 gmin floor at the top "
+                         "of the sweep, and a row there reports ron_ohm = null with "
+                         "current_at_gmin_floor = true -- effectively open (>= 1e13 "
+                         "ohm at the 10 mV bias), not a floored finite number")
     method["geometry"] = ("ad = as = 0.29*W, pd = ps = 2*W + 0.58, nrd = nrs = 0.29/W -- the "
                           "rule the committed netlist itself uses")
     method["geometry_self_check"] = (f"{checked} switch lines in "
@@ -448,7 +471,9 @@ def main():
             p = res["points"][key]
             share = (f"(NMOS {100 * p['nmos_current_share']:5.1f} % of I)"
                      if p["pmos"] else "(NMOS only, as built)")
-            print(f"  {key:46s} tg       Ron = {p['ron_ohm']:10.4g} ohm   {share}",
+            ron = (f"{p['ron_ohm']:10.4g} ohm" if p["ron_ohm"] is not None
+                   else "   open (>=1e13)")
+            print(f"  {key:46s} tg       Ron = {ron}   {share}",
                   file=sys.stderr)
 
     txt = json.dumps(res, indent=2) + "\n"

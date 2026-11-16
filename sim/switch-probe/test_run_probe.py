@@ -227,8 +227,19 @@ class SciDeck(unittest.TestCase):
         deck = (HERE / "sci_probe.cir.tmpl").read_text()
         for ph in ("{{PDK_LIB}}", "{{CORNER}}", "{{TEMP}}", "{{VDDA}}", "{{VS}}",
                    "{{VD}}", "{{VGN}}", "{{VGP}}", "{{NMODEL}}", "{{NGEOM}}",
-                   "{{PMOS_LINE}}", "{{BIAS}}"):
+                   "{{PMOS_LINE}}"):
             self.assertIn(ph, deck, f"{ph} is substituted but not in the deck")
+
+    def test_the_deck_prints_currents_only_ron_is_derived_by_the_runner(self):
+        """Regression (both first sweep attempts aborted here): on NMOS-only
+        rows the branch current underflows to the gmin floor and an in-deck
+        `bias/i_dev` divide aborts the point. Ron is the runner's job --
+        `ron_from_current` reports a gmin-floor current as null + flag."""
+        deck = (HERE / "sci_probe.cir.tmpl").read_text()
+        self.assertNotIn("{{BIAS}}", deck, "the deck must not compute Ron")
+        self.assertNotRegex(deck, r"(?m)^\s*let\s+r_on\b",
+                            "the deck must not compute Ron")
+        self.assertIn("print i_dev i_nmos i_pmos", deck)
 
     def test_the_pmos_half_is_a_whole_line_not_model_placeholders(self):
         """So the as-built rows can leave it out entirely, not fake a device."""
@@ -258,6 +269,37 @@ class SciDeck(unittest.TestCase):
         and probe-i106.json's pinned tg_deck_sha256 -- stay untouched."""
         self.assertNotEqual((HERE / "sci_probe.cir.tmpl").read_bytes(),
                             (HERE / "tg_probe.cir.tmpl").read_bytes())
+
+
+class RonFromCurrent(unittest.TestCase):
+    """Ron = bias / I is derived by the runner, with the gmin floor explicit.
+
+    The as-built Sci rows at the top of the sweep resolve zero branch current
+    (the divide-by-zero that aborted both first sweep attempts); those rows
+    must report null + `current_at_gmin_floor`, never a floored fake number.
+    """
+
+    def test_a_real_current_divides(self):
+        self.assertAlmostEqual(R.ron_from_current(1e-3), 10.0)
+        self.assertAlmostEqual(R.ron_from_current(7.5e-13), R.RON_BIAS / 7.5e-13)
+
+    def test_the_gmin_floor_is_null_not_a_number(self):
+        self.assertIsNone(R.ron_from_current(0.0))
+        self.assertIsNone(R.ron_from_current(R.GMIN_FLOOR),
+                          "at the floor itself, Ron is not a measurement")
+        self.assertIsNone(R.ron_from_current(1e-18))
+
+    def test_the_floor_boundary_is_inclusive_and_just_above_is_measured(self):
+        self.assertIsNone(R.ron_from_current(R.GMIN_FLOOR))
+        self.assertIsNotNone(R.ron_from_current(R.GMIN_FLOOR * (1 + 1e-9)))
+
+    def test_the_floor_matches_what_the_decks_set(self):
+        """`option gmin=1e-15` in both tg decks; the runner's floor is that."""
+        for tmpl in ("tg_probe.cir.tmpl", "sci_probe.cir.tmpl"):
+            deck = (HERE / tmpl).read_text()
+            self.assertIn("option gmin=1e-15", deck)
+        self.assertEqual(R.GMIN_FLOOR, 1e-15)
+        self.assertAlmostEqual(R.RON_BIAS / R.GMIN_FLOOR, 1e13)
 
 
 class SciSweep(unittest.TestCase):
