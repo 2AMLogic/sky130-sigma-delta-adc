@@ -52,6 +52,42 @@ def call(fn, *args):
     return verdict, err.getvalue()
 
 
+def record_request_pins(node, path="$"):
+    """Yield (path, digest) for every `request_sha256` pin in a parsed record.
+
+    The pin is committed in several shapes: a plain string at the record root
+    (`ota-settling`, `ota-gain`), a variant->digest map (`integrator-noise`),
+    or per-variant strings under `variants` (`comparator-decision`,
+    `integrator-ci`, `integrator-settling`). Subtrees under `batch_receipt`
+    are skipped: klt echoes there the sha256 of the request payload the fleet
+    received, which is a receipt of submission, not a pin on a committed
+    request file.
+    """
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "batch_receipt":
+                continue
+            if key == "request_sha256":
+                if isinstance(value, str):
+                    yield path, value
+                elif isinstance(value, dict):
+                    for variant, digest in value.items():
+                        if isinstance(digest, str):
+                            yield f"{path}[{variant}]", digest
+                continue
+            yield from record_request_pins(value, f"{path}.{key}")
+    elif isinstance(node, list):
+        for i, item in enumerate(node):
+            yield from record_request_pins(item, f"{path}[{i}]")
+
+
+def unresolved_request_pins(bench, record):
+    """The record's pins that no committed `request*.json` in `bench` hashes to."""
+    committed = {sc.sha256(p) for p in sorted(bench.glob("request*.json"))}
+    return [(path, digest) for path, digest in record_request_pins(record)
+            if digest not in committed]
+
+
 class MeasurementsPresent(unittest.TestCase):
     def test_dead_fleet_job_is_refused(self):
         """45 entries, every err_phase null: the count gate alone would pass."""
@@ -216,6 +252,76 @@ class CommittedRequestsAreUnmoved(unittest.TestCase):
                                    else mod.nominal_request(v))
         self.assertTrue(on_disk, f"no committed requests found for {bench}")
         return on_disk, rebuilt
+
+
+class RecordRequestPinsResolve(unittest.TestCase):
+    """Every committed record's request_sha256 pin resolves to a committed request.
+
+    A record pins the sha256 of the request that produced it, so committing a
+    regenerated `request*.json` — or editing one a record pins — silently
+    orphans the recorded result from the request that produced it. This is the
+    repo-wide form of the invariant `CommittedRequestsAreUnmoved` checks for
+    the two rebuildable benches, and the only guard over
+    `sim/ota-settling/request.json`, which by design cannot rebuild
+    identically: it predates 6df6862's `capacity_wait_s` emission and both of
+    its records pin it as committed (issue #192).
+
+    Deliberately not pre-solved: the legitimate future path (regenerate the
+    request, commit it, add a new record) fails this guard too, because the
+    older records then pin a digest no committed file carries any more. That
+    failure is correct — it forces the retention decision for the superseded
+    request text; no archive convention exists yet.
+    """
+
+    def test_every_committed_record_pin_resolves(self):
+        import json
+        import pathlib
+        here = pathlib.Path(__file__).resolve().parent
+        orphaned = []
+        covered = set()
+        for rec in sorted(here.glob("*/record*.json")):
+            record = json.loads(rec.read_text())
+            pins = list(record_request_pins(record))
+            if pins:
+                covered.add(rec.parent.name)
+            for path, digest in unresolved_request_pins(rec.parent, record):
+                orphaned.append(f"{rec.relative_to(here)}: {path} pins {digest}")
+        self.assertEqual(
+            orphaned, [],
+            "committed records pin request_sha256 digests that no committed"
+            " request*.json in the same bench directory hashes to — each is"
+            " orphaned from the request that produced it (issue #192):\n  "
+            + "\n  ".join(orphaned))
+        self.assertIn("ota-settling", covered,
+                      "no ota-settling record was seen; the guard this issue"
+                      " exists for covers nothing")
+
+    def test_a_bench_without_request_files_does_not_pass_vacuously(self):
+        import json
+        import tempfile
+        import pathlib
+        with tempfile.TemporaryDirectory() as tmp:
+            bench = pathlib.Path(tmp)
+            record = {"request_sha256": "ab" * 32}
+            (bench / "record.json").write_text(json.dumps(record))
+            self.assertTrue(unresolved_request_pins(bench, record),
+                            "a pin with no committed request*.json to resolve"
+                            " against must be reported, not skipped")
+
+    def test_a_record_without_a_pin_is_skipped(self):
+        self.assertEqual(list(record_request_pins(
+            {"summary": {}, "corners": [{"status": "pass"}]})), [])
+
+    def test_batch_receipt_digests_are_not_treated_as_pins(self):
+        record = {"batch_receipt": {"request_sha256": "cd" * 32,
+                                    "job_id": "klt-sim-x"},
+                  "request_sha256": "ab" * 32}
+        self.assertEqual(list(record_request_pins(record)), [("$", "ab" * 32)])
+
+    def test_the_map_form_is_walked_per_variant(self):
+        record = {"request_sha256": {"amp": "ab" * 32, "ampq": "cd" * 32}}
+        self.assertEqual(list(record_request_pins(record)),
+                         [("$[amp]", "ab" * 32), ("$[ampq]", "cd" * 32)])
 
 
 if __name__ == "__main__":
