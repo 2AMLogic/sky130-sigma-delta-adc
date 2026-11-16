@@ -104,6 +104,18 @@ uvx --from "klayout-tools==$(cat .github/klt-version)" klt signoff \
 
 (`klt signoff` exits 3 while any T1 item is unmet; that is a valid run.)
 
+A manifest `content_hash` pin follows one invariant: a citation declares a
+pin if and only if the cited file carries `provenance.input.content_hash`,
+and then the pin equals it; a `not_applicable` `spec`/`statement` binding
+instead pins the cited file's own sha256. Pins are per-entry claims, not
+unique values — two entries may cite different files that attest the same
+declared input.
+[`manifests/check_content_hashes.py`](manifests/check_content_hashes.py)
+asserts this in CI (issue #155): `klt signoff` grades a pin it cannot
+verify as `unverifiable_provenance` rather than comparing bytes, and while
+an item also fails its own check that refusal never surfaces — so the
+manifest is checked where the files it cites live.
+
 ## Repo layout
 
 ```
