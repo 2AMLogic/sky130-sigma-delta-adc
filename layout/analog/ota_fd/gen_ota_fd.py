@@ -66,19 +66,18 @@ from pathlib import Path
 # run from any working directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, PDK_ROOT_DEFAULT,
-                           PDK_VARIANT, TRACK_PITCH_UM, TRUNK_PITCH_UM,
-                           Anchor, PinError, Rect, RouteError,
-                           Router as RouterBase, WIRE_UM, emit, extract_nets,
-                           klt_pin, nm, parse_extract_devices, recorded_pin,
-                           run, snap)
+from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_MET2,
+                           PDK_ROOT_DEFAULT, PDK_VARIANT, TRACK_PITCH_UM,
+                           TRUNK_PITCH_UM, Anchor, PinError, Rect, RouteError,
+                           Router as RouterBase, WIRE_UM, assert_drc_clean,
+                           emit, extract_nets, klt_pin, nm,
+                           parse_extract_devices, recorded_pin, run, snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
-# The router core's layers (L_MCON/L_MET1/L_VIA) come from layout_common,
+# The router core's layers (L_MCON/L_MET1/L_MET2/L_VIA) come from layout_common,
 # alongside the shared geometry constants it routes with.
 L_LI1 = (67, 20)
 L_MET1_PIN = (68, 5)
-L_MET2 = (69, 20)
 L_VIA2 = (69, 44)
 L_MET3 = (70, 20)
 L_VIA3 = (70, 44)
@@ -255,32 +254,6 @@ EXPECTED_DEVICES = {
     "res_high_po": 1,
     "res_xhigh_po": 2,
 }
-
-
-def assert_drc_clean(drc: dict, report_path: str) -> None:
-    """Raise unless `klt drc` reported a clean verdict.
-
-    `klt drc` already exits 3 on violations; the call site passes
-    ``check=False`` to capture stdout, so the verdict has to be re-read here
-    or it is lost.  Only an explicit ``clean`` with zero violations passes:
-    ``coverage_unknown`` (exit 4 -- the deck resolved no marker layer for a
-    family) is an unverified DRC, not a pass, and ``clean_partial`` arises
-    only from ``--rules`` subsetting, which this generator never passes.  A
-    report with no verdict at all (klt wrote nothing to stdout) has neither
-    field and fails the same way.
-    """
-    status = drc.get("status")
-    violations = drc.get("violation_count")
-    if status == "clean" and violations == 0:
-        return
-    rules = ", ".join(f"{rule}={count}"
-                      for rule, count
-                      in sorted((drc.get("rule_counts") or {}).items())) \
-        or "none reported"
-    raise RuntimeError(
-        f"klt drc status={status!r} violations={violations!r} "
-        f"(expected 'clean'/0): {rules}. Report written to {report_path} "
-        "before this raise; the flow aborts and nothing is emitted.")
 
 
 # --- port expansion -----------------------------------------------------------
@@ -486,10 +459,14 @@ class Router(RouterBase):
     search is needed; met1 is the only layer the greedy search has to keep
     clear, and met3/met4 only carry the MiM risers.  The shared core lives in
     layout_common.Router; the overrides below are the parts this generator
-    does differently -- no per-net shape bookkeeping, the unrestricted column
-    proposal, a 24-column search budget per anchor, and trunks drawn
-    unconditionally.
+    does differently -- bare ``add_met1``/``add_met`` that tag no shape with
+    its net, the unrestricted column proposal, and this cell's own MiM
+    risers.  The met2 search budget is the shared ``connect_met1`` reading
+    ``COL_BUDGET`` (24 here), and ``finish_trunks`` is the shared one (this
+    cell measured zero zero-height trunks, so the shared skip never fires).
     """
+
+    COL_BUDGET = 24
 
     # -- geometry bookkeeping -------------------------------------------------
     def add_met1(self, net: str, rects: list[Rect]) -> None:
@@ -516,39 +493,6 @@ class Router(RouterBase):
         return [c for c in cands if nm(c) not in self.used_cols]
 
     # -- the three ways a net reaches a block ---------------------------------
-    def connect_met1(self, a: Anchor, col_budget: int = 24) -> tuple[float, float]:
-        """Drop a met2 trunk onto this anchor.
-
-        Cheapest first: a column that already lies inside the strap, so the
-        via lands on metal that exists.  Failing that the jog climbs off the
-        strap on a free met1 track (``jog_um`` bounds how far) and reaches
-        sideways -- the freedom a 0.42um-wide S/D pad row needs, where every
-        net sits on the strap's own y and only a different y can get past a
-        neighbour's pad.
-        """
-        cols = self.columns(a.x0, a.x1, a.xmid)[:col_budget]
-        for y in self.jog_tracks(a):
-            for col in cols:
-                if nm(col) in self.used_cols:
-                    continue
-                pad_x = min(a.pad_xs, key=lambda px: (abs(px - col), px))
-                extra: list[Rect] = []
-                if abs(y - a.y) > 1e-9:
-                    extra.append(Rect.vwire(pad_x, a.y, y, WIRE_UM))
-                    if abs(col - pad_x) > 1e-9:
-                        extra.append(Rect.hwire(pad_x, col, y, WIRE_UM))
-                elif not (a.x0 - 1e-9 <= col <= a.x1 + 1e-9):
-                    extra.append(Rect.hwire(min(a.x0, col), max(a.x1, col), y,
-                                            WIRE_UM))
-                if extra and not self.met1_free(a.net, extra):
-                    continue
-                self.reserve_column(col)
-                if extra:
-                    self.add_met1(a.net, extra)
-                self.add_trunk_via(a.net, col, y)
-                return col, y
-        raise RouteError(f"no free met2 column for {a.net} at {a.block} y={a.y}")
-
     def connect_cap3(self, a: Anchor) -> tuple[float, float]:
         x_run = snap(a.x0 + (0.3 if a.port_dir == 180 else -0.3))
         y_drop = snap(a.block_y0 - 1.2)
@@ -599,13 +543,9 @@ class Router(RouterBase):
         return self.connect_cap4(a)
 
     # -- trunk-to-trunk spine --------------------------------------------------
-    # route_spine is the shared base's; only the trunk finish differs here.
-    def finish_trunks(self) -> None:
-        for (net, col), ys in sorted(self.trunk_y.items()):
-            lo, hi = min(ys), max(ys)
-            rect = Rect.vwire(col, lo, hi, WIRE_UM)
-            self.add_shape(L_MET2, rect)
-            self.wire_um[net] += (hi - lo)
+    # route_spine and finish_trunks are both the shared base's now: this cell
+    # drew every trunk unconditionally, but measured (issue #201) to hold zero
+    # zero-height trunks, so the shared zero-height skip never fires here.
 
 
 # --- build --------------------------------------------------------------------

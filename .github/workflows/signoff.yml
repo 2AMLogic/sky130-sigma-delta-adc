@@ -73,10 +73,12 @@ jobs:
       # a pin on a file with no provenance block is a latent blocker it
       # grades unverifiable_provenance (masked while the item also fails its
       # own check; issue #155). This step asserts the repo invariant
-      # directly: a citation declares a pin iff the cited file carries
-      # provenance.input.content_hash and equals it; a not_applicable
-      # spec/statement binding pins the cited file's own sha256. Runs before
-      # the byte-compare below so a violation names the offending key.
+      # directly, in both directions: a citation declares a pin iff the
+      # cited file carries provenance.input.content_hash and equals it --
+      # a missing pin where the file carries one fails too (issue #215);
+      # a not_applicable spec/statement binding pins the cited file's own
+      # sha256. Runs before the byte-compare below so a violation names
+      # the offending key.
       - name: Manifest content-hash pins are verifiable (no EDA tools)
         run: |
           python3 -I -m unittest discover -s manifests -p 'test_check_content_hashes.py'
@@ -163,6 +165,15 @@ jobs:
       - name: Comparator decision record-admission unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'
 
+      # The short full-modulator transient's record-admission gates (issue
+      # #125): a partial grid, a missing measurement, a short per-clock sample
+      # set, a clock that did not run at fs, or two power routes that
+      # disagree must each refuse the record. Also checks the committed deck
+      # and request still match their generator. Fixtures only: no fleet, no
+      # ngspice, no klt.
+      - name: Full-modulator transient record-admission unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s sim/modulator-tran -p 'test_*.py'
+
       # The digital-partition P&R runner's PDK-pin refusal (issue #158): the gate
       # reads the stamp klt records at provenance.pdk.version, so a report whose
       # PDK differs from sim/pdk.json -- or that records no PDK at all -- refuses
@@ -177,6 +188,18 @@ jobs:
       # aborts the flow. Fixtures only: synthetic report dicts, no klt, no PDK.
       - name: Analog generator DRC-verdict guard unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s layout/analog -p 'test_*.py'
+
+      # The shared extracted-netlist parsers in layout/analog/layout_common.py
+      # (issue #191): parse_extract_devices and extract_nets turn `klt extract`
+      # output into the device- and net-count evidence both analog cells commit
+      # (extract-device-count.json), and since #179 nothing else executes them.
+      # The suite asserts the parsers against real captured netlists
+      # (layout/analog/fixtures/) and each cell's committed evidence, and pins
+      # the _symmetric_terminals/_is_model_token predicates -- a regression in
+      # either parser restates that evidence for every analog cell at once.
+      # Fixtures only: no klt, no PDK, no network.
+      - name: Analog extracted-netlist parser unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s layout/analog -p 'test_layout_common.py'
 
       - name: Decimator whole-chain response, spec rows 8-9 (no EDA tools)
         working-directory: verification/decimator
