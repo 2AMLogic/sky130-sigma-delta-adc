@@ -1491,6 +1491,13 @@
     "corners_without_a_bracketed_trip": [
       "sf/1.620V/-40C"
     ],
+    "unbracketed_corner_dispositions": {
+      "sf/1.620V/-40C": {
+        "bracket_failures": ["flip_up", "k_dn", "step_dn"],
+        "disposition": "spec/decisions/DR-007-comparator-trip-bracketing.md",
+        "probe": "sim/comparator-decision/trip-probe-i150.json"
+      }
+    },
     "kickback": {
       "corner": "sf/1.620V/-40C",
       "note": "Peak deviation of each node from the value it holds through the same phi1, at the binding decision-time corner. This is the whole disturbance across the phi1 edge: the integrator's own phi2 -> phi1 switch transition (symmetric, so it shows up in the single-ended numbers and cancels in the differential ones) superposed on the comparator's kickback (driven by its input pair, so it scales with the differential). The two sampled clocks have different differentials, so the record carries the evidence for that split rather than asserting it. Reported as a number; NO pass limit is invented for it. The sibling's own ratified 5 mV row is against its bench -- ideal sources through 1 kOhm, a different open_pdks pin -- not this loading, so it is context and not a limit here.",

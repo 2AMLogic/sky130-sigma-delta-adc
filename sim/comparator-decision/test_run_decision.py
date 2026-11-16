@@ -20,7 +20,11 @@ What is pinned here:
   writes no record;
 - that the staircase the bench actually generates brackets the trip point,
   steps by the designed amount, and never asks for a decision on an exactly
-  zero differential (which would be a metastable bench artefact).
+  zero differential (which would be a metastable bench artefact);
+- that an unbracketed corner reports WHICH bracket grounds it failed
+  (`bracket_failures`), that a corner bracketed only by the sweep's own edge
+  (margin 0) still counts, and that 44/45 bracketed corners keep the record
+  at `pass = false`.
 """
 import contextlib
 import io
@@ -142,6 +146,31 @@ class DerivationCase(unittest.TestCase):
             c = trip_corner()
             c[key] = bad
             self.assertFalse(RUNNER.bracketed(c), f"{key}={bad} should not bracket")
+
+    def test_bracket_failures_is_empty_exactly_when_bracketed(self):
+        self.assertEqual(RUNNER.bracket_failures(trip_corner()), [])
+        base = trip_corner()
+        for key, bad in (("flip_up", 0.0), ("flip_dn", 0.0),
+                         ("k_up", MR.TRIP_UP_FIRST), ("k_dn", MR.TRIP_DN_LAST + 1),
+                         ("step_up", -5e-4), ("step_dn", +5e-4),
+                         ("span_up", None), ("span_dn", +4e-3)):
+            c = dict(base)
+            c[key] = bad
+            self.assertEqual(RUNNER.bracket_failures(c) != [], not RUNNER.bracketed(c),
+                             f"{key}={bad}: the two derivations must agree")
+
+    def test_bracket_failures_names_all_three_grounds_of_the_failing_corner(self):
+        # sf/1.620V/-40C on the 2026-11-13 grid, rebuilt from the committed
+        # record's variants.trip.corners: one never-high decision produces
+        # three grounds at once -- flip_up absent, the sentinel k_dn a full
+        # clock below the falling window, and step_dn carrying the rising
+        # step's sign. A bare False hides which part of the sweep broke.
+        c = trip_corner(up=-1.4096e-3, dn=-1.4096e-3, step=576.439e-6)
+        c.update({"flip_up": 0.0, "flip_dn": 1.0, "k_up": 12, "k_dn": 12,
+                  "step_dn": 576.439e-6,
+                  "span_up": 5.499276e-3, "span_dn": -1.505453e-3})
+        self.assertEqual(RUNNER.bracket_failures(c), ["flip_up", "k_dn", "step_dn"])
+        self.assertFalse(RUNNER.bracketed(c))
 
     def test_bracketed_accepts_the_corner_the_old_criterion_prose_misdescribed(self):
         # ss/1.620V/-40C on the 2026-11-13 grid: both spans clear the
@@ -490,6 +519,54 @@ class RunnerCase(unittest.TestCase):
         self.assertFalse(d["per_corner"]["sf/1.620V/-40C"]["bracketed"])
         # ... but its raw numbers are still in the record
         self.assertEqual(d["per_corner"]["sf/1.620V/-40C"]["v_trip_up_V"], -5e-3)
+
+    def test_a_corner_failing_all_three_bracket_grounds_sets_no_headline(self):
+        # The issue-150 corner fails not only flip_up: its k_dn sits a full
+        # clock below the falling window and its step_dn carries the rising
+        # step's sign -- all three downstream of one never-high decision.
+        # Excluded all the same, named with its grounds, and 44/45 is still
+        # a failing record.
+        trip = grid(trip_corner)
+        bad = trip_corner(up=-1.4096e-3, dn=-1.4096e-3, step=576.439e-6)
+        bad.update({"flip_up": 0.0, "flip_dn": 1.0, "k_up": 12, "k_dn": 12,
+                    "step_dn": 576.439e-6,
+                    "span_up": 5.499276e-3, "span_dn": -1.505453e-3})
+        trip["sf/1.620V/-40C"] = bad
+        rc, out = self.run_main({"loop": grid(loop_corner), "trip": trip},
+                                ["--record"], status="fail")
+        self.assertEqual(rc, 1, out)
+        rec = json.loads((self.here / "record.json").read_text())
+        self.assertFalse(rec["pass"])
+        d = rec["derived"]
+        self.assertEqual(d["corners_without_a_bracketed_trip"], ["sf/1.620V/-40C"])
+        self.assertEqual(d["bracketed_corner_count"], GRID_POINTS - 1)
+        pc = d["per_corner"]["sf/1.620V/-40C"]
+        self.assertFalse(pc["bracketed"])
+        self.assertEqual(pc["bracket_failures"], ["flip_up", "k_dn", "step_dn"])
+        self.assertEqual(d["unbracketed_corner_dispositions"],
+                         {"sf/1.620V/-40C": {"bracket_failures":
+                                             ["flip_up", "k_dn", "step_dn"]}})
+        self.assertNotEqual(d["comparator_offset"]["binding_corner"],
+                            "sf/1.620V/-40C")
+        self.assertNotEqual(d["comparator_hysteresis"]["binding_corner"],
+                            "sf/1.620V/-40C")
+
+    def test_a_margin_zero_corner_brackets_and_can_set_the_headline(self):
+        # Bracketed only by the sweep's own edge is still bracketed: the gate
+        # is k strictly inside [first+1, last], and margin 0 is a legal
+        # answer -- it must not be excluded for sitting on the boundary.
+        trip = grid(trip_corner)
+        edge = trip_corner()
+        edge.update({"k_up": MR.TRIP_UP_LAST, "k_dn": MR.TRIP_DN_LAST})
+        trip["ss/1.620V/-40C"] = edge
+        rc, out = self.run_main({"loop": grid(loop_corner), "trip": trip},
+                                ["--record"])
+        self.assertEqual(rc, 0, out)
+        d = json.loads((self.here / "record.json").read_text())["derived"]
+        self.assertTrue(d["per_corner"]["ss/1.620V/-40C"]["bracketed"])
+        self.assertEqual(d["bracketed_corner_count"], GRID_POINTS)
+        self.assertEqual(d["per_corner"]["ss/1.620V/-40C"]["bracket_margin_clocks"],
+                         {"up": 0, "dn": 0})
 
     def test_pass_is_reported_per_claim_as_well_as_overall(self):
         loop = grid(loop_corner)

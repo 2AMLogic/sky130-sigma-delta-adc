@@ -23,6 +23,9 @@ delta-sigma ADC.
   - [DR-006 corrigendum 01](decisions/DR-006-corrigendum-01.md) — corrects
     DR-006's stale Consequences bullet about `record.json` predating the gap
     line; DR-006's Decision is unchanged
+  - [DR-007](decisions/DR-007-comparator-trip-bracketing.md) — the comparator
+    offset is not separately bracketable at `sf`/1.620 V/−40 °C; one-sided
+    simulated bound
 
 Pinned sibling references live in [`../reuse.lock.json`](../reuse.lock.json).
 
