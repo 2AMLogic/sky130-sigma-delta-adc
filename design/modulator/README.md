@@ -9,15 +9,15 @@ differential input, `bs` the bitstream, `clk` the 5.12 MHz modulator clock.
 `bs` swings `vssa`..`vdda`; level shifting to `VDDD` for the decimator is not
 in this block.
 
-## Structure against model B (`sim/bmodel/model.py:41-42`, `C1 = C2 = 0.5`)
+## Structure against model B (`sim/bmodel/model.py`, `C1 = C2 = 0.3`, DR-007)
 
-Model B: `x1[n+1] = x1[n] + 0.5*(u[n] - y[n])`, `x2[n+1] = x2[n] + 0.5*(x1[n] - y[n])`,
+Model B: `x1[n+1] = x1[n] + 0.3*(u[n] - y[n])`, `x2[n+1] = x2[n] + 0.3*(x1[n] - y[n])`,
 `y[n] = sign(x2[n])`.
 
 | Model B | Here |
 |---|---|
-| integrator 1, coefficient 0.5, input `u` and feedback `y` | `xi1`, the `design/integrator` cell (`Cs/Ci` = 0.5), inputs `vinp`/`vinn`, DAC `dp`/`dn` |
-| integrator 2, coefficient 0.5, input `x1` and feedback `y` | `xi2`, the same cell, inputs `o1p`/`o1n`, same `dp`/`dn` |
+| integrator 1, coefficient 0.3, input `u` and feedback `y` | `xi1`, the `design/integrator` cell (`Cs/Ci` = 0.3), inputs `vinp`/`vinn`, DAC `dp`/`dn` |
+| integrator 2, coefficient 0.3, input `x1` and feedback `y` | `xi2`, the same cell, inputs `o1p`/`o1n`, same `dp`/`dn` |
 | delaying integrators | one sample-then-integrate step per clock in each cell |
 | feedback of `y` to **both** integrators | `dp`/`dn` wired to both `xi1` and `xi2` |
 | `y = sign(x2)` | `xcmp` on `o2p`/`o2n`, then an SR latch |

@@ -1,0 +1,115 @@
+{
+  "source": "B",
+  "result_kind": "simulated (behavioural model B, uncross-checked)",
+  "corner": "none (ideal parameters)",
+  "cross_check": "none (ideal parameters)",
+  "record_len": 65536,
+  "window": "Blackman-Harris 4-term",
+  "bin_bw_hz": 1.2207403790398876,
+  "band_hz": [
+    0,
+    20000.0
+  ],
+  "excluded_bins": {
+    "dc": [
+      0,
+      4
+    ],
+    "tone_lobe": [
+      1635,
+      1643
+    ]
+  },
+  "band_edge_bin": 16384,
+  "enbw_bins": 2.0043529382170466,
+  "tone_cycles": 1639,
+  "tone_hz": 2000.732421875,
+  "amplitude_dbfs": -6,
+  "peak_sndr_db": 83.33916700044912,
+  "peak_at_sweep_ceiling": true,
+  "sweep": [
+    {
+      "amplitude_dbfs": -60,
+      "sndr_db": 25.604497637080193
+    },
+    {
+      "amplitude_dbfs": -50,
+      "sndr_db": 33.27671988416243
+    },
+    {
+      "amplitude_dbfs": -40,
+      "sndr_db": 48.52392288292057
+    },
+    {
+      "amplitude_dbfs": -30,
+      "sndr_db": 58.806830541057806
+    },
+    {
+      "amplitude_dbfs": -24,
+      "sndr_db": 64.99414617871372
+    },
+    {
+      "amplitude_dbfs": -18,
+      "sndr_db": 70.76624575074271
+    },
+    {
+      "amplitude_dbfs": -14,
+      "sndr_db": 75.4931397547786
+    },
+    {
+      "amplitude_dbfs": -12,
+      "sndr_db": 77.29337030374639
+    },
+    {
+      "amplitude_dbfs": -10,
+      "sndr_db": 79.45506405558336
+    },
+    {
+      "amplitude_dbfs": -8,
+      "sndr_db": 81.67011537791794
+    },
+    {
+      "amplitude_dbfs": -7,
+      "sndr_db": 82.16769954154644
+    },
+    {
+      "amplitude_dbfs": -6,
+      "sndr_db": 83.33916700044912
+    }
+  ],
+  "oversampling_ratio": 128,
+  "fs_hz": 5120000.0,
+  "fout_hz": 80000.0,
+  "decimation": {
+    "filter": "sinc^3 float64",
+    "factor": 64
+  },
+  "modulator_clocks": 4194304,
+  "warmup_clocks_discarded": 512,
+  "loop": {
+    "a1": 0.3,
+    "a2": 0.3,
+    "feedback_to_integrator_2": 1.0,
+    "structure": "delaying integrators"
+  },
+  "params": {
+    "dc_gain": null,
+    "settling_error": 0.0,
+    "ci_offset": 0.0,
+    "ci_gain_error": 0.0,
+    "ktc_noise_var": 0.0,
+    "comparator_offset": 0.0,
+    "comparator_hysteresis": 0.0,
+    "jitter_rms_s": 0.0,
+    "seed": 1
+  },
+  "params_sha256": "f8b2fa44f7ab91cbffac235018d883bd5baca7b7c03269f392980945a1249811",
+  "numpy": "1.26.4",
+  "git_commit": "6914b93f8d9a93769d2534bac9ec8e8fb146dabb",
+  "git_dirty": false,
+  "code_sha256": {
+    "sim/bmodel/model.py": "27f171667ebd013e50332da3e37bdbfbd281c0905d8ec6ef2f5a940a5c83861e",
+    "sim/bmodel/sndr.py": "afc75b3a312443aee5a1f819fcf8f2bcf31429f74cbba34f75cc97d47b7e33ef",
+    "sim/bmodel/run.py": "6f51b30618fc610c3b3ed2c0ce7d97b5955f1c88eec23f1e72cfbc0e5869e58a"
+  }
+}
