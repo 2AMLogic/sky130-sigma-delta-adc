@@ -27,6 +27,11 @@ delta-sigma ADC.
     timing corners are the ten shipped `sky130_fd_sc_hd` liberty corners; the
     other 35 DR-002 points are a declared gap and the block-boundary I/O
     budget is the assembled top's
+  - [DR-008 corrigendum 01](decisions/DR-008-corrigendum-01.md) — records
+    that DR-008's first `klt characterize` ground holds at the 0.8.0 pin but
+    its combinational-arcs clause does not at klt 0.9.x, and adds the
+    missing klt-pin reopen trigger on `.github/klt-version`; DR-008's
+    Decision is unchanged
 
 Pinned sibling references live in [`../reuse.lock.json`](../reuse.lock.json).
 
