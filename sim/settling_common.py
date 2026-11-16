@@ -3,15 +3,23 @@
 Used by ota-settling, integrator-settling, integrator-ci, ota-gain,
 integrator-noise and comparator-decision. Toolchain only:
 submits a `klt sim` request, parses the report into per-corner measurements,
-summarizes it, and builds the common DR-002 request. Each bench keeps its own
-fixture, measurements and record metadata.
+summarizes it, and builds the common DR-002 request. The `.partials/` cache
+(`shas`/`load_partial`/`save_partial`) is a record-admission gate like the
+other two (`grid_complete`/`measurements_present`), so it lives here too: a
+partial produced by a different request or deck must never reach a record.
+Each bench keeps its own fixture, measurements and record metadata.
 
 The measurement-key list and the admission sentinel are per bench: the
 settling benches' defaults (`KEYS`, `err_phase`) are the historical ones, and
 `run_klt`/`summarize`/`measurements_present` take `keys=`/`key=` overrides for
 a bench that measures something else (issue #102).
+
+`join_continuations` and `ngspice_version` are here for the same reason: they
+are toolchain, not bench content, and the local single-corner probe runners
+(`integrator-settling/run_diag.py`, `integrator-settling/run_variants.py`,
+`switch-probe/run_probe.py`, `integrator-ci/run_ci.py`) each need them.
 """
-import hashlib, json, pathlib, shutil, subprocess, sys
+import hashlib, json, pathlib, re, shutil, subprocess, sys
 
 GRID_POINTS = 45  # DR-002 full grid: 5 process x 3 T x 3 Vdda
 
@@ -42,6 +50,76 @@ def sha256(p):
     return hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
 
 
+def shas(request_path, deck_path):
+    """The two-key sha dict stamped into a result and re-checked on reload."""
+    return {"request_sha256": sha256(request_path),
+            "deck_sha256": sha256(deck_path)}
+
+
+def load_partial(path, expected_shas):
+    """The cached partial at `path`, if it matches `expected_shas`, else None.
+
+    A record-admission gate beside `grid_complete`/`measurements_present`: a
+    partial produced by a different request or deck is silently stale
+    evidence, so a sha mismatch (or an unparseable file) is dropped with a
+    NOTE on stderr, never returned.
+    """
+    p = pathlib.Path(path)
+    if not p.exists():
+        return None
+    try:
+        d = json.loads(p.read_text())
+    except ValueError:
+        return None
+    if {k: d.get(k) for k in expected_shas} != expected_shas:
+        print(f"NOTE: ignoring stale .partials/{p.name} (request or deck changed since it ran)",
+              file=sys.stderr)
+        return None
+    return d
+
+
+def save_partial(path, result):
+    p = pathlib.Path(path)
+    p.parent.mkdir(exist_ok=True)
+    p.write_text(json.dumps(result, indent=2) + "\n")
+
+
+def join_continuations(text):
+    """Fold SPICE `+` continuation lines into the logical line they continue.
+
+    Returns the logical lines in file order; each folded `+` contributes its
+    text with the `+` stripped and a single space in front. A `+` line with
+    nothing before it has no line to fold into, so it is kept as it stands.
+
+    Shared because every runner that reads a netlist as text needs it before
+    it can match an instance line: `klt netlist` wraps long device lines, so a
+    plain `splitlines()` splits W/L off the instance that declares them.
+    """
+    out, cur = [], None
+    for ln in text.splitlines():
+        if ln.startswith("+") and cur is not None:
+            cur += " " + ln[1:].strip()
+        else:
+            if cur is not None:
+                out.append(cur)
+            cur = ln
+    if cur is not None:
+        out.append(cur)
+    return out
+
+
+def ngspice_version():
+    """Return e.g. 'ngspice-47', or 'unknown'.
+
+    `ngspice -v` line 1 is the banner's '******' rule, not the version, so
+    match the version token anywhere in the output (same convention as
+    sim/smoke/run_smoke.py and sim/ota-op-smoke/run_op.py).
+    """
+    m = re.search(r"ngspice-\d+",
+                  subprocess.run(["ngspice", "-v"], capture_output=True, text=True).stdout)
+    return m.group(0) if m else "unknown"
+
+
 def pdk_stamp(variant, pdk_root):
     if pdk_root:
         root = pathlib.Path(pdk_root).expanduser()
@@ -66,6 +144,20 @@ def anchor_units(process_map=None):
     m = process_map or {}
     return [{"process": m.get(p, p), "supply_v": {"vdda": v}, "temperature_c": t}
             for p, v, t in ANCHOR_POINTS]
+
+
+def measurement(name, expr, unit=None, limits=None):
+    """One entry of a request's `measurements` list.
+
+    Hoisted from the six benches' identical local `e()` (issue #185); callers
+    import it aliased as `e` so their measurement lists keep their spelling.
+    """
+    m = {"name": name, "expr": expr}
+    if unit:
+        m["unit"] = unit
+    if limits:
+        m["limits"] = limits
+    return m
 
 
 def request(deck, measurements, t_end=None, timeout_s=None, poll_timeout_s=None, *,

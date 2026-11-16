@@ -63,11 +63,21 @@ import argparse
 import hashlib
 import json
 import shutil
-import subprocess
 import sys
 import tempfile
-from collections import Counter, defaultdict
+import time
+from collections import defaultdict
 from pathlib import Path
+
+# layout_common is the shared plumbing module one directory up (issue #176);
+# the path insert is what lets
+# `python3 layout/analog/integrator/gen_integrator.py` run from any working
+# directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from layout_common import (DBU, GRID_UM, PDK_ROOT_DEFAULT, PDK_VARIANT,
+                           PinError, emit, extract_nets, klt_pin, nm,
+                           parse_extract_devices, recorded_pin, run, snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
 L_LI1 = (67, 20)
@@ -85,8 +95,7 @@ L_LVTN = (125, 44)
 # --- rule-derived geometry (sky130 deck minimums plus margin) -----------------
 # Identical to the sibling OTA generator's table; see
 # layout/analog/ota_fd/gen_ota_fd.py for the per-constant derivation.
-DBU = 1000
-GRID_UM = 0.005          # manufacturing grid (*.ongrid.1)
+# DBU/GRID_UM come from layout_common, alongside nm/snap which use them.
 MCON_UM = 0.17           # ct.1 exact size
 VIA_UM = 0.15            # via.1a exact size
 VIA2_UM = 0.20           # via2.1a exact size
@@ -131,8 +140,6 @@ BUCKET_NM = 2000         # y bucket for the met1 overlap index
 LVTN_ENCLOSE_UM = 0.38
 
 # --- PDK pin (mirrors sim/pdk.json) -------------------------------------------
-PDK_VARIANT = "sky130A"
-PDK_ROOT_DEFAULT = "~/.ciel"
 TOP_CELL = "integrator"
 
 # --- the instantiated OTA cell (#118) -----------------------------------------
@@ -423,15 +430,6 @@ EXPECTED_DEVICES = {
 EXPECTED_FLAVOUR_BLIND = {"nfet": 21, "pfet": 17, "cap_mim": 6}
 
 
-def nm(value_um: float) -> int:
-    return int(round(value_um * DBU))
-
-
-def snap(value_um: float) -> float:
-    """Round onto the PDK manufacturing grid (*.ongrid.1)."""
-    return round(round(value_um / GRID_UM) * GRID_UM, 6)
-
-
 def sha256_of(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -474,13 +472,30 @@ class RouteError(RuntimeError):
     """The floorplan/router could not place a wire."""
 
 
-def run(cmd: list[str], cwd: Path | None = None, check: bool = True):
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
-    if check and result.returncode != 0:
-        raise RuntimeError(
-            f"command failed (rc={result.returncode}): {' '.join(cmd)}\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
-    return result
+def assert_drc_clean(drc: dict, report_path: str) -> None:
+    """Raise unless `klt drc` reported a clean verdict.
+
+    `klt drc` already exits 3 on violations; the call site passes
+    ``check=False`` to capture stdout, so the verdict has to be re-read here
+    or it is lost.  Only an explicit ``clean`` with zero violations passes:
+    ``coverage_unknown`` (exit 4 -- the deck resolved no marker layer for a
+    family) is an unverified DRC, not a pass, and ``clean_partial`` arises
+    only from ``--rules`` subsetting, which this generator never passes.  A
+    report with no verdict at all (klt wrote nothing to stdout) has neither
+    field and fails the same way.
+    """
+    status = drc.get("status")
+    violations = drc.get("violation_count")
+    if status == "clean" and violations == 0:
+        return
+    rules = ", ".join(f"{rule}={count}"
+                      for rule, count
+                      in sorted((drc.get("rule_counts") or {}).items())) \
+        or "none reported"
+    raise RuntimeError(
+        f"klt drc status={status!r} violations={violations!r} "
+        f"(expected 'clean'/0): {rules}. Report written to {report_path} "
+        "before this raise; the flow aborts and nothing is emitted.")
 
 
 # --- orientation --------------------------------------------------------------
@@ -576,13 +591,13 @@ def port_nets_of(block: Block) -> dict[str, str]:
     return {prefix + suffix: net for suffix, net in sorted(block.nets.items())}
 
 
-def gen_geometries(klt: str, pdk_args: list[str], out_dir: Path,
+def gen_geometries(klt_cmd: list[str], pdk_args: list[str], out_dir: Path,
                    wanted: list[str]) -> dict[str, dict]:
     """One `klt gen` call per distinct geometry, keyed by its id."""
     reports: dict[str, dict] = {}
     for key in sorted(wanted):
         generator, params = GEOMETRIES[key]
-        r = run([klt, "gen", generator, "--params", json.dumps(params, sort_keys=True)]
+        r = run([*klt_cmd, "gen", generator, "--params", json.dumps(params, sort_keys=True)]
                 + pdk_args + ["--cell-name", key.upper(), "-o", f"{key}.gds",
                               "--format", "json"], cwd=out_dir)
         report = json.loads(r.stdout)
@@ -593,11 +608,11 @@ def gen_geometries(klt: str, pdk_args: list[str], out_dir: Path,
     return reports
 
 
-def gen_rings(klt: str, pdk_args: list[str], out_dir: Path,
+def gen_rings(klt_cmd: list[str], pdk_args: list[str], out_dir: Path,
               ring_params: dict[str, dict]) -> dict[str, dict]:
     reports: dict[str, dict] = {}
     for ring_id in sorted(ring_params):
-        r = run([klt, "gen", "guard_ring", "--params",
+        r = run([*klt_cmd, "gen", "guard_ring", "--params",
                  json.dumps(ring_params[ring_id], sort_keys=True)]
                 + pdk_args + ["--cell-name", ring_id.upper(), "-o", f"{ring_id}.gds",
                               "--format", "json"], cwd=out_dir)
@@ -998,7 +1013,7 @@ class Router:
                                             WIRE_UM))
                 if extra and not self.met1_free(a.net, extra):
                     continue
-                self.used_cols.add(nm(col))
+                self.reserve_column(col)
                 if extra:
                     self.add_met1(a.net, extra)
                 self.add_trunk_via(a.net, col, y)
@@ -1399,7 +1414,9 @@ def build(blocks: dict[str, Block], ota: dict, axis_y: float, ota_x: float):
         "ota_origin_x_um": ota_x,
         "block_origins_um": {b: dict(blocks[b].origin) for b in sorted(blocks)},
         "block_orientation": {b: blocks[b].orientation for b in sorted(blocks)},
-        "met2_columns": len(router.used_cols),
+        # used_cols holds trunks plus the MiM risers' ±1-pitch keep-outs, so
+        # this counts reserved columns, not columns that carry a met2 trunk.
+        "met2_columns_reserved": len(router.used_cols),
         "lvtn_markers": [r.as_um() for r in markers],
         "nets": summary,
     }
@@ -1407,57 +1424,6 @@ def build(blocks: dict[str, Block], ota: dict, axis_y: float, ota_x: float):
 
 
 # --- device-count evidence ----------------------------------------------------
-def _symmetric_terminals(terminals: tuple[str, ...]) -> tuple[str, ...]:
-    """Normalise a device's terminal order over the terminals it is symmetric
-    in: a MOSFET's source and drain are interchangeable and alternate finger by
-    finger, so without this a 4-finger device counts as two."""
-    if len(terminals) == 4:          # D G S B
-        d, g, src, b = terminals
-        lo, hi = sorted((d, src))
-        return (lo, g, hi, b)
-    if len(terminals) == 3:          # A B bulk (res)
-        a, b, bulk = terminals
-        lo, hi = sorted((a, b))
-        return (lo, hi, bulk)
-    return tuple(sorted(terminals))  # 2-terminal (cap)
-
-
-def parse_extract_devices(netlist_text: str) -> tuple[Counter, Counter]:
-    """Count extracted devices by model, and by model with parallel same-net
-    devices merged (what an LVS combine-parallel-devices pass does)."""
-    raw: Counter = Counter()
-    groups: set[tuple[str, tuple[str, ...]]] = set()
-    for line in netlist_text.splitlines():
-        tok = line.split()
-        if not tok or not tok[0].startswith("X"):
-            continue
-        model = next((t for t in tok if t.startswith("sky130_fd_pr__")
-                      or t in ("nfet", "pfet")), None)
-        if model is None:
-            continue
-        terminals = tuple(tok[1:tok.index(model)])
-        raw[model] += 1
-        groups.add((model, _symmetric_terminals(terminals)))
-    combined: Counter = Counter()
-    for model, _terminals in groups:
-        combined[model] += 1
-    return raw, combined
-
-
-def extract_nets(netlist_text: str) -> list[str]:
-    nets: set[str] = set()
-    for line in netlist_text.splitlines():
-        tok = line.split()
-        if not tok or not tok[0].startswith("X"):
-            continue
-        model = next((t for t in tok if t.startswith("sky130_fd_pr__")
-                      or t in ("nfet", "pfet")), None)
-        if model is None:
-            continue
-        nets.update(tok[1:tok.index(model)])
-    return sorted(nets)
-
-
 def extracted_pins(netlist_text: str) -> list[list[str]]:
     """The extracted pin list, one entry per *pin*, each a list of the label
     texts that resolved to it.
@@ -1486,22 +1452,6 @@ def flavour_blind(counts: dict[str, int]) -> dict[str, int]:
 
 
 # --- flow ---------------------------------------------------------------------
-def klt_pin(klt: str) -> dict:
-    """The exact klt build, recorded with the evidence: the stream is
-    byte-reproducible at *this* build, so the reader has to be told which."""
-    r = run([klt, "version", "--format", "json"], check=False)
-    try:
-        d = json.loads(r.stdout)
-    except Exception:
-        return {"klt": "unknown"}
-    return {
-        "klt": d.get("version"),
-        "git_commit": d.get("git_commit"),
-        "reinstall_spec": d.get("reinstall_spec"),
-        "klayout": d.get("klayout_version"),
-    }
-
-
 def _ota_access(grid_um: float) -> dict:
     """One `ports_from_labels` `access` block.
 
@@ -1528,7 +1478,7 @@ def translate_ota(probe: dict, origin: dict) -> dict:
     }
 
 
-def ota_port_report(klt: str, pdk_args: list[str], out_dir: Path,
+def ota_port_report(klt_cmd: list[str], pdk_args: list[str], out_dir: Path,
                     ota_gds: Path) -> dict:
     """Place the OTA on its own and recover its eight ports' landing points.
 
@@ -1562,7 +1512,7 @@ def ota_port_report(klt: str, pdk_args: list[str], out_dir: Path,
         "options": {"cell_name": "ota_probe", "output": "ota_probe.gds"},
     }
     (out_dir / "ota-ports.request.json").write_text(json.dumps(request, indent=2) + "\n")
-    r = run([klt, "gen-compose", "ota-ports.request.json", "--format", "json"],
+    r = run([*klt_cmd, "gen-compose", "ota-ports.request.json", "--format", "json"],
             cwd=out_dir)
     report = json.loads(r.stdout)
     if report.get("error"):
@@ -1582,8 +1532,8 @@ def ota_port_report(klt: str, pdk_args: list[str], out_dir: Path,
             "source_digest": block["source_digest"]}
 
 
-def check_orientation_agrees(klt: str, pdk_args: list[str], out_dir: Path,
-                             reports: dict[str, dict]) -> None:
+def check_orientation_agrees(klt_cmd: list[str], pdk_args: list[str],
+                             out_dir: Path, reports: dict[str, dict]) -> None:
     """Assert this script's own orientation maths matches `klt gen-compose`'s.
 
     The floorplan places mirrored blocks by transforming their reported bbox
@@ -1606,7 +1556,7 @@ def check_orientation_agrees(klt: str, pdk_args: list[str], out_dir: Path,
         "options": {"cell_name": "orient_probe", "output": "orient_probe.gds"},
     }
     (out_dir / "orient.request.json").write_text(json.dumps(request, indent=2) + "\n")
-    r = run([klt, "gen-compose", "orient.request.json", "--format", "json"],
+    r = run([*klt_cmd, "gen-compose", "orient.request.json", "--format", "json"],
             cwd=out_dir)
     report = json.loads(r.stdout)
     if report.get("error"):
@@ -1626,7 +1576,7 @@ def check_orientation_agrees(klt: str, pdk_args: list[str], out_dir: Path,
                     f"klt gen-compose placed {got}")
 
 
-def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
+def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path, cell_dir: Path,
          verbose: bool = True) -> dict:
     pdk_args = ["--pdk", PDK_VARIANT, "--pdk-root", str(pdk_root)]
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1654,8 +1604,8 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
     # -- 1. devices ------------------------------------------------------------
     say("[1/7] klt gen device geometries")
     wanted = sorted({g for g, _n in DEVICES.values()})
-    reports = gen_geometries(klt, pdk_args, out_dir, wanted)
-    check_orientation_agrees(klt, pdk_args, out_dir, reports)
+    reports = gen_geometries(klt_cmd, pdk_args, out_dir, wanted)
+    check_orientation_agrees(klt_cmd, pdk_args, out_dir, reports)
 
     # -- 2. floorplan ----------------------------------------------------------
     say("[2/7] floorplan + body-tie rings + OTA placement")
@@ -1666,7 +1616,7 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
         params, origin = ring_request(extents, ring_id)
         params_by_ring[ring_id] = params
         origins_by_ring[ring_id] = origin
-    ring_reports = gen_rings(klt, pdk_args, out_dir, params_by_ring)
+    ring_reports = gen_rings(klt_cmd, pdk_args, out_dir, params_by_ring)
     for ring_id in sorted(RINGS):
         block = Block(ring_id, ring_id, "none", {"TAP": RINGS[ring_id][1]},
                       is_ring=True)
@@ -1679,7 +1629,7 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
     # composed one, so the probe is run once at the origin and this script
     # translates -- which is also what lets the axis be chosen from the same
     # report that supplies the landing points.
-    probe = ota_port_report(klt, pdk_args, out_dir, ota_gds)
+    probe = ota_port_report(klt_cmd, pdk_args, out_dir, ota_gds)
     label_ys = {p["name"]: p["label_um"]["y"] for p in probe["ports"]}
     axis_in_ota = sum(label_ys[n] for n in OTA_AXIS_LABELS) / len(OTA_AXIS_LABELS)
     ota_origin = {"x": snap(ota_x), "y": snap(axis_y - axis_in_ota)}
@@ -1700,12 +1650,12 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
     (out_dir / "route.summary.json").write_text(
         json.dumps(route_summary, indent=2) + "\n")
     say(f"  {len(draw_params['shapes'])} routing shapes, "
-        f"{route_summary['met2_columns']} met2 columns, "
+        f"{route_summary['met2_columns_reserved']} met2 columns reserved, "
         f"{len(route_summary['lvtn_markers'])} lvtn markers")
 
     # -- 4. draw + compose -----------------------------------------------------
     say("[4/7] klt draw (routing + lvtn cell) + klt gen-compose (explicit placement)")
-    r = run([klt, "draw", "--params", "draw.request.json", "--cell-name", "ROUTE",
+    r = run([*klt_cmd, "draw", "--params", "draw.request.json", "--cell-name", "ROUTE",
              "-o", "route.gds", "--format", "json"], cwd=out_dir)
     (out_dir / "draw.json").write_text(r.stdout)
     order = sorted(b for b in blocks) + ["ota", "route"]
@@ -1734,26 +1684,27 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
     }
     (out_dir / "compose.request.json").write_text(
         json.dumps(compose_request, indent=2) + "\n")
-    run([klt, "gen-compose", "compose.request.json", "--format", "json"], cwd=out_dir)
+    run([*klt_cmd, "gen-compose", "compose.request.json", "--format", "json"], cwd=out_dir)
     gds = out_dir / f"{TOP_CELL}.gds"
     if not gds.exists():
         raise RuntimeError(f"gen-compose did not write {gds}")
 
     # -- 5. drc ----------------------------------------------------------------
     say("[5/7] klt drc (sky130 deck)")
-    r = run([klt, "drc", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
+    r = run([*klt_cmd, "drc", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
             + pdk_args + ["--format", "json"], cwd=out_dir, check=False)
     drc = json.loads(r.stdout) if r.stdout.strip() else {"error": r.stderr}
     (out_dir / "drc.report.json").write_text(json.dumps(drc, indent=2) + "\n")
+    assert_drc_clean(drc, str(out_dir / "drc.report.json"))
     say(f"  drc: status={drc.get('status')!r} violations={drc.get('violation_count')}")
 
     # -- 6. extract: this cell, and the OTA alone to subtract ------------------
     say("[6/7] klt extract (device-count evidence)")
-    run([klt, "extract", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
+    run([*klt_cmd, "extract", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
         + pdk_args + ["-o", f"{TOP_CELL}.extract.spice", "--format", "json"],
         cwd=out_dir)
     whole = (out_dir / f"{TOP_CELL}.extract.spice").read_text()
-    run([klt, "extract", str(ota_gds), "--deck", "sky130", "--top", OTA_CELL]
+    run([*klt_cmd, "extract", str(ota_gds), "--deck", "sky130", "--top", OTA_CELL]
         + pdk_args + ["-o", "ota_only.extract.spice", "--format", "json"],
         cwd=out_dir)
     ota_only = (out_dir / "ota_only.extract.spice").read_text()
@@ -1786,7 +1737,7 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
         + [["inp"], ["inn"], ["outp", "voutp"], ["outn", "voutn"]])
 
     evidence = {
-        "tool": {**klt_pin(klt), "deck": "sky130", "top_cell": TOP_CELL,
+        "tool": {**klt_pin(klt_cmd), "deck": "sky130", "top_cell": TOP_CELL,
                  "pdk": PDK_VARIANT,
                  "pdk_sources": "open_pdks f6eeac7 (sim/pdk.json)"},
         "reference_netlist": "design/integrator/integrator.spice",
@@ -1875,20 +1826,16 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
     return {"drc": drc, "extract": evidence, "route": route_summary}
 
 
-def emit(out_dir: Path, cell_dir: Path) -> None:
-    shutil.copyfile(out_dir / f"{TOP_CELL}.gds", cell_dir / f"{TOP_CELL}.gds")
-    for name in ("extract-device-count.json", "drc.report.json"):
-        shutil.copyfile(out_dir / name, cell_dir / name)
-    shutil.copyfile(out_dir / "route.summary.json", cell_dir / "route-summary.json")
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Generate and verify layout/analog/integrator/integrator.gds "
                     "and its committed evidence; see this directory's README.md.")
     parser.add_argument("--check", action="store_true",
                         help="regenerate into a temp dir and byte-compare the "
-                             "GDS against the committed stream; write nothing")
+                             "GDS against the committed stream, evaluated at "
+                             "the klt build and klayout version recorded in "
+                             "drc.report.json; write nothing. Exit 0 pass, "
+                             "1 geometry regression, 2 cannot verify")
     parser.add_argument("--klt", default="klt")
     parser.add_argument("--pdk-root", default=PDK_ROOT_DEFAULT)
     parser.add_argument("--keep-scratch", action="store_true",
@@ -1901,19 +1848,106 @@ def main() -> int:
     if args.check:
         committed = cell_dir / f"{TOP_CELL}.gds"
         if not committed.exists():
-            print(f"--check: {committed} does not exist yet", file=sys.stderr)
-            return 1
+            print(f"--check: CANNOT VERIFY -- {committed} does not exist yet",
+                  file=sys.stderr)
+            return 2
+        try:
+            pin = recorded_pin(cell_dir)
+        except PinError as exc:
+            print(f"gen_integrator.py --check: CANNOT VERIFY -- {exc}",
+                  file=sys.stderr)
+            return 2
+        try:
+            running = klt_pin([args.klt])
+        except OSError:
+            running = {"klt": "unknown"}
+        if running.get("git_commit") == pin["git_commit"]:
+            got_layout = running.get("klayout")
+            if got_layout != pin["klayout"]:
+                saw = (f"runs klayout {got_layout}, not the recorded "
+                       f"{pin['klayout']}" if got_layout else
+                       "does not report a klayout version, so the recorded "
+                       f"one ({pin['klayout']}) cannot be checked")
+                print("gen_integrator.py --check: CANNOT VERIFY -- host klt "
+                      f"matches the recorded build {pin['klt']} but {saw} "
+                      "(drc.report.json provenance); the committed bytes "
+                      "were written by the recorded klayout, so a byte "
+                      "difference could not be attributed. Run under the "
+                      "recorded environment: "
+                      f'uvx --from "{pin["reinstall_spec"]}" '
+                      f'--with "klayout=={pin["klayout"]}" klt ...',
+                      file=sys.stderr)
+                return 2
+            klt_cmd = [args.klt]
+            print("gen_integrator.py --check: host klt matches the recorded "
+                  f"build {pin['klt']} and klayout {got_layout} "
+                  "(drc.report.json provenance); byte-comparing directly",
+                  flush=True)
+        else:
+            uvx = shutil.which("uvx")
+            if uvx is None:
+                print("gen_integrator.py --check: CANNOT VERIFY -- host klt "
+                      f"{running.get('klt', 'unknown')} is not the recorded "
+                      f"build {pin['klt']} and uvx is not on PATH to resolve "
+                      "it. Run under the recorded build: "
+                      f'uvx --from "{pin["reinstall_spec"]}" klt ...',
+                      file=sys.stderr)
+                return 2
+            klt_cmd = [uvx, "--from", pin["reinstall_spec"], "klt"]
+            print("gen_integrator.py --check: host klt "
+                  f"{running.get('klt', 'unknown')} is not the recorded build "
+                  f"{pin['klt']} (drc.report.json provenance); evaluating the "
+                  "recorded build via uvx", flush=True)
+            for attempt in range(3):
+                probe = run([*klt_cmd, "version", "--format", "json"],
+                            check=False)
+                if probe.returncode == 0:
+                    break
+                if attempt < 2:
+                    time.sleep(2)
+            if probe.returncode != 0:
+                print("gen_integrator.py --check: CANNOT VERIFY -- the "
+                      f"recorded build did not resolve ({' '.join(klt_cmd)}): "
+                      f"{probe.stderr.strip()[-300:]}", file=sys.stderr)
+                return 2
+            try:
+                resolved = json.loads(probe.stdout)
+            except Exception:
+                resolved = {}
+            if resolved.get("git_commit") != pin["git_commit"]:
+                print("gen_integrator.py --check: CANNOT VERIFY -- "
+                      f"uvx-resolved klt commit {resolved.get('git_commit')} "
+                      f"is not the recorded pin {pin['git_commit']}",
+                      file=sys.stderr)
+                return 2
+            got_layout = resolved.get("klayout_version")
+            if got_layout != pin["klayout"]:
+                print("gen_integrator.py --check: CANNOT VERIFY -- the "
+                      f"recorded build resolved with klayout {got_layout}, "
+                      f"not the recorded {pin['klayout']}: the reinstall "
+                      "spec pins klayout-tools only (klayout is a >=0.30 "
+                      "floor there), so a fresh resolution can drift. The "
+                      "committed bytes were written by the recorded "
+                      "klayout, so a byte difference could not be "
+                      "attributed. Pin it: "
+                      f'uvx --from "{pin["reinstall_spec"]}" '
+                      f'--with "klayout=={pin["klayout"]}" klt ...',
+                      file=sys.stderr)
+                return 2
         tmp = Path(tempfile.mkdtemp(prefix="integrator-check-"))
         try:
-            flow(args.klt, pdk_root, tmp, cell_dir, verbose=False)
+            flow(klt_cmd, pdk_root, tmp, cell_dir, verbose=False)
             a, b = committed.read_bytes(), (tmp / f"{TOP_CELL}.gds").read_bytes()
             if a == b:
                 print("gen_integrator.py --check: PASS -- regenerated GDS is "
-                      f"byte-identical to {committed.name} ({len(a)} bytes)")
+                      f"byte-identical to {committed.name} ({len(a)} bytes; "
+                      f"evaluated against recorded klt {pin['klt']})")
                 return 0
             print("gen_integrator.py --check: FAIL -- regenerated GDS differs "
-                  f"(committed {len(a)} bytes, fresh {len(b)} bytes)",
-                  file=sys.stderr)
+                  f"from {committed.name} under the recorded build "
+                  f"{pin['klt']} (committed {len(a)} bytes, fresh {len(b)} "
+                  "bytes) -- a generator or geometry regression, not a "
+                  "toolchain mismatch", file=sys.stderr)
             return 1
         finally:
             if args.keep_scratch:
@@ -1921,8 +1955,8 @@ def main() -> int:
             else:
                 shutil.rmtree(tmp, ignore_errors=True)
 
-    result = flow(args.klt, pdk_root, cell_dir / "_gen", cell_dir)
-    emit(cell_dir / "_gen", cell_dir)
+    result = flow([args.klt], pdk_root, cell_dir / "_gen", cell_dir)
+    emit(cell_dir / "_gen", cell_dir, TOP_CELL)
     drc = result["drc"]
     print(f"gen_integrator.py: wrote {TOP_CELL}.gds + evidence to {cell_dir} "
           f"(drc status={drc.get('status')!r}, "

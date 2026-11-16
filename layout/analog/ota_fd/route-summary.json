@@ -89,7 +89,7 @@
       "y": 116.18
     }
   },
-  "met2_columns": 117,
+  "met2_columns_reserved": 117,
   "nets": {
     "inp": {
       "anchors": [
