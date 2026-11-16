@@ -7,8 +7,6 @@ the last thing standing between a dead fleet job and a recorded result
 (issue #94). `grid_complete` counts grid points; `measurements_present`
 requires a non-null `err_phase` at every one of them.
 """
-import contextlib
-import io
 import unittest
 
 import settling_common as sc
@@ -32,24 +30,15 @@ def measured(err_phase=1.2e-5, status="pass", diagnostics=()):
 
 
 def unmeasured(status="fail", diagnostics=("batch_job_failed",)):
-    """The shape a dead fleet job returns: an entry, but no measured values."""
-    c = {"status": status}
-    c.update({k: None for k in sc.KEYS})
-    c["diagnostics"] = list(diagnostics)
-    return c
+    return rtc.unmeasured(sc.KEYS, status=status, diagnostics=diagnostics)
 
 
 def corner_set(n=sc.GRID_POINTS, factory=measured, **kwargs):
-    assert n <= len(CORNER_IDS)
-    return {cid: factory(**kwargs) for cid in CORNER_IDS[:n]}
+    return rtc.corner_set(CORNER_IDS, n, factory, **kwargs)
 
 
-def call(fn, *args):
-    """Run a gate, returning (verdict, stderr) — the gates print on refusal."""
-    err = io.StringIO()
-    with contextlib.redirect_stderr(err):
-        verdict = fn(*args)
-    return verdict, err.getvalue()
+def call(fn, *args, **kw):
+    return rtc.call(fn, *args, **kw)
 
 
 class MeasurementsPresent(unittest.TestCase):

@@ -24,7 +24,7 @@ sys.path.insert(0, str(HERE.parent))
 # ANCHOR_POINTS is re-exported deliberately: run_ci.py and the tests read the
 # anchor count through this module (`mk.ANCHOR_POINTS`) so the expected Monte
 # Carlo unit count is derived from the same place the request is built from.
-from settling_common import ANCHOR_POINTS, anchor_units, request  # noqa: E402,F401
+from settling_common import ANCHOR_POINTS, anchor_units, measurement as e, request  # noqa: E402,F401
 
 # ---------------------------------------------------------------- timing ----
 FS_HZ = 5.12e6              # spec row 5
@@ -167,15 +167,6 @@ MC_SEED = 20261113
 
 
 # --------------------------------------------------------- measurements -----
-def e(name, expr, unit=None, limits=None):
-    m = {"name": name, "expr": expr}
-    if unit:
-        m["unit"] = unit
-    if limits:
-        m["limits"] = limits
-    return m
-
-
 def _window(tag, a, b, cyc=0):
     """Measurements reading vod and voc as a mean over [a, b] within cycle `cyc`.
 

@@ -15,7 +15,7 @@ import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from settling_common import request  # noqa: E402
+from settling_common import measurement as e, request  # noqa: E402
 
 # ---------------------------------------------------------------- clock grid
 FS_HZ = 5.12e6
@@ -130,15 +130,6 @@ def held(sig, a, b):
     """Mask-and-mean of `sig` over [a, b] -- the value it is holding there."""
     w = win(a, b)
     return f"mean(({sig})*({w}))/mean({w})"
-
-
-def e(name, expr, unit=None, limits=None):
-    m = {"name": name, "expr": expr}
-    if unit:
-        m["unit"] = unit
-    if limits:
-        m["limits"] = limits
-    return m
 
 
 def chain(fn, terms):
