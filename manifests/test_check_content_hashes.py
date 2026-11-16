@@ -263,6 +263,32 @@ class EdgeCaseTests(FixtureTree):
             ['manifest has no "evidence" object to check'],
         )
 
+    def test_non_object_manifest_fails_cleanly(self) -> None:
+        # Valid JSON whose top level is not an object (issue #237) has no
+        # "evidence" to fetch: the check reports that instead of dying on
+        # manifest.get(), exactly as it does for the cited-file case
+        # (issue #234).
+        for payload in (b"[1, 2, 3]", b'"a string"', b"42", b"null"):
+            self.write_bytes("manifests/manifest.json", payload)
+            self.assertEqual(
+                cch.check_manifest(self.root / "manifests" / "manifest.json"),
+                ["manifest top level is not a JSON object"],
+            )
+
+    def test_main_reports_non_object_manifest_as_annotation(self) -> None:
+        # The --manifest contract (module docstring): exit 1 with one
+        # ::error line, never a traceback, whatever the manifest contains.
+        self.write_bytes("manifests/manifest.json", b"[1, 2, 3]")
+        path = self.root / "manifests" / "manifest.json"
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = cch.main(["--manifest", str(path)])
+        self.assertEqual(rc, 1)
+        self.assertEqual(out.getvalue().count("::error"), 1, out.getvalue())
+        self.assertIn(f"::error file={path}::", out.getvalue())
+        self.assertIn("manifest top level is not a JSON object", out.getvalue())
+        self.assertNotIn("Traceback", out.getvalue())
+
     def test_main_reports_violations_as_annotations_and_exits_nonzero(self) -> None:
         cited = self.envelope(provenance_hash=None)
         path = self.manifest({"8.analog": {"file": cited, "content_hash": GOOD}})
