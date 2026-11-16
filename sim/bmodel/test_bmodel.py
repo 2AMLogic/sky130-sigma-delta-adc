@@ -16,8 +16,10 @@ import numpy as np
 import model
 import run
 import sndr
+import xcheck
 
 HERE = pathlib.Path(__file__).resolve().parent
+REPO = run.REPO
 N = 2**13
 OSR = 128
 
@@ -174,6 +176,214 @@ class RecordFields(unittest.TestCase):
         self.assertEqual(rec["source"], "B")
         self.assertEqual(rec["cross_check"], "none (ideal parameters)")
         self.assertTrue(rec["peak_at_sweep_ceiling"])
+
+
+class CornerParams(unittest.TestCase):
+    """sim/bmodel/corners/<anchor>.json loading (run.load_corner).
+
+    The corner file is the schema: every model-B parameter must be covered by
+    a T source or listed under no_t_source, and every named T record must
+    exist and hash to the sha256 the file names. A fixture corner declares
+    all its parameters under no_t_source so no committed record is needed.
+    """
+
+    COVERED = ("dc_gain", "settling_error", "ci_offset", "ci_gain_error",
+               "ktc_noise_var", "comparator_offset", "comparator_hysteresis",
+               "jitter_rms_s")
+
+    def fixture_corner(self, **over):
+        doc = {
+            "schema": "fixture",
+            "corner_id": "tt/1.800V/27C",
+            "sample_slug": "zz-fixture-no-such-samples",
+            "params": dict(model.PARAM_DEFAULTS),
+            "sources": {},
+            "no_t_source": {k: {"why": "fixture"} for k in self.COVERED},
+        }
+        doc.update(over)
+        return doc
+
+    def write_and_load(self, doc, tmp):
+        path = tmp / "corner.json"
+        path.write_text(json.dumps(doc))
+        return run.load_corner(path)
+
+    def test_committed_corner_files_load(self):
+        """Every committed corner file still validates against its named T
+        records: a record edited after the corner file was written fails
+        here instead of silently feeding stale parameters to a sweep."""
+        corners = sorted((HERE / "corners").glob("*.json"))
+        self.assertGreaterEqual(len(corners), 7)
+        for c in corners:
+            run.load_corner(c)
+
+    def test_unknown_param_key_refused(self):
+        with tempfile.TemporaryDirectory() as td:
+            doc = self.fixture_corner()
+            doc["params"]["bogus"] = 1
+            with self.assertRaises(ValueError):
+                self.write_and_load(doc, pathlib.Path(td))
+
+    def test_missing_param_key_refused(self):
+        with tempfile.TemporaryDirectory() as td:
+            doc = self.fixture_corner()
+            del doc["params"]["seed"]
+            with self.assertRaises(ValueError):
+                self.write_and_load(doc, pathlib.Path(td))
+
+    def test_missing_wrapper_key_refused(self):
+        with tempfile.TemporaryDirectory() as td:
+            doc = self.fixture_corner()
+            del doc["sources"]
+            with self.assertRaises(ValueError):
+                self.write_and_load(doc, pathlib.Path(td))
+
+    def test_uncovered_parameter_refused(self):
+        """A parameter with neither a T source nor a no_t_source entry is an
+        error, never a silent default (issue #128 acceptance criteria)."""
+        with tempfile.TemporaryDirectory() as td:
+            doc = self.fixture_corner()
+            del doc["no_t_source"]["ktc_noise_var"]
+            with self.assertRaises(ValueError):
+                self.write_and_load(doc, pathlib.Path(td))
+
+    def test_missing_record_refused(self):
+        with tempfile.TemporaryDirectory() as td:
+            doc = self.fixture_corner()
+            doc["sources"] = {"dc_gain": {
+                "record": "sim/no-such-record.json",
+                "record_sha256": "sha256:" + "0" * 64,
+            }}
+            with self.assertRaises(ValueError) as cm:
+                self.write_and_load(doc, pathlib.Path(td))
+            self.assertIn("does not exist", str(cm.exception))
+
+    def test_stale_record_hash_refused(self):
+        real = REPO / "sim/ota-gain/record.json"
+        with tempfile.TemporaryDirectory() as td:
+            doc = self.fixture_corner()
+            doc["sources"] = {"dc_gain": {
+                "record": "sim/ota-gain/record.json",
+                "record_sha256": "sha256:" + "0" * 64,
+            }}
+            with self.assertRaises(ValueError) as cm:
+                self.write_and_load(doc, pathlib.Path(td))
+            self.assertIn("hashes to", str(cm.exception))
+        self.assertTrue(real.is_file())  # the source the test pinned against
+
+
+class CrossCheck(unittest.TestCase):
+    """xcheck.compare_corner on fixture bitstream pairs.
+
+    Both sides of every fixture come from model B itself -- these tests
+    exercise the comparison arithmetic and its gates, not model quality: the
+    real cross-check evidence is the committed xcheck-record.json built from
+    the transistor-level samples (issue #125). The positive-control pair
+    differs by a small comparator-offset perturbation; the negative control
+    is a deliberately wrong parameter set and must fail.
+    """
+
+    N = 1024
+
+    def side(self, params):
+        u = model.tone_input(10 ** (-6 / 20), 3, self.N, 1, 0, params)
+        y, x1, x2 = model.modulate_with_states(u, params)
+        return {
+            "n_clocks": self.N,
+            "y": [int(v) for v in y],
+            "o1d_v": [round(float(v) * 1.2, 7) for v in x1],
+            "o2d_v": [round(float(v) * 1.2, 7) for v in x2],
+        }
+
+    def b_side(self, params):
+        s = self.side(params)
+        return {"y": s["y"],
+                "x1_fs": [v / 1.2 for v in s["o1d_v"]],
+                "x2_fs": [v / 1.2 for v in s["o2d_v"]]}
+
+    def fixture_corner_path(self, tmp):
+        doc = {
+            "schema": "fixture",
+            "corner_id": "tt/1.800V/27C",
+            "sample_slug": "zz-fixture-no-such-samples",
+            "params": dict(model.PARAM_DEFAULTS),
+            "sources": {},
+            "no_t_source": {k: {"why": "fixture"} for k in
+                            ("dc_gain", "settling_error", "ci_offset",
+                             "ci_gain_error", "ktc_noise_var",
+                             "comparator_offset", "comparator_hysteresis",
+                             "jitter_rms_s")},
+        }
+        p = tmp / "corner.json"
+        p.write_text(json.dumps(doc))
+        return p
+
+    def compare(self, tmp, b_params, t_params):
+        corner = self.fixture_corner_path(tmp)
+        t_path = tmp / "t.json"
+        t_path.write_text(json.dumps(self.side(t_params)))
+        b_path = tmp / "b.json"
+        b_path.write_text(json.dumps(self.b_side(b_params)))
+        return xcheck.compare_corner(corner, b_path, t_path)
+
+    def test_near_identical_pair_passes_all_legs(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = dict(model.PARAM_DEFAULTS)
+            q = dict(p, comparator_offset=p["comparator_offset"] + 1e-4)
+            entry = self.compare(pathlib.Path(td), q, p)
+            self.assertEqual(entry["legs_failed"], [], entry["legs"])
+            self.assertTrue(all(v["pass"] for v in entry["legs"].values()))
+
+    def test_wrong_parameter_set_fails(self):
+        """Negative control: a deliberately wrong B parameter set must fail
+        the cross-check, not slide through the gates."""
+        with tempfile.TemporaryDirectory() as td:
+            p = dict(model.PARAM_DEFAULTS)
+            wrong = dict(p, dc_gain=2.0, ktc_noise_var=1e-3,
+                         comparator_offset=0.2, comparator_hysteresis=0.2)
+            entry = self.compare(pathlib.Path(td), wrong, p)
+            self.assertNotEqual(entry["legs_failed"], [],
+                                "the negative control must fail at least one leg")
+            self.assertEqual(entry["legs_passed"], [], entry["legs"])
+
+    def test_length_mismatch_refused(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = pathlib.Path(td)
+            corner = self.fixture_corner_path(tmp)
+            t_path = tmp / "t.json"
+            t_path.write_text(json.dumps(self.side(dict(model.PARAM_DEFAULTS))))
+            b = self.b_side(dict(model.PARAM_DEFAULTS))
+            b["y"] = b["y"][:-1]
+            b["x1_fs"] = b["x1_fs"][:-1]
+            b["x2_fs"] = b["x2_fs"][:-1]
+            b_path = tmp / "b.json"
+            b_path.write_text(json.dumps(b))
+            with self.assertRaises(ValueError):
+                xcheck.compare_corner(corner, b_path, t_path)
+
+    def test_passing_corner_is_still_incomplete(self):
+        """A corner whose every computable leg passes is reported
+        `incomplete`, never passed: DR-001's in-band SNDR leg is not
+        computable at the committed T record length, so B numbers stay
+        uncross-checked and out of row 2 (issue #128)."""
+        with tempfile.TemporaryDirectory() as td:
+            p = dict(model.PARAM_DEFAULTS)
+            entry = xcheck.finalise_entry(
+                self.compare(pathlib.Path(td), p, p))
+            self.assertTrue(entry["cross_check_status"].startswith("incomplete"))
+            self.assertIsNone(entry["sndr_inband_db"]["b"])
+            self.assertFalse(entry["sndr_inband_db"]["computable"])
+
+    def test_missing_t_bitstream_reported_uncrosschecked(self):
+        """A corner with no committed T bitstream is reported
+        uncross-checked, never skipped (issue #128 acceptance criteria)."""
+        with tempfile.TemporaryDirectory() as td:
+            entry = xcheck.finalise_entry(
+                xcheck.no_t_samples_entry(self.fixture_corner_path(
+                    pathlib.Path(td))))
+            self.assertTrue(entry["cross_check_status"].startswith("uncross-checked"))
+            self.assertIsNotNone(entry["error"])
+            self.assertIsNone(entry["t_samples_file"])
 
 
 class CodeIdentity(unittest.TestCase):
