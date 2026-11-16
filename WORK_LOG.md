@@ -4,6 +4,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-16
 
+- **Issue #224** (closed): ngspice_version() has no committed test for its no-argument path, the one three probe runners use
+- **Issue #225** (closed): Move duplicated assert_drc_clean into layout_common: two byte-identical copies in the analog generators
 - **Issue #146** (closed): ota_fd layout: MiM plate orientation differs from the netlist's terminal order for one cap group; README row table quotes ring extents
 - **Issue #153** (closed): Two more ngspice-version lookups could reach settling_common.ngspice_version() (log-first variant)
 - **Issue #155** (closed): Manifest content_hash for item8-envelope.json is stale, and the field's meaning is undefined for a generic envelope
@@ -16,6 +18,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 - **Issue #198** (closed): DR-006's Consequences bullet is stale: it says record.json predates the gap line, but the committed record carries it
 - **Issue #212** (closed): Share the unmeasured/corner_set/call test helpers: three near-identical copies in sim/ test benches
 - **Issue #226** (closed): layout_common's router/DRC-spacing core has no CI-executed test: #191 closed the gap for the parsers only
+- **PR #231**: test: pin ngspice_version()'s no-argument path in NgspiceVersion
+- **PR #229**: refactor: dedupe assert_drc_clean into layout_common
 - **PR #177**: fix(manifest): drop the unverifiable item-8 content_hash pins and gate the pin invariant
 - **PR #180**: docs: README status matches the verdict of record; item-10 envelope re-attested
 - **PR #195**: comparator-decision: state the trip gate as implemented in pass_criterion
