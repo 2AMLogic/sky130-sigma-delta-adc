@@ -23,6 +23,10 @@ delta-sigma ADC.
   - [DR-006 corrigendum 01](decisions/DR-006-corrigendum-01.md) — corrects
     DR-006's stale Consequences bullet about `record.json` predating the gap
     line; DR-006's Decision is unchanged
+  - [DR-008](decisions/DR-008-digital-timing-corners.md) — digital-partition
+    timing corners are the ten shipped `sky130_fd_sc_hd` liberty corners; the
+    other 35 DR-002 points are a declared gap and the block-boundary I/O
+    budget is the assembled top's
 
 Pinned sibling references live in [`../reuse.lock.json`](../reuse.lock.json).
 
