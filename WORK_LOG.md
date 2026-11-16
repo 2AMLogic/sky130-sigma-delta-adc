@@ -4,6 +4,12 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-16
 
+- **PR #249**: docs: add DR-008 corrigendum 01 — klt-pin scope of the characterize ground
+- **PR #245**: fix(test): pin ota_fd merge counts to parser-independent check.expected
+- **PR #130**: sim: extract Sin input-sampling completeness over PVT and its Ron-vs-input curve
+- **Issue #227** (closed): DR-008's `klt characterize` rejection ground is pinned to klt 0.8.0 and goes stale at the next klt pin bump
+- **Issue #210** (closed): test_layout_common.py mis-attributes check.found as a parser-independent source (it is parse_extract_devices' own output)
+- **Issue #106** (closed): Input sampling switch Sin is ~46% incomplete near vcm at ss/1.620 V/-40 C
 - **PR #242**: fix: regenerate item9 attest under the klt pin and document the rule
 - **PR #156**: spec: record the digital-timing corner set and declare the 35-corner gap
 - **Issue #223** (closed): item9-envelope provenance.klt_version now names an unpinned klt dev build; .github/klt-version pins 0.8.0
