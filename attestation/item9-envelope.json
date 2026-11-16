@@ -110,7 +110,7 @@
         "value": {
           "cocotb": "2.1.0",
           "icarus_verilog": "13.0",
-          "klayout-tools": "0.8.0",
+          "klayout-tools": "0.9.2",
           "ngspice": "46",
           "numpy": "1.26.4",
           "xschem": "3.4.7",
@@ -129,7 +129,7 @@
         "path": "attestation/item9-inventory.json",
         "scope": "repo"
       },
-      "content_hash": "sha256:b8d3bb89fc360daeb8a34750603f42f01c3e5695b70e3b2424064ac38f985774"
+      "content_hash": "sha256:e319615f8ce711413ebbb185ed0e86c61e2950c8aed5cfb1597bd8022523f7b7"
     }
   }
 }
