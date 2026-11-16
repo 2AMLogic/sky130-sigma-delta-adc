@@ -123,7 +123,7 @@ design/        modulator schematics / netlists (xschem)
 rtl/           decimation filter and control
 sim/           PDK/tool pins, modulator testbenches + PVT corner results (ngspice)
 verification/  cocotb testbenches for the decimation filter
-layout/        GDS + DRC reports (klayout-tools driven)
+layout/        GDS + DRC/LVS reports (klayout-tools driven)
 measurements/  T1 item-8 characterization report (simulated; measured data lands at tape-out)
 attestation/   derived attestation envelopes (items 8, 9 and 10)
 manifests/     the signoff manifest and its rendered verdict of record
