@@ -216,13 +216,17 @@ def extract_nets(netlist_text: str) -> list[str]:
 # --- shared geometry and router core (issue #182) ------------------------------
 # The two cell generators carried paste-copies of these classes.  The Router
 # methods below are the eleven whose bodies the two copies held identically
-# (re-verified by `ast.unparse` with docstrings stripped); the seven that
-# genuinely differ (`__init__` state, the `add_shape`/`add_met1`/`add_met`
-# net accounting, the column proposal in `columns`, `connect_met1`'s search
-# budget and exhaust message, `finish_trunks`) stay subclass overrides in each
-# generator, next to that cell's own `connect_*` methods.
+# (re-verified by `ast.unparse` with docstrings stripped) plus the three that
+# #201 unified: `connect_met1` (the budget is per-class `COL_BUDGET`), the
+# net-aware `add_shape`, and `finish_trunks` (both cells skip zero-height
+# trunks; measured in #201 -- the branch never fired in the OTA cell and
+# fired once in the integrator).  What genuinely differs now is only the net
+# accounting (`add_met1`/`add_met`, integrator only), the boundary-clipped
+# `columns` proposal (integrator only), and each cell's own `connect_*`
+# methods; those stay subclass overrides in each generator.
 L_MCON = (67, 44)
 L_MET1 = (68, 20)
+L_MET2 = (69, 20)
 L_VIA = (68, 44)
 MCON_UM = 0.17           # ct.1 exact size
 VIA_UM = 0.15            # via.1a exact size
@@ -318,8 +322,16 @@ class Router:
     The cell generators subclass this and keep the parts that genuinely
     differ as overrides (see the section comment above); a cell with its own
     anchor kinds adds its own ``connect_*`` methods (the integrator's OTA
-    instance escapes).
+    instance escapes).  ``add_met1`` stays a subclass responsibility too --
+    the integrator tags every met1 shape with its net.
     """
+
+    #: how many candidate columns one ``connect_met1`` search may try before
+    #: it gives up.  The OTA cell sits on a dense 0.42um S/D pad row and
+    #: finds its columns sooner; the integrator straddles the placed OTA
+    #: instance and needs the wider sweep.  An explicit ``col_budget``
+    #: argument overrides it for one call.
+    COL_BUDGET = 24
 
     def __init__(self, x_lo: float, x_hi: float, y_lo: float, y_hi: float) -> None:
         self.x_lo, self.x_hi, self.y_lo, self.y_hi = x_lo, x_hi, y_lo, y_hi
@@ -333,10 +345,17 @@ class Router:
         self.trunk_y: dict[tuple[str, float], list[float]] = defaultdict(list)
         self.via1_y: dict[tuple[str, float], list[float]] = defaultdict(list)
         self.wire_um: dict[str, float] = defaultdict(float)
+        #: Every routed rectangle, keyed by (net, layer).  Populated only by
+        #: ``add_shape`` calls that name a net -- the OTA generator names
+        #: none, so its dict stays empty; the integrator reads it back after
+        #: the fact, in ``summing_node_report()``.
+        self.by_net: dict[tuple[str, tuple[int, int]], list[Rect]] = defaultdict(list)
 
     # -- geometry bookkeeping -------------------------------------------------
-    def add_shape(self, layer, rect: Rect) -> None:
+    def add_shape(self, layer, rect: Rect, net: str | None = None) -> None:
         self.shapes.append((layer, rect))
+        if net is not None:
+            self.by_net[(net, layer)].append(rect)
 
     def add_mcon(self, x: float, y: float) -> None:
         rect = Rect.centred(x, y, MCON_UM, MCON_UM)
@@ -417,6 +436,45 @@ class Router:
             ys.add(snap(a.y - i * TRACK_PITCH_UM))
         return sorted(ys, key=lambda y: (abs(y - a.y), y))
 
+    # -- the ways a net reaches a block ---------------------------------------
+    def connect_met1(self, a: Anchor,
+                     col_budget: int | None = None) -> tuple[float, float]:
+        """Drop a met2 trunk onto this anchor.
+
+        Cheapest first: a column that already lies inside the strap, so the
+        via lands on metal that exists.  Failing that the jog climbs off the
+        strap on a free met1 track (``jog_um`` bounds how far) and reaches
+        sideways -- the freedom a 0.42um-wide S/D pad row needs, where every
+        net sits on the strap's own y and only a different y can get past a
+        neighbour's pad.
+        """
+        cols = self.columns(a.x0, a.x1, a.xmid)[
+            :self.COL_BUDGET if col_budget is None else col_budget]
+        for y in self.jog_tracks(a):
+            for col in cols:
+                if nm(col) in self.used_cols:
+                    continue
+                pad_x = min(a.pad_xs, key=lambda px: (abs(px - col), px))
+                extra: list[Rect] = []
+                if abs(y - a.y) > 1e-9:
+                    extra.append(Rect.vwire(pad_x, a.y, y, WIRE_UM))
+                    if abs(col - pad_x) > 1e-9:
+                        extra.append(Rect.hwire(pad_x, col, y, WIRE_UM))
+                elif not (a.x0 - 1e-9 <= col <= a.x1 + 1e-9):
+                    extra.append(Rect.hwire(min(a.x0, col), max(a.x1, col), y,
+                                            WIRE_UM))
+                if extra and not self.met1_free(a.net, extra):
+                    continue
+                self.reserve_column(col)
+                if extra:
+                    self.add_met1(a.net, extra)
+                self.add_trunk_via(a.net, col, y)
+                return col, y
+        raise RouteError(
+            f"no free met2 column for {a.net} at {a.block} y={a.y}: "
+            f"{len(self.used_cols)} columns already taken, "
+            f"{len(cols)} free within the budget")
+
     # -- trunk-to-trunk spine --------------------------------------------------
     def route_spine(self, net: str, ca: float, ya: float,
                     cb: float, yb: float) -> float:
@@ -429,3 +487,21 @@ class Router:
             self.add_trunk_via(net, cb, y)
             return y
         raise RouteError(f"no free met1 track for {net} spine {ca} <-> {cb}")
+
+    def finish_trunks(self) -> None:
+        """Draw one met2 vwire per (net, column) trunk over its via span.
+
+        A column that collected a single via y has no span to cover: the
+        via's own enclosure is the whole trunk, and a degenerate
+        ``WIRE_UM x WIRE_UM`` square on met2 would only sit there for DRC to
+        grade.  The integrator measured one such trunk per generation (its
+        router sees the placed OTA instance's escapes); the OTA cell none --
+        so the skip is the shared behaviour, not a per-cell choice.
+        """
+        for (net, col), ys in sorted(self.trunk_y.items()):
+            lo, hi = min(ys), max(ys)
+            if hi - lo < 1e-9:
+                continue
+            rect = Rect.vwire(col, lo, hi, WIRE_UM)
+            self.add_shape(L_MET2, rect, net)
+            self.wire_um[net] += (hi - lo)
