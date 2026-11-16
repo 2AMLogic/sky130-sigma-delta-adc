@@ -64,6 +64,8 @@ def sha256_file(path: Path) -> str:
 def provenance_input_hash(path: Path) -> str | None:
     """The file's `provenance.input.content_hash`, or None when absent."""
     data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        return None
     provenance = data.get("provenance")
     if not isinstance(provenance, dict):
         return None
