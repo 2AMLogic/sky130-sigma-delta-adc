@@ -69,9 +69,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, PDK_ROOT_DEFAULT,
                            PDK_VARIANT, TRACK_PITCH_UM, TRUNK_PITCH_UM,
                            Anchor, PinError, Rect, RouteError,
-                           Router as RouterBase, WIRE_UM, emit, extract_nets,
-                           klt_pin, nm, parse_extract_devices, recorded_pin,
-                           run, snap)
+                           Router as RouterBase, WIRE_UM, assert_drc_clean,
+                           emit, extract_nets, klt_pin, nm,
+                           parse_extract_devices, recorded_pin, run, snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
 # The router core's layers (L_MCON/L_MET1/L_VIA) come from layout_common,
@@ -255,32 +255,6 @@ EXPECTED_DEVICES = {
     "res_high_po": 1,
     "res_xhigh_po": 2,
 }
-
-
-def assert_drc_clean(drc: dict, report_path: str) -> None:
-    """Raise unless `klt drc` reported a clean verdict.
-
-    `klt drc` already exits 3 on violations; the call site passes
-    ``check=False`` to capture stdout, so the verdict has to be re-read here
-    or it is lost.  Only an explicit ``clean`` with zero violations passes:
-    ``coverage_unknown`` (exit 4 -- the deck resolved no marker layer for a
-    family) is an unverified DRC, not a pass, and ``clean_partial`` arises
-    only from ``--rules`` subsetting, which this generator never passes.  A
-    report with no verdict at all (klt wrote nothing to stdout) has neither
-    field and fails the same way.
-    """
-    status = drc.get("status")
-    violations = drc.get("violation_count")
-    if status == "clean" and violations == 0:
-        return
-    rules = ", ".join(f"{rule}={count}"
-                      for rule, count
-                      in sorted((drc.get("rule_counts") or {}).items())) \
-        or "none reported"
-    raise RuntimeError(
-        f"klt drc status={status!r} violations={violations!r} "
-        f"(expected 'clean'/0): {rules}. Report written to {report_path} "
-        "before this raise; the flow aborts and nothing is emitted.")
 
 
 # --- port expansion -----------------------------------------------------------
