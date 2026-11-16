@@ -240,6 +240,12 @@ class NgspiceVersion(unittest.TestCase):
         with mock.patch.object(sc.subprocess, "run", return_value=out):
             self.assertEqual(sc.ngspice_version("no token here"), "unknown")
 
+    def test_no_argument_still_shells_out(self):
+        out = mock.Mock(stdout="warning\nngspice-44 compiled for ...")
+        with mock.patch.object(sc.subprocess, "run", return_value=out) as run:
+            self.assertEqual(sc.ngspice_version(), "ngspice-44")
+            self.assertEqual(run.call_args[0][0], ["ngspice", "-v"])
+
 
 class CommittedRequestsAreUnmoved(unittest.TestCase):
     """The pre-#126 benches' committed requests must still rebuild byte-exactly.
