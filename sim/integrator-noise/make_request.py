@@ -4,7 +4,7 @@ import json, pathlib, sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from settling_common import request
+from settling_common import measurement as e, request
 
 # Swept band. F_LO is the lower edge of every band integral, so it is also the
 # lower edge of the flicker integral, which diverges logarithmically -- the
@@ -92,15 +92,6 @@ Eqci nqci nqcip xint.sumn voutn 1
         "referred_to": "integrator accumulated per-cycle output increment",
     },
 }
-
-
-def e(name, expr, unit=None, limits=None):
-    m = {"name": name, "expr": expr}
-    if unit:
-        m["unit"] = unit
-    if limits:
-        m["limits"] = limits
-    return m
 
 
 def n(name, quantity="onoise", at_hz=None, band_hz=None, unit=None, limits=None):
