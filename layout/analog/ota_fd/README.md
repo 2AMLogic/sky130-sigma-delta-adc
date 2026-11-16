@@ -11,7 +11,9 @@ Generated GDS of the fully-differential folded-cascode OTA
 | `ota_fd.gds` | the generated stream, top cell `ota_fd` |
 | `extract-device-count.json` | `klt extract` device count vs the netlist, plus the extracted pin list and net count |
 | `drc.report.json` | `klt drc` (sky130 deck) over the committed stream |
-| `route-summary.json` | where every net was routed: per-block origins, per-net anchors, reserved met2 columns, met1 spine tracks |
+| `route-summary.json` | where every net was routed: per-block origins, per-net anchors, reserved met2 columns, met1 spine tracks, and per-row floorplan extents (`row_extents_um` — the source of the floorplan table below) |
+| `lvs-plate-probe.request.json` | the terminal-order probe's request document (issue #146): inline extraction from the committed stream vs the pinned netlist, so `klt lvs --check` reproduces the report |
+| `lvs-plate-probe.report.json` | the probe's committed report — a scoped diagnostic for the cap-plate question, **not** #32 signoff evidence |
 
 Nothing here is hand-drawn or GUI-edited. Every polygon comes either from a
 `klt gen` call (one per device group) or from this script's own floorplan and
@@ -330,9 +332,12 @@ f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7` per `~/.ciel/sky130A/SOURCES`)
 compares the committed `ota_fd.gds` against `design/ota/ota_fd.spice` and
 records:
 
-- **No finding of any category names a capacitor or a cap net.** All three
-  MiM caps match — in either terminal order. A negative control (the same
-  compare re-run from scratch with `XCcm`'s reference terminals flipped to
+- **No error-severity finding, and no connectivity or topology finding,
+  names a capacitor or a cap net.** All three MiM caps match — in either
+  terminal order. Two *warnings* do name the MiM cap class; the last bullet
+  below records both and what they exclude from the compare. A negative
+  control (the same compare re-run from scratch with `XCcm`'s reference
+  terminals flipped to
   `XCcm vdda nz`) returned a verdict-identical report: the comparer permutes
   a capacitor's two pins, so the schematic's call order for `Ccm` is not a
   defect LVS can see. The netlist reorder this probe was scoped to motivate
@@ -346,8 +351,18 @@ records:
   cross-quad unit bookkeeping, and `inp`/`inn` reported merged/split. Those
   findings belong to **#32's** verdict; this probe neither settles nor
   contradicts it.
-- The compare does not check cap value (`device.geometry_not_compared` for
-  the MiM class): plate **areas** are not verified by this probe either.
+- Two warnings do name the MiM class, and between them they bound what the
+  probe verified: the caps matched on **topology alone, pin permutation
+  allowed** — neither capacitance nor plate area took part.
+  `device.geometry_not_compared` is the plate-**area** non-check: `A`/`P`
+  are KLayout-declared *secondary* parameters for the cap class, so none of
+  them took part in the compare. `device.placeholder_value` is the
+  **capacitance** non-check: with `reference.form: "subckt-call"` the
+  reference `C` is the literal-0 placeholder on all three reference
+  instances, so `C` was excluded from the compare on both sides. That still
+  fully supports the terminal-order conclusion above — but it means the
+  probe says nothing about cap *value*, and this record should not be read
+  as if it did.
 
 This report is a **scoped diagnostic for the plate question only — it is not
 item-4 (#32) signoff evidence**, and #32's envelope must not find it sitting
@@ -361,7 +376,7 @@ where that envelope belongs.
 - An **LVS match**: #32. The extracted netlist does correspond device-for-device
   and net-for-net to `design/ota/ota_fd.spice`, but no reference-vs-layout
   signoff envelope is committed and no `match` verdict is claimed here — the
-  #146 plate probe below is a cell-level diagnostic whose own report is
+  #146 plate probe above is a cell-level diagnostic whose own report is
   `mismatch` on the differences the half-`W` groups above produce, and #32
   will have to decide how to treat them.
 - **Parasitic extraction** (#35) and **power-delivery checks** (#39).
