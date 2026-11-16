@@ -159,6 +159,15 @@ jobs:
       - name: Comparator decision record-admission unit tests (no EDA tools)
         run: python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'
 
+      # The short full-modulator transient's record-admission gates (issue
+      # #125): a partial grid, a missing measurement, a short per-clock sample
+      # set, a clock that did not run at fs, or two power routes that
+      # disagree must each refuse the record. Also checks the committed deck
+      # and request still match their generator. Fixtures only: no fleet, no
+      # ngspice, no klt.
+      - name: Full-modulator transient record-admission unit tests (no EDA tools)
+        run: python3 -I -m unittest discover -s sim/modulator-tran -p 'test_*.py'
+
       # The digital-partition P&R runner's PDK-pin refusal (issue #158): the gate
       # reads the stamp klt records at provenance.pdk.version, so a report whose
       # PDK differs from sim/pdk.json -- or that records no PDK at all -- refuses

@@ -1,7 +1,7 @@
 """Shared `klt sim` plumbing for the transistor-level benches.
 
 Used by ota-settling, integrator-settling, integrator-ci, ota-gain,
-integrator-noise and comparator-decision. Toolchain only:
+integrator-noise, comparator-decision and modulator-tran. Toolchain only:
 submits a `klt sim` request, parses the report into per-corner measurements,
 summarizes it, and builds the common DR-002 request. The `.partials/` cache
 (`shas`/`load_partial`/`save_partial`) is a record-admission gate like the
