@@ -122,8 +122,10 @@ instead pins the cited file's own sha256. Pins are per-entry claims, not
 unique values — two entries may cite different files that attest the same
 declared input.
 [`manifests/check_content_hashes.py`](manifests/check_content_hashes.py)
-asserts this in CI (issue #155): `klt signoff` grades a pin it cannot
-verify as `unverifiable_provenance` rather than comparing bytes, and while
+asserts this in CI, in both directions (issues #155 and #215): a pin the
+cited file cannot verify, and a missing pin where the file carries one,
+both fail. `klt signoff` grades a pin it cannot verify as
+`unverifiable_provenance` rather than comparing bytes, and while
 an item also fails its own check that refusal never surfaces — so the
 manifest is checked where the files it cites live.
 
