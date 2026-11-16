@@ -155,6 +155,8 @@ def check_manifest(manifest_path: Path) -> list[str]:
     """
     root = manifest_path.resolve().parent.parent
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict):
+        return ["manifest top level is not a JSON object"]
     evidence = manifest.get("evidence")
     if not isinstance(evidence, dict):
         return ['manifest has no "evidence" object to check']
