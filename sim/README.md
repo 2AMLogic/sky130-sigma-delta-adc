@@ -75,8 +75,10 @@ record-validity gates — `grid_complete()` (all 45 DR-002 grid
 points returned) and `measurements_present(key=...)` (every one of them produced
 the bench's own sentinel measurement, so a dead fleet job cannot become a
 record) — are covered by fixture tests, no EDA tools needed:
-`python3 -I -m unittest discover -s sim -p 'test_settling*.py'`. Each runner's
-own gates and derivations are covered the same way:
+`python3 -I -m unittest discover -s sim -p 'test_settling*.py'`. The shared
+`.partials/` sha gate (`shas`/`load_partial`/`save_partial`) is the third
+record-admission gate, exercised through the per-bench suites below. Each
+runner's own gates and derivations are covered the same way:
 
     python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'
     python3 -I -m unittest discover -s sim/ota-gain -p 'test_*.py'

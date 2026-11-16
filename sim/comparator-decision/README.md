@@ -379,6 +379,29 @@ sweep would grade the integrator's failure at a corner where
 `v_trip` > −1.410 mV; the grid-level bounds above remain the 44-corner
 figures, and model B's parameters are unchanged.
 
+**About the committed record's own `pass_criterion` prose (2026-11-15):** it
+describes the `trip` gate as "the sweep spans at least +/-3.5 mV". That gate
+was real and graded once — `RAMP_SPAN_V` = 3.5 mV bounded `span_up`/`span_dn`
+from the bench's first commit — and commit `20c64e5` removed it, replacing
+the absolute span with the direction floor described under "Staircase"
+above, without updating the `pass_criterion` prose to match: the record's
+wording names a gate that no longer exists. The gate in force, `bracketed()`,
+checks only that `step_up`/`step_dn`/`span_up`/`span_dn` moved in the
+intended direction by at least `SWEEP_FLOOR_V` = 2 µV, and no magnitude
+beyond it. The committed `record.json` postdates the removal, so none of its
+numbers were ever gated on a span. The retired gate would have misgraded
+real corners had it stayed: three of them bracket on spans below or
+straddling 3.5 mV (`ss`/1.620 V/−40 °C at +45.0 µV/−59.4 µV, `ss`/1.620 V/27 °C
+at +3.569/−3.470 mV, `tt`/1.620 V/−40 °C at +1.430/−1.831 mV), and an
+absolute span fails them for the *integrator's* behaviour rather than the
+comparator's — the reasoning "Staircase" already gives, and the reason
+`20c64e5` retired the gate. The generator's prose now states the gate as
+implemented, with the threshold interpolated from `SWEEP_FLOOR_V` so the
+criterion cannot drift from the gate again. Every verdict, number, and corner
+in `record.json` is unchanged by this, and the record stays byte-identical
+because records are append-only: this note supersedes its `pass_criterion`
+wording, not its results.
+
 ### Kickback — reported, not graded
 
 At the binding decision-time corner, `sf`/1.620 V/−40 °C, peak deviation
