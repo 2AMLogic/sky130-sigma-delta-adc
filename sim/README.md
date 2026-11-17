@@ -1,7 +1,12 @@
 # sim
 
 PDK and tool pins (`pdk.json`, `toolchain.json`) and the analog smoke fixture in
-`smoke/`. See the repo README "Reproduce" section.
+`smoke/`. The transistor-level benches are `ota-settling/`, `integrator-settling/`,
+`integrator-ci/`, `comparator-decision/`, `ota-gain/` and `integrator-noise/`;
+each has its own README with the run command (`python3 -I sim/<bench>/run_*.py
+--probe` for one corner, `--record` for the DR-002 full grid; on some benches
+`--probe` takes a variant argument — see each bench's README), and the shared
+45-corner request plumbing is `settling_common.py`.
 
 `bmodel/` is the behavioural modulator model B (DR-001): `python3 -I sim/bmodel/run.py --params sim/bmodel/ideal.json`
 writes an append-only SNDR record to `bmodel/records/`; unit tests: `python3 -I -m unittest discover -s sim/bmodel -p 'test_*.py'` (needs `bmodel/requirements.txt`).
@@ -64,18 +69,50 @@ Both run the DR-002 full grid; see `comparator-decision/README.md`. Fixture
 tests for the derivations and the record-admission gates, no EDA tools needed:
 `python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'`.
 
+`modulator-tran/` is the short full-modulator transistor-level transient
+(issue #125, DR-001 item 2): the assembled modulator netlist with its OTA and
+comparator, a coherent single tone at -6 dBFS and the 5.12 MHz clock, over the
+DR-002 **anchor set** (7 points, a declared subset of the 45-point grid) through
+the batch fleet. It grades analog power against spec row 13, both integrators'
+differential output swing against the only figure the ratified spec gives
+(sec 5.4), and a clock/bitstream-activity check against row 5; row 12 is covered
+by the anchors spanning 1.62-1.98 V. The record length -- 1024 modulator clocks
+after 64 discarded start-up clocks -- was chosen from measured cost and written
+down before the first corner ran. It commits the per-clock bitstream and both
+integrator outputs per anchor under `modulator-tran/samples/`, which is what the
+DR-001 item 3 cross-check consumes. **It computes no SNDR and makes no row 2
+claim**: 1024 clocks is 8 output samples at OSR 128, which does not resolve the
+20 kHz band. See `modulator-tran/README.md`; its record-admission gates are
+covered by fixture tests, no EDA tools needed:
+`python3 -I -m unittest discover -s sim/modulator-tran -p 'test_*.py'`.
+
 `settling_common.py` holds the shared `klt sim` plumbing for the transistor-level
 benches (`ota-settling`, `integrator-settling`, `integrator-ci`, `ota-gain`,
-`integrator-noise`, `comparator-decision`). `request()` builds the common
-45-point grid request for a transient or, since #126, for any other analysis
-kind. Its two record-validity gates — `grid_complete()` (all 45 DR-002 grid
+`integrator-noise`, `comparator-decision`, `modulator-tran`), plus the two toolchain helpers every
+local single-corner probe runner needs as well — `join_continuations()` (fold a
+netlist's `+` continuation lines back into the instance line that declares them)
+and `ngspice_version()` (match the `ngspice-\d+` token anywhere in `ngspice -v`
+output; given a run log it prefers a token already captured there, which is how
+the two smoke benches — `smoke/`, `ota-op-smoke/` — stamp their records too).
+`request()` builds the common 45-point grid request for
+a transient or, since #126, for any other analysis kind. Its two
+record-validity gates — `grid_complete()` (all 45 DR-002 grid
 points returned) and `measurements_present(key=...)` (every one of them produced
 the bench's own sentinel measurement, so a dead fleet job cannot become a
 record) — are covered by fixture tests, no EDA tools needed:
-`python3 -I -m unittest discover -s sim -p 'test_settling*.py'`. Each runner's
-own gates and derivations are covered the same way:
+`python3 -I -m unittest discover -s sim -p 'test_settling*.py'`. The shared
+`.partials/` sha gate (`shas`/`load_partial`/`save_partial`) is the third
+record-admission gate, exercised through the per-bench suites below. Each
+runner's own gates and derivations are covered the same way:
 
     python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'
     python3 -I -m unittest discover -s sim/ota-gain -p 'test_*.py'
     python3 -I -m unittest discover -s sim/integrator-noise -p 'test_*.py'
     python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'
+
+`runner_test_common.py` is the test-side counterpart: the harness those
+per-bench runner tests share (loading a runner by path, the DR-002 corner ids,
+a `RunnerCase` base that runs `main()` against a temporary `HERE` with
+`run_klt`/`pdk_stamp` patched, and the issue #94 admission tests as a mixin each
+bench binds to its own variants). It is deliberately not `test_`-prefixed, so no
+`unittest discover` pattern collects it with no runner bound.

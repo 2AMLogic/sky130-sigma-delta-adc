@@ -8,10 +8,14 @@ AI agents driving [klayout-tools](https://github.com/2AMLogic/klayout-tools),
 xschem + ngspice on the analog side and cocotb + Icarus, Yosys/OpenROAD on
 the digital side.
 
-**Status: spec ratified; behavioural model and decimation filter committed.** The
-behavioural modulator model (B) and the decimation filter RTL are verified and
-recorded; there is no transistor-level modulator yet. Every figure here is
-simulated, none is measured.
+**Status: spec ratified; behavioural model, decimation filter and
+transistor-level sub-blocks committed.** The behavioural modulator model (B)
+and the decimation filter RTL are verified and recorded. The transistor-level
+schematics and netlists of the OTA, integrator, clock generator and modulator
+top are in `design/`; two analog layout cells and the routed decimator GDS are
+committed under `layout/`; and the sub-blocks carry 45-corner transistor-level
+records under `sim/`. The full transistor-level modulator has not yet been
+simulated for SNDR. Every figure here is simulated, none is measured.
 
 **Built agent-native.** Every specification, decision record, testbench, and
 line of documentation here is produced by AI agents working from a ratified
@@ -84,7 +88,11 @@ Rows are numbered as in the spec; the full table is there.
 Maturity ladder: spec ratified → behavioural modulator and decimation filter
 verified → transistor-level modulator simulated across PVT → layout
 DRC/LVS-clean → post-layout re-verification → shuttle seat → measured
-silicon. **Current position: spec ratified; behavioural modulator model and decimation filter verified; no transistor-level modulator, layout or silicon yet.**
+silicon. **Current position: spec ratified; behavioural modulator model and
+decimation filter verified; transistor-level sub-blocks designed and recorded
+across the DR-002 grid, with two analog layout cells and the routed decimator
+committed; the full transistor-level modulator is not yet simulated for SNDR,
+the analog layout is not yet DRC/LVS-graded, and there is no silicon yet.**
 
 ## T1 evidence
 
@@ -94,6 +102,9 @@ the verdict of record is
 [`manifests/sky130-sigma-delta-adc.signoff.json`](manifests/sky130-sigma-delta-adc.signoff.json).
 CI re-renders it with the `klayout-tools` version pinned in
 [`.github/klt-version`](.github/klt-version) and fails on any difference.
+The committed verdict grades 22 T1 rows — 11 items across the analog and
+digital partitions — as 10 met, 1 not applicable and 11 unmet; the per-item
+state is in the record.
 Regenerate it with:
 
 ```
@@ -104,6 +115,20 @@ uvx --from "klayout-tools==$(cat .github/klt-version)" klt signoff \
 
 (`klt signoff` exits 3 while any T1 item is unmet; that is a valid run.)
 
+A manifest `content_hash` pin follows one invariant: a citation declares a
+pin if and only if the cited file carries `provenance.input.content_hash`,
+and then the pin equals it; a `not_applicable` `spec`/`statement` binding
+instead pins the cited file's own sha256. Pins are per-entry claims, not
+unique values — two entries may cite different files that attest the same
+declared input.
+[`manifests/check_content_hashes.py`](manifests/check_content_hashes.py)
+asserts this in CI, in both directions (issues #155 and #215): a pin the
+cited file cannot verify, and a missing pin where the file carries one,
+both fail. `klt signoff` grades a pin it cannot verify as
+`unverifiable_provenance` rather than comparing bytes, and while
+an item also fails its own check that refusal never surfaces — so the
+manifest is checked where the files it cites live.
+
 ## Repo layout
 
 ```
@@ -113,7 +138,10 @@ rtl/           decimation filter and control
 sim/           PDK/tool pins, modulator testbenches + PVT corner results (ngspice)
 verification/  cocotb testbenches for the decimation filter
 layout/        GDS + DRC/LVS reports (klayout-tools driven)
-measurements/  silicon characterization (empty until tape-out)
+measurements/  T1 item-8 characterization report (simulated; measured data lands at tape-out)
+attestation/   derived attestation envelopes (items 8, 9 and 10)
+manifests/     the signoff manifest and its rendered verdict of record
+scripts/       CI helper scripts
 ```
 
 ## Reproduce
@@ -149,12 +177,34 @@ Committed records: `sim/smoke/record.json`, `verification/smoke/record.json`,
 `ngspice`, `iverilog`, `yosys` and `klt` on `PATH`; the unit tests and
 `response.py` need only Python and numpy.
 
+The transistor-level benches — OTA settling, integrator settling, charge
+injection, comparator decision, OTA gain and integrator noise — each have
+their own runner (`sim/<bench>/run_*.py`) and README with the run command;
+[`sim/README.md`](sim/README.md) is the index. A full DR-002 grid (5 process
+x 3 temperature x 3 Vdda) is one `klt sim` request per bench and runs on the
+batch fleet; `--probe` runs one corner locally. The layout flows — decimator
+place-and-route and STA, the analog cell generators with their DRC and
+device-count reports — are documented in
+[`layout/README.md`](layout/README.md).
+
 The T1 item 10 (repo hygiene) attestation is derived, not asserted:
 
 ```
 uvx --from "klayout-tools==$(cat .github/klt-version)" klt signoff --attest 10 \
     --inventory attestation/item10-inventory.json \
     --check attestation/item10-envelope.json
+```
+
+`--check` never rewrites the envelope: when a PR edits a file the envelope's
+hygiene hashes pin (e.g. `.github/workflows/signoff.yml` or this README),
+it reports the stale hash and exits 3. Regenerate and commit the envelope in
+the same PR with the write form `-o`, which re-runs the inventory's
+`local_only` audit checks and so needs Python and numpy:
+
+```
+uvx --from "klayout-tools==$(cat .github/klt-version)" klt signoff --attest 10 \
+    --inventory attestation/item10-inventory.json \
+    -o attestation/item10-envelope.json
 ```
 
 ## License

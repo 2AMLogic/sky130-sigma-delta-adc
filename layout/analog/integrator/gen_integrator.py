@@ -13,11 +13,14 @@ and nothing is edited in a GUI.
     python3 layout/analog/integrator/gen_integrator.py --check  # regenerate into a
                                                                 # temp dir, compare
 
-Reference netlist: ``design/integrator/integrator.spice`` -- 44 primitive
-device lines (9 ``nfet_01v8``, 12 ``nfet_01v8_lvt``, 9 ``pfet_01v8``, 8
-``pfet_01v8_lvt``, 6 ``cap_mim_m3_1``) plus the ``xota`` instance of
+Reference netlist: ``design/integrator/integrator.spice`` -- 50 primitive
+device lines (8 ``nfet_01v8``, 14 ``nfet_01v8_lvt``, 8 ``pfet_01v8``, 14
+``pfet_01v8_lvt``, 6 ``cap_mim_m3_1``; issue #129 moved the four ``Sin``
+halves to the low-Vth flavours, #147 added the ``Sci``/``Scr`` PMOS halves
+and the ``phi1eb`` inverter pair) plus the ``xota`` instance of
 ``ota_fd``.  Ports: ``vdda vssa vinp vinn vrefp vrefn vcm ibias phi1 phi1b
-phi1e phi2 dp dn voutp voutn``.  Sizing rationale:
+phi1e phi2 dp dn voutp voutn`` (``phi1eb`` is generated in-cell, not a
+port).  Sizing rationale:
 ``design/integrator/SIZING.md``.  PDK pin: ``sim/pdk.json`` (sky130A, open_pdks
 ``f6eeac7``), resolved from ``~/.ciel`` unless ``--pdk-root`` says otherwise.
 
@@ -29,7 +32,7 @@ it in turn follows the pinned ``2AMLogic/sky130-comparator`` at
   transistor and one ``cap_array`` unit per netlist capacitor, so the drawn
   device count equals the netlist's line for line.  Blocks that share a
   geometry share one ``klt gen`` call (the report is referenced by several
-  ``blocks[]`` entries) -- 9 calls cover all 44 devices.
+  ``blocks[]`` entries) -- 11 calls cover all 50 devices.
 * **The OTA is instantiated, never redrawn**: a ``blocks[].cell`` entry naming
   ``layout/analog/ota_fd/ota_fd.gds`` / cell ``ota_fd``, whose sha256 this
   script asserts before it runs.  Its eight ports are recovered with
@@ -59,23 +62,31 @@ which is what ``--check`` asserts.
 """
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
-import shutil
-import subprocess
 import sys
-import tempfile
-from collections import Counter, defaultdict
+from collections import defaultdict
+from functools import partial
 from pathlib import Path
 
+# layout_common is the shared plumbing module one directory up (issue #176);
+# the path insert is what lets
+# `python3 layout/analog/integrator/gen_integrator.py` run from any working
+# directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_MET2, L_VIA,
+                           PDK_VARIANT, TRACK_PITCH_UM,
+                           TRUNK_PITCH_UM, VIA_UM, WIRE_UM, Anchor,
+                           Rect, RouteError, Router as RouterBase,
+                           assert_drc_clean, extract_nets, klt_pin, nm,
+                           parse_extract_devices, run, run_cli, snap)
+
 # --- sky130A GDS layer numbers ------------------------------------------------
+# The router core's layers (L_MCON/L_MET1/L_MET2/L_VIA) come from layout_common,
+# alongside the shared geometry constants it routes with.
 L_LI1 = (67, 20)
-L_MCON = (67, 44)
-L_MET1 = (68, 20)
 L_MET1_PIN = (68, 5)
-L_VIA = (68, 44)
-L_MET2 = (69, 20)
 L_VIA2 = (69, 44)
 L_MET3 = (70, 20)
 L_VIA3 = (70, 44)
@@ -85,16 +96,11 @@ L_LVTN = (125, 44)
 # --- rule-derived geometry (sky130 deck minimums plus margin) -----------------
 # Identical to the sibling OTA generator's table; see
 # layout/analog/ota_fd/gen_ota_fd.py for the per-constant derivation.
-DBU = 1000
-GRID_UM = 0.005          # manufacturing grid (*.ongrid.1)
-MCON_UM = 0.17           # ct.1 exact size
-VIA_UM = 0.15            # via.1a exact size
+# DBU/GRID_UM and the router core's constants (MCON_UM/VIA_UM/WIRE_UM/
+# MET1_SPACE_UM, the two pitches, BUCKET_NM) come from layout_common,
+# alongside nm/snap which use them.
 VIA2_UM = 0.20           # via2.1a exact size
 VIA3_UM = 0.20           # via3.1a exact size
-WIRE_UM = 0.34           # met1/met2 wire width (via1 enclosure sets the floor)
-MET1_SPACE_UM = 0.14     # m1.2
-MET2_SPACE_UM = 0.14     # m2.2
-MCON_SPACE_UM = 0.19     # ct.2
 MET34_W_UM = 0.60        # met3/met4 wire width
 MET34_SPACE_UM = 0.30    # m3.2/m4.2
 PAD34_UM = 0.60          # met2/met3/met4 landing pad for a via2/via3
@@ -121,10 +127,7 @@ LANDING_MET1_UM = 0.34
 LANDING_MET2_UM = 0.38
 LANDING_MET3_UM = 0.49
 PAD_MARGIN_UM = 0.12     # keep an mcon this far inside its li1 pad's own edge
-TRUNK_PITCH_UM = 0.50    # x grid for met2 trunks
-TRACK_PITCH_UM = 0.50    # y grid for met1 spines
 JOG_REACH_UM = 6.0       # how far a met1 jog may climb off a strap's own y
-BUCKET_NM = 2000         # y bucket for the met1 overlap index
 
 #: `lvtn` enclosure of the device it marks.  sky130's own lvtn rules are not in
 #: klt's curated deck (the layer comes back under
@@ -133,8 +136,6 @@ BUCKET_NM = 2000         # y bucket for the met1 overlap index
 LVTN_ENCLOSE_UM = 0.38
 
 # --- PDK pin (mirrors sim/pdk.json) -------------------------------------------
-PDK_VARIANT = "sky130A"
-PDK_ROOT_DEFAULT = "~/.ciel"
 TOP_CELL = "integrator"
 
 # --- the instantiated OTA cell (#118) -----------------------------------------
@@ -151,7 +152,7 @@ OTA_GDS_SHA256 = "27ace056b255428e05c0fd6293dd08239fe97ba67379f6a330c30a94eeefe9
 #: netlist moved underneath it is stale, not merely out of date.  Same
 #: `integrator_netlist_sha256` convention the `sim/` records use.
 NETLIST_REL = "../../../design/integrator/integrator.spice"
-NETLIST_SHA256 = "18fc51475f667eea993fbef4e9a3abe7eaa35863ae88f86c25bfb56bc4074d53"
+NETLIST_SHA256 = "6857c4ca5422d9736e6e18a898ab873a7fab9cc1bc89e3e395abe55ab66e1c9d"
 
 #: The OTA's eight `.subckt` ports, as `met1.pin` label text in its stream, and
 #: the integrator net each one is.  `inp`/`inn` are the OTA's *inputs*: the OTA
@@ -193,7 +194,10 @@ OTA_AXIS_LABELS = ("inn", "inp")
 # --- device geometries --------------------------------------------------------
 #: (generator, params) per distinct drawn geometry.  Several netlist devices
 #: share one entry -- the generated report is referenced by each of their
-#: `blocks[]` entries, so 44 devices cost 9 `klt gen` calls.
+#: `blocks[]` entries -- so the device count and the number of `klt gen` calls
+#: differ and drift as the netlist is regenerated.  Do not quote either here:
+#: `extract-device-count.json` records the device count, and the call count is
+#: one per entry in this table (see `gen_geometries`).
 #:
 #: `dummy` is 0 everywhere, as in the sibling OTA cell: klt's dummy elements do
 #: not extract as devices, but they widen every row and nothing here needs
@@ -204,9 +208,19 @@ GEOMETRIES: dict[str, tuple[str, dict]] = {
     "n4": ("mos_array", {
         "w_um": 4.0, "l_um": 0.15, "fingers": 1, "rows": 1, "cols": 1,
         "dummy": 0, "flavor": "nfet", "gate_contact": True}),
+    # low-Vth nFET half of the input sampling gate (W=4, L=0.15) -- the #129
+    # fix; same drawn geometry as n4, carries the lvtn marker
+    "nl4": ("mos_array", {
+        "w_um": 4.0, "l_um": 0.15, "fingers": 1, "rows": 1, "cols": 1,
+        "dummy": 0, "flavor": "nfet", "gate_contact": True}),
     # 1.8V core pFET half of a transmission gate (W=8, L=0.15)
     "p8": ("mos_array", {
         "w_um": 8.0, "l_um": 0.15, "fingers": 1, "rows": 1, "cols": 1,
+        "dummy": 0, "flavor": "pfet", "gate_contact": True}),
+    # low-Vth pFET half of the input sampling gate (W=8, L=0.35) -- the #129
+    # fix; the lvt PMOS model has no bin below L=0.35, so the channel grows
+    "pl8": ("mos_array", {
+        "w_um": 8.0, "l_um": 0.35, "fingers": 1, "rows": 1, "cols": 1,
         "dummy": 0, "flavor": "pfet", "gate_contact": True}),
     # low-Vth nFET switch (W=12, L=0.15) -- needs the lvtn marker
     "nl12": ("mos_array", {
@@ -216,11 +230,14 @@ GEOMETRIES: dict[str, tuple[str, dict]] = {
     "pl24": ("mos_array", {
         "w_um": 24.0, "l_um": 0.35, "fingers": 1, "rows": 1, "cols": 1,
         "dummy": 0, "flavor": "pfet", "gate_contact": True}),
-    # low-Vth pFET top-plate switch (W=4, L=0.35) -- needs the lvtn marker
+    # low-Vth pFET top-plate switch half (W=4, L=0.35) -- the Sti/Str
+    # precedent, also drawn for the #147 Sci/Scr PMOS halves; needs the
+    # lvtn marker
     "pl4": ("mos_array", {
         "w_um": 4.0, "l_um": 0.35, "fingers": 1, "rows": 1, "cols": 1,
         "dummy": 0, "flavor": "pfet", "gate_contact": True}),
-    # phi2b inverter, mult=4 drawn as 4 fingers of the netlist's own W
+    # clock-inverter halves (the phi2b pair, the #147 phi1eb pair), mult=4
+    # drawn as 4 fingers of the netlist's own W
     "inv_n": ("mos_array", {
         "w_um": 2.0, "l_um": 0.15, "fingers": 4, "rows": 1, "cols": 1,
         "dummy": 0, "flavor": "nfet", "gate_contact": True}),
@@ -237,7 +254,7 @@ GEOMETRIES: dict[str, tuple[str, dict]] = {
 
 #: Geometries whose devices are the netlist's `_lvt` models, and so carry a
 #: hand-drawn `lvtn` marker.
-LVT_GEOMETRIES = ("nl12", "pl24", "pl4")
+LVT_GEOMETRIES = ("nl4", "nl12", "pl8", "pl24", "pl4")
 
 # --- schematic connectivity ---------------------------------------------------
 # Transcribed device by device from design/integrator/integrator.spice.  The
@@ -249,11 +266,11 @@ LVT_GEOMETRIES = ("nl12", "pl24", "pl4")
 # design/integrator/SIZING.md:72-74.
 #
 # `p` blocks carry the p-side suffix, `n` blocks the n-side one; every entry
-# below has a mirror-image partner except the phi2b inverter, which is single
-# ended and sits in its own row outside the mirrored field.
+# below has a mirror-image partner except the phi2b and phi1eb inverters,
+# which are single ended and sit in their own rows outside the mirrored field.
 DEVICES: dict[str, tuple[str, dict[str, str]]] = {
     # -- p side, nFET ----------------------------------------------------------
-    "sin_p_n":  ("n4",   {"D": "vinp", "G": "phi1", "S": "bpi_p"}),
+    "sin_p_n":  ("nl4",  {"D": "vinp", "G": "phi1", "S": "bpi_p"}),
     "mra_p_n":  ("n4",   {"D": "vrefp", "G": "dn", "S": "rsel_p"}),
     "mrb_p_n":  ("n4",   {"D": "vrefn", "G": "dp", "S": "rsel_p"}),
     "sr_p_n":   ("n4",   {"D": "rsel_p", "G": "phi1", "S": "bpr_p"}),
@@ -264,12 +281,14 @@ DEVICES: dict[str, tuple[str, dict[str, str]]] = {
     "sti_p":    ("nl12", {"D": "tpi_p", "G": "phi2", "S": "sump"}),
     "str_p":    ("nl12", {"D": "tpr_p", "G": "phi2", "S": "sump"}),
     # -- p side, pFET ----------------------------------------------------------
-    "sin_p_p":  ("p8",   {"D": "vinp", "G": "phi1b", "S": "bpi_p"}),
+    "sin_p_p":  ("pl8",  {"D": "vinp", "G": "phi1b", "S": "bpi_p"}),
     "mra_p_p":  ("p8",   {"D": "vrefp", "G": "dp", "S": "rsel_p"}),
     "mrb_p_p":  ("p8",   {"D": "vrefn", "G": "dn", "S": "rsel_p"}),
     "sr_p_p":   ("p8",   {"D": "rsel_p", "G": "phi1b", "S": "bpr_p"}),
     "sbi_p_p":  ("pl24", {"D": "bpi_p", "G": "phi2b", "S": "vcm"}),
     "sbr_p_p":  ("pl24", {"D": "bpr_p", "G": "phi2b", "S": "vcm"}),
+    "sci_p_p":  ("pl4",  {"D": "tpi_p", "G": "phi1eb", "S": "vcm"}),
+    "scr_p_p":  ("pl4",  {"D": "tpr_p", "G": "phi1eb", "S": "vcm"}),
     "sti_p_p":  ("pl4",  {"D": "tpi_p", "G": "phi2b", "S": "sump"}),
     "str_p_p":  ("pl4",  {"D": "tpr_p", "G": "phi2b", "S": "sump"}),
     # -- p side, capacitors ----------------------------------------------------
@@ -277,7 +296,7 @@ DEVICES: dict[str, tuple[str, dict[str, str]]] = {
     "csr_p":    ("cap1p", {"TOP": "tpr_p", "BOT": "bpr_p"}),
     "ci_p":     ("cap2p", {"TOP": "sump", "BOT": "voutp"}),
     # -- n side, nFET ----------------------------------------------------------
-    "sin_n_n":  ("n4",   {"D": "vinn", "G": "phi1", "S": "bpi_n"}),
+    "sin_n_n":  ("nl4",  {"D": "vinn", "G": "phi1", "S": "bpi_n"}),
     "mra_n_n":  ("n4",   {"D": "vrefn", "G": "dn", "S": "rsel_n"}),
     "mrb_n_n":  ("n4",   {"D": "vrefp", "G": "dp", "S": "rsel_n"}),
     "sr_n_n":   ("n4",   {"D": "rsel_n", "G": "phi1", "S": "bpr_n"}),
@@ -288,19 +307,23 @@ DEVICES: dict[str, tuple[str, dict[str, str]]] = {
     "sti_n":    ("nl12", {"D": "tpi_n", "G": "phi2", "S": "sumn"}),
     "str_n":    ("nl12", {"D": "tpr_n", "G": "phi2", "S": "sumn"}),
     # -- n side, pFET ----------------------------------------------------------
-    "sin_n_p":  ("p8",   {"D": "vinn", "G": "phi1b", "S": "bpi_n"}),
+    "sin_n_p":  ("pl8",  {"D": "vinn", "G": "phi1b", "S": "bpi_n"}),
     "mra_n_p":  ("p8",   {"D": "vrefn", "G": "dp", "S": "rsel_n"}),
     "mrb_n_p":  ("p8",   {"D": "vrefp", "G": "dn", "S": "rsel_n"}),
     "sr_n_p":   ("p8",   {"D": "rsel_n", "G": "phi1b", "S": "bpr_n"}),
     "sbi_n_p":  ("pl24", {"D": "bpi_n", "G": "phi2b", "S": "vcm"}),
     "sbr_n_p":  ("pl24", {"D": "bpr_n", "G": "phi2b", "S": "vcm"}),
+    "sci_n_p":  ("pl4",  {"D": "tpi_n", "G": "phi1eb", "S": "vcm"}),
+    "scr_n_p":  ("pl4",  {"D": "tpr_n", "G": "phi1eb", "S": "vcm"}),
     "sti_n_p":  ("pl4",  {"D": "tpi_n", "G": "phi2b", "S": "sumn"}),
     "str_n_p":  ("pl4",  {"D": "tpr_n", "G": "phi2b", "S": "sumn"}),
     # -- n side, capacitors ----------------------------------------------------
     "csi_n":    ("cap1p", {"TOP": "tpi_n", "BOT": "bpi_n"}),
     "csr_n":    ("cap1p", {"TOP": "tpr_n", "BOT": "bpr_n"}),
     "ci_n":     ("cap2p", {"TOP": "sumn", "BOT": "voutn"}),
-    # -- the phi2b inverter (single ended, mult=4 each) ------------------------
+    # -- the clock inverters (single ended, mult=4 each) ------------------------
+    "iphi1eb_n": ("inv_n", {"D": "phi1eb", "G": "phi1e", "S": "vssa"}),
+    "iphi1eb_p": ("inv_p", {"D": "vdda", "G": "phi1e", "S": "phi1eb"}),
     "iphi2b_n": ("inv_n", {"D": "phi2b", "G": "phi2", "S": "vssa"}),
     "iphi2b_p": ("inv_p", {"D": "vdda", "G": "phi2", "S": "phi2b"}),
 }
@@ -346,14 +369,14 @@ HALF_ROWS: list[tuple[str, float, str, tuple[str, ...]]] = [
     ("nfet", 11.0, "left", ("mra_{s}_n", "mrb_{s}_n", "sin_{s}_n", "sr_{s}_n",
                             "sbi_{s}", "sbr_{s}", "sci_{s}", "scr_{s}")),
     ("pfet", 13.0, "left", ("mra_{s}_p", "mrb_{s}_p", "sin_{s}_p", "sr_{s}_p",
-                            "sbi_{s}_p", "sbr_{s}_p")),
+                            "sbi_{s}_p", "sbr_{s}_p", "sci_{s}_p", "scr_{s}_p")),
 ]
 
-#: The two inverter rows, beyond the p-side `pfet` row, outside the mirrored
-#: field (the inverter is single ended, so it has no mirror partner).
+#: The inverter rows, beyond the p-side `pfet` row, outside the mirrored
+#: field (each inverter is single ended, so it has no mirror partner).
 INV_ROWS: list[tuple[str, float, str, tuple[str, ...]]] = [
-    ("inv_n", 13.0, "left", ("iphi2b_n",)),
-    ("inv_p", 9.0, "left", ("iphi2b_p",)),
+    ("inv_n", 13.0, "left", ("iphi1eb_n", "iphi2b_n")),
+    ("inv_p", 9.0, "left", ("iphi1eb_p", "iphi2b_p")),
 ]
 
 #: Which rows each ring encloses.  One ring per (flavour, half-row, side),
@@ -382,18 +405,20 @@ ESCAPE_PITCH_UM = 1.0     # x pitch of the eight OTA escape columns
 PIN_NETS = ("vdda", "vssa", "vinp", "vinn", "vrefp", "vrefn", "vcm", "ibias",
             "phi1", "phi1b", "phi1e", "phi2", "dp", "dn", "voutp", "voutn")
 
-#: Net routing order.  The two summing nodes go first -- they are the nodes
+#: Net routing order.  The two summing nodes go first and route as a matched
+#: pair (see "matched-pair summing routing" below) -- they are the nodes
 #: DR-004 names as the most sensitive on the die, and routing them before
 #: anything else is what makes their runs the shortest the floorplan allows.
 #: Then the other high-impedance plate nets, then the clocks, then the
 #: boundary signals, and the two supplies last (most anchors, most freedom).
+#: The two summing nets must stay adjacent: `build()` routes them in one pass.
 NET_ORDER = (
     "sump", "sumn",
     "tpi_p", "tpi_n", "tpr_p", "tpr_n",
     "bpi_p", "bpi_n", "bpr_p", "bpr_n",
     "rsel_p", "rsel_n",
     "voutp", "voutn",
-    "phi1e", "phi2b", "phi1", "phi1b", "phi2",
+    "phi1e", "phi1eb", "phi2b", "phi1", "phi1b", "phi2",
     "dp", "dn", "vinp", "vinn", "vrefp", "vrefn",
     "vcm", "ibias", "vssa", "vdda",
 )
@@ -408,81 +433,27 @@ NET_ORDER = (
 #: curator probe that found `klt extract --deck sky130` ignoring an `lvtn`
 #: marker; on this cell's geometry it does not -- the extracted netlist names
 #: `sky130_fd_pr__nfet_01v8_lvt` and `sky130_fd_pr__pfet_01v8_lvt` and gets
-#: all twenty right.  See this directory's README for the difference between
-#: the two probes.  Asserting the stronger thing is the point of the check, so
-#: it asserts the stronger thing.
+#: all twenty-eight right (14 nfet + 14 pfet since #147 added the `Sci`/`Scr`
+#: PMOS halves; #129 moved the `Sin` halves to the low-Vth flavours).  See
+#: this directory's README for the difference between the two probes.
+#: Asserting the stronger thing is the point of the check, so it asserts the
+#: stronger thing.
 EXPECTED_DEVICES = {
-    "sky130_fd_pr__nfet_01v8": 9,
-    "sky130_fd_pr__nfet_01v8_lvt": 12,
-    "sky130_fd_pr__pfet_01v8": 9,
-    "sky130_fd_pr__pfet_01v8_lvt": 8,
+    "sky130_fd_pr__nfet_01v8": 8,
+    "sky130_fd_pr__nfet_01v8_lvt": 14,
+    "sky130_fd_pr__pfet_01v8": 8,
+    "sky130_fd_pr__pfet_01v8_lvt": 14,
     "sky130_fd_pr__cap_mim_m3_1": 6,
 }
 
 #: The flavour-blind totals the issue's own acceptance criterion asks for,
 #: recorded beside the per-model counts so the committed evidence answers the
 #: criterion as written as well as the stronger question.
-EXPECTED_FLAVOUR_BLIND = {"nfet": 21, "pfet": 17, "cap_mim": 6}
-
-
-def nm(value_um: float) -> int:
-    return int(round(value_um * DBU))
-
-
-def snap(value_um: float) -> float:
-    """Round onto the PDK manufacturing grid (*.ongrid.1)."""
-    return round(round(value_um / GRID_UM) * GRID_UM, 6)
+EXPECTED_FLAVOUR_BLIND = {"nfet": 22, "pfet": 22, "cap_mim": 6}
 
 
 def sha256_of(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-class Rect:
-    """An axis-aligned rectangle in integer nanometres."""
-
-    __slots__ = ("x0", "y0", "x1", "y1")
-
-    def __init__(self, x0: int, y0: int, x1: int, y1: int) -> None:
-        self.x0, self.y0, self.x1, self.y1 = x0, y0, x1, y1
-
-    @classmethod
-    def um(cls, x0: float, y0: float, x1: float, y1: float) -> "Rect":
-        return cls(nm(min(x0, x1)), nm(min(y0, y1)), nm(max(x0, x1)), nm(max(y0, y1)))
-
-    @classmethod
-    def centred(cls, cx: float, cy: float, w: float, h: float) -> "Rect":
-        return cls.um(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
-
-    @classmethod
-    def hwire(cls, xa: float, xb: float, y: float, w: float) -> "Rect":
-        lo, hi = sorted((xa, xb))
-        return cls.um(lo - w / 2, y - w / 2, hi + w / 2, y + w / 2)
-
-    @classmethod
-    def vwire(cls, x: float, ya: float, yb: float, w: float) -> "Rect":
-        lo, hi = sorted((ya, yb))
-        return cls.um(x - w / 2, lo - w / 2, x + w / 2, hi + w / 2)
-
-    def as_um(self) -> list[float]:
-        return [self.x0 / DBU, self.y0 / DBU, self.x1 / DBU, self.y1 / DBU]
-
-    def clashes(self, other: "Rect", clearance: int) -> bool:
-        return (self.x0 - clearance < other.x1 and other.x0 < self.x1 + clearance
-                and self.y0 - clearance < other.y1 and other.y0 < self.y1 + clearance)
-
-
-class RouteError(RuntimeError):
-    """The floorplan/router could not place a wire."""
-
-
-def run(cmd: list[str], cwd: Path | None = None, check: bool = True):
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
-    if check and result.returncode != 0:
-        raise RuntimeError(
-            f"command failed (rc={result.returncode}): {' '.join(cmd)}\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
-    return result
 
 
 # --- orientation --------------------------------------------------------------
@@ -578,13 +549,13 @@ def port_nets_of(block: Block) -> dict[str, str]:
     return {prefix + suffix: net for suffix, net in sorted(block.nets.items())}
 
 
-def gen_geometries(klt: str, pdk_args: list[str], out_dir: Path,
+def gen_geometries(klt_cmd: list[str], pdk_args: list[str], out_dir: Path,
                    wanted: list[str]) -> dict[str, dict]:
     """One `klt gen` call per distinct geometry, keyed by its id."""
     reports: dict[str, dict] = {}
     for key in sorted(wanted):
         generator, params = GEOMETRIES[key]
-        r = run([klt, "gen", generator, "--params", json.dumps(params, sort_keys=True)]
+        r = run([*klt_cmd, "gen", generator, "--params", json.dumps(params, sort_keys=True)]
                 + pdk_args + ["--cell-name", key.upper(), "-o", f"{key}.gds",
                               "--format", "json"], cwd=out_dir)
         report = json.loads(r.stdout)
@@ -595,11 +566,11 @@ def gen_geometries(klt: str, pdk_args: list[str], out_dir: Path,
     return reports
 
 
-def gen_rings(klt: str, pdk_args: list[str], out_dir: Path,
+def gen_rings(klt_cmd: list[str], pdk_args: list[str], out_dir: Path,
               ring_params: dict[str, dict]) -> dict[str, dict]:
     reports: dict[str, dict] = {}
     for ring_id in sorted(ring_params):
-        r = run([klt, "gen", "guard_ring", "--params",
+        r = run([*klt_cmd, "gen", "guard_ring", "--params",
                  json.dumps(ring_params[ring_id], sort_keys=True)]
                 + pdk_args + ["--cell-name", ring_id.upper(), "-o", f"{ring_id}.gds",
                               "--format", "json"], cwd=out_dir)
@@ -713,9 +684,9 @@ def build_floorplan(reports: dict[str, dict]) -> tuple[dict[str, Block],
                 min(b["x0"] for b in boxes), min(b["y0"] for b in boxes),
                 max(b["x1"] for b in boxes), max(b["y1"] for b in boxes))
 
-    # -- the two inverter rows, above the p-side field ------------------------
-    # The phi2b inverter is single ended, so it has no mirror partner and sits
-    # outside the mirrored field rather than unbalancing one of its rows.
+    # -- the inverter rows, above the p-side field -----------------------------
+    # Each clock inverter is single ended, so it has no mirror partner and
+    # sits outside the mirrored field rather than unbalancing one of its rows.
     inv_offset = half_height
     for base, gap, _align, members in INV_ROWS:
         inv_offset += gap
@@ -772,33 +743,6 @@ def ring_request(extents: dict[str, tuple], ring_id: str) -> tuple[dict, dict]:
 
 
 # --- anchors ------------------------------------------------------------------
-class Anchor:
-    """One place a net can be reached inside one block.
-
-    ``plane`` is how a met2 trunk gets onto it: ``met1`` for an li1 pad or an
-    in-block met1 strap, ``cap3``/``cap4`` for a MiM terminal that needs a
-    same-layer run out of the block first, and ``ota`` for one of the eight
-    landing points inside the placed OTA instance.
-    """
-
-    __slots__ = ("net", "block", "plane", "y", "x0", "x1", "ports", "port_dir",
-                 "block_y0", "block_y1", "pad_xs", "jog_um")
-
-    def __init__(self, net, block, plane, y, x0, x1, ports,
-                 port_dir=0, block_y0=0.0, block_y1=0.0, pad_xs=(), jog_um=0.0):
-        self.net, self.block, self.plane = net, block, plane
-        self.y, self.x0, self.x1 = y, x0, x1
-        self.ports = ports
-        self.port_dir = port_dir
-        self.block_y0, self.block_y1 = block_y0, block_y1
-        self.pad_xs = tuple(pad_xs) if pad_xs else (x0,)
-        self.jog_um = jog_um
-
-    @property
-    def xmid(self) -> float:
-        return (self.x0 + self.x1) / 2
-
-
 def collect_anchors(blocks: dict[str, Block]):
     """Turn every block's ports into anchors, one per (block, net, pad row).
 
@@ -872,38 +816,26 @@ def collect_anchors(blocks: dict[str, Block]):
 
 
 # --- router -------------------------------------------------------------------
-class Router:
+class Router(RouterBase):
     """met1 horizontal + met2 vertical, one global x column per trunk.
 
     Same discipline as the sibling OTA generator: every trunk owns its x column
     outright, so no met2-met2 spacing search is needed; met1 is the only layer
     the greedy search has to keep clear; met3/met4 carry only the MiM risers
-    and the eight OTA escapes.
+    and the eight OTA escapes.  The shared core lives in
+    layout_common.Router; the overrides below are the parts this generator
+    does differently -- the per-net shape tagging (`add_met1`/`add_met`, whose
+    rectangles `summing_node_report()` reads back out of `by_net`), the
+    boundary-clipped column proposal, and this cell's own MiM risers and OTA
+    escapes.  The met2 search budget is the shared ``connect_met1`` reading
+    ``COL_BUDGET`` (48 here, against the sibling's 24), and ``finish_trunks``
+    is the shared one (this cell measured exactly one zero-height trunk, an
+    OTA escape's column, which the shared skip drops).
     """
 
-    def __init__(self, x_lo: float, x_hi: float, y_lo: float, y_hi: float) -> None:
-        self.x_lo, self.x_hi, self.y_lo, self.y_hi = x_lo, x_hi, y_lo, y_hi
-        self.shapes: list[tuple[tuple[int, int], Rect]] = []
-        self.labels: list[tuple[tuple[int, int], str, float, float]] = []
-        self.met1: list[tuple[str, Rect]] = []
-        self.met1_index: dict[int, list[tuple[str, Rect]]] = defaultdict(list)
-        self.met3: list[tuple[str, Rect]] = []
-        self.met4: list[tuple[str, Rect]] = []
-        self.mcons: list[Rect] = []
-        self.used_cols: set[int] = set()
-        #: Every routed rectangle, keyed by (net, layer).  Only used after the
-        #: fact, by `summing_node_report()`.
-        self.by_net: dict[tuple[str, tuple[int, int]], list[Rect]] = defaultdict(list)
-        self.trunk_y: dict[tuple[str, float], list[float]] = defaultdict(list)
-        self.via1_y: dict[tuple[str, float], list[float]] = defaultdict(list)
-        self.wire_um: dict[str, float] = defaultdict(float)
+    COL_BUDGET = 48
 
     # -- geometry bookkeeping -------------------------------------------------
-    def add_shape(self, layer, rect: Rect, net: str | None = None) -> None:
-        self.shapes.append((layer, rect))
-        if net is not None:
-            self.by_net[(net, layer)].append(rect)
-
     def add_met1(self, net: str, rects: list[Rect]) -> None:
         for rect in rects:
             self.met1.append((net, rect))
@@ -918,49 +850,6 @@ class Router:
             self.add_shape(layer, rect, net)
             self.wire_um[net] += (rect.x1 - rect.x0 + rect.y1 - rect.y0) / DBU
 
-    def add_mcon(self, x: float, y: float) -> None:
-        rect = Rect.centred(x, y, MCON_UM, MCON_UM)
-        self.mcons.append(rect)
-        self.add_shape(L_MCON, rect)
-
-    def add_trunk_via(self, net: str, col: float, y: float) -> None:
-        """Drop a met1<->met2 via1 on this net's column, and grow the trunk."""
-        self.trunk_y[(net, col)].append(y)
-        if any(abs(y - prev) < WIRE_UM for prev in self.via1_y[(net, col)]):
-            return
-        self.add_shape(L_VIA, Rect.centred(col, y, VIA_UM, VIA_UM))
-        self.via1_y[(net, col)].append(y)
-
-    @staticmethod
-    def _ok(rect: Rect, placed: Rect, same_net: bool, gap: int) -> bool:
-        if not rect.clashes(placed, gap):
-            return True
-        return same_net and rect.clashes(placed, 0)
-
-    @classmethod
-    def _free(cls, store, net: str, rects: list[Rect], clearance: float) -> bool:
-        gap = nm(clearance)
-        for owner, placed in store:
-            for rect in rects:
-                if not cls._ok(rect, placed, owner == net, gap):
-                    return False
-        return True
-
-    def met1_free(self, net: str, rects: list[Rect]) -> bool:
-        gap = nm(MET1_SPACE_UM)
-        for rect in rects:
-            lo = (rect.y0 - gap) // BUCKET_NM
-            hi = (rect.y1 + gap) // BUCKET_NM
-            for b in range(lo, hi + 1):
-                for owner, placed in self.met1_index.get(b, ()):
-                    if not self._ok(rect, placed, owner == net, gap):
-                        return False
-        return True
-
-    def mcon_free(self, rects: list[Rect]) -> bool:
-        gap = nm(MCON_SPACE_UM)
-        return not any(r.clashes(p, gap) for p in self.mcons for r in rects)
-
     # -- candidate orders ------------------------------------------------------
     def columns(self, x0: float, x1: float, pref: float):
         k0 = int((self.x_lo - 2.0) // TRUNK_PITCH_UM)
@@ -971,61 +860,7 @@ class Router:
                                   abs(c - pref), c))
         return [c for c in cands if nm(c) not in self.used_cols]
 
-    def neighbours_free(self, col: float) -> bool:
-        return not any(nm(snap(col + d * TRUNK_PITCH_UM)) in self.used_cols
-                       for d in (-1, 1))
-
-    def reserve_column(self, col: float, neighbours: bool = False) -> None:
-        self.used_cols.add(nm(col))
-        if neighbours:
-            self.used_cols.add(nm(snap(col - TRUNK_PITCH_UM)))
-            self.used_cols.add(nm(snap(col + TRUNK_PITCH_UM)))
-
-    def tracks(self, pref: float):
-        k0 = int((self.y_lo - 2.0) // TRACK_PITCH_UM)
-        k1 = int((self.y_hi + 2.0) // TRACK_PITCH_UM) + 1
-        cands = [snap(k * TRACK_PITCH_UM) for k in range(k0, k1 + 1)]
-        cands.sort(key=lambda y: (abs(y - pref), y))
-        return cands
-
     # -- the ways a net reaches a block ---------------------------------------
-    def connect_met1(self, a: Anchor, col_budget: int = 48) -> tuple[float, float]:
-        cols = self.columns(a.x0, a.x1, a.xmid)[:col_budget]
-        for y in self.jog_tracks(a):
-            for col in cols:
-                if nm(col) in self.used_cols:
-                    continue
-                pad_x = min(a.pad_xs, key=lambda px: (abs(px - col), px))
-                extra: list[Rect] = []
-                if abs(y - a.y) > 1e-9:
-                    extra.append(Rect.vwire(pad_x, a.y, y, WIRE_UM))
-                    if abs(col - pad_x) > 1e-9:
-                        extra.append(Rect.hwire(pad_x, col, y, WIRE_UM))
-                elif not (a.x0 - 1e-9 <= col <= a.x1 + 1e-9):
-                    extra.append(Rect.hwire(min(a.x0, col), max(a.x1, col), y,
-                                            WIRE_UM))
-                if extra and not self.met1_free(a.net, extra):
-                    continue
-                self.used_cols.add(nm(col))
-                if extra:
-                    self.add_met1(a.net, extra)
-                self.add_trunk_via(a.net, col, y)
-                return col, y
-        raise RouteError(
-            f"no free met2 column for {a.net} at {a.block} y={a.y}: "
-            f"{len(self.used_cols)} columns already taken, "
-            f"{len(cols)} free within the budget")
-
-    def jog_tracks(self, a: Anchor) -> list[float]:
-        if a.jog_um <= 0:
-            return [a.y]
-        n = int(a.jog_um / TRACK_PITCH_UM)
-        ys = {a.y}
-        for i in range(1, n + 1):
-            ys.add(snap(a.y + i * TRACK_PITCH_UM))
-            ys.add(snap(a.y - i * TRACK_PITCH_UM))
-        return sorted(ys, key=lambda y: (abs(y - a.y), y))
-
     def connect_cap(self, a: Anchor) -> tuple[float, float]:
         """A MiM terminal: a same-layer run out of the block, then a via stack
         down to met2.  The run leaves by whichever block edge the port already
@@ -1095,27 +930,216 @@ class Router:
         self.add_trunk_via(a.net, col, y)
         return col, y
 
-    # -- trunk-to-trunk spine --------------------------------------------------
-    def route_spine(self, net: str, ca: float, ya: float,
-                    cb: float, yb: float) -> float:
-        for y in self.tracks((ya + yb) / 2):
-            rect = Rect.hwire(ca, cb, y, WIRE_UM)
-            if not self.met1_free(net, [rect]):
-                continue
-            self.add_met1(net, [rect])
-            self.add_trunk_via(net, ca, y)
-            self.add_trunk_via(net, cb, y)
-            return y
-        raise RouteError(f"no free met1 track for {net} spine {ca} <-> {cb}")
+    def connect_pinned(self, a: Anchor, col: float) -> tuple[float, float]:
+        """Run the shared connector for `a` with the column proposal pinned to
+        exactly ``col``.
 
-    def finish_trunks(self) -> None:
-        for (net, col), ys in sorted(self.trunk_y.items()):
-            lo, hi = min(ys), max(ys)
-            if hi - lo < 1e-9:
+        The matched-pair allocator picks both nets' columns jointly; the
+        commit path -- jog tracks, met1 freedom, the via stacks -- stays the
+        shared base's, driven through a one-column proposal.  The shared
+        search reserves a column only after every freedom check passes, so a
+        pinned commit either places the trunk exactly there or raises without
+        touching the field, and the allocator can offer the next candidate.
+        """
+        self_columns = self.columns
+        self.columns = lambda x0, x1, pref: [col]  # noqa: E731
+        try:
+            if a.plane in ("cap3", "cap4"):
+                return self.connect_cap(a)
+            return self.connect_met1(a)
+        finally:
+            self.columns = self_columns
+
+    # -- trunk-to-trunk spine --------------------------------------------------
+    # route_spine and finish_trunks are both the shared base's now: the shared
+    # finish skips zero-height trunks, measured (issue #201) to fire here on
+    # exactly one trunk per generation -- an OTA escape's column collecting a
+    # single via y with no spine.
+
+
+# --- matched-pair summing routing (issue #284) ---------------------------------
+#: The summing pair routes as a matched pair, not first-come.  The instrumented
+#: evidence for the greedy order this replaces: `sump`, routed first, kept every
+#: near-preference column (displacements 0.00-0.49 um), while every `sumn` trunk
+#: was pushed off its preferred column by a `sump` reservation (`sump(trunk)`
+#: at 97.0/97.5 and 112.0/112.5, the `sump` Ci riser's ±1-pitch keep-out at
+#: 94.5) -- and the displaced columns flipped which anchors became
+#: spine-adjacent, pairing the n-side Ci with the shallow switch anchor where
+#: the p side pairs it with the deep one.  That is where the extra trunk height
+#: came from: the pair routing held `sumn` to 9.30 % asymmetry (133.075 um
+#: against `sump`'s 120.695 um) where the 44-device cell measured 2.97 %.
+#:
+#: The allocator instead walks the mirror-paired anchors in shared-preference
+#: order and, per pair, takes two columns at a fixed mutual offset -- one trunk
+#: pitch apart for met1 trunks, three for the Ci MiM risers, whose ±1-pitch
+#: keep-outs must not collide.  The same offset for every pair of a kind keeps
+#: each net's column gaps identical, which keeps the spine adjacency structure
+#: (and with it the trunk heights and spine lengths) tracking the p side
+#: instead of drifting; monotonicity along the sequence is enforced, not
+#: hoped for.  Columns are committed through `connect_pinned`, so a candidate
+#: that fails a freedom check leaves the field untouched for the next one.
+SUMMING_TRUNK_OFFSET_PITCHES = 1
+SUMMING_RISER_OFFSET_PITCHES = 3
+#: How far (in pitches) a met1 pair may shift off its shared preference; the
+#: Ci riser pair stays within `connect_cap`'s own ±2 um proposal window, so it
+#: is held to a single pitch of slack.
+SUMMING_PAIR_REACH_PITCHES = 6
+#: Mirror-match tolerance.  The strap ladder offsets are computed per row from
+#: sorted net names, so a mirror pair sits up to a track pitch off an exact
+#: reflection about the axis; a worse error means the floorplan drifted away
+#: from the mirrored placement the allocator's correspondence assumes.
+SUMMING_MIRROR_TOL_UM = 1.0
+
+
+def match_mirrored_anchors(group_p: list[Anchor],
+                           group_n: list[Anchor],
+                           axis_y: float) -> list[tuple[Anchor, Anchor]]:
+    """Pair each p-side summing anchor with its mirror image on the n side.
+
+    Greedy nearest-mirror matching, guarded: candidates must share a plane,
+    and any residual mirror error beyond ``SUMMING_MIRROR_TOL_UM`` is a
+    floorplan regression, not a routing choice this allocator may absorb.
+    """
+    cands = sorted(
+        ((abs(2 * axis_y - pa.y - na.y), pa, na)
+         for pa in group_p for na in group_n if pa.plane == na.plane),
+        key=lambda t: (t[0], t[1].block, t[2].block))
+    used_p: set[int] = set()
+    used_n: set[int] = set()
+    pairs: list[tuple[Anchor, Anchor]] = []
+    for err, pa, na in cands:
+        if id(pa) in used_p or id(na) in used_n:
+            continue
+        if err > SUMMING_MIRROR_TOL_UM:
+            raise RouteError(
+                f"summing pair: no mirror partner within "
+                f"{SUMMING_MIRROR_TOL_UM}um for {pa.block}@y={pa.y:.2f} "
+                f"(closest {na.block}@y={na.y:.2f}, {err:.2f}um off) -- the "
+                "floorplan is not the mirrored placement the matched-pair "
+                "allocator assumes")
+        used_p.add(id(pa))
+        used_n.add(id(na))
+        pairs.append((pa, na))
+    if len(pairs) != len(group_p) or len(pairs) != len(group_n):
+        raise RouteError(
+            f"summing pair: mirror matching left anchors unpaired "
+            f"({len(pairs)} pairs for {len(group_p)} p / {len(group_n)} n "
+            "anchors)")
+    return pairs
+
+
+def route_summing_pair(router: "Router", groups: dict[str, list[Anchor]],
+                       axis_y: float,
+                       ota_anchors: dict[str, tuple[Anchor, float]],
+                       ) -> dict[str, list[tuple[float, float, Anchor]]]:
+    """Route `sump`/`sumn` as one matched pair; return per-net placed lists.
+
+    Both members of a mirror pair sit on the same x (the floorplan mirror is
+    in y), so one preference sequence governs both nets.  Per pair the
+    allocator offers ``(snap(pref + k*pitch), +offset)`` column candidates,
+    cheapest displacement first, filtered by column availability, the risers'
+    neighbour keep-outs, and strict monotonicity per net along the sequence --
+    the property that keeps both nets' spine adjacency identical.  The OTA
+    escapes are exempt: their columns are fixed by the landing-y order that
+    keeps the eight met3 runs non-crossing.
+    """
+    p_net, n_net = SUMMING_NETS
+    pairs = match_mirrored_anchors(groups[p_net], groups[n_net], axis_y)
+    pairs.sort(key=lambda t: t[0].xmid)
+    placed: dict[str, list[tuple[float, float, Anchor]]] = {p_net: [], n_net: []}
+    last: dict[str, float | None] = {p_net: None, n_net: None}
+    log: list[dict] = []
+    degraded = 0
+    for pa, na in pairs:
+        if pa.plane == "ota":
+            # The OTA escape landings are labels in the OTA's own frame,
+            # translated into this cell: their y is what the axis straddles,
+            # their x is whatever the OTA cell drew -- so the shared-x guard
+            # below applies only to this cell's own mirrored blocks.
+            for net, a in ((p_net, pa), (n_net, na)):
+                col, y = router.connect_ota(a, ota_anchors[net][1])
+                placed[net].append((col, y, a))
+            log.append({"blocks": [pa.block, na.block], "plane": "ota",
+                        "xmid_um": round(pa.xmid, 3),
+                        "columns_um": {p_net: ota_anchors[p_net][1],
+                                       n_net: ota_anchors[n_net][1]},
+                        "note": "escape column fixed by landing-y order"})
+            continue
+        if abs(pa.xmid - na.xmid) > GRID_UM:
+            raise RouteError(
+                f"summing pair: {pa.block}/{na.block} anchors share no x "
+                f"({pa.xmid:.3f} vs {na.xmid:.3f}) -- mirrored placement "
+                "expected")
+        cap = pa.plane in ("cap3", "cap4")
+        off = (SUMMING_RISER_OFFSET_PITCHES if cap
+               else SUMMING_TRUNK_OFFSET_PITCHES) * TRUNK_PITCH_UM
+        reach = 1 if cap else SUMMING_PAIR_REACH_PITCHES
+        cands = []
+        # Candidates live on the trunk-pitch grid -- `snap` alone would land
+        # on the manufacturing grid a fraction of a pitch off, and a met2
+        # feature off the pitch squeezes the gap to its neighbour below the
+        # met2.space minimum (measured: exactly that, two DRC violations).
+        base = round(pa.xmid / TRUNK_PITCH_UM)
+        for k in range(-reach, reach + 1):
+            cp = snap((base + k) * TRUNK_PITCH_UM)
+            cn = snap(cp + off)
+            if nm(cp) in router.used_cols or nm(cn) in router.used_cols:
                 continue
-            rect = Rect.vwire(col, lo, hi, WIRE_UM)
-            self.add_shape(L_MET2, rect, net)
-            self.wire_um[net] += (hi - lo)
+            if cap and not (router.neighbours_free(cp)
+                            and router.neighbours_free(cn)):
+                continue
+            if last[p_net] is not None \
+                    and cp < last[p_net] + TRUNK_PITCH_UM - 1e-9:
+                continue
+            if last[n_net] is not None \
+                    and cn < last[n_net] + TRUNK_PITCH_UM - 1e-9:
+                continue
+            disp = abs(cp - pa.xmid) + abs(cn - pa.xmid)
+            cands.append((round(disp, 6), abs(k), k, cp, cn))
+        cands.sort()
+        pair_degraded = False
+        for _disp, _absk, k, cp, cn in cands:
+            try:
+                yp = router.connect_pinned(pa, cp)[1]
+            except RouteError:
+                continue  # nothing was committed; offer the next candidate
+            try:
+                cn_used, yn = cn, router.connect_pinned(na, cn)[1]
+            except RouteError:
+                # p's trunk is already placed; finish the n anchor greedily
+                # and record the pair as degraded rather than lose the run.
+                # The greedy connector answers (col, y) with the column it
+                # actually reserved: record that one, not the pinned
+                # proposal that just failed.
+                cn_used, yn = (router.connect_cap(na) if cap
+                               else router.connect_met1(na))
+                degraded += 1
+                pair_degraded = True
+            placed[p_net].append((cp, yp, pa))
+            placed[n_net].append((cn_used, yn, na))
+            last[p_net], last[n_net] = cp, cn_used
+            log.append({"blocks": [pa.block, na.block],
+                        "plane": pa.plane,
+                        "xmid_um": round(pa.xmid, 3),
+                        "columns_um": {p_net: cp, n_net: cn_used},
+                        "displacement_um": {p_net: round(abs(cp - pa.xmid), 3),
+                                            n_net: round(abs(cn_used - pa.xmid), 3)},
+                        "shift_pitches": k,
+                        "degraded": pair_degraded})
+            break
+        else:
+            raise RouteError(
+                f"summing pair: no legal column pair for {pa.block}/{na.block} "
+                f"at x={pa.xmid:.2f}: {len(router.used_cols)} columns taken, "
+                f"{len(cands)} candidates offered")
+    router.pair_log = {
+        "offset_pitches": {"met1_trunk": SUMMING_TRUNK_OFFSET_PITCHES,
+                           "cap_riser": SUMMING_RISER_OFFSET_PITCHES},
+        "mirror_tolerance_um": SUMMING_MIRROR_TOL_UM,
+        "greedy_fallbacks": degraded,
+        "pairs": log,
+    }
+    return placed
 
 
 # --- capacitor evidence -------------------------------------------------------
@@ -1190,11 +1214,17 @@ def capacitor_report(blocks: dict[str, Block], axis_y: float) -> dict:
 #: The two nodes DR-004 names as the most sensitive on the die.
 SUMMING_NETS = ("sump", "sumn")
 #: Every net that carries a clock edge in this cell, including the internally
-#: inverted `phi2b`.
-CLOCK_NETS = ("phi1", "phi1b", "phi1e", "phi2", "phi2b")
+#: inverted `phi2b` and `phi1eb`.
+CLOCK_NETS = ("phi1", "phi1b", "phi1e", "phi1eb", "phi2", "phi2b")
 #: How close a clock run may come to a summing-node run, on the same layer,
 #: before this script calls it "beside" and the README has to name it.
 SHIELD_CLEARANCE_UM = 1.0
+#: Bound the matched-pair routing must meet (issue #284).  The 44-device cell
+#: asserted "symmetric to 3 %" (2.97 % measured); the 50-device regeneration
+#: drifted to 9.30 % while the pair routed first-come.  The bound holds the
+#: pair to the old cell's figure, and the assertion below turns the README's
+#: symmetry claim into a gate a regeneration cannot silently fail.
+SUMMING_ASYMMETRY_MAX_PCT = 3.0
 
 
 def _gap_um(a: Rect, b: Rect) -> float:
@@ -1263,8 +1293,19 @@ def summing_node_report(router: "Router", summary: dict) -> dict:
                                d["layer"], d["summing_rect_um"]))
     over.sort(key=lambda d: (-d["overlap_um2"], d["summing_net"], d["clock_net"],
                              d["at_um"]))
+    sump_len, sumn_len = lengths[SUMMING_NETS[0]], lengths[SUMMING_NETS[1]]
+    asymmetry_pct = round((sumn_len - sump_len) / sumn_len * 100.0, 2)
+    if abs(asymmetry_pct) > SUMMING_ASYMMETRY_MAX_PCT:
+        raise RouteError(
+            f"summing-node asymmetry {asymmetry_pct}% exceeds the "
+            f"{SUMMING_ASYMMETRY_MAX_PCT}% bound (sump {sump_len} um, sumn "
+            f"{sumn_len} um): the matched-pair allocation regressed past the "
+            "figure the README asserts")
     return {
         "wire_length_um": {net: lengths[net] for net in SUMMING_NETS},
+        "asymmetry_pct": asymmetry_pct,
+        "asymmetry_bound_pct": SUMMING_ASYMMETRY_MAX_PCT,
+        "matched_pair": getattr(router, "pair_log", None),
         "length_rank_of_all_nets": ranked,
         "shortest_net": ranked[0],
         "shield_clearance_um": SHIELD_CLEARANCE_UM,
@@ -1361,16 +1402,8 @@ def build(blocks: dict[str, Block], ota: dict, axis_y: float, ota_x: float):
                          f"no anchors {unrouted}")
 
     summary: dict[str, dict] = {}
-    for net in NET_ORDER:
-        group = sorted(by_net[net], key=lambda a: (a.block, a.plane, a.y, a.x0))
-        placed = []
-        for a in group:
-            if a.plane == "ota":
-                placed.append((*router.connect_ota(a, ota_anchors[net][1]), a))
-            elif a.plane in ("cap3", "cap4"):
-                placed.append((*router.connect_cap(a), a))
-            else:
-                placed.append((*router.connect_met1(a), a))
+
+    def finish_net(net: str, placed: list[tuple[float, float, Anchor]]) -> None:
         placed.sort(key=lambda t: (t[0], t[1]))
         spines = []
         for (ca, ya, _a), (cb, yb, _b) in zip(placed, placed[1:]):
@@ -1387,6 +1420,34 @@ def build(blocks: dict[str, Block], ota: dict, axis_y: float, ota_x: float):
                 raise RouteError(f"port net {net} has no met1 anchor to label")
             col, y, _a = on_met1[0]
             router.labels.append((L_MET1_PIN, net, col, y))
+
+    i = 0
+    while i < len(NET_ORDER):
+        net = NET_ORDER[i]
+        if net == SUMMING_NETS[0]:
+            assert NET_ORDER[i + 1] == SUMMING_NETS[1], \
+                "the summing pair must stay adjacent at the front of NET_ORDER"
+            placed_by = route_summing_pair(
+                router,
+                {n: sorted(by_net[n],
+                           key=lambda a: (a.block, a.plane, a.y, a.x0))
+                 for n in SUMMING_NETS},
+                axis_y, ota_anchors)
+            i += 2
+        else:
+            group = sorted(by_net[net], key=lambda a: (a.block, a.plane, a.y, a.x0))
+            placed = []
+            for a in group:
+                if a.plane == "ota":
+                    placed.append((*router.connect_ota(a, ota_anchors[net][1]), a))
+                elif a.plane in ("cap3", "cap4"):
+                    placed.append((*router.connect_cap(a), a))
+                else:
+                    placed.append((*router.connect_met1(a), a))
+            placed_by = {net: placed}
+            i += 1
+        for n, placed in placed_by.items():
+            finish_net(n, placed)
     router.finish_trunks()
 
     for net, info in summary.items():
@@ -1407,7 +1468,9 @@ def build(blocks: dict[str, Block], ota: dict, axis_y: float, ota_x: float):
         "ota_origin_x_um": ota_x,
         "block_origins_um": {b: dict(blocks[b].origin) for b in sorted(blocks)},
         "block_orientation": {b: blocks[b].orientation for b in sorted(blocks)},
-        "met2_columns": len(router.used_cols),
+        # used_cols holds trunks plus the MiM risers' ±1-pitch keep-outs, so
+        # this counts reserved columns, not columns that carry a met2 trunk.
+        "met2_columns_reserved": len(router.used_cols),
         "lvtn_markers": [r.as_um() for r in markers],
         "nets": summary,
     }
@@ -1415,57 +1478,6 @@ def build(blocks: dict[str, Block], ota: dict, axis_y: float, ota_x: float):
 
 
 # --- device-count evidence ----------------------------------------------------
-def _symmetric_terminals(terminals: tuple[str, ...]) -> tuple[str, ...]:
-    """Normalise a device's terminal order over the terminals it is symmetric
-    in: a MOSFET's source and drain are interchangeable and alternate finger by
-    finger, so without this a 4-finger device counts as two."""
-    if len(terminals) == 4:          # D G S B
-        d, g, src, b = terminals
-        lo, hi = sorted((d, src))
-        return (lo, g, hi, b)
-    if len(terminals) == 3:          # A B bulk (res)
-        a, b, bulk = terminals
-        lo, hi = sorted((a, b))
-        return (lo, hi, bulk)
-    return tuple(sorted(terminals))  # 2-terminal (cap)
-
-
-def parse_extract_devices(netlist_text: str) -> tuple[Counter, Counter]:
-    """Count extracted devices by model, and by model with parallel same-net
-    devices merged (what an LVS combine-parallel-devices pass does)."""
-    raw: Counter = Counter()
-    groups: set[tuple[str, tuple[str, ...]]] = set()
-    for line in netlist_text.splitlines():
-        tok = line.split()
-        if not tok or not tok[0].startswith("X"):
-            continue
-        model = next((t for t in tok if t.startswith("sky130_fd_pr__")
-                      or t in ("nfet", "pfet")), None)
-        if model is None:
-            continue
-        terminals = tuple(tok[1:tok.index(model)])
-        raw[model] += 1
-        groups.add((model, _symmetric_terminals(terminals)))
-    combined: Counter = Counter()
-    for model, _terminals in groups:
-        combined[model] += 1
-    return raw, combined
-
-
-def extract_nets(netlist_text: str) -> list[str]:
-    nets: set[str] = set()
-    for line in netlist_text.splitlines():
-        tok = line.split()
-        if not tok or not tok[0].startswith("X"):
-            continue
-        model = next((t for t in tok if t.startswith("sky130_fd_pr__")
-                      or t in ("nfet", "pfet")), None)
-        if model is None:
-            continue
-        nets.update(tok[1:tok.index(model)])
-    return sorted(nets)
-
-
 def extracted_pins(netlist_text: str) -> list[list[str]]:
     """The extracted pin list, one entry per *pin*, each a list of the label
     texts that resolved to it.
@@ -1494,22 +1506,6 @@ def flavour_blind(counts: dict[str, int]) -> dict[str, int]:
 
 
 # --- flow ---------------------------------------------------------------------
-def klt_pin(klt: str) -> dict:
-    """The exact klt build, recorded with the evidence: the stream is
-    byte-reproducible at *this* build, so the reader has to be told which."""
-    r = run([klt, "version", "--format", "json"], check=False)
-    try:
-        d = json.loads(r.stdout)
-    except Exception:
-        return {"klt": "unknown"}
-    return {
-        "klt": d.get("version"),
-        "git_commit": d.get("git_commit"),
-        "reinstall_spec": d.get("reinstall_spec"),
-        "klayout": d.get("klayout_version"),
-    }
-
-
 def _ota_access(grid_um: float) -> dict:
     """One `ports_from_labels` `access` block.
 
@@ -1536,7 +1532,7 @@ def translate_ota(probe: dict, origin: dict) -> dict:
     }
 
 
-def ota_port_report(klt: str, pdk_args: list[str], out_dir: Path,
+def ota_port_report(klt_cmd: list[str], pdk_args: list[str], out_dir: Path,
                     ota_gds: Path) -> dict:
     """Place the OTA on its own and recover its eight ports' landing points.
 
@@ -1570,7 +1566,7 @@ def ota_port_report(klt: str, pdk_args: list[str], out_dir: Path,
         "options": {"cell_name": "ota_probe", "output": "ota_probe.gds"},
     }
     (out_dir / "ota-ports.request.json").write_text(json.dumps(request, indent=2) + "\n")
-    r = run([klt, "gen-compose", "ota-ports.request.json", "--format", "json"],
+    r = run([*klt_cmd, "gen-compose", "ota-ports.request.json", "--format", "json"],
             cwd=out_dir)
     report = json.loads(r.stdout)
     if report.get("error"):
@@ -1590,8 +1586,8 @@ def ota_port_report(klt: str, pdk_args: list[str], out_dir: Path,
             "source_digest": block["source_digest"]}
 
 
-def check_orientation_agrees(klt: str, pdk_args: list[str], out_dir: Path,
-                             reports: dict[str, dict]) -> None:
+def check_orientation_agrees(klt_cmd: list[str], pdk_args: list[str],
+                             out_dir: Path, reports: dict[str, dict]) -> None:
     """Assert this script's own orientation maths matches `klt gen-compose`'s.
 
     The floorplan places mirrored blocks by transforming their reported bbox
@@ -1614,7 +1610,7 @@ def check_orientation_agrees(klt: str, pdk_args: list[str], out_dir: Path,
         "options": {"cell_name": "orient_probe", "output": "orient_probe.gds"},
     }
     (out_dir / "orient.request.json").write_text(json.dumps(request, indent=2) + "\n")
-    r = run([klt, "gen-compose", "orient.request.json", "--format", "json"],
+    r = run([*klt_cmd, "gen-compose", "orient.request.json", "--format", "json"],
             cwd=out_dir)
     report = json.loads(r.stdout)
     if report.get("error"):
@@ -1634,7 +1630,7 @@ def check_orientation_agrees(klt: str, pdk_args: list[str], out_dir: Path,
                     f"klt gen-compose placed {got}")
 
 
-def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
+def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path, cell_dir: Path,
          verbose: bool = True) -> dict:
     pdk_args = ["--pdk", PDK_VARIANT, "--pdk-root", str(pdk_root)]
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1662,8 +1658,8 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
     # -- 1. devices ------------------------------------------------------------
     say("[1/7] klt gen device geometries")
     wanted = sorted({g for g, _n in DEVICES.values()})
-    reports = gen_geometries(klt, pdk_args, out_dir, wanted)
-    check_orientation_agrees(klt, pdk_args, out_dir, reports)
+    reports = gen_geometries(klt_cmd, pdk_args, out_dir, wanted)
+    check_orientation_agrees(klt_cmd, pdk_args, out_dir, reports)
 
     # -- 2. floorplan ----------------------------------------------------------
     say("[2/7] floorplan + body-tie rings + OTA placement")
@@ -1674,7 +1670,7 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
         params, origin = ring_request(extents, ring_id)
         params_by_ring[ring_id] = params
         origins_by_ring[ring_id] = origin
-    ring_reports = gen_rings(klt, pdk_args, out_dir, params_by_ring)
+    ring_reports = gen_rings(klt_cmd, pdk_args, out_dir, params_by_ring)
     for ring_id in sorted(RINGS):
         block = Block(ring_id, ring_id, "none", {"TAP": RINGS[ring_id][1]},
                       is_ring=True)
@@ -1687,7 +1683,7 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
     # composed one, so the probe is run once at the origin and this script
     # translates -- which is also what lets the axis be chosen from the same
     # report that supplies the landing points.
-    probe = ota_port_report(klt, pdk_args, out_dir, ota_gds)
+    probe = ota_port_report(klt_cmd, pdk_args, out_dir, ota_gds)
     label_ys = {p["name"]: p["label_um"]["y"] for p in probe["ports"]}
     axis_in_ota = sum(label_ys[n] for n in OTA_AXIS_LABELS) / len(OTA_AXIS_LABELS)
     ota_origin = {"x": snap(ota_x), "y": snap(axis_y - axis_in_ota)}
@@ -1708,12 +1704,12 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
     (out_dir / "route.summary.json").write_text(
         json.dumps(route_summary, indent=2) + "\n")
     say(f"  {len(draw_params['shapes'])} routing shapes, "
-        f"{route_summary['met2_columns']} met2 columns, "
+        f"{route_summary['met2_columns_reserved']} met2 columns reserved, "
         f"{len(route_summary['lvtn_markers'])} lvtn markers")
 
     # -- 4. draw + compose -----------------------------------------------------
     say("[4/7] klt draw (routing + lvtn cell) + klt gen-compose (explicit placement)")
-    r = run([klt, "draw", "--params", "draw.request.json", "--cell-name", "ROUTE",
+    r = run([*klt_cmd, "draw", "--params", "draw.request.json", "--cell-name", "ROUTE",
              "-o", "route.gds", "--format", "json"], cwd=out_dir)
     (out_dir / "draw.json").write_text(r.stdout)
     order = sorted(b for b in blocks) + ["ota", "route"]
@@ -1742,26 +1738,27 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
     }
     (out_dir / "compose.request.json").write_text(
         json.dumps(compose_request, indent=2) + "\n")
-    run([klt, "gen-compose", "compose.request.json", "--format", "json"], cwd=out_dir)
+    run([*klt_cmd, "gen-compose", "compose.request.json", "--format", "json"], cwd=out_dir)
     gds = out_dir / f"{TOP_CELL}.gds"
     if not gds.exists():
         raise RuntimeError(f"gen-compose did not write {gds}")
 
     # -- 5. drc ----------------------------------------------------------------
     say("[5/7] klt drc (sky130 deck)")
-    r = run([klt, "drc", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
+    r = run([*klt_cmd, "drc", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
             + pdk_args + ["--format", "json"], cwd=out_dir, check=False)
     drc = json.loads(r.stdout) if r.stdout.strip() else {"error": r.stderr}
     (out_dir / "drc.report.json").write_text(json.dumps(drc, indent=2) + "\n")
+    assert_drc_clean(drc, str(out_dir / "drc.report.json"))
     say(f"  drc: status={drc.get('status')!r} violations={drc.get('violation_count')}")
 
     # -- 6. extract: this cell, and the OTA alone to subtract ------------------
     say("[6/7] klt extract (device-count evidence)")
-    run([klt, "extract", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
+    run([*klt_cmd, "extract", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
         + pdk_args + ["-o", f"{TOP_CELL}.extract.spice", "--format", "json"],
         cwd=out_dir)
     whole = (out_dir / f"{TOP_CELL}.extract.spice").read_text()
-    run([klt, "extract", str(ota_gds), "--deck", "sky130", "--top", OTA_CELL]
+    run([*klt_cmd, "extract", str(ota_gds), "--deck", "sky130", "--top", OTA_CELL]
         + pdk_args + ["-o", "ota_only.extract.spice", "--format", "json"],
         cwd=out_dir)
     ota_only = (out_dir / "ota_only.extract.spice").read_text()
@@ -1794,7 +1791,7 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
         + [["inp"], ["inn"], ["outp", "voutp"], ["outn", "voutn"]])
 
     evidence = {
-        "tool": {**klt_pin(klt), "deck": "sky130", "top_cell": TOP_CELL,
+        "tool": {**klt_pin(klt_cmd), "deck": "sky130", "top_cell": TOP_CELL,
                  "pdk": PDK_VARIANT,
                  "pdk_sources": "open_pdks f6eeac7 (sim/pdk.json)"},
         "reference_netlist": "design/integrator/integrator.spice",
@@ -1805,13 +1802,14 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
             "klt extract over layout/analog/integrator/integrator.gds, which "
             "the extractor flattens through the placed ota_fd instance, minus "
             "klt extract over the committed layout/analog/ota_fd/ota_fd.gds on "
-            "its own in the same run. The difference is this cell's own 44 "
+            "its own in the same run. The difference is this cell's own 50 "
             "devices. Counts are merged first (devices sharing a model and all "
             "terminals, after normalising the terminals a device is symmetric "
             "in), which is what an LVS combine-parallel-devices pass does and "
-            "what makes the 4-finger phi2b inverter devices count once each."),
+            "what makes the 4-finger phi2b/phi1eb inverter devices count once "
+            "each."),
         "comparison_basis": (
-            "merged_counts(integrator) - merged_counts(ota_fd) vs the 44 "
+            "merged_counts(integrator) - merged_counts(ota_fd) vs the 50 "
             "primitive X-lines of design/integrator/integrator.spice"),
         "expected_own_devices": {**EXPECTED_DEVICES,
                                  "total": sum(EXPECTED_DEVICES.values())},
@@ -1828,7 +1826,9 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
             "(125/44) marker drawn over a two-column mos_array. On this cell's "
             "geometry it does not ignore it: the extracted netlist names "
             "sky130_fd_pr__nfet_01v8_lvt and sky130_fd_pr__pfet_01v8_lvt and "
-            "gets all twenty right. The marker here covers a whole "
+            "gets all twenty-eight right (14 nfet + 14 pfet since #147 added "
+            "the Sci/Scr PMOS halves; #129 moved the Sin halves to the "
+            "low-Vth flavours). The marker here covers a whole "
             "single-finger device plus a 0.38um enclosure, which is the "
             "condition klayout-tools#5301 says the deck needs (a marker that "
             "ends inside a shared source/drain diffusion mis-classifies). Both "
@@ -1883,59 +1883,10 @@ def flow(klt: str, pdk_root: Path, out_dir: Path, cell_dir: Path,
     return {"drc": drc, "extract": evidence, "route": route_summary}
 
 
-def emit(out_dir: Path, cell_dir: Path) -> None:
-    shutil.copyfile(out_dir / f"{TOP_CELL}.gds", cell_dir / f"{TOP_CELL}.gds")
-    for name in ("extract-device-count.json", "drc.report.json"):
-        shutil.copyfile(out_dir / name, cell_dir / name)
-    shutil.copyfile(out_dir / "route.summary.json", cell_dir / "route-summary.json")
-
-
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Generate and verify layout/analog/integrator/integrator.gds "
-                    "and its committed evidence; see this directory's README.md.")
-    parser.add_argument("--check", action="store_true",
-                        help="regenerate into a temp dir and byte-compare the "
-                             "GDS against the committed stream; write nothing")
-    parser.add_argument("--klt", default="klt")
-    parser.add_argument("--pdk-root", default=PDK_ROOT_DEFAULT)
-    parser.add_argument("--keep-scratch", action="store_true",
-                        help="with --check, leave the scratch directory in place")
-    args = parser.parse_args()
-
     cell_dir = Path(__file__).resolve().parent
-    pdk_root = Path(args.pdk_root).expanduser()
-
-    if args.check:
-        committed = cell_dir / f"{TOP_CELL}.gds"
-        if not committed.exists():
-            print(f"--check: {committed} does not exist yet", file=sys.stderr)
-            return 1
-        tmp = Path(tempfile.mkdtemp(prefix="integrator-check-"))
-        try:
-            flow(args.klt, pdk_root, tmp, cell_dir, verbose=False)
-            a, b = committed.read_bytes(), (tmp / f"{TOP_CELL}.gds").read_bytes()
-            if a == b:
-                print("gen_integrator.py --check: PASS -- regenerated GDS is "
-                      f"byte-identical to {committed.name} ({len(a)} bytes)")
-                return 0
-            print("gen_integrator.py --check: FAIL -- regenerated GDS differs "
-                  f"(committed {len(a)} bytes, fresh {len(b)} bytes)",
-                  file=sys.stderr)
-            return 1
-        finally:
-            if args.keep_scratch:
-                print(f"scratch kept at {tmp}", file=sys.stderr)
-            else:
-                shutil.rmtree(tmp, ignore_errors=True)
-
-    result = flow(args.klt, pdk_root, cell_dir / "_gen", cell_dir)
-    emit(cell_dir / "_gen", cell_dir)
-    drc = result["drc"]
-    print(f"gen_integrator.py: wrote {TOP_CELL}.gds + evidence to {cell_dir} "
-          f"(drc status={drc.get('status')!r}, "
-          f"violations={drc.get('violation_count')})")
-    return 0
+    return run_cli("gen_integrator.py", cell_dir, TOP_CELL,
+                   partial(flow, cell_dir=cell_dir))
 
 
 if __name__ == "__main__":

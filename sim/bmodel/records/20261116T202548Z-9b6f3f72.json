@@ -1,0 +1,173 @@
+{
+  "source": "B",
+  "result_kind": "simulated (behavioural model B loaded with T-extracted corner parameters)",
+  "corner": "ss/1.620V/125C",
+  "cross_check": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, duty_0p05; FAILED legs: span_10pct. Model B numbers at this corner are reported uncross-checked and are not used for row 2.",
+  "record_len": 65536,
+  "window": "Blackman-Harris 4-term",
+  "bin_bw_hz": 1.2207403790398876,
+  "band_hz": [
+    0,
+    20000.0
+  ],
+  "excluded_bins": {
+    "dc": [
+      0,
+      4
+    ],
+    "tone_lobe": [
+      1635,
+      1643
+    ]
+  },
+  "band_edge_bin": 16384,
+  "enbw_bins": 2.0043529382170466,
+  "tone_cycles": 1639,
+  "tone_hz": 2000.732421875,
+  "amplitude_dbfs": -6,
+  "peak_sndr_db": 71.35325019631865,
+  "peak_at_sweep_ceiling": true,
+  "sweep": [
+    {
+      "amplitude_dbfs": -60,
+      "sndr_db": 17.37258565190832
+    },
+    {
+      "amplitude_dbfs": -50,
+      "sndr_db": 27.289963664078943
+    },
+    {
+      "amplitude_dbfs": -40,
+      "sndr_db": 37.41625655780587
+    },
+    {
+      "amplitude_dbfs": -30,
+      "sndr_db": 47.418740489968194
+    },
+    {
+      "amplitude_dbfs": -24,
+      "sndr_db": 53.446381233392444
+    },
+    {
+      "amplitude_dbfs": -18,
+      "sndr_db": 59.419993098691165
+    },
+    {
+      "amplitude_dbfs": -14,
+      "sndr_db": 63.428848519399644
+    },
+    {
+      "amplitude_dbfs": -12,
+      "sndr_db": 65.42594948438675
+    },
+    {
+      "amplitude_dbfs": -10,
+      "sndr_db": 67.42737931918828
+    },
+    {
+      "amplitude_dbfs": -8,
+      "sndr_db": 69.4130320192748
+    },
+    {
+      "amplitude_dbfs": -7,
+      "sndr_db": 70.38530614213204
+    },
+    {
+      "amplitude_dbfs": -6,
+      "sndr_db": 71.35325019631865
+    }
+  ],
+  "oversampling_ratio": 128,
+  "fs_hz": 5120000.0,
+  "fout_hz": 80000.0,
+  "decimation": {
+    "filter": "sinc^3 float64",
+    "factor": 64
+  },
+  "modulator_clocks": 4194304,
+  "warmup_clocks_discarded": 512,
+  "loop": {
+    "a1": 0.5,
+    "a2": 0.5,
+    "feedback_to_integrator_2": 1.0,
+    "structure": "delaying integrators"
+  },
+  "params": {
+    "dc_gain": 547.6094658522,
+    "settling_error": 5.621394e-05,
+    "ci_offset": -2.3338333333333337e-10,
+    "ci_gain_error": 0.0,
+    "ktc_noise_var": 3.4373535408057445e-07,
+    "comparator_offset": 3.9676518621874996e-05,
+    "comparator_hysteresis": 0.00050900319616125,
+    "jitter_rms_s": 0.0,
+    "seed": 1
+  },
+  "params_sha256": "9b6f3f72bc401eb7eed98103aa414362a0fecbe938a336a9428fc50fe7f49203",
+  "numpy": "1.26.4",
+  "git_commit": "9fa9dd8286654c1e851a011c89af0881e4ee80fd",
+  "git_dirty": true,
+  "code_sha256": {
+    "sim/bmodel/model.py": "470a03379c7676890f65122a29496faf4ba6701389012ba555b5e85d7f10a839",
+    "sim/bmodel/sndr.py": "afc75b3a312443aee5a1f819fcf8f2bcf31429f74cbba34f75cc97d47b7e33ef",
+    "sim/bmodel/run.py": "6f51b30618fc610c3b3ed2c0ce7d97b5955f1c88eec23f1e72cfbc0e5869e58a"
+  },
+  "corner_params_file": {
+    "path": "sim/bmodel/corners/ss-1.620V-125C.json",
+    "sha256": "sha256:422128da1c43b618b104b12c082c4392d24503e7761ca26328295772a26c99ef",
+    "sources": {
+      "dc_gain": {
+        "record": "sim/ota-gain/record.json",
+        "record_sha256": "sha256:9e17d55240ee700721ca364b46d50414f6daeb68dd4c06953f1aaea0eddb1deb",
+        "field": "corners.ss/1.620V/125C.dc_gain_v_per_v",
+        "value": 547.6094658522,
+        "why": "OTA open-loop gain from the 1-1000 Hz AC asymptote; one OTA type serves both integrators, so one value enters the pole of both (model.py p = A/(A+1))."
+      },
+      "settling_error": {
+        "record": "sim/integrator-settling/record-i92.json",
+        "record_sha256": "sha256:e785c1177fa95a20f4a3f5cc6c39550bceda9567fcb2b0f891719b402c6ac7e3",
+        "field": "variants.int1.corners.ss/1.620V/125C.err_phase",
+        "value": 5.621394e-05,
+        "why": "residual error at the 97.66 ns sample instant of the phi2 integrate phase, relative to the settled step, on the #92-switch-fixed cell; variant int1 is stage-phasing case B (0.1 pF load), which is the phasing the assembled delaying loop presents (sim/integrator-settling/README.md). This record is the one whose integrator_netlist_sha256 matches the tree."
+      },
+      "ci_offset": {
+        "record": "sim/integrator-ci/record.json",
+        "record_sha256": "sha256:3d7e22dbd4f6847e576478483db3e49ce46a5b76ed49e8777aeb387754480334",
+        "field": "derived.per_corner.ss/1.620V/125C.ci_offset_fs",
+        "value": -2.3338333333333337e-10,
+        "why": "nominal per-clock differential charge-injection residual in FS units, post-#92 cell (variant post_v0). At most corners it sits at the bench's own vntol floor (1e-7 V = 8.3e-8 FS). PDK-mismatch spread is a Monte Carlo quantity (issue #34, out of scope); record-mc.json puts the switch-attributable sigma at 59-90 uV per clock (4.9e-05..7.5e-05 FS) and the study value at sim/integrator-ci/bmodel-ci-injection.json."
+      },
+      "ktc_noise_var": {
+        "record": "sim/integrator-noise/record-i140.json",
+        "record_sha256": "sha256:93b51b2dc4a2e9961854a0bfc4da511b895fdae81ed7a4073fe8ae2a83f1d62d",
+        "field": "corners.ss/1.620V/125C.verdict.model_b_equiv_ktc_noise_var_fs2_accumulated",
+        "value": 3.4373535408057445e-07,
+        "why": "white per-event variance (FS^2) that reproduces the measured in-band thermal noise through model B's own 1/OSR link: the sampling-switch kT/C part plus the integrate-phase amplifier part referred where it accumulates, across Ci (the #140 correction; the static referral over-counts and is recorded beside it as 1.299660e-06). Flicker is inside the amplifier share: ngspice .noise gives no thermal/flicker split per corner, so the model draws it white. Misses the spec 5.3 budget by -11.3 dB at tt (total_thermal_accumulated_pass false) -- issue #138, open, recorded not fixed."
+      },
+      "comparator_offset": {
+        "record": "sim/comparator-decision/record.json",
+        "record_sha256": "sha256:9214f8c5d5516f3275bc65bcb82b652a9d1863f8cf7656cd48121628b26cee0e",
+        "field": "derived.per_corner.ss/1.620V/125C.comparator_offset_FS",
+        "value": 3.9676518621874996e-05,
+        "why": "input-referred offset from the staircase trip points (v_trip_up + v_trip_dn)/2, resolved to +/- half the staircase step at each corner (the per-corner quantization block)."
+      },
+      "comparator_hysteresis": {
+        "record": "sim/comparator-decision/record.json",
+        "record_sha256": "sha256:9214f8c5d5516f3275bc65bcb82b652a9d1863f8cf7656cd48121628b26cee0e",
+        "field": "derived.per_corner.ss/1.620V/125C.comparator_hysteresis_FS",
+        "value": 0.00050900319616125,
+        "why": "v_trip_up - v_trip_dn: an UPPER BOUND on the hysteresis width (a comparator with none reads one whole staircase step); the lower bound is 0. The upper bound is the conservative value for model B (sim/comparator-decision/README.md, model_b_units)."
+      }
+    },
+    "no_t_source": {
+      "ci_gain_error": {
+        "value": 0.0,
+        "why": "no T source: the signal-dependent part of charge injection is below the integrator-ci bench's resolution (the slope it fits is accounted for by the drawn capacitor ratio, the finite-gain leak and, at slow/cold corners, the incomplete input sampling of #106). The per-corner BOUND is -0.0106 (derived.per_corner.ss/1.620V/125C.ci_gain_error_bound) and is recorded here, not entered: entering a bound as a value would double-count the gain deficit the bench attributes elsewhere."
+      },
+      "jitter_rms_s": {
+        "value": 0.0,
+        "why": "no T source: clock jitter is a DR-001 item 2 parameter but no bench extracts it -- every T bench drives behavioural rail-to-rail clocks with no non-overlap generator, and design/clkgen has no jitter extraction. Entered 0 (the ideal value), not a measurement."
+      }
+    }
+  }
+}

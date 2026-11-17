@@ -14,10 +14,13 @@ import unittest
 import numpy as np
 
 import model
+import make_item5_envelope
 import run
 import sndr
+import xcheck
 
 HERE = pathlib.Path(__file__).resolve().parent
+REPO = run.REPO
 N = 2**13
 OSR = 128
 
@@ -176,6 +179,214 @@ class RecordFields(unittest.TestCase):
         self.assertTrue(rec["peak_at_sweep_ceiling"])
 
 
+class CornerParams(unittest.TestCase):
+    """sim/bmodel/corners/<anchor>.json loading (run.load_corner).
+
+    The corner file is the schema: every model-B parameter must be covered by
+    a T source or listed under no_t_source, and every named T record must
+    exist and hash to the sha256 the file names. A fixture corner declares
+    all its parameters under no_t_source so no committed record is needed.
+    """
+
+    COVERED = ("dc_gain", "settling_error", "ci_offset", "ci_gain_error",
+               "ktc_noise_var", "comparator_offset", "comparator_hysteresis",
+               "jitter_rms_s")
+
+    def fixture_corner(self, **over):
+        doc = {
+            "schema": "fixture",
+            "corner_id": "tt/1.800V/27C",
+            "sample_slug": "zz-fixture-no-such-samples",
+            "params": dict(model.PARAM_DEFAULTS),
+            "sources": {},
+            "no_t_source": {k: {"why": "fixture"} for k in self.COVERED},
+        }
+        doc.update(over)
+        return doc
+
+    def write_and_load(self, doc, tmp):
+        path = tmp / "corner.json"
+        path.write_text(json.dumps(doc))
+        return run.load_corner(path)
+
+    def test_committed_corner_files_load(self):
+        """Every committed corner file still validates against its named T
+        records: a record edited after the corner file was written fails
+        here instead of silently feeding stale parameters to a sweep."""
+        corners = sorted((HERE / "corners").glob("*.json"))
+        self.assertGreaterEqual(len(corners), 7)
+        for c in corners:
+            run.load_corner(c)
+
+    def test_unknown_param_key_refused(self):
+        with tempfile.TemporaryDirectory() as td:
+            doc = self.fixture_corner()
+            doc["params"]["bogus"] = 1
+            with self.assertRaises(ValueError):
+                self.write_and_load(doc, pathlib.Path(td))
+
+    def test_missing_param_key_refused(self):
+        with tempfile.TemporaryDirectory() as td:
+            doc = self.fixture_corner()
+            del doc["params"]["seed"]
+            with self.assertRaises(ValueError):
+                self.write_and_load(doc, pathlib.Path(td))
+
+    def test_missing_wrapper_key_refused(self):
+        with tempfile.TemporaryDirectory() as td:
+            doc = self.fixture_corner()
+            del doc["sources"]
+            with self.assertRaises(ValueError):
+                self.write_and_load(doc, pathlib.Path(td))
+
+    def test_uncovered_parameter_refused(self):
+        """A parameter with neither a T source nor a no_t_source entry is an
+        error, never a silent default (issue #128 acceptance criteria)."""
+        with tempfile.TemporaryDirectory() as td:
+            doc = self.fixture_corner()
+            del doc["no_t_source"]["ktc_noise_var"]
+            with self.assertRaises(ValueError):
+                self.write_and_load(doc, pathlib.Path(td))
+
+    def test_missing_record_refused(self):
+        with tempfile.TemporaryDirectory() as td:
+            doc = self.fixture_corner()
+            doc["sources"] = {"dc_gain": {
+                "record": "sim/no-such-record.json",
+                "record_sha256": "sha256:" + "0" * 64,
+            }}
+            with self.assertRaises(ValueError) as cm:
+                self.write_and_load(doc, pathlib.Path(td))
+            self.assertIn("does not exist", str(cm.exception))
+
+    def test_stale_record_hash_refused(self):
+        real = REPO / "sim/ota-gain/record.json"
+        with tempfile.TemporaryDirectory() as td:
+            doc = self.fixture_corner()
+            doc["sources"] = {"dc_gain": {
+                "record": "sim/ota-gain/record.json",
+                "record_sha256": "sha256:" + "0" * 64,
+            }}
+            with self.assertRaises(ValueError) as cm:
+                self.write_and_load(doc, pathlib.Path(td))
+            self.assertIn("hashes to", str(cm.exception))
+        self.assertTrue(real.is_file())  # the source the test pinned against
+
+
+class CrossCheck(unittest.TestCase):
+    """xcheck.compare_corner on fixture bitstream pairs.
+
+    Both sides of every fixture come from model B itself -- these tests
+    exercise the comparison arithmetic and its gates, not model quality: the
+    real cross-check evidence is the committed xcheck-record.json built from
+    the transistor-level samples (issue #125). The positive-control pair
+    differs by a small comparator-offset perturbation; the negative control
+    is a deliberately wrong parameter set and must fail.
+    """
+
+    N = 1024
+
+    def side(self, params):
+        u = model.tone_input(10 ** (-6 / 20), 3, self.N, 1, 0, params)
+        y, x1, x2 = model.modulate_with_states(u, params)
+        return {
+            "n_clocks": self.N,
+            "y": [int(v) for v in y],
+            "o1d_v": [round(float(v) * 1.2, 7) for v in x1],
+            "o2d_v": [round(float(v) * 1.2, 7) for v in x2],
+        }
+
+    def b_side(self, params):
+        s = self.side(params)
+        return {"y": s["y"],
+                "x1_fs": [v / 1.2 for v in s["o1d_v"]],
+                "x2_fs": [v / 1.2 for v in s["o2d_v"]]}
+
+    def fixture_corner_path(self, tmp):
+        doc = {
+            "schema": "fixture",
+            "corner_id": "tt/1.800V/27C",
+            "sample_slug": "zz-fixture-no-such-samples",
+            "params": dict(model.PARAM_DEFAULTS),
+            "sources": {},
+            "no_t_source": {k: {"why": "fixture"} for k in
+                            ("dc_gain", "settling_error", "ci_offset",
+                             "ci_gain_error", "ktc_noise_var",
+                             "comparator_offset", "comparator_hysteresis",
+                             "jitter_rms_s")},
+        }
+        p = tmp / "corner.json"
+        p.write_text(json.dumps(doc))
+        return p
+
+    def compare(self, tmp, b_params, t_params):
+        corner = self.fixture_corner_path(tmp)
+        t_path = tmp / "t.json"
+        t_path.write_text(json.dumps(self.side(t_params)))
+        b_path = tmp / "b.json"
+        b_path.write_text(json.dumps(self.b_side(b_params)))
+        return xcheck.compare_corner(corner, b_path, t_path)
+
+    def test_near_identical_pair_passes_all_legs(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = dict(model.PARAM_DEFAULTS)
+            q = dict(p, comparator_offset=p["comparator_offset"] + 1e-4)
+            entry = self.compare(pathlib.Path(td), q, p)
+            self.assertEqual(entry["legs_failed"], [], entry["legs"])
+            self.assertTrue(all(v["pass"] for v in entry["legs"].values()))
+
+    def test_wrong_parameter_set_fails(self):
+        """Negative control: a deliberately wrong B parameter set must fail
+        the cross-check, not slide through the gates."""
+        with tempfile.TemporaryDirectory() as td:
+            p = dict(model.PARAM_DEFAULTS)
+            wrong = dict(p, dc_gain=2.0, ktc_noise_var=1e-3,
+                         comparator_offset=0.2, comparator_hysteresis=0.2)
+            entry = self.compare(pathlib.Path(td), wrong, p)
+            self.assertNotEqual(entry["legs_failed"], [],
+                                "the negative control must fail at least one leg")
+            self.assertEqual(entry["legs_passed"], [], entry["legs"])
+
+    def test_length_mismatch_refused(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = pathlib.Path(td)
+            corner = self.fixture_corner_path(tmp)
+            t_path = tmp / "t.json"
+            t_path.write_text(json.dumps(self.side(dict(model.PARAM_DEFAULTS))))
+            b = self.b_side(dict(model.PARAM_DEFAULTS))
+            b["y"] = b["y"][:-1]
+            b["x1_fs"] = b["x1_fs"][:-1]
+            b["x2_fs"] = b["x2_fs"][:-1]
+            b_path = tmp / "b.json"
+            b_path.write_text(json.dumps(b))
+            with self.assertRaises(ValueError):
+                xcheck.compare_corner(corner, b_path, t_path)
+
+    def test_passing_corner_is_still_incomplete(self):
+        """A corner whose every computable leg passes is reported
+        `incomplete`, never passed: DR-001's in-band SNDR leg is not
+        computable at the committed T record length, so B numbers stay
+        uncross-checked and out of row 2 (issue #128)."""
+        with tempfile.TemporaryDirectory() as td:
+            p = dict(model.PARAM_DEFAULTS)
+            entry = xcheck.finalise_entry(
+                self.compare(pathlib.Path(td), p, p))
+            self.assertTrue(entry["cross_check_status"].startswith("incomplete"))
+            self.assertIsNone(entry["sndr_inband_db"]["b"])
+            self.assertFalse(entry["sndr_inband_db"]["computable"])
+
+    def test_missing_t_bitstream_reported_uncrosschecked(self):
+        """A corner with no committed T bitstream is reported
+        uncross-checked, never skipped (issue #128 acceptance criteria)."""
+        with tempfile.TemporaryDirectory() as td:
+            entry = xcheck.finalise_entry(
+                xcheck.no_t_samples_entry(self.fixture_corner_path(
+                    pathlib.Path(td))))
+            self.assertTrue(entry["cross_check_status"].startswith("uncross-checked"))
+            self.assertIsNotNone(entry["error"])
+            self.assertIsNone(entry["t_samples_file"])
+
+
 class CodeIdentity(unittest.TestCase):
     """`code_sha256` names the code that produced the number.
 
@@ -213,6 +424,70 @@ class CodeIdentity(unittest.TestCase):
             self.assertNotEqual(hashlib.sha256(fake.read_bytes()).hexdigest(),
                                 base["sim/bmodel/sndr.py"])
         self.assertEqual(run.code_state()["code_sha256"], base)
+
+
+class Item5EnvelopeRecords(unittest.TestCase):
+    """`make_item5_envelope` binds every records[] field to the record its
+    entry names, and the committed envelope agrees with the records on disk.
+
+    The first revision of the generator built `records[]` with a
+    comprehension that referenced a leaked outer name -- always the last
+    RECORDS entry (fs/1.800V/27C) -- so all seven committed entries carried
+    fs's corner_params_file, corner_params_sha256, peak SNDR and
+    cross_check. Six corners' peak SNDR was attributed to the wrong corner,
+    and the two ss corners' span_10pct failures ("a corner that fails is
+    reported as failed", item #128's acceptance criteria) were replaced by
+    fs's all-computable-legs string. The content-hash gate cannot catch
+    this: it proves the envelope has not been edited since the manifest was
+    written, not that the generator put the right corner's values in it.
+    """
+
+    @staticmethod
+    def _committed_recs():
+        return {cid: json.loads((REPO / rel).read_text())
+                for cid, rel in make_item5_envelope.RECORDS.items()}
+
+    @staticmethod
+    def _assert_entry_matches_record(test, entry):
+        rec = json.loads((REPO / entry["file"]).read_text())
+        test.assertEqual(entry["corner_params_file"], rec["corner_params_file"]["path"])
+        test.assertEqual(entry["corner_params_sha256"], rec["corner_params_file"]["sha256"])
+        test.assertEqual(entry["peak_sndr_db_uncross_checked"], rec["peak_sndr_db"])
+        test.assertEqual(entry["cross_check"], rec["cross_check"])
+
+    def test_entry_fields_come_from_the_named_record(self):
+        entries = make_item5_envelope.build_records(self._committed_recs())
+        self.assertEqual([e["corner_id"] for e in entries],
+                         list(make_item5_envelope.RECORDS))
+        for entry in entries:
+            self.assertEqual(entry["file"], make_item5_envelope.RECORDS[entry["corner_id"]])
+            self._assert_entry_matches_record(self, entry)
+
+    def test_ss_corners_carry_their_span_failure(self):
+        entries = {e["corner_id"]: e
+                   for e in make_item5_envelope.build_records(self._committed_recs())}
+        for cid in ("ss/1.620V/125C", "ss/1.620V/-40C"):
+            self.assertIn("FAILED legs: span_10pct", entries[cid]["cross_check"])
+            self.assertNotEqual(entries[cid]["peak_sndr_db_uncross_checked"],
+                                entries["fs/1.800V/27C"]["peak_sndr_db_uncross_checked"])
+
+    def test_check_records_refuses_leaked_values(self):
+        """The defect shape itself: `file` bound per corner, values leaked
+        from the last RECORDS entry. The re-derivation guard must refuse."""
+        entries = make_item5_envelope.build_records(self._committed_recs())
+        leaked = entries[-1]
+        for key in ("corner_params_file", "corner_params_sha256",
+                    "peak_sndr_db_uncross_checked", "cross_check"):
+            entries[0][key] = leaked[key]
+        with self.assertRaises(SystemExit):
+            make_item5_envelope.check_records(entries)
+
+    def test_committed_envelope_matches_its_records(self):
+        envelope = json.loads((HERE / "item5-model-run.json").read_text())
+        self.assertEqual([e["corner_id"] for e in envelope["records"]],
+                         list(make_item5_envelope.RECORDS))
+        for entry in envelope["records"]:
+            self._assert_entry_matches_record(self, entry)
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ gate-level netlist `rtl/netlist/decimator_synth.v`. Not hand-edited.
 | `pnr_request.json` | the P&R request: cell library, floorplan, PDN, clock |
 | `run_pnr.py` | driver; `python3 layout/digital/run_pnr.py` regenerates, `--check` compares |
 | `decimator.gds` | routed layout (T1 item 2, digital); hash-pinned by `design/attest/item2-digital-envelope.json` |
-| `decimator.def`, `decimator_pnr.v` | routed DEF and as-built netlist (CTS buffers included): the LVS reference for #32 |
+| `decimator.def`, `decimator_pnr.v` | routed DEF and as-built netlist (CTS buffers included): the LVS reference for the digital partition (item 4, below); analog-partition and assembled-top LVS stay with #32 |
 | `sta_request.json` | the multi-corner `klt sta` request on the routed DEF |
 | `sta-decimator.report.json` | the committed STA report (T1 item 5, digital, with `verification/decimator/fv-decimator.report.json`) |
 
@@ -54,27 +54,93 @@ spans corners down to 1.28 V, below the spec's 1.62 V supply bound; the STA belo
 only corners at or above 1.60 V and sees those electrical violations at one corner
 (`ss_n40C_1v60`).
 
+## LVS (T1 item 4, digital)
+
+`klt lvs` (pinned klt 0.8.0, klayout 0.30.13, `sky130` extraction deck, content hash
+`sha256:ba0f97887e3d231aec8b54f1f52f2941ded0228f0234b6759712bcaca0e942e6`) on
+`decimator.gds`, top `decimator`, against the as-built gate-level netlist
+`decimator_pnr.v` (`form: "gate-level-verilog"`, `library: sky130_fd_sc_hd`) is
+`match` with 0 errors; report `digital/lvs-decimator.report.json`, request
+`digital/lvs_request.json`. Reproduce with `digital/run_lvs.sh --check` (cheap
+re-hash of the committed inputs; exit 0 consistent, 3 drifted), or
+`digital/run_lvs.sh` to regenerate (about 30 minutes; the layout extraction of
+19688 abstracted cell instances dominates), or `--rerun` for the full compare
+re-run. Standard cells are compared at cell-instance level
+(`abstract_cells: sky130_fd_sc_hd__*`, pins resolved from the cells' own
+in-layout labels; every abstracted black box carries its signal pins plus
+`VGND`/`VPB`/`VPWR` — `VNB` has no in-cell substrate-tie label and is dropped,
+which the signal-only Verilog reference never carries anyway).
+
+`power_connectivity.status` is `match` (0 findings): the request declares
+`expected_nets` `VPWR: VDDD`, `VGND: VSSD` (`supply_nets: VDDD, VSSD`, which the
+deck's default allowlist does not contain), and the per-instance pin-to-net
+check covers all 19688 abstracted instances against the power-pin universe
+derived from the layout (`VGND`, `VPB`, `VPWR`, declared by every one of the
+103 instantiated masters, corroborated). The declared mapping verifies
+`VPWR`→`VDDD` and `VGND`→`VSSD` on every instance; `VPB` is unnamed in the
+declaration and gets the relative-consistency check instead — the verdict says
+every instance's `VPB` reaches the same net, and does not name which. This
+checks per-cell-instance pin-to-net correctness, not the geometric rails:
+power-delivery evidence stays with item 11 (`klt erc`, #39).
+
+Warnings-only disclosures (all five report entries, none an error; the verdict
+is `match` with these listed, per the item-4 grading rule): three `topology`
+entries for device classes `nfet`/`pfet`/`pnp` that have no counterpart on
+either side and no extracted devices (an artifact of the cell-level compare);
+`topology.power_only_pruned` — the five layout-side circuits whose every pin is
+a power pin (`sky130_fd_sc_hd__fill_1/2/4/8`, `tapvpwrvgnd_1`) are pruned before
+comparing, since the Verilog reference structurally cannot carry them;
+`topology.top_level_pins_anchored` — 20 top-level pins anchored by name
+(`options.anchor_top_level_pins` defaults on for this reference form), which is
+what stops a bit-reversed `dout[15:0]` from comparing clean.
+
+Analog-partition and assembled-top LVS stay with #32.
+
+One provenance blemish, recorded as the tool wrote it: the report's
+`provenance.pin_order_sources[].path` embeds the resolved library file as an
+absolute home path, which `klt env-provenance scan` itself flags as a leak
+(klt's own hygiene rule says such paths are never emitted — pin by identity
+instead). Not hand-edited out; filed generically as
+`2AMLogic/klayout-tools#5812`. Every other path in the report and the signoff
+record is repo-relative or tilde-rooted.
+
 ## Multi-corner STA (T1 item 5, digital)
 
 `klt sta` (pinned klt 0.8.0, OpenROAD `26Q3-1510-g6cb3f2b704`) on the committed
-`digital/decimator.def` — `geometry_source: "routed"`, clock `clk` at 195.3125 ns — with
+`digital/decimator.def` — `geometry_source: "routed"`, clock `clk` at 195.3125 ns,
+`constraints.propagated_clock: true` — with
 `pdk.corners` naming ten corners, so one fixed geometry is characterized at all ten in a
 single request. (`klt place-and-route` re-run per corner would give ten *different*
 placements and routings, which is not a characterization of this layout.) Request
 `digital/sta_request.json`, report `digital/sta-decimator.report.json`. Reproduce with:
 
 ```sh
-# from the repo root; takes about a minute
-PDK_ROOT=$(klt pdk find --pdk sky130A --format json | jq -r .root) \
-  klt sta layout/digital/sta_request.json --pdk sky130A --format json \
-  > layout/digital/sta-decimator.report.json
+# from the repo root; takes about half a minute. Pinned klt, not the host klt,
+# and an explicit --pdk-root: both reach the committed report's own provenance
+# (`provenance.klt_version`, `pdk.source: "--pdk-root flag"`).
+uvx --from "klayout-tools==$(cat .github/klt-version)" klt sta \
+  layout/digital/sta_request.json --pdk sky130A \
+  --pdk-root "$(klt pdk find --pdk sky130A --format json | jq -r .root)" \
+  --format json > layout/digital/sta-decimator.report.json
 ```
+
+A re-run reproduces every timing number exactly, but **not** the file byte-for-byte:
+each corner's `engine_log.invocation_id` is a fresh UUID, and `engine_log.script_sha256`
+covers a generated TCL that embeds the checkout's absolute `read_def` path. Compare with
+`jq -S 'del(.corners[].engine_log)'` on both sides, not `diff`.
 
 **Result**: every one of the ten corners is `timing_status: "constrained"` with
 non-negative setup and hold slack and zero setup/hold violations. Worst setup slack
-157.898 ns of the 195.3125 ns period at `ss_n40C_1v60` (Fmax 26.73 MHz); worst hold slack
-0.2586 ns at `ff_n40C_1v95`; best Fmax 110.05 MHz at `ff_n40C_1v95`. The clock is 5.12 MHz,
+157.838 ns of the 195.3125 ns period at `ss_n40C_1v60` (Fmax 26.69 MHz); worst hold slack
+0.2698 ns at `ff_n40C_1v95`; best Fmax 109.79 MHz at `ff_n40C_1v95`. The clock is 5.12 MHz,
 so the slowest declared corner leaves a 5.2x frequency margin.
+
+These supersede the ideal-clock figures this report carried before #136 (worst setup
+157.898 ns at `ss_n40C_1v60`, Fmax 26.73 MHz; worst hold 0.2586 ns at `ff_n40C_1v95`; best
+Fmax 110.05 MHz), kept here so the replaced result stays readable. Propagating the clock
+costs setup (insertion delay lands on the launch edge) and *earns* hold (it lands on the
+capture edge too): worst setup fell 0.060 ns and worst hold rose 0.0112 ns. Both signs are
+what a real clock tree does, and neither moves the verdict.
 
 **Which DR-002 point each declared corner stands in for.** Spec §2 (DR-002) asks for 45
 points: {tt, ss, ff, sf, fs} x {-40, 27, 125 C} x {1.62, 1.80, 1.98 V}. `sky130_fd_sc_hd`
@@ -102,22 +168,37 @@ library ships no file above 100 C (against the 125 C bound), none at 27 C, none 
 1.60 V (`ss_100C_1v40`, `ss_n40C_1v{28,35,40,44}`, `ff_n40C_1v56`) are
 outside the spec's 1.62-1.98 V supply range and are deliberately **not** declared. `klt
 signoff` grades exactly the corners a run declares, so **item 5 / digital is met on these
-ten corners only — this is not 45-corner coverage.** The 35 uncovered DR-002 points are
-tracked in #131.
+ten corners only — this is not 45-corner coverage.** The ten declared corners *are* the
+digital partition's corner set, and the 35 uncovered DR-002 points are a **declared,
+unclosable gap** under
+[DR-008](../spec/decisions/DR-008-digital-timing-corners.md), which also records the
+residual risk each missing axis leaves. The table above is the normative stand-in map that
+record cites.
 
 **Other limits of this report, stated rather than implied.**
 
 - **No SPEF.** Routed-DEF timing with no extracted wire parasitics
   (`spef_path: null`, `power_basis.parasitics: "estimate_only"`). Parasitic-annotated
   timing is #35.
-- **Ideal clock.** `clock_mode: "ideal"` — `create_clock` with no
-  `set_propagated_clock`, so the clock tree's insertion delay never reaches the numbers.
-  Measured `clock_skew_ns` is ~0.013 ns and is not evidence of propagation.
+- **Propagated clock.** `clock_mode: "propagated"` — the session issues
+  `set_propagated_clock [get_clocks clk]`, so the DEF's own clock tree carries insertion
+  delay into both the launch and the capture edge of every check. The
+  `clock_propagation` evidence block per corner reports the worst network latency actually
+  reached: 0.3204 ns at `ff_n40C_1v95` up to 0.9745 ns at `ss_n40C_1v60`, i.e. up to 0.5 %
+  of the 195.3125 ns period. Its `clock_sinks` count (2-3) is **not** the size of the tree:
+  `report_clock_latency` prints only the min- and max-latency sinks, and `clock_sinks_sample`
+  is a diagnostic sample. The latency is computed from the routed DEF's own interconnect
+  with no SPEF, so it is an estimate of insertion delay, not an extracted one. The separate
+  aggregate `clock_skew_ns` metric is unchanged at ~0.013 ns by propagation.
 - **Register-to-register only.** Every corner reports
   `constraint_completeness.status: "incomplete"` with 17 unconstrained endpoints
   (`dout[15:0]`, `dout_valid`) and 0 unclocked registers. No block-boundary input/output
   delay budget is declared, because no ratified document states one; inventing one would be
-  a timing contract no spec backs. Tracked in #131.
+  a timing contract no spec backs.
+  [DR-008](../spec/decisions/DR-008-digital-timing-corners.md) assigns that budget to the
+  assembled top (#122 / #29 / #35), so `incomplete` is the expected value here, not a
+  defect; the first run that may report `complete` is the one made under the top's declared
+  budget.
 - **`fmax_mhz` is extrapolated**, `1/(T - WNS)`, not a bisected search.
 - **Electrical rules.** `ss_n40C_1v60` reports 660 max-transition and 7 max-capacitance
   violations against the liberty limits (every other declared corner reports 0). These are
@@ -205,10 +286,10 @@ gaps hit along the way: `analog/ota_fd/README.md`.
 
 ### `integrator` (#119)
 
-`analog/integrator/integrator.gds`, top cell `integrator`, **493.67 x 313.32 um**
-(154,677 um^2, 3183 flattened polygons). Produced by
+`analog/integrator/integrator.gds`, top cell `integrator`, **494.57 x 313.32 um**
+(154,959 um^2, 4259 flattened polygons). Produced by
 `analog/integrator/gen_integrator.py` from `design/integrator/integrator.spice`:
-one `klt gen` call per distinct device geometry (9 of them cover all 44 netlist
+one `klt gen` call per distinct device geometry (11 of them cover all 50 netlist
 devices, one block per device — nothing folded into a shared array), ten
 `guard_ring` body-tie rings, the script's own floorplan and met1/met2 router,
 merged by `klt gen-compose` used as a placer only. **The OTA is instantiated,
@@ -217,15 +298,15 @@ not redrawn**: a `blocks[].cell` entry naming the committed
 
 - **Reproducing**: `python3 layout/analog/integrator/gen_integrator.py --check`
   regenerates into a temp dir and **byte-compares** against the committed stream
-  (it passes; consecutive runs reproduce the 269,580-byte stream exactly).
+  (it passes; consecutive runs reproduce the 289,704-byte stream exactly).
   Local-only, for the same reason as `ota_fd` — CI installs the pinned klt but
   no PDK.
 - **Pinned inputs**: the generator asserts the sha256 of **both**
   `analog/ota_fd/ota_fd.gds` (`27ace056…eeefe976`) and
-  `design/integrator/integrator.spice` (`18fc5147…4074d53`) before generating,
+  `design/integrator/integrator.spice` (`6857c4ca…66e1c9d`) before generating,
   and aborts if either moved. That is what makes the stream detectably stale if
   #143 resizes the OTA or #129/#147 resize a switch drawn here.
-- **Build that produced it**: klt `0.9.2.dev1022+g2a9c52b27ce7`, klayout
+- **Build that produced it**: klt `0.9.3.dev256+g59096013d161`, klayout
   `0.30.13`, `sky130A` / open_pdks `f6eeac7`. A **later** build than the one that
   produced `ota_fd.gds` (`dev964`); `blocks[].cell` does not regenerate the OTA,
   so the OTA half of the stream is build-independent.
@@ -233,20 +314,20 @@ not redrawn**: a `blocks[].cell` entry naming the committed
   violations**, covering the OTA instance too; report
   `analog/integrator/drc.report.json`. `layers_in_stream_without_rules`: `66/13`
   (resistor-ID marker, from the OTA), `68/5` (`met1.pin`); `rules_skipped`: 51.
-  The 20 `lvtn` markers are checked (`lvtn.angle.1`, `lvtn.ongrid.1`). **Not** a
+  The 28 `lvtn` markers are checked (`lvtn.angle.1`, `lvtn.ongrid.1`). **Not** a
   DRC-clean signoff claim — that stays with #31.
 - **Device count**: `klt extract` over the stream, minus `klt extract` over
-  `ota_fd.gds` alone in the same run, gives this cell's own **44 devices by
-  netlist model**: 9 `nfet_01v8`, 12 `nfet_01v8_lvt`, 9 `pfet_01v8`, 8
+  `ota_fd.gds` alone in the same run, gives this cell's own **50 devices by
+  netlist model**: 8 `nfet_01v8`, 14 `nfet_01v8_lvt`, 8 `pfet_01v8`, 14
   `pfet_01v8_lvt`, 6 `cap_mim_m3_1`, plus the OTA's 29 through its instance.
   **The low-Vth split is confirmed by extraction**, contrary to the premise
   #119's acceptance criterion was weakened on; `extract-device-count.json`
-  records both that result and the flavour-blind 21/17/6 the criterion asked
+  records both that result and the flavour-blind 22/22/6 the criterion asks
   for, and explains the difference from the earlier probe.
 - **Pins and body ties**: the sixteen `.subckt` ports are labelled on `met1.pin`
   and come back out of `klt extract`; `outp`/`outn` share a pin with the OTA's
   own `outp`/`outn` labels, which is how the OTA's outputs are shown to be the
-  nets `Ci_p`/`Ci_n` sit on. 42 distinct device-terminal nets, the 29 this cell
+  nets `Ci_p`/`Ci_n` sit on. 43 distinct device-terminal nets, the 30 this cell
   declares plus the OTA's 21 less the 8 they share. Every nFET bulk extracts to
   `vssa` and every pFET bulk to `vdda` through the ten tap rings.
 - **Mirror symmetry**: the cell has a horizontal axis at y = 143.43 um and each
@@ -255,11 +336,14 @@ not redrawn**: a `blocks[].cell` entry naming the committed
   bound to the MiM top plate, which is `design/integrator/SIZING.md:72-74`'s "to
   be confirmed in layout" step — though extraction cannot read a plate binding
   back, and whether `c0` is physically the top plate stays #146's question.
-- **Summing nodes**: `sump` 130.5 um, `sumn` 134.5 um of drawn wire, the
+- **Summing nodes**: `sump` 121.465 um, `sumn` 122.505 um of drawn wire, the
   shortest nets in the cell that connect more than three anchors, symmetric to
-  3 %. Nothing is shielded, so all four met1 clock adjacencies (0.18–0.32 um,
-  all against `phi2`) and all fifteen met1/met2 clock crossings are listed in
-  `analog/integrator/route-summary.json` and in the cell's README.
+  0.85 % (routed as a matched pair, and gated at 3 % by the generator — the
+  first-come routing this pair replaced had drifted the pair to 9.3 %). Nothing
+  is shielded, so all eighteen met1/met2 clock crossings are listed
+  in `analog/integrator/route-summary.json` and in the cell's README; the
+  matched-pair columns left no clock run within 1.0 um of a summing-node run
+  on the same layer.
 - LVS (#32), parasitic extraction (#35) and power-delivery checks (#39) are not
   claimed.
 

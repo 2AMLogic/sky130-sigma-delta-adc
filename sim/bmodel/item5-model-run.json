@@ -1,0 +1,294 @@
+{
+  "schema_version": 1,
+  "kind": "model-run",
+  "status": "pass",
+  "method": "behavioural model B (sim/bmodel/model.py: second-order single-bit delaying-integrator loop) loaded with the per-corner T-extracted parameters (sim/bmodel/corners/, one file per DR-002 anchor, every parameter's T record and hash named), swept over 12 amplitudes at N = 2^16 output samples, Blackman-Harris 4-term, coherent tone. klt does not execute this model (executed_by_klt: false on the citation). The rows covered here are configuration the records stamp directly; row 2 (peak SNDR) is deliberately NOT carried: every corner's DR-001 cross-check is incomplete (sim/bmodel/xcheck-record.json), so the B numbers are uncross-checked and the manifest declares row 2 a gap.",
+  "measurements": [
+    {
+      "name": "band_bw_hz",
+      "spec_row": "1",
+      "status": "pass",
+      "limits": {
+        "min": 20000.0
+      },
+      "value": 20000.0,
+      "what": "analysed band of the committed records: 0-20 kHz, DC and tone-lobe bins excluded; set by fout/4 at OSR 128"
+    },
+    {
+      "name": "oversampling_ratio",
+      "spec_row": "4",
+      "status": "pass",
+      "limits": {
+        "min": 128,
+        "max": 128
+      },
+      "value": 128,
+      "what": "modulator clock 5.12 MHz, decimation 128 -> fout 40 kSps (fallback row in the spec table); the loop and decimator configuration every committed record stamps"
+    }
+  ],
+  "corners": [
+    {
+      "corner_id": "tt/1.800V/27C",
+      "status": "pass",
+      "measurements": [
+        {
+          "name": "band_bw_hz",
+          "spec_row": "1",
+          "status": "pass",
+          "limits": {
+            "min": 20000.0
+          },
+          "value": 20000.0,
+          "what": "analysed band of the committed records: 0-20 kHz, DC and tone-lobe bins excluded; set by fout/4 at OSR 128"
+        },
+        {
+          "name": "oversampling_ratio",
+          "spec_row": "4",
+          "status": "pass",
+          "limits": {
+            "min": 128,
+            "max": 128
+          },
+          "value": 128,
+          "what": "modulator clock 5.12 MHz, decimation 128 -> fout 40 kSps (fallback row in the spec table); the loop and decimator configuration every committed record stamps"
+        }
+      ]
+    },
+    {
+      "corner_id": "ss/1.620V/125C",
+      "status": "pass",
+      "measurements": [
+        {
+          "name": "band_bw_hz",
+          "spec_row": "1",
+          "status": "pass",
+          "limits": {
+            "min": 20000.0
+          },
+          "value": 20000.0,
+          "what": "analysed band of the committed records: 0-20 kHz, DC and tone-lobe bins excluded; set by fout/4 at OSR 128"
+        },
+        {
+          "name": "oversampling_ratio",
+          "spec_row": "4",
+          "status": "pass",
+          "limits": {
+            "min": 128,
+            "max": 128
+          },
+          "value": 128,
+          "what": "modulator clock 5.12 MHz, decimation 128 -> fout 40 kSps (fallback row in the spec table); the loop and decimator configuration every committed record stamps"
+        }
+      ]
+    },
+    {
+      "corner_id": "ss/1.620V/-40C",
+      "status": "pass",
+      "measurements": [
+        {
+          "name": "band_bw_hz",
+          "spec_row": "1",
+          "status": "pass",
+          "limits": {
+            "min": 20000.0
+          },
+          "value": 20000.0,
+          "what": "analysed band of the committed records: 0-20 kHz, DC and tone-lobe bins excluded; set by fout/4 at OSR 128"
+        },
+        {
+          "name": "oversampling_ratio",
+          "spec_row": "4",
+          "status": "pass",
+          "limits": {
+            "min": 128,
+            "max": 128
+          },
+          "value": 128,
+          "what": "modulator clock 5.12 MHz, decimation 128 -> fout 40 kSps (fallback row in the spec table); the loop and decimator configuration every committed record stamps"
+        }
+      ]
+    },
+    {
+      "corner_id": "ff/1.980V/-40C",
+      "status": "pass",
+      "measurements": [
+        {
+          "name": "band_bw_hz",
+          "spec_row": "1",
+          "status": "pass",
+          "limits": {
+            "min": 20000.0
+          },
+          "value": 20000.0,
+          "what": "analysed band of the committed records: 0-20 kHz, DC and tone-lobe bins excluded; set by fout/4 at OSR 128"
+        },
+        {
+          "name": "oversampling_ratio",
+          "spec_row": "4",
+          "status": "pass",
+          "limits": {
+            "min": 128,
+            "max": 128
+          },
+          "value": 128,
+          "what": "modulator clock 5.12 MHz, decimation 128 -> fout 40 kSps (fallback row in the spec table); the loop and decimator configuration every committed record stamps"
+        }
+      ]
+    },
+    {
+      "corner_id": "ff/1.980V/125C",
+      "status": "pass",
+      "measurements": [
+        {
+          "name": "band_bw_hz",
+          "spec_row": "1",
+          "status": "pass",
+          "limits": {
+            "min": 20000.0
+          },
+          "value": 20000.0,
+          "what": "analysed band of the committed records: 0-20 kHz, DC and tone-lobe bins excluded; set by fout/4 at OSR 128"
+        },
+        {
+          "name": "oversampling_ratio",
+          "spec_row": "4",
+          "status": "pass",
+          "limits": {
+            "min": 128,
+            "max": 128
+          },
+          "value": 128,
+          "what": "modulator clock 5.12 MHz, decimation 128 -> fout 40 kSps (fallback row in the spec table); the loop and decimator configuration every committed record stamps"
+        }
+      ]
+    },
+    {
+      "corner_id": "sf/1.800V/27C",
+      "status": "pass",
+      "measurements": [
+        {
+          "name": "band_bw_hz",
+          "spec_row": "1",
+          "status": "pass",
+          "limits": {
+            "min": 20000.0
+          },
+          "value": 20000.0,
+          "what": "analysed band of the committed records: 0-20 kHz, DC and tone-lobe bins excluded; set by fout/4 at OSR 128"
+        },
+        {
+          "name": "oversampling_ratio",
+          "spec_row": "4",
+          "status": "pass",
+          "limits": {
+            "min": 128,
+            "max": 128
+          },
+          "value": 128,
+          "what": "modulator clock 5.12 MHz, decimation 128 -> fout 40 kSps (fallback row in the spec table); the loop and decimator configuration every committed record stamps"
+        }
+      ]
+    },
+    {
+      "corner_id": "fs/1.800V/27C",
+      "status": "pass",
+      "measurements": [
+        {
+          "name": "band_bw_hz",
+          "spec_row": "1",
+          "status": "pass",
+          "limits": {
+            "min": 20000.0
+          },
+          "value": 20000.0,
+          "what": "analysed band of the committed records: 0-20 kHz, DC and tone-lobe bins excluded; set by fout/4 at OSR 128"
+        },
+        {
+          "name": "oversampling_ratio",
+          "spec_row": "4",
+          "status": "pass",
+          "limits": {
+            "min": 128,
+            "max": 128
+          },
+          "value": 128,
+          "what": "modulator clock 5.12 MHz, decimation 128 -> fout 40 kSps (fallback row in the spec table); the loop and decimator configuration every committed record stamps"
+        }
+      ]
+    }
+  ],
+  "records": [
+    {
+      "corner_id": "tt/1.800V/27C",
+      "file": "sim/bmodel/records/20261116T202526Z-155d8e27.json",
+      "sha256": "sha256:a6278bdc95bdc626e657160c58fcd3348bf3993e2b237d399f839ded75289def",
+      "corner_params_file": "sim/bmodel/corners/tt-1.800V-27C.json",
+      "corner_params_sha256": "sha256:66480d8e30ed471d4fe623ac18ce621267503cd331c5c5847d957cac1a2085fc",
+      "peak_sndr_db_uncross_checked": 72.38993254226483,
+      "cross_check": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, span_10pct, duty_0p05. Model B numbers at this corner are reported uncross-checked and are not used for row 2."
+    },
+    {
+      "corner_id": "ss/1.620V/125C",
+      "file": "sim/bmodel/records/20261116T202548Z-9b6f3f72.json",
+      "sha256": "sha256:a9ded211ce7a9c582b48f28b54391ae496baffa1fe5341ddf9dd41c52a5cfad2",
+      "corner_params_file": "sim/bmodel/corners/ss-1.620V-125C.json",
+      "corner_params_sha256": "sha256:422128da1c43b618b104b12c082c4392d24503e7761ca26328295772a26c99ef",
+      "peak_sndr_db_uncross_checked": 71.35325019631865,
+      "cross_check": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, duty_0p05; FAILED legs: span_10pct. Model B numbers at this corner are reported uncross-checked and are not used for row 2."
+    },
+    {
+      "corner_id": "ss/1.620V/-40C",
+      "file": "sim/bmodel/records/20261116T202610Z-a11dab73.json",
+      "sha256": "sha256:f2a3ef2d6e2daf13d23f5c6ddff9d7d0c5d9bfac19e675d2bfbb67c98c8df75d",
+      "corner_params_file": "sim/bmodel/corners/ss-1.620V-m40C.json",
+      "corner_params_sha256": "sha256:b2c48d150ec5eaae453a937a205ae4a5652aa131b01ae965024e16a0b5356a05",
+      "peak_sndr_db_uncross_checked": 72.38890746194626,
+      "cross_check": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, duty_0p05; FAILED legs: span_10pct. Model B numbers at this corner are reported uncross-checked and are not used for row 2."
+    },
+    {
+      "corner_id": "ff/1.980V/-40C",
+      "file": "sim/bmodel/records/20261116T202631Z-99e68069.json",
+      "sha256": "sha256:02232b5ccaaf98d7de6f67c0b40f55d63c931cdfb2e18892ee9f3a76de30e423",
+      "corner_params_file": "sim/bmodel/corners/ff-1.980V-m40C.json",
+      "corner_params_sha256": "sha256:f04469e6b80fc9761ce4e2bb56bb685a113ad7cd9b09de9eb5b56fb8b0b8f3d1",
+      "peak_sndr_db_uncross_checked": 73.19744957973694,
+      "cross_check": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, span_10pct, duty_0p05. Model B numbers at this corner are reported uncross-checked and are not used for row 2."
+    },
+    {
+      "corner_id": "ff/1.980V/125C",
+      "file": "sim/bmodel/records/20261116T202652Z-7b6364c6.json",
+      "sha256": "sha256:34ec5dd5cc812183f77810ac4f02c405e548369107fdd335fa1af09fb155ea23",
+      "corner_params_file": "sim/bmodel/corners/ff-1.980V-125C.json",
+      "corner_params_sha256": "sha256:f395b1714d146388c4ed18838f754ef656616c18efbdf7015906096c4e343265",
+      "peak_sndr_db_uncross_checked": 72.20238104919062,
+      "cross_check": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, span_10pct, duty_0p05. Model B numbers at this corner are reported uncross-checked and are not used for row 2."
+    },
+    {
+      "corner_id": "sf/1.800V/27C",
+      "file": "sim/bmodel/records/20261116T202713Z-4a489626.json",
+      "sha256": "sha256:7b9b7081efc37f63ce5fb1949a1cf8410a78a6ebed4f22294a9d58a10d0bd5f9",
+      "corner_params_file": "sim/bmodel/corners/sf-1.800V-27C.json",
+      "corner_params_sha256": "sha256:be66b8db283171c60058347d088a1d1fc02074ddf91aabca156f1d78d8b8b5c2",
+      "peak_sndr_db_uncross_checked": 73.244162472844,
+      "cross_check": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, span_10pct, duty_0p05. Model B numbers at this corner are reported uncross-checked and are not used for row 2."
+    },
+    {
+      "corner_id": "fs/1.800V/27C",
+      "file": "sim/bmodel/records/20261116T202736Z-24b179e2.json",
+      "sha256": "sha256:c15406d653749843fb479f93a210861e6df26f5b61d0b6e7ede40c070a9f94f3",
+      "corner_params_file": "sim/bmodel/corners/fs-1.800V-27C.json",
+      "corner_params_sha256": "sha256:86e93e58b935c3f937254ac9d20d5376c7b223f52fbfe85686ea5aef37a395f0",
+      "peak_sndr_db_uncross_checked": 71.56297483550367,
+      "cross_check": "incomplete: DR-001's in-band-SNDR leg is not computable at the committed 1024-clock T record (see sndr_inband_db.reason), so DR-001 item 3 acceptance cannot be declared at any corner. Computable legs: inband_power_3db, span_10pct, duty_0p05. Model B numbers at this corner are reported uncross-checked and are not used for row 2."
+    }
+  ],
+  "provenance": {
+    "input": {
+      "path": {
+        "path": "sim/bmodel/xcheck-record.json",
+        "scope": "repo"
+      },
+      "content_hash": "sha256:443684806398ac5a1a8e02e5044792c63584187979f669c16d289fee9870d236"
+    }
+  }
+}
