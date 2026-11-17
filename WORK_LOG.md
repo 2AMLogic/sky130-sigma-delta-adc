@@ -4,6 +4,12 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-16
 
+- **PR #256**: fix: fold SPICE continuation lines before parsing extracted X-devices
+- **PR #244**: feat: per-corner model-B evidence and DR-001 cross-check for item 5 analog
+- **PR #220**: chore(loom): resync installed Loom to v0.19.1302
+- **Issue #204** (closed): parse_extract_devices silently drops an X-line whose model token sits on a SPICE continuation line
+- **Issue #203** (closed): check-ci drift guard fails on main: the analog-generator test step (44e8cee) is not registered in CHECKS
+- **Issue #128** (closed): T1 item 5 (analog 4/4): per-corner model B parameters, DR-001 cross-check on the anchors, and the item-5 analog citation
 - **PR #249**: docs: add DR-008 corrigendum 01 — klt-pin scope of the characterize ground
 - **PR #245**: fix(test): pin ota_fd merge counts to parser-independent check.expected
 - **PR #130**: sim: extract Sin input-sampling completeness over PVT and its Ron-vs-input curve
