@@ -32,6 +32,10 @@ delta-sigma ADC.
     its combinational-arcs clause does not at klt 0.9.x, and adds the
     missing klt-pin reopen trigger on `.github/klt-version`; DR-008's
     Decision is unchanged
+  - [DR-010](decisions/DR-010-input-sampling-completeness.md) —
+    input-sampling completeness line (error ≤ 1e-4 at both amplitudes over
+    the DR-002 grid, on the bottom-plate-only reading) and the low-Vth
+    `Sin` remedy; the line is a starting level pending model B
 
 Pinned sibling references live in [`../reuse.lock.json`](../reuse.lock.json).
 

@@ -14,8 +14,9 @@ and nothing is edited in a GUI.
                                                                 # temp dir, compare
 
 Reference netlist: ``design/integrator/integrator.spice`` -- 44 primitive
-device lines (9 ``nfet_01v8``, 12 ``nfet_01v8_lvt``, 9 ``pfet_01v8``, 8
-``pfet_01v8_lvt``, 6 ``cap_mim_m3_1``) plus the ``xota`` instance of
+device lines (7 ``nfet_01v8``, 14 ``nfet_01v8_lvt``, 7 ``pfet_01v8``, 10
+``pfet_01v8_lvt``, 6 ``cap_mim_m3_1``; issue #129 moved the four ``Sin``
+halves to the low-Vth flavours) plus the ``xota`` instance of
 ``ota_fd``.  Ports: ``vdda vssa vinp vinn vrefp vrefn vcm ibias phi1 phi1b
 phi1e phi2 dp dn voutp voutn``.  Sizing rationale:
 ``design/integrator/SIZING.md``.  PDK pin: ``sim/pdk.json`` (sky130A, open_pdks
@@ -29,7 +30,7 @@ it in turn follows the pinned ``2AMLogic/sky130-comparator`` at
   transistor and one ``cap_array`` unit per netlist capacitor, so the drawn
   device count equals the netlist's line for line.  Blocks that share a
   geometry share one ``klt gen`` call (the report is referenced by several
-  ``blocks[]`` entries) -- 9 calls cover all 44 devices.
+  ``blocks[]`` entries) -- 11 calls cover all 44 devices.
 * **The OTA is instantiated, never redrawn**: a ``blocks[].cell`` entry naming
   ``layout/analog/ota_fd/ota_fd.gds`` / cell ``ota_fd``, whose sha256 this
   script asserts before it runs.  Its eight ports are recovered with
@@ -152,7 +153,7 @@ OTA_GDS_SHA256 = "27ace056b255428e05c0fd6293dd08239fe97ba67379f6a330c30a94eeefe9
 #: netlist moved underneath it is stale, not merely out of date.  Same
 #: `integrator_netlist_sha256` convention the `sim/` records use.
 NETLIST_REL = "../../../design/integrator/integrator.spice"
-NETLIST_SHA256 = "18fc51475f667eea993fbef4e9a3abe7eaa35863ae88f86c25bfb56bc4074d53"
+NETLIST_SHA256 = "00df9de0d8b62508719df5a1e8af02f9eb31fd1db44eda8b28cbb90b72003eda"
 
 #: The OTA's eight `.subckt` ports, as `met1.pin` label text in its stream, and
 #: the integrator net each one is.  `inp`/`inn` are the OTA's *inputs*: the OTA
@@ -205,9 +206,19 @@ GEOMETRIES: dict[str, tuple[str, dict]] = {
     "n4": ("mos_array", {
         "w_um": 4.0, "l_um": 0.15, "fingers": 1, "rows": 1, "cols": 1,
         "dummy": 0, "flavor": "nfet", "gate_contact": True}),
+    # low-Vth nFET half of the input sampling gate (W=4, L=0.15) -- the #129
+    # fix; same drawn geometry as n4, carries the lvtn marker
+    "nl4": ("mos_array", {
+        "w_um": 4.0, "l_um": 0.15, "fingers": 1, "rows": 1, "cols": 1,
+        "dummy": 0, "flavor": "nfet", "gate_contact": True}),
     # 1.8V core pFET half of a transmission gate (W=8, L=0.15)
     "p8": ("mos_array", {
         "w_um": 8.0, "l_um": 0.15, "fingers": 1, "rows": 1, "cols": 1,
+        "dummy": 0, "flavor": "pfet", "gate_contact": True}),
+    # low-Vth pFET half of the input sampling gate (W=8, L=0.35) -- the #129
+    # fix; the lvt PMOS model has no bin below L=0.35, so the channel grows
+    "pl8": ("mos_array", {
+        "w_um": 8.0, "l_um": 0.35, "fingers": 1, "rows": 1, "cols": 1,
         "dummy": 0, "flavor": "pfet", "gate_contact": True}),
     # low-Vth nFET switch (W=12, L=0.15) -- needs the lvtn marker
     "nl12": ("mos_array", {
@@ -238,7 +249,7 @@ GEOMETRIES: dict[str, tuple[str, dict]] = {
 
 #: Geometries whose devices are the netlist's `_lvt` models, and so carry a
 #: hand-drawn `lvtn` marker.
-LVT_GEOMETRIES = ("nl12", "pl24", "pl4")
+LVT_GEOMETRIES = ("nl4", "nl12", "pl8", "pl24", "pl4")
 
 # --- schematic connectivity ---------------------------------------------------
 # Transcribed device by device from design/integrator/integrator.spice.  The
@@ -254,7 +265,7 @@ LVT_GEOMETRIES = ("nl12", "pl24", "pl4")
 # ended and sits in its own row outside the mirrored field.
 DEVICES: dict[str, tuple[str, dict[str, str]]] = {
     # -- p side, nFET ----------------------------------------------------------
-    "sin_p_n":  ("n4",   {"D": "vinp", "G": "phi1", "S": "bpi_p"}),
+    "sin_p_n":  ("nl4",  {"D": "vinp", "G": "phi1", "S": "bpi_p"}),
     "mra_p_n":  ("n4",   {"D": "vrefp", "G": "dn", "S": "rsel_p"}),
     "mrb_p_n":  ("n4",   {"D": "vrefn", "G": "dp", "S": "rsel_p"}),
     "sr_p_n":   ("n4",   {"D": "rsel_p", "G": "phi1", "S": "bpr_p"}),
@@ -265,7 +276,7 @@ DEVICES: dict[str, tuple[str, dict[str, str]]] = {
     "sti_p":    ("nl12", {"D": "tpi_p", "G": "phi2", "S": "sump"}),
     "str_p":    ("nl12", {"D": "tpr_p", "G": "phi2", "S": "sump"}),
     # -- p side, pFET ----------------------------------------------------------
-    "sin_p_p":  ("p8",   {"D": "vinp", "G": "phi1b", "S": "bpi_p"}),
+    "sin_p_p":  ("pl8",  {"D": "vinp", "G": "phi1b", "S": "bpi_p"}),
     "mra_p_p":  ("p8",   {"D": "vrefp", "G": "dp", "S": "rsel_p"}),
     "mrb_p_p":  ("p8",   {"D": "vrefn", "G": "dn", "S": "rsel_p"}),
     "sr_p_p":   ("p8",   {"D": "rsel_p", "G": "phi1b", "S": "bpr_p"}),
@@ -278,7 +289,7 @@ DEVICES: dict[str, tuple[str, dict[str, str]]] = {
     "csr_p":    ("cap1p", {"TOP": "tpr_p", "BOT": "bpr_p"}),
     "ci_p":     ("cap2p", {"TOP": "sump", "BOT": "voutp"}),
     # -- n side, nFET ----------------------------------------------------------
-    "sin_n_n":  ("n4",   {"D": "vinn", "G": "phi1", "S": "bpi_n"}),
+    "sin_n_n":  ("nl4",  {"D": "vinn", "G": "phi1", "S": "bpi_n"}),
     "mra_n_n":  ("n4",   {"D": "vrefn", "G": "dn", "S": "rsel_n"}),
     "mrb_n_n":  ("n4",   {"D": "vrefp", "G": "dp", "S": "rsel_n"}),
     "sr_n_n":   ("n4",   {"D": "rsel_n", "G": "phi1", "S": "bpr_n"}),
@@ -289,7 +300,7 @@ DEVICES: dict[str, tuple[str, dict[str, str]]] = {
     "sti_n":    ("nl12", {"D": "tpi_n", "G": "phi2", "S": "sumn"}),
     "str_n":    ("nl12", {"D": "tpr_n", "G": "phi2", "S": "sumn"}),
     # -- n side, pFET ----------------------------------------------------------
-    "sin_n_p":  ("p8",   {"D": "vinn", "G": "phi1b", "S": "bpi_n"}),
+    "sin_n_p":  ("pl8",  {"D": "vinn", "G": "phi1b", "S": "bpi_n"}),
     "mra_n_p":  ("p8",   {"D": "vrefn", "G": "dp", "S": "rsel_n"}),
     "mrb_n_p":  ("p8",   {"D": "vrefp", "G": "dn", "S": "rsel_n"}),
     "sr_n_p":   ("p8",   {"D": "rsel_n", "G": "phi1b", "S": "bpr_n"}),
@@ -409,14 +420,15 @@ NET_ORDER = (
 #: curator probe that found `klt extract --deck sky130` ignoring an `lvtn`
 #: marker; on this cell's geometry it does not -- the extracted netlist names
 #: `sky130_fd_pr__nfet_01v8_lvt` and `sky130_fd_pr__pfet_01v8_lvt` and gets
-#: all twenty right.  See this directory's README for the difference between
-#: the two probes.  Asserting the stronger thing is the point of the check, so
-#: it asserts the stronger thing.
+#: all twenty-four right (14 nfet + 10 pfet since #129 moved the `Sin` halves
+#: to the low-Vth flavours).  See this directory's README for the difference
+#: between the two probes.  Asserting the stronger thing is the point of the
+#: check, so it asserts the stronger thing.
 EXPECTED_DEVICES = {
-    "sky130_fd_pr__nfet_01v8": 9,
-    "sky130_fd_pr__nfet_01v8_lvt": 12,
-    "sky130_fd_pr__pfet_01v8": 9,
-    "sky130_fd_pr__pfet_01v8_lvt": 8,
+    "sky130_fd_pr__nfet_01v8": 7,
+    "sky130_fd_pr__nfet_01v8_lvt": 14,
+    "sky130_fd_pr__pfet_01v8": 7,
+    "sky130_fd_pr__pfet_01v8_lvt": 10,
     "sky130_fd_pr__cap_mim_m3_1": 6,
 }
 
@@ -1557,7 +1569,8 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path, cell_dir: Path,
             "(125/44) marker drawn over a two-column mos_array. On this cell's "
             "geometry it does not ignore it: the extracted netlist names "
             "sky130_fd_pr__nfet_01v8_lvt and sky130_fd_pr__pfet_01v8_lvt and "
-            "gets all twenty right. The marker here covers a whole "
+            "gets all twenty-four right (14 nfet + 10 pfet since #129 moved "
+            "the Sin halves to the low-Vth flavours). The marker here covers a whole "
             "single-finger device plus a 0.38um enclosure, which is the "
             "condition klayout-tools#5301 says the deck needs (a marker that "
             "ends inside a shared source/drain diffusion mis-classifies). Both "

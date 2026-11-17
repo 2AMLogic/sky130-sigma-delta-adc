@@ -43,7 +43,7 @@ class Vtag(unittest.TestCase):
         self.assertEqual(R.vtag(1.62), "1p62")
 
     def test_tags_never_contain_a_character_a_key_cannot_hold(self):
-        for x in R.TG_VIN + tuple(t for _, t, _ in R.TG_CONDITIONS):
+        for x in R.TG_VIN + R.I129_VIN + tuple(t for _, t, _ in R.TG_CONDITIONS):
             self.assertRegex(R.vtag(x), r"^[0-9pm]+$", f"{x!r} tagged unsafely")
 
 
@@ -91,7 +91,15 @@ class PassGateSweep(unittest.TestCase):
 
 
 class DevicePair(unittest.TestCase):
-    """The probed pair must be the pair the cell actually builds."""
+    """The probed pairs and the cell's pairs, after issue #129's change.
+
+    The i106 bench (`TG_NMOS`/`TG_PMOS`) documents what probe-i106.json
+    probed: the PRE-#129 standard-Vth gate. That pair is pinned as history --
+    `Sr_*`/`Mra_*`/`Mrb_*` still build it, and the i106 record remains the
+    before side of the sizing argument. The `Sin` halves themselves are the
+    low-Vth pair issue #129 chose, and the tests below hold them to the
+    committed sizing sweep's candidate set.
+    """
 
     def setUp(self):
         # Device parameters continue onto `+` lines, so the physical lines have
@@ -117,33 +125,60 @@ class DevicePair(unittest.TestCase):
                 return m.group(1), R.kv(m.group(2))
         self.fail(f"{inst} not found in integrator.spice")
 
-    def test_nmos_half_matches_xsin_p_n(self):
-        model, got = self._line("XSin_p_n")
-        self.assertEqual((model, got["W"], got["L"]), (R.TG_NMOS[0], 4.0, 0.15))
-        self.assertEqual(R.TG_NMOS, (model, got["W"], got["L"]))
+    def _sweep_candidate_widths(self):
+        import json
+        rec = json.loads((HERE / "probe-i129.json").read_text())
+        out = set()
+        for k, v in rec["method"]["i129_candidates"].items():
+            out.add((v["nmos"]["W_um"], v["pmos"]["W_um"]))
+        return out
 
-    def test_pmos_half_matches_xsin_p_p(self):
-        model, got = self._line("XSin_p_p")
-        self.assertEqual(R.TG_PMOS, (model, got["W"], got["L"]))
+    def test_the_i106_bench_still_documents_the_pre_change_gate(self):
+        """probe-i106.json's pair is history and must not be silently rewritten."""
+        self.assertEqual(R.TG_NMOS, ("sky130_fd_pr__nfet_01v8", 4.0, 0.15))
+        self.assertEqual(R.TG_PMOS, ("sky130_fd_pr__pfet_01v8", 8.0, 0.15))
 
-    def test_neither_half_is_low_vth(self):
-        """The whole mechanism: unlike the phi2 switches #92 fixed, no lvt half."""
-        self.assertNotIn("lvt", R.TG_NMOS[0])
-        self.assertNotIn("lvt", R.TG_PMOS[0])
+    def test_sin_halves_are_low_vth(self):
+        """Issue #129's remedy: all four `Sin` devices are `*_lvt`."""
+        for inst in ("XSin_p_n", "XSin_p_p", "XSin_n_n", "XSin_n_p"):
+            model, _ = self._line(inst)
+            self.assertIn("lvt", model, f"{inst} is not a low-Vth device")
 
-    def test_the_other_three_gate_families_are_the_same_pair(self):
-        """So the record may name Sr/Mra/Mrb as sharing the measured curve."""
-        for inst in ("XSr_p_n", "XSr_p_p", "XSin_n_n", "XSin_n_p"):
+    def test_sin_lengths_are_the_lvt_models_own(self):
+        """`nfet_01v8_lvt` at L 0.15; `pfet_01v8_lvt` at its L = 0.35 minimum."""
+        for inst in ("XSin_p_n", "XSin_n_n"):
+            model, got = self._line(inst)
+            self.assertEqual(model, R.I129_NMOS[0], inst)
+            self.assertEqual(got["L"], R.I129_NMOS[1], inst)
+        for inst in ("XSin_p_p", "XSin_n_p"):
+            model, got = self._line(inst)
+            self.assertEqual(model, R.I129_PMOS[0], inst)
+            self.assertEqual(got["L"], R.I129_PMOS[1], inst)
+
+    def test_sin_widths_are_a_committed_sweep_candidate(self):
+        """The chosen size is read from probe-i129.json, not invented."""
+        sides = []
+        for side in ("p", "n"):
+            _, n = self._line(f"XSin_{side}_n")
+            _, p = self._line(f"XSin_{side}_p")
+            sides.append((n["W"], p["W"]))
+        self.assertEqual(sides[0], sides[1], "the two sides differ")
+        self.assertIn(sides[0], self._sweep_candidate_widths(),
+                      f"W pair {sides[0]} is not one of the swept candidates")
+
+    def test_the_other_gate_families_are_still_the_standard_pair(self):
+        """Out of #129's scope: `Sr`/`Mra`/`Mrb` keep the pre-#129 pair."""
+        for inst in ("XSr_p_n", "XSr_p_p", "XMra_p_n", "XMra_p_p",
+                     "XMrb_p_n", "XMrb_p_p"):
             model, got = self._line(inst)
             self.assertIn((model, got["W"], got["L"]), (R.TG_NMOS, R.TG_PMOS),
-                          f"{inst} is not one of the probed devices")
+                          f"{inst} drifted from the standard-Vth pair")
 
-    def test_geom_reproduces_both_halves_from_the_netlist(self):
+    def test_geom_reproduces_both_sin_halves_from_the_netlist(self):
         """geom() is shared with the i92 rows; self_check() gates it at run time."""
-        for inst, (_, w, l) in (("XSin_p_n", (None, 4, 0.15)),
-                                ("XSin_p_p", (None, 8, 0.15))):
+        for inst in ("XSin_p_n", "XSin_p_p"):
             _, got = self._line(inst)
-            want = R.kv(R.geom(w, l))
+            want = R.kv(R.geom(got["W"], got["L"]))
             for k, v in want.items():
                 self.assertIn(k, got, f"{inst} has no {k}")
                 self.assertAlmostEqual(got[k], v, delta=1e-6 * max(1.0, abs(v)),
@@ -174,7 +209,7 @@ class DeckTemplate(unittest.TestCase):
 
 class PointSets(unittest.TestCase):
     def test_both_sets_are_selectable(self):
-        self.assertEqual(R.POINT_SETS, ("i92", "i106"))
+        self.assertEqual(R.POINT_SETS, ("i92", "i106", "i129"))
 
     def test_the_i92_rows_are_untouched_by_this_issue(self):
         """The single-device rows probe-i92.json was written from.
@@ -190,10 +225,94 @@ class PointSets(unittest.TestCase):
                          "the i92 point set drifted from the committed record")
         self.assertEqual({p[7] for p in R.POINTS}, {"ron", "leakage"})
 
+    def test_the_i106_rows_are_untouched_by_this_issue(self):
+        """The as-built-gate sweep probe-i106.json was written from."""
+        import json
+        committed = json.loads((HERE / "probe-i106.json").read_text())["points"]
+        self.assertEqual({p[0] for p in R.TG_POINTS}, set(committed),
+                         "the i106 point set drifted from the committed record")
+
     def test_result_files_are_one_per_set(self):
         """Append-only: the i106 rows may not be written into probe-i92.json."""
         self.assertTrue((HERE / "probe-i92.json").exists())
         self.assertNotEqual("probe-i92.json", "probe-i106.json")
+        self.assertNotEqual("probe-i106.json", "probe-i129.json")
+
+
+class SizingSweep(unittest.TestCase):
+    """The i129 candidate set and sweep shape (issue #129)."""
+
+    def test_candidates_start_at_the_vcm_switch_geometry_and_go_down(self):
+        """The #92 remedy's widths are the ceiling; `Sin` loads the input."""
+        self.assertIn((12, 24), R.I129_CANDIDATES)
+        for nw, pw in R.I129_CANDIDATES:
+            self.assertLessEqual(nw, 12, f"NMOS candidate W {nw} exceeds the vcm switch")
+            self.assertLessEqual(pw, 24, f"PMOS candidate W {pw} exceeds the vcm switch")
+
+    def test_the_lvt_models_sit_at_their_own_lengths(self):
+        """nfet_01v8_lvt at L 0.15; pfet_01v8_lvt at its L = 0.35 minimum."""
+        self.assertEqual(R.I129_NMOS, ("sky130_fd_pr__nfet_01v8_lvt", 0.15))
+        self.assertEqual(R.I129_PMOS, ("sky130_fd_pr__pfet_01v8_lvt", 0.35))
+
+    def test_the_sweep_spans_the_reference_rails_and_resolves_the_peak_window(self):
+        """0.3 / 1.5 V for context; 0.7 .. 1.1 V at the i106 resolution."""
+        self.assertLessEqual(min(R.I129_VIN), 0.3)
+        self.assertGreaterEqual(max(R.I129_VIN), 1.5)
+        inside = sorted(v for v in R.I129_VIN if 0.7 - 1e-9 <= v <= 1.1 + 1e-9)
+        gaps = [b - a for a, b in zip(inside, inside[1:])]
+        self.assertLessEqual(max(gaps), 0.05 + 1e-9,
+                             "the 0.7..1.1 V peak window is claimed at 50 mV")
+        self.assertIn(0.9, inside, "vcm itself must be a point")
+
+    def test_the_conditions_are_the_i106_conditions(self):
+        pts = R.i129_points()
+        conds = {(p[7], p[8], p[9]) for p in pts}
+        self.assertEqual(conds, set(R.TG_CONDITIONS))
+
+    def test_one_row_per_candidate_condition_and_voltage_with_unique_keys(self):
+        pts = R.i129_points()
+        self.assertEqual(len(pts), len(R.I129_CANDIDATES)
+                         * len(R.TG_CONDITIONS) * len(R.I129_VIN))
+        keys = [p[0] for p in pts]
+        self.assertEqual(len(set(keys)), len(keys), "duplicate point key")
+
+    def test_a_key_names_its_whole_condition(self):
+        by_key = {p[0]: p for p in R.i129_points()}
+        key = "tg129_lvt_n12_p24_ss_m40c_1p62v_0p9v"
+        self.assertIn(key, by_key)
+        p = by_key[key]
+        self.assertEqual(p[1:], (12, 24) + R.I129_NMOS + R.I129_PMOS
+                         + ("ss", -40, 1.620, 0.9))
+
+    def test_derived_reduces_each_candidate_to_its_peak(self):
+        pts = R.i129_points()
+        fake = {p[0]: {"ron_ohm": 100.0 + i, "vin_V": 0.9, "nmos_current_share": 0.4}
+                for i, p in enumerate(pts)}
+        d = R.i129_derived(fake)
+        self.assertEqual(set(d), {f"nmos_w{nw:g}_pmos_w{pw:g}"
+                                  for nw, pw in R.I129_CANDIDATES})
+        for nw, pw in R.I129_CANDIDATES:
+            blk = d[f"nmos_w{nw:g}_pmos_w{pw:g}"]
+            self.assertEqual(len(blk["per_condition"]), len(R.TG_CONDITIONS))
+            self.assertEqual(
+                blk["overall_worst_peak_ron_ohm"],
+                max(c["peak_ron_ohm"] for c in blk["per_condition"].values()))
+            self.assertIn(blk["overall_worst_condition"], blk["per_condition"])
+
+    def test_derived_takes_the_max_not_the_last(self):
+        """A peak away from vcm must be found, wherever in the sweep it sits."""
+        pts = R.i129_points()
+        fake = {}
+        for p in pts:
+            peak = p[10] == 0.85        # the vin coordinate
+            fake[p[0]] = {"ron_ohm": 900.0 if peak else 100.0,
+                          "vin_V": p[10],
+                          "nmos_current_share": 0.5}
+        d = R.i129_derived(fake)
+        for nw, pw in R.I129_CANDIDATES:
+            blk = d[f"nmos_w{nw:g}_pmos_w{pw:g}"]
+            self.assertEqual(blk["overall_worst_peak_ron_ohm"], 900.0)
+            self.assertEqual(blk["overall_worst_peak_at_vin_V"], 0.85)
 
 
 if __name__ == "__main__":
