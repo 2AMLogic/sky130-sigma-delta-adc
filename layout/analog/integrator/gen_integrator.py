@@ -74,11 +74,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_MET2, L_VIA,
                            PDK_VARIANT, TRACK_PITCH_UM,
-                           TRUNK_PITCH_UM, VIA_UM, WIRE_UM, Anchor, PinError,
+                           TRUNK_PITCH_UM, VIA_UM, WIRE_UM, Anchor,
                            Rect, RouteError, Router as RouterBase,
-                           assert_drc_clean, emit, extract_nets, klt_pin, nm,
-                           parse_extract_devices, recorded_pin, run, run_cli,
-                           snap)
+                           assert_drc_clean, extract_nets, klt_pin, nm,
+                           parse_extract_devices, run, run_cli, snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
 # The router core's layers (L_MCON/L_MET1/L_MET2/L_VIA) come from layout_common,
