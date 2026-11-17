@@ -26,7 +26,7 @@ What is pinned here:
 
 - parse_extract_devices reproduces both cells' committed raw_counts AND
   merged_counts model for model; extract_nets reproduces the committed
-  extracted net counts (21 for ota_fd, 42 for the integrator).
+  extracted net counts (21 for ota_fd, 43 for the integrator).
 - The parser's raw total and net count equal the extractor's own
   device_count / net_count for the same fixture -- a tally the parser did
   not compute, so a change in `klt extract`'s output shape diverges instead
@@ -36,7 +36,7 @@ What is pinned here:
   groups, so dropping the grouping or the terminal normalisation turns the
   suite red rather than silently passing.
 - The integrator subtraction model (merged(integrator) - merged(ota_fd))
-  reproduces the committed found_own_devices: this cell's own 44 devices.
+  reproduces the committed found_own_devices: this cell's own 50 devices.
 - Parser edges: empty and comment-only netlists return empty counters and
   an empty net list rather than raising; a `+` continuation line is never
   parsed as a device (both captured netlists wrap PS=/PD= onto one); an
@@ -45,10 +45,15 @@ What is pinned here:
   (issue #204: the wrapped shapes used to be dropped silently); a joined
   label net name (`outn|voutn`) survives extract_nets intact.
 """
+import contextlib
+import io
 import json
 import pathlib
+import shutil
+import tempfile
 import unittest
 from collections import Counter
+from unittest import mock
 
 import layout_common
 
@@ -177,7 +182,7 @@ class FixtureDrivenParserTests(unittest.TestCase):
         own = {m: c for m, c in own.items() if c}
         self.assertEqual({**own, "total": sum(own.values())},
                          EVIDENCE["integrator"]["found_own_devices"])
-        self.assertEqual(sum(own.values()), 44)
+        self.assertEqual(sum(own.values()), 50)
 
     def test_joined_label_net_survives_extract_nets(self):
         # The integrator's met1 label overlap joins outn and voutn into one
@@ -382,6 +387,152 @@ class ModelTokenTests(unittest.TestCase):
                       "X$1"):               # instance names
             with self.subTest(token=token):
                 self.assertFalse(layout_common._is_model_token(token))
+
+
+class RunCliTests(unittest.TestCase):
+    """The shared `--check` CLI driver's contract (issue #258): exit 0 pass,
+    1 geometry regression, 2 cannot verify -- with the recorded pin, the
+    host pin and the cell's `flow` faked, so no klt, no PDK, no scratch and
+    no uvx resolution is involved.  The two generators' `main` copies used
+    to pin this contract by hand; after #258 it is pinned once, here.
+    """
+
+    PROG = "gen_x.py"
+
+    PIN = {"klt": "0.9.2", "git_commit": "c0ffee0000000000000000000000000000000000",
+           "reinstall_spec": "klayout-tools==0.9.2", "klayout": "0.30.13"}
+
+    def setUp(self):
+        self.cell_dir = pathlib.Path(tempfile.mkdtemp(prefix="runcli-cell-"))
+        self.addCleanup(shutil.rmtree, self.cell_dir, ignore_errors=True)
+        self.calls: list[tuple] = []
+
+    def fake_flow(self, payload: bytes | None = None, top: str = "x"):
+        """A flow stand-in recording its calls; `payload` is the GDS bytes
+        it regenerates (None: write the generate-path deliverables instead).
+        """
+        def flow(klt_cmd, pdk_root, out_dir, **kwargs):
+            self.calls.append((list(klt_cmd), pdk_root, pathlib.Path(out_dir),
+                               kwargs))
+            out_dir.mkdir(parents=True, exist_ok=True)
+            if payload is not None:
+                (out_dir / f"{top}.gds").write_bytes(payload)
+            else:
+                (out_dir / f"{top}.gds").write_bytes(b"generated")
+                (out_dir / "drc.report.json").write_text("{}\n")
+                (out_dir / "extract-device-count.json").write_text("{}\n")
+                (out_dir / "route.summary.json").write_text("{}\n")
+            return {"drc": {"status": "clean", "violation_count": 0}}
+
+        return flow
+
+    def run_cli(self, *argv, top="x", flow=None, pin=None, pin_error=None,
+                host=None, which=None):
+        flow = self.fake_flow(top=top) if flow is None else flow
+        pin = self.PIN if pin is None else pin
+        host = self.PIN if host is None else host
+        out, err = io.StringIO(), io.StringIO()
+        pin_patch = mock.patch.object(
+            layout_common, "recorded_pin",
+            side_effect=pin_error) if pin_error is not None else \
+            mock.patch.object(layout_common, "recorded_pin",
+                              return_value=pin)
+        with pin_patch, \
+             mock.patch.object(layout_common, "klt_pin",
+                               return_value=host), \
+             mock.patch("sys.argv", [self.PROG, *argv]), \
+             mock.patch("shutil.which", return_value=which), \
+             contextlib.redirect_stdout(out), \
+             contextlib.redirect_stderr(err):
+            rc = layout_common.run_cli(self.PROG, self.cell_dir, top, flow)
+        return rc, out.getvalue(), err.getvalue()
+
+    def committed(self, top="x", payload=b"committed-bytes"):
+        (self.cell_dir / f"{top}.gds").write_bytes(payload)
+
+    def test_check_pass_returns_0(self):
+        self.committed(payload=b"same")
+        flow = self.fake_flow(payload=b"same")
+        rc, out, err = self.run_cli("--check", flow=flow)
+        self.assertEqual(rc, 0)
+        self.assertIn(f"{self.PROG} --check: PASS -- regenerated GDS is "
+                      "byte-identical", out)
+        self.assertIn("evaluated against recorded klt 0.9.2", out)
+        self.assertEqual(err, "")
+
+    def test_check_pass_runs_the_flow_quietly_into_a_scratch_dir(self):
+        self.committed(payload=b"same")
+        flow = self.fake_flow(payload=b"same")
+        self.run_cli("--check", flow=flow)
+        (klt_cmd, pdk_root, out_dir, kwargs), = self.calls
+        self.assertEqual(klt_cmd, ["klt"])
+        self.assertEqual(kwargs, {"verbose": False})
+        self.assertTrue(out_dir.name.startswith("x-check-"),
+                        out_dir.name)
+        self.assertFalse(out_dir.exists(), "scratch must be removed")
+
+    def test_check_geometry_regression_returns_1(self):
+        self.committed(payload=b"committed-bytes")
+        flow = self.fake_flow(payload=b"regressed")
+        rc, out, err = self.run_cli("--check", flow=flow)
+        self.assertEqual(rc, 1)
+        self.assertIn(f"{self.PROG} --check: FAIL -- regenerated GDS "
+                      "differs", err)
+        self.assertIn("a generator or geometry regression, not a "
+                      "toolchain mismatch", err)
+
+    def test_check_missing_committed_gds_returns_2(self):
+        rc, out, err = self.run_cli("--check")
+        self.assertEqual(rc, 2)
+        self.assertIn("does not exist yet", err)
+        self.assertEqual(self.calls, [], "no flow may run")
+
+    def test_check_unreadable_pin_returns_2(self):
+        self.committed()
+        rc, out, err = self.run_cli("--check",
+                                    pin_error=layout_common.PinError("no pin"))
+        self.assertEqual(rc, 2)
+        self.assertIn("CANNOT VERIFY -- no pin", err)
+        self.assertEqual(self.calls, [])
+
+    def test_check_host_klayout_mismatch_returns_2(self):
+        self.committed()
+        rc, out, err = self.run_cli(
+            "--check", host={**self.PIN, "klayout": "0.30.12"})
+        self.assertEqual(rc, 2)
+        self.assertIn("CANNOT VERIFY", err)
+        self.assertIn("runs klayout 0.30.12, not the recorded 0.30.13", err)
+        self.assertEqual(self.calls, [])
+
+    def test_check_host_klt_unknown_without_uvx_returns_2(self):
+        self.committed()
+        rc, out, err = self.run_cli("--check", host={"klt": "unknown"},
+                                    which=None)
+        self.assertEqual(rc, 2)
+        self.assertIn("uvx is not on PATH", err)
+        self.assertEqual(self.calls, [])
+
+    def test_scratch_prefix_maps_underscores_to_dashes(self):
+        self.committed(top="a_b", payload=b"same")
+        flow = self.fake_flow(payload=b"same", top="a_b")
+        rc, out, err = self.run_cli("--check", top="a_b", flow=flow)
+        self.assertEqual(rc, 0)
+        (_, _, out_dir, _), = self.calls
+        self.assertTrue(out_dir.name.startswith("a-b-check-"), out_dir.name)
+
+    def test_generate_path_emits_deliverables_and_returns_0(self):
+        rc, out, err = self.run_cli()
+        self.assertEqual(rc, 0)
+        self.assertIn(f"{self.PROG}: wrote x.gds + evidence to {self.cell_dir}",
+                      out)
+        self.assertIn("drc status='clean', violations=0", out)
+        (klt_cmd, pdk_root, out_dir, kwargs), = self.calls
+        self.assertEqual(klt_cmd, ["klt"])
+        self.assertEqual(kwargs, {})
+        self.assertEqual(out_dir, self.cell_dir / "_gen")
+        for name in ("x.gds", "drc.report.json", "extract-device-count.json",
+                     "route-summary.json"):
+            self.assertTrue((self.cell_dir / name).exists(), name)
 
 
 if __name__ == "__main__":

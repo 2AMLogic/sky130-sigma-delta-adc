@@ -57,10 +57,14 @@ Since #92 the two agree. Both list the `integrator` ports in the same
 type-grouped order (`... dp dn voutp voutn`), and `modulator.spice` carries the
 same low-Vth vcm-switch fix as the standalone cell: it was regenerated with
 `klt netlist` in that change, so an assembled-modulator deck simulates the
-fixed integrator and not the pre-#92 NMOS-only one. **Regenerate
-`modulator.spice` whenever `integrator.sch` or `clkgen.sch` changes** -- it
-embeds their bodies, so a cell fix that stops at the standalone netlist never
-reaches any deck that includes this file.
+fixed integrator and not the pre-#92 NMOS-only one. The same applies to every
+later cell revision: **#129** regenerated both netlists again when the `Sin`
+input gate went low-Vth (the embedded `integrator` subckt here names
+`nfet_01v8_lvt`/`pfet_01v8_lvt` for `XSin_*`, matching
+`design/integrator/integrator.spice` byte for byte on those devices).
+**Regenerate `modulator.spice` whenever `integrator.sch` or `clkgen.sch`
+changes** -- it embeds their bodies, so a cell fix that stops at the
+standalone netlist never reaches any deck that includes this file.
 
 ## Load and phase check
 

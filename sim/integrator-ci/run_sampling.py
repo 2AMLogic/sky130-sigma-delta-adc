@@ -30,6 +30,7 @@ the committed record.json means.
 import argparse
 import json
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -38,8 +39,10 @@ import tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
+import settling_common as sc  # noqa: E402
 from settling_common import (CAPACITY_WAIT_S, GRID_POINTS, grid_complete,  # noqa: E402
-                             measurements_present, pdk_stamp, run_klt, sha256)
+                             join_continuations, measurements_present, pdk_stamp,
+                             run_klt, sha256)
 
 sys.path.insert(0, str(HERE))
 import make_request as mk  # noqa: E402
@@ -55,8 +58,7 @@ VCM = 0.9
 
 # ------------------------------------------------------------- plumbing -----
 def shas(v):
-    return {"request_sha256": sha256(HERE / f"request_i106_{v}.json"),
-            "deck_sha256": sha256(HERE / mk.deck_name(v))}
+    return sc.shas(HERE / f"request_i106_{v}.json", HERE / mk.deck_name(v))
 
 
 def partial_path(v):
@@ -65,24 +67,11 @@ def partial_path(v):
 
 def load_partial(v):
     """A previously-run variant, if it matches the current request and deck."""
-    p = partial_path(v)
-    if not p.exists():
-        return None
-    try:
-        d = json.loads(p.read_text())
-    except ValueError:
-        return None
-    cur = shas(v)
-    if {k: d.get(k) for k in cur} != cur:
-        print(f"NOTE: ignoring stale .partials/{p.name} (request or deck changed "
-              "since it ran)", file=sys.stderr)
-        return None
-    return d
+    return sc.load_partial(partial_path(v), shas(v))
 
 
 def save_partial(v, result):
-    PARTIALS.mkdir(exist_ok=True)
-    partial_path(v).write_text(json.dumps(result, indent=2) + "\n")
+    sc.save_partial(partial_path(v), result)
 
 
 def summarize(corners):
@@ -210,8 +199,16 @@ def corner_rows(variant_result, vin_diff):
 
 
 def derive(results):
-    """Per-corner rows, the binding corner, and the reference-line comparison."""
-    per_amp, binding = {}, None
+    """Per-corner rows, the binding corner, and the reference-line comparison.
+
+    Two bindings are carried since issue #129: `binding` is the worst corner on
+    the across-Csi headline (`error_rel`), which also contains the `Sci`
+    top-plate term issue #147 owns; `binding_bpi_only` is the worst corner on
+    the bottom-plate-only reading (`error_rel_bpi_only`), which is what a
+    `Sin`-only remedy acts on and what DR-010's line grades. Both are
+    descriptive worsts, never pass/fail.
+    """
+    per_amp, binding, binding_bpi = {}, None, None
     for v in VARIANTS:
         vin_diff = mk.i106_variant(v)["vin_diff"]
         half = vin_diff / 2.0
@@ -222,6 +219,12 @@ def derive(results):
         over = sorted(cid for cid, r in rows.items()
                       if r["error_rel"] is not None
                       and abs(r["error_rel"]) > mk.SAMP_REFERENCE_LINE)
+        bpi_vals = [(abs(r["error_rel_bpi_only"]), cid) for cid, r in rows.items()
+                    if r["error_rel_bpi_only"] is not None]
+        bpi_worst = max(bpi_vals) if bpi_vals else None
+        bpi_over = sorted(cid for cid, r in rows.items()
+                          if r["error_rel_bpi_only"] is not None
+                          and abs(r["error_rel_bpi_only"]) > mk.SAMP_REFERENCE_LINE)
         per_amp[v] = {
             "vinp_V": VCM + half, "vinn_V": VCM - half, "ideal_V": vin_diff,
             "per_side_offset_from_vcm_V": half,
@@ -229,10 +232,18 @@ def derive(results):
             "worst_error_rel": None if worst is None else rows[worst[1]]["error_rel"],
             "corners_over_reference_line": over,
             "corners_over_reference_line_count": len(over),
+            "worst_corner_bpi_only": None if bpi_worst is None else bpi_worst[1],
+            "worst_error_rel_bpi_only": (None if bpi_worst is None
+                                         else rows[bpi_worst[1]]["error_rel_bpi_only"]),
+            "corners_over_reference_line_bpi_only": bpi_over,
+            "corners_over_reference_line_bpi_only_count": len(bpi_over),
             "per_corner": rows,
         }
         if worst is not None and (binding is None or worst[0] > binding[0]):
             binding = (worst[0], v, worst[1])
+        if bpi_worst is not None and (binding_bpi is None
+                                      or bpi_worst[0] > binding_bpi[0]):
+            binding_bpi = (bpi_worst[0], v, bpi_worst[1])
     out = {
         "reference_line_rel": mk.SAMP_REFERENCE_LINE,
         "reference_line_label": (
@@ -252,6 +263,19 @@ def derive(results):
             "error_rel": per_amp[v]["per_corner"][cid]["error_rel"],
             "sampled_V": per_amp[v]["per_corner"][cid]["sampled_V"],
             "ideal_V": per_amp[v]["ideal_V"],
+            "note": ("the worst corner on the ACROSS-Csi reading, which also "
+                     "contains the Sci top-plate term issue #147 owns"),
+        }
+    if binding_bpi is not None:
+        _, v, cid = binding_bpi
+        out["binding_bpi_only"] = {
+            "amplitude": v, "corner": cid,
+            "error_rel_bpi_only": per_amp[v]["per_corner"][cid]["error_rel_bpi_only"],
+            "sampled_bpi_only_V": per_amp[v]["per_corner"][cid]["sampled_bpi_only_V"],
+            "ideal_V": per_amp[v]["ideal_V"],
+            "note": ("the worst corner on the BOTTOM-PLATE-ONLY reading, which "
+                     "isolates the `Sin` term and is what DR-010's "
+                     "input-sampling completeness line grades"),
         }
     # Input-level dependence: the whole reason two amplitudes are recorded. A
     # sampling error that is the same fraction at both amplitudes is a gain
@@ -280,6 +304,43 @@ def derive(results):
                                         else rows_b[worst_cid]["error_rel"]),
         }
     return out
+
+
+def switch_under_test():
+    """Read the `Sin` input pass gate off the committed integrator netlist.
+
+    conditions() describes the cell it tested; hard-coding that description is
+    how a cell change would leave every future record describing a gate the
+    deck no longer instantiates. The netlist is the truth, so read the pair
+    from it: XSin_<p,n>_n and XSin_<p,n>_p, the only standard-name pair gated
+    by phi1/phi1b onto the Csi bottom plates.
+    """
+    joined = join_continuations(
+        (REPO / "design/integrator/integrator.spice").read_text())
+    halves = {}
+    for inst in ("XSin_p_n", "XSin_p_p"):
+        for ln in joined:
+            m = re.match(rf"{inst} \S+ \S+ \S+ \S+ (sky130_fd_pr__\S+) (.*)$", ln)
+            if m:
+                kv = {k: float(v) for k, v in
+                      re.findall(r"([A-Za-z]+)=([-+0-9.eE]+)", m.group(2))}
+                halves[inst] = (m.group(1), kv["W"], kv["L"])
+                break
+    missing = [i for i in ("XSin_p_n", "XSin_p_p") if i not in halves]
+    if missing:
+        raise SystemExit(f"REFUSE: {', '.join(missing)} not found in "
+                         "design/integrator/integrator.spice; cannot describe "
+                         "the switch under test")
+    (nmodel, nw, nl), (pmodel, pw, pl) = halves["XSin_p_n"], halves["XSin_p_p"]
+    lvt = "lvt" in nmodel or "lvt" in pmodel
+    return (
+        f"XSin_<p,n>_n = {nmodel} W {nw:g} / L {nl:g} in parallel with "
+        f"XSin_<p,n>_p = {pmodel} W {pw:g} / L {pl:g}, gated by phi1/phi1b -- "
+        + ("a low-Vth complementary pass gate (the issue #129 sizing chose the "
+           "pair; sim/switch-probe/probe-i129.json ranks the candidates)"
+           if lvt else
+           "a complementary pass gate with no low-Vth half. Its DC "
+           "Ron versus the voltage it passes is sim/switch-probe/probe-i106.json."))
 
 
 def conditions():
@@ -329,11 +390,7 @@ def conditions():
         "dac": mk.DACS["nulled"]["note"],
         "amplitudes": {v: {"vin_diff_V": mk.i106_variant(v)["vin_diff"],
                            "note": mk.i106_variant(v)["note"]} for v in VARIANTS},
-        "switch_under_test": (
-            "XSin_<p,n>_n = sky130_fd_pr__nfet_01v8 W 4 / L 0.15 in parallel with "
-            "XSin_<p,n>_p = sky130_fd_pr__pfet_01v8 W 8 / L 0.15, gated by "
-            "phi1/phi1b -- a complementary pass gate with no low-Vth half. Its DC "
-            "Ron versus the voltage it passes is sim/switch-probe/probe-i106.json."),
+        "switch_under_test": switch_under_test(),
     }
 
 
@@ -355,6 +412,10 @@ def main():
     ap.add_argument("--record", action="store_true",
                     help="write the record (refuses to overwrite: records are append-only)")
     ap.add_argument("--record-name", help="record file name (default: record-i106.json)")
+    ap.add_argument("--issue", type=int, default=106, metavar="N",
+                    help="issue number the record is filed for; names it in the "
+                         "fixture line and the related-evidence pointer (default 106, "
+                         "which reproduces the committed record-i106.json wording)")
     ap.add_argument("--capacity-wait", type=int, default=CAPACITY_WAIT_S, metavar="S",
                     help=f"seconds to wait for fleet capacity before giving up "
                          f"(default {CAPACITY_WAIT_S}, the host-rule floor)")
@@ -429,7 +490,7 @@ def main():
             return 0
 
         rec = {
-            "fixture": ("Integrator input-sampling bench (issue #106): the full "
+            "fixture": (f"Integrator input-sampling bench (issue #{a.issue}): the full "
                         "integrator cell + ota_fd clocked for "
                         f"{mk.N_CYC} complete phi1/phi2 cycles; the differential "
                         "charge the input pass gate `Sin` delivered onto Csi, read "
@@ -444,12 +505,14 @@ def main():
             "conditions": conditions(),
             "corner_set": "DR-002 full grid, 5 process x 3 T x 3 Vdda, per amplitude",
             "pass_criterion": (
-                "NONE. This is an extraction, not a spec check. No measurement in "
-                "either request carries a limit, and no ratified spec row bounds "
-                "input-sampling completeness -- so this record states none, relaxes "
-                "none, and adds none. The `pass` field below means only that every "
-                "corner simulated without erroring; it is not a verdict on the "
-                "circuit. The error is reported against a labelled reference line "
+                "NONE AS A FLEET VERDICT. This is an extraction, not a spec check. "
+                "No measurement in "
+                "either request carries a limit. Since DR-010 the input-sampling "
+                "completeness line (error <= 1e-4 at both amplitudes over this grid, "
+                "on error_rel_bpi_only) exists as a design-level grading line, but "
+                "it is graded on the RECORD, not by the fleet: the `pass` field "
+                "below means only that every corner simulated without erroring. "
+                "The error is reported against a labelled reference line "
                 "(derived.reference_line_label), which is a scale and not a "
                 "threshold. No SNDR, ENOB or resolution consequence is claimed or "
                 "implied: nothing here has been through model B."),
@@ -461,7 +524,7 @@ def main():
             "integrator_netlist_sha256": sha256(REPO / "design/integrator/integrator.spice"),
             "ota_netlist_sha256": sha256(REPO / "design/ota/ota_fd.spice"),
             "related_evidence": {
-                "switch_ron_vs_input": "sim/switch-probe/probe-i106.json",
+                "switch_ron_vs_input": f"sim/switch-probe/probe-i{a.issue}.json",
                 "charge_injection_extraction": "sim/integrator-ci/record.json (issue #102)",
             },
             "amplitudes": results,

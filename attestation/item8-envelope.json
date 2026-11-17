@@ -6,7 +6,7 @@
   "summary": "T1 item 8 (Characterization report): spec rows 6 evidenced, 7 partial, 1 pending; decimator Fmax/area/power 3/5 evidenced, 1 declared gap",
   "source": "measurements/characterization.md",
   "metrics": {
-    "report_sha256": "sha256:4e596b9a06804c19e32e706a6dc0e5be380217640b287acb15066cc76fb70b96",
+    "report_sha256": "sha256:851751b8307bef3736cac8959396276806e12e25a44ae59e035dac22679ae526",
     "spec_rows": [
       {
         "row": 1,
@@ -15,7 +15,8 @@
           "sim/bmodel/item5-model-run.json"
         ],
         "issues": [
-          "33"
+          "35",
+          "148"
         ]
       },
       {
@@ -26,7 +27,6 @@
           "sim/bmodel/xcheck-record.json"
         ],
         "issues": [
-          "33",
           "138",
           "148"
         ]
@@ -40,7 +40,8 @@
           "sim/bmodel/model.py"
         ],
         "issues": [
-          "33"
+          "138",
+          "148"
         ]
       },
       {
@@ -58,7 +59,7 @@
           "sim/modulator-tran/record.json"
         ],
         "issues": [
-          "33"
+          "148"
         ]
       },
       {
@@ -108,7 +109,6 @@
           "sim/modulator-tran/record.json"
         ],
         "issues": [
-          "33",
           "148"
         ]
       },
@@ -119,7 +119,7 @@
           "sim/modulator-tran/record.json"
         ],
         "issues": [
-          "33"
+          "148"
         ]
       },
       {
@@ -129,8 +129,8 @@
           "sim/modulator-tran/record.json"
         ],
         "issues": [
-          "33",
-          "35"
+          "35",
+          "148"
         ]
       },
       {
@@ -193,12 +193,12 @@
         "evidence": [],
         "records": [],
         "issues": [
-          "33"
+          "35"
         ]
       }
     ],
     "evidence_sha256": {
-      "layout/README.md": "sha256:ed24e5161210f09df65fb87ff2b10a766ed283b7ca295e052b0a6125e03383f1",
+      "layout/README.md": "sha256:090e0320e99d490deaa652b483be6f4d42468a85e24de56254b34b9ee6358a13",
       "layout/digital/decimator.gds": "sha256:211d42ef71f676bb26b16fb0feef6ed3db8fc9ec7c99033ce074e8a66458d676",
       "layout/digital/sta-decimator.report.json": "sha256:f39a9fcbc1220744fd0496aba1a68f366bcbe20aad736b8172032f05d06c57e2",
       "rtl/decimator.v": "sha256:2a77b51270910bdee6cfa421af221768bbd1dc0d9ca1afd69580b2f9c69b7376",
@@ -212,7 +212,6 @@
     "pending_issues": [
       "31",
       "32",
-      "33",
       "35",
       "138",
       "148"

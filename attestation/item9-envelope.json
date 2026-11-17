@@ -31,7 +31,7 @@
         "role": "testbench",
         "path": "sim/smoke/run_smoke.py",
         "passed": true,
-        "content_hash": "sha256:d01a3bb02454b2c810dbdf965790d1638b7c2e42e7e40067db025fa7bf7ddea0"
+        "content_hash": "sha256:bdbf0f437e639361f42d677f29c4bc2bc0e441f130ed3e066a75eeea34b37569"
       },
       {
         "check": "present",

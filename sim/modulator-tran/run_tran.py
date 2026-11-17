@@ -23,6 +23,7 @@ import tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
+import settling_common as sc  # noqa: E402
 from settling_common import pdk_stamp, run_klt, sha256  # noqa: E402
 
 sys.path.insert(0, str(HERE))
@@ -60,8 +61,7 @@ NETLISTS = {
 
 
 def shas():
-    return {"request_sha256": sha256(HERE / "request.json"),
-            "deck_sha256": sha256(HERE / mk.DECK)}
+    return sc.shas(HERE / "request.json", HERE / mk.DECK)
 
 
 def corner_slug(c):
@@ -515,18 +515,9 @@ def main():
               "(use --record-name)", file=sys.stderr)
         return 2
 
-    partial = PARTIALS / "anchors.json"
     saved = None
-    if a.record and partial.exists():
-        try:
-            d = json.loads(partial.read_text())
-        except ValueError:
-            d = None
-        if d and {k: d.get(k) for k in shas()} == shas():
-            saved = d
-        elif d:
-            print("NOTE: ignoring stale .partials/anchors.json (request or deck "
-                  "changed since it ran)", file=sys.stderr)
+    if a.record:
+        saved = sc.load_partial(PARTIALS / "anchors.json", shas())
 
     if saved is None:
         if a.probe:
@@ -562,8 +553,7 @@ def main():
                  "measurement_rollup": [m for m in rep.get("measurements", [])
                                         if m["name"] in KEYS],
                  **shas()}
-        PARTIALS.mkdir(exist_ok=True)
-        partial.write_text(json.dumps(saved, indent=2) + "\n")
+        sc.save_partial(PARTIALS / "anchors.json", saved)
 
     corners, samples = saved["corners"], saved["samples"]
     window_s = mk.N_REC * mk.TPER

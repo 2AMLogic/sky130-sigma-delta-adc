@@ -24,7 +24,7 @@
         "role": "hygiene",
         "path": ".github/workflows/signoff.yml",
         "passed": true,
-        "content_hash": "sha256:75d0270e8f06ced71da3ae4ad101d43b18e1a71d34c8d4d071c1718778dd8a9d"
+        "content_hash": "sha256:636ae964037ae7299b6f1aa519eaed707a753607132ad5da8c8295aa25fe35df"
       },
       {
         "check": "present",

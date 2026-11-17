@@ -24,7 +24,7 @@ V {}
 S {}
 E {}
 * p-side input path: Cs_in, TG sample switch, bottom-plate and top-plate switches
-C {sky130_fd_pr/nfet_01v8.sym} -800 0 0 0 {name=Sin_p_n
+C {sky130_fd_pr/nfet_01v8_lvt.sym} -800 0 0 0 {name=Sin_p_n
 L=0.15
 W=4
 nf=1
@@ -38,7 +38,7 @@ nrs=0.0725
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N -780 -30 -760 -40 {}
 C {devices/lab_pin.sym} -760 -40 0 0 {name=l1 lab=vinp}
@@ -48,8 +48,8 @@ N -820 0 -840 0 {}
 C {devices/lab_pin.sym} -840 0 0 0 {name=l3 lab=phi1}
 N -780 0 -750 0 {}
 C {devices/lab_pin.sym} -750 0 0 0 {name=l4 lab=vssa}
-C {sky130_fd_pr/pfet_01v8.sym} -600 0 0 0 {name=Sin_p_p
-L=0.15
+C {sky130_fd_pr/pfet_01v8_lvt.sym} -600 0 0 0 {name=Sin_p_p
+L=0.35
 W=8
 nf=1
 mult=1
@@ -62,7 +62,7 @@ nrs=0.03625
 sa=0
 sb=0
 sd=0
-model=pfet_01v8
+model=pfet_01v8_lvt
 spiceprefix=X}
 N -580 30 -560 40 {}
 C {devices/lab_pin.sym} -560 40 0 0 {name=l5 lab=vinp}
@@ -393,7 +393,7 @@ C {devices/lab_pin.sym} 2550 -50 0 0 {name=l61 lab=sump}
 N 2550 30 2550 50 {}
 C {devices/lab_pin.sym} 2550 50 0 0 {name=l62 lab=voutp}
 * n-side input path: Cs_in, TG sample switch, bottom-plate and top-plate switches
-C {sky130_fd_pr/nfet_01v8.sym} -800 1500 0 0 {name=Sin_n_n
+C {sky130_fd_pr/nfet_01v8_lvt.sym} -800 1500 0 0 {name=Sin_n_n
 L=0.15
 W=4
 nf=1
@@ -407,7 +407,7 @@ nrs=0.0725
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N -780 1470 -760 1460 {}
 C {devices/lab_pin.sym} -760 1460 0 0 {name=l63 lab=vinn}
@@ -417,8 +417,8 @@ N -820 1500 -840 1500 {}
 C {devices/lab_pin.sym} -840 1500 0 0 {name=l65 lab=phi1}
 N -780 1500 -750 1500 {}
 C {devices/lab_pin.sym} -750 1500 0 0 {name=l66 lab=vssa}
-C {sky130_fd_pr/pfet_01v8.sym} -600 1500 0 0 {name=Sin_n_p
-L=0.15
+C {sky130_fd_pr/pfet_01v8_lvt.sym} -600 1500 0 0 {name=Sin_n_p
+L=0.35
 W=8
 nf=1
 mult=1
@@ -431,7 +431,7 @@ nrs=0.03625
 sa=0
 sb=0
 sd=0
-model=pfet_01v8
+model=pfet_01v8_lvt
 spiceprefix=X}
 N -580 1530 -560 1540 {}
 C {devices/lab_pin.sym} -560 1540 0 0 {name=l67 lab=vinn}
@@ -790,8 +790,14 @@ C {devices/lab_pin.sym} 3770 770 0 0 {name=l132 lab=ibias}
 * Sizes are per family, and small on purpose: the summing-node devices
 * (Sti/Str) and the bottom-plate devices (Sbi/Sbr) add junction capacitance
 * that lowers beta and costs more settling at 1.980 V than the Ron it buys.
-* Sci/Scr get no PMOS half: they only reset the top plate during phi1e, which
-* already reaches vcm at 1.620 V with the NMOS alone. See SIZING.md.
+* Sci/Scr carry a PMOS half (issue #147): the as-built NMOS alone collapses
+* above vcm at the 1.620 V rail -- sim/integrator-ci/record-i106.json pins
+* 78.9 mV of top-plate hold error at fs/1.620 V/-40 C, and
+* sim/switch-probe/probe-i147.json measures the subthreshold Ron at 88 kohm
+* by 0.95 V and open past 1.5 V. The half is the Sti-precedent
+* pfet_01v8_lvt W 4/L 0.35 (probe-i147.json: ~2 kohm flat across the half
+* the NMOS loses, ~nothing below vcm), gated on phi1eb, the local complement
+* of phi1e, so the port list and design/clkgen stay unchanged. See SIZING.md.
 C {sky130_fd_pr/pfet_01v8_lvt.sym} -800 2600 0 0 {name=Sbi_p_p
 L=0.35
 W=24
@@ -1034,6 +1040,158 @@ N -370 3600 -390 3600 {}
 C {devices/lab_pin.sym} -390 3600 0 0 {name=l171 lab=phi2}
 N -330 3600 -300 3600 {}
 C {devices/lab_pin.sym} -300 3600 0 0 {name=l172 lab=vdda}
+* issue #147: local complement of phi1e for the Sci/Scr PMOS halves below,
+* by the same pattern as the phi2b pair above: generated in-cell so the
+* block's port list and design/clkgen are both unchanged.
+C {sky130_fd_pr/nfet_01v8.sym} -800 3900 0 0 {name=Iphi1eb_n
+L=0.15
+W=2
+nf=1
+mult=4
+ad=0.58
+as=0.58
+pd=4.58
+ps=4.58
+nrd=0.145
+nrs=0.145
+sa=0
+sb=0
+sd=0
+model=nfet_01v8
+spiceprefix=X}
+N -780 3870 -780 3860 {}
+C {devices/lab_pin.sym} -780 3860 0 0 {name=l173 lab=phi1eb}
+N -780 3930 -780 3940 {}
+C {devices/lab_pin.sym} -780 3940 0 0 {name=l174 lab=vssa}
+N -820 3900 -840 3900 {}
+C {devices/lab_pin.sym} -840 3900 0 0 {name=l175 lab=phi1e}
+N -780 3900 -750 3900 {}
+C {devices/lab_pin.sym} -750 3900 0 0 {name=l176 lab=vssa}
+C {sky130_fd_pr/pfet_01v8.sym} -350 3900 0 0 {name=Iphi1eb_p
+L=0.15
+W=4
+nf=1
+mult=4
+ad=1.16
+as=1.16
+pd=8.58
+ps=8.58
+nrd=0.0725
+nrs=0.0725
+sa=0
+sb=0
+sd=0
+model=pfet_01v8
+spiceprefix=X}
+N -330 3870 -330 3860 {}
+C {devices/lab_pin.sym} -330 3860 0 0 {name=l177 lab=phi1eb}
+N -330 3930 -330 3940 {}
+C {devices/lab_pin.sym} -330 3940 0 0 {name=l178 lab=vdda}
+N -370 3900 -390 3900 {}
+C {devices/lab_pin.sym} -390 3900 0 0 {name=l179 lab=phi1e}
+N -330 3900 -300 3900 {}
+C {devices/lab_pin.sym} -300 3900 0 0 {name=l180 lab=vdda}
+* issue #147: the Sci/Scr PMOS halves, at the Sti-precedent size (W 4,
+* L 0.35 pfet_01v8_lvt) that sim/switch-probe/probe-i147.json measured
+* against the as-built NMOS-only switch. Source on vcm, drain on the top
+* plate, gate on the local phi1eb, n-well at vdda -- the static rails the
+* cell ties its other PMOS halves to.
+C {sky130_fd_pr/pfet_01v8_lvt.sym} -800 4200 0 0 {name=Sci_p_p
+L=0.35
+W=4
+nf=1
+mult=1
+ad=1.16
+as=1.16
+pd=8.58
+ps=8.58
+nrd=0.0725
+nrs=0.0725
+sa=0
+sb=0
+sd=0
+model=pfet_01v8_lvt
+spiceprefix=X}
+N -780 4170 -780 4160 {}
+C {devices/lab_pin.sym} -780 4160 0 0 {name=l181 lab=vcm}
+N -780 4230 -780 4240 {}
+C {devices/lab_pin.sym} -780 4240 0 0 {name=l182 lab=tpi_p}
+N -820 4200 -840 4200 {}
+C {devices/lab_pin.sym} -840 4200 0 0 {name=l183 lab=phi1eb}
+N -780 4200 -750 4200 {}
+C {devices/lab_pin.sym} -750 4200 0 0 {name=l184 lab=vdda}
+C {sky130_fd_pr/pfet_01v8_lvt.sym} -350 4200 0 0 {name=Sci_n_p
+L=0.35
+W=4
+nf=1
+mult=1
+ad=1.16
+as=1.16
+pd=8.58
+ps=8.58
+nrd=0.0725
+nrs=0.0725
+sa=0
+sb=0
+sd=0
+model=pfet_01v8_lvt
+spiceprefix=X}
+N -330 4170 -330 4160 {}
+C {devices/lab_pin.sym} -330 4160 0 0 {name=l185 lab=vcm}
+N -330 4230 -330 4240 {}
+C {devices/lab_pin.sym} -330 4240 0 0 {name=l186 lab=tpi_n}
+N -370 4200 -390 4200 {}
+C {devices/lab_pin.sym} -390 4200 0 0 {name=l187 lab=phi1eb}
+N -330 4200 -300 4200 {}
+C {devices/lab_pin.sym} -300 4200 0 0 {name=l188 lab=vdda}
+C {sky130_fd_pr/pfet_01v8_lvt.sym} 100 4200 0 0 {name=Scr_p_p
+L=0.35
+W=4
+nf=1
+mult=1
+ad=1.16
+as=1.16
+pd=8.58
+ps=8.58
+nrd=0.0725
+nrs=0.0725
+sa=0
+sb=0
+sd=0
+model=pfet_01v8_lvt
+spiceprefix=X}
+N 120 4170 120 4160 {}
+C {devices/lab_pin.sym} 120 4160 0 0 {name=l189 lab=vcm}
+N 120 4230 120 4240 {}
+C {devices/lab_pin.sym} 120 4240 0 0 {name=l190 lab=tpr_p}
+N 80 4200 60 4200 {}
+C {devices/lab_pin.sym} 60 4200 0 0 {name=l191 lab=phi1eb}
+N 120 4200 150 4200 {}
+C {devices/lab_pin.sym} 150 4200 0 0 {name=l192 lab=vdda}
+C {sky130_fd_pr/pfet_01v8_lvt.sym} 550 4200 0 0 {name=Scr_n_p
+L=0.35
+W=4
+nf=1
+mult=1
+ad=1.16
+as=1.16
+pd=8.58
+ps=8.58
+nrd=0.0725
+nrs=0.0725
+sa=0
+sb=0
+sd=0
+model=pfet_01v8_lvt
+spiceprefix=X}
+N 570 4170 570 4160 {}
+C {devices/lab_pin.sym} 570 4160 0 0 {name=l193 lab=vcm}
+N 570 4230 570 4240 {}
+C {devices/lab_pin.sym} 570 4240 0 0 {name=l194 lab=tpr_n}
+N 530 4200 510 4200 {}
+C {devices/lab_pin.sym} 510 4200 0 0 {name=l195 lab=phi1eb}
+N 570 4200 600 4200 {}
+C {devices/lab_pin.sym} 600 4200 0 0 {name=l196 lab=vdda}
 * Block pins. Order sets the .subckt terminal order.
 C {devices/iopin.sym} -1400 -300 0 0 {name=p_vdda lab=vdda}
 C {devices/iopin.sym} -1400 -200 0 0 {name=p_vssa lab=vssa}

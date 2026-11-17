@@ -2,8 +2,57 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-17
+
+- **PR #295**: docs: add DR-008 corrigendum 03 and re-point the STA-gap citation off closed #131
+- **PR #292**: chore(loom): resync installed Loom to v0.19.1306
+- **PR #289**: fix(integrator-layout): route sump/sumn as a matched pair, gating 3% symmetry
+- **PR #291**: docs: re-point characterization's closed-#33 citations at open owners
+- **PR #287**: docs: point GEOMETRIES comment at extract-device-count.json instead of stale counts
+- **PR #285**: docs: refresh integrator section of layout/README.md from committed post-#274 artifacts
+- **PR #283**: Regenerate the integrator layout for the #147 50-device netlist
+- **PR #281**: test: re-derive the tg half-current sum on every committed probe row
+- **PR #280**: fix: fail signoff gate when a tracked Python file cannot parse
+- **PR #278**: fix: set the tg half-current sum bound to 1e-4 relative, clear of the print floor
+- **PR #273**: ci: fail signoff on undefined names via pinned pyflakes
+- **Issue #293** (closed): Closed-issue citations outside characterization.md: DR-008 consequence prose, item9-inventory, ROADMAP, and the #131 line-17 citation
+- **Issue #284** (closed): The integrator's summing-node routing symmetry dropped from 3% to 9.3% when the #147 field widened, and nothing tracks recovering it
+- **Issue #288** (closed): Re-grade characterization rows after #33's closure (curator verdict of record) — unblocks PR #213's cited-issue CI
+- **Issue #286** (closed): gen_integrator.py's GEOMETRIES comment still says "44 devices cost 9 klt gen calls" (now 50 / 11)
+- **Issue #282** (closed): layout/README.md's integrator section has been stale since #129 and nothing tracks it
+- **Issue #279** (closed): switch-probe README overstates what the half-current sum check's tests pin
+- **Issue #277** (closed): CI: the signoff pyflakes gate passes green on a Python file that cannot be parsed
+- **Issue #275** (closed): switch-probe: the half-current sum refusal aborts a whole sweep at a tolerance that sits on the print-rounding floor
+- **Issue #274** (closed): The committed integrator layout is stale against the #147 cell (50 devices vs the 44 it pins) and nothing tracks it
+- **Issue #272** (closed): CI: add a pyflakes step — a NameError in a fleet-only runner path reached main and cost a completed batch run
+- **Issue #33** (closed): T1 item 5 (corner verification): transistor-level PVT SNDR/power sweep of the modulator, plus decimator STA and klt functional-verification
+- **PR #270**: feat(sim): retain the raw modulator-tran klt sim report and cite it for row 11
+- **PR #269**: sim: probe the Sci top-plate hold, give Sci/Scr the PMOS half the sweep says they need
+- **PR #268**: fix(design): make the Sin input gate a low-Vth pair, sized and graded per DR-010
+- **Issue #263** (closed): T1 item 5 analog: retain a citable klt sim report for the modulator transient and cite rows 5, 11, 12, 13
+- **Issue #147** (closed): Sci top-plate hold: 98% of the fs/1.620 V/-40 C sampling error at 0.6 V is Sci, not Sin, and Sci has never been probed
+- **Issue #129** (closed): Sin pass gate: decide the remedy for the input-sampling error now that the grid exists (54.3% unsampled at ss/1.620 V/-40 C, and level-dependent)
+- **PR #267**: docs: record the klt-pin reopen trigger's re-read at the 0.9.2 pin
+- **PR #262**: refactor: share the --check CLI driver between the cell generators via layout_common.run_cli
+- **PR #261**: docs: correct Router by_net comment; shared finish_trunks tags every cell's met2 trunks
+- **PR #259**: fix: register manifests and sim/modulator-tran tool-free steps in check-ci.sh CHECKS
+- **PR #255**: refactor: delegate runners' shas/load_partial/save_partial to settling_common
+- **PR #247**: ci: collapse signoff.yml's two overlapping layout/analog test steps into one
+- **Issue #258** (closed): Share the --check CLI driver between gen_integrator.py and gen_ota_fd.py: two ~145-line main() copies
+- **Issue #253** (closed): Finish settling_common consolidation: drop hand-rolled shas/partial/sha256 copies in 4 runners
+- **Issue #250** (closed): Record the DR-008 klt-pin re-read at the 0.9.2 pin (corrigendum 01's reopen trigger, fired by #244)
+- **Issue #246** (closed): check-ci drift guard fails on main: manifests and sim/modulator-tran tool-free steps are not registered in CHECKS
+- **Issue #239** (closed): layout_common.Router: by_net comment says the OTA cell's dict stays empty, but the shared finish_trunks tags every trunk
+- **Issue #211** (closed): signoff.yml's two layout/analog unittest steps overlap: the DRC-guard step's test_*.py pattern already runs test_layout_common.py
+
 ### 2026-11-16
 
+- **PR #256**: fix: fold SPICE continuation lines before parsing extracted X-devices
+- **PR #244**: feat: per-corner model-B evidence and DR-001 cross-check for item 5 analog
+- **PR #220**: chore(loom): resync installed Loom to v0.19.1302
+- **Issue #204** (closed): parse_extract_devices silently drops an X-line whose model token sits on a SPICE continuation line
+- **Issue #203** (closed): check-ci drift guard fails on main: the analog-generator test step (44e8cee) is not registered in CHECKS
+- **Issue #128** (closed): T1 item 5 (analog 4/4): per-corner model B parameters, DR-001 cross-check on the anchors, and the item-5 analog citation
 - **PR #249**: docs: add DR-008 corrigendum 01 — klt-pin scope of the characterize ground
 - **PR #245**: fix(test): pin ota_fd merge counts to parser-independent check.expected
 - **PR #130**: sim: extract Sin input-sampling completeness over PVT and its Ron-vs-input curve
