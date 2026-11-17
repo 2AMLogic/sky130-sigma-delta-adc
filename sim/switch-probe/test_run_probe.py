@@ -27,6 +27,7 @@ import re
 import unittest
 
 HERE = pathlib.Path(__file__).resolve().parent
+REPO = HERE.parents[1]
 
 
 def load_runner():
@@ -165,22 +166,55 @@ class DevicePair(unittest.TestCase):
         model, got = self._line("XSci_p")
         self.assertEqual(R.SCI_NMOS, (model, got["W"], got["L"]))
 
-    def test_sci_as_built_variant_has_no_pmos_half(self):
-        """The whole #147 mechanism: the cell builds no PMOS half gated on
-        phi1e, so the as-built variant must probe a PMOS-absent pair."""
-        for inst in ("XSci_p", "XSci_n", "XScr_p", "XScr_n"):
-            model, got = self._line(inst)
-            self.assertNotIn("pfet", model, f"{inst} is not an NMOS")
-        for ln in self.lines:
-            if "phi1e" in ln.split():
-                m = re.match(r"X\S+ \S+ \S+ \S+ \S+ (sky130_fd_pr__pfet\S+) ", ln)
-                if m:
-                    self.fail(f"a PMOS half is gated on phi1e: {ln.split()[0]} -- "
-                              f"the cell changed; probe-i147's as_built variant "
-                              f"no longer matches it")
+    def test_sci_as_built_variant_is_the_pre_change_counterfactual(self):
+        """probe-i147.json's as_built rows document the cell BEFORE issue #147
+        added the PMOS half: a lone nfet_01v8_lvt on phi1e, no phi1eb-gated
+        pfet. The committed record pins that cell's netlist hash; the current
+        cell's hash differs, which is what makes the record historical
+        evidence rather than a description of this file."""
         nmos, pmos, _ = R.SCI_VARIANTS["as_built"]
         self.assertEqual(nmos, R.SCI_NMOS)
         self.assertIsNone(pmos)
+        import hashlib
+        import json
+        rec = json.loads((HERE / "probe-i147.json").read_text())
+        now = hashlib.sha256(
+            (REPO / "design/integrator/integrator.spice").read_bytes()).hexdigest()
+        self.assertNotEqual(rec["integrator_netlist_sha256"], now,
+                            "probe-i147.json was measured on the pre-#147 cell; "
+                            "if the cell reverted, re-measure instead of relabelling")
+
+    def test_the_cell_now_builds_the_p_sti4_pair(self):
+        """The #147 decision, pinned where it cannot silently revert: the cell
+        builds Sci/Scr with a PMOS half at the Sti precedent -- pfet_01v8_lvt
+        W 4 / L 0.35, drain on the top plate, source on vcm, gate on the local
+        phi1eb, n-well at vdda -- which is the p_sti4 variant's pair."""
+        for inst, top in (("XSci_p_p", "tpi_p"), ("XSci_n_p", "tpi_n"),
+                          ("XScr_p_p", "tpr_p"), ("XScr_n_p", "tpr_n")):
+            model, got = self._line(inst)
+            self.assertEqual(R.SCI_PMOS_STI, (model, got["W"], got["L"]),
+                             f"{inst} device pair drifted")
+            ln = next(l for l in self.lines if l.split()[0] == inst)
+            self.assertEqual(ln.split()[1:5], [top, "phi1eb", "vcm", "vdda"],
+                             f"{inst} terminals drifted")
+        nmos, pmos, _ = R.SCI_VARIANTS["p_sti4"]
+        self.assertIs(pmos, R.SCI_PMOS_STI)
+
+    def test_the_cell_has_the_local_phi1eb_inverter(self):
+        """The phi1eb complement is generated in-cell by the same pattern as
+        phi2b (XIphi2b_n/p): nfet_01v8 W 2 / pfet_01v8 W 4, both L 0.15 m 4,
+        input phi1e, output phi1eb -- so the port list stays untouched."""
+        for inst, model, w in (("XIphi1eb_n", "sky130_fd_pr__nfet_01v8", 2),
+                               ("XIphi1eb_p", "sky130_fd_pr__pfet_01v8", 4)):
+            got_model, got = self._line(inst)
+            self.assertEqual(got_model, model, f"{inst} model")
+            self.assertEqual(got["W"], w, f"{inst} W")
+            self.assertEqual(got["L"], 0.15, f"{inst} L")
+        for inst, d, g, s, b in (
+                ("XIphi1eb_n", "phi1eb", "phi1e", "vssa", "vssa"),
+                ("XIphi1eb_p", "vdda", "phi1e", "phi1eb", "vdda")):
+            ln = next(l for l in self.lines if l.split()[0] == inst)
+            self.assertEqual(ln.split()[1:5], [d, g, s, b], f"{inst} terminals")
 
     def test_sci_variant_pmos_pairs_are_the_cell_own_precedents(self):
         """p_sti4/p_sbi24 name the #92 precedents; pin them to their devices."""
