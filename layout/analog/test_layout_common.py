@@ -26,7 +26,7 @@ What is pinned here:
 
 - parse_extract_devices reproduces both cells' committed raw_counts AND
   merged_counts model for model; extract_nets reproduces the committed
-  extracted net counts (21 for ota_fd, 42 for the integrator).
+  extracted net counts (21 for ota_fd, 43 for the integrator).
 - The parser's raw total and net count equal the extractor's own
   device_count / net_count for the same fixture -- a tally the parser did
   not compute, so a change in `klt extract`'s output shape diverges instead
@@ -36,7 +36,7 @@ What is pinned here:
   groups, so dropping the grouping or the terminal normalisation turns the
   suite red rather than silently passing.
 - The integrator subtraction model (merged(integrator) - merged(ota_fd))
-  reproduces the committed found_own_devices: this cell's own 44 devices.
+  reproduces the committed found_own_devices: this cell's own 50 devices.
 - Parser edges: empty and comment-only netlists return empty counters and
   an empty net list rather than raising; a `+` continuation line is never
   parsed as a device (both captured netlists wrap PS=/PD= onto one); an
@@ -182,7 +182,7 @@ class FixtureDrivenParserTests(unittest.TestCase):
         own = {m: c for m, c in own.items() if c}
         self.assertEqual({**own, "total": sum(own.values())},
                          EVIDENCE["integrator"]["found_own_devices"])
-        self.assertEqual(sum(own.values()), 44)
+        self.assertEqual(sum(own.values()), 50)
 
     def test_joined_label_net_survives_extract_nets(self):
         # The integrator's met1 label overlap joins outn and voutn into one
