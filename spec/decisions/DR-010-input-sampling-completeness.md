@@ -81,8 +81,9 @@ through model B.
 - **Bootstrapped switch.** A new sub-circuit; held open only if the low-Vth
   sweep had shown no size that works. It did not.
 - **`Sr_*`, `Mra_*`, `Mrb_*`** stay standard-Vth: the reference path sits at
-  0.3 / 1.5 V where the #106 sweep reads 0.17–0.74 kΩ even at
-  `ss`/1.620 V/−40 °C. Left alone.
+  0.3 / 1.5 V where the #106 sweep reads 0.28–0.70 kΩ even at
+  `ss`/1.620 V/−40 °C (0.17–0.74 kΩ across the five skews, both extremes
+  at `sf`). Left alone.
 
 ## Status against the line at the time of writing
 
@@ -92,7 +93,8 @@ full grid, both amplitudes, batch fleet; simulated):
 - **87 of the 90 corner-amplitude points meet the line** (44/45 at
   0.2 V, 43/45 at 0.6 V) on `error_rel_bpi_only`. The filed
   point improved **5670×**: `ss`/1.620 V/−40 °C at 0.2 V went
-  0.5044 → 8.9e-5, under the line. Every `sf` and `tt` corner reads exactly 0.
+  0.5044 → 8.9e-5, under the line. Every `sf` and `tt` corner reads
+  ≤ 5e-7, more than two orders under the line.
 - **Three corners sit over the line**, all at 1.620 V/−40 °C:
   `fs` at both amplitudes (5.2e-4 at 0.2 V, 2.0e-3 at 0.6 V) and `ss` at
   0.6 V (4.4e-4). The error there is a **p-side bottom-plate shortfall that
@@ -100,9 +102,15 @@ full grid, both amplitudes, batch fleet; simulated):
   `Sci`'s top-plate hold is worst (78.9 mV off `vcm` at `fs`/1.620 V/−40 °C),
   it sits on the p side only, and it is smallest at `ss` — the opposite of a
   settling-limited mechanism, which is what the sizing sweep addresses. The
-  coupling term scales with `1/Ron_Sin`: the sweep's next candidate
-  (NMOS W 12 / PMOS W 24, ~3× lower `Ron`) would still leave it ~3× over the
-  line, and clearing 1e-4 at `fs`/1.620 V/−40 °C would take roughly a 20×
+  coupling term scales with `1/Ron_Sin` (directionally: the scaling itself
+  is inferred, not run — it assumes strict `1/Ron` proportionality, and the
+  measured `fs`→`ss` shortfall ratio against the `Ron` ratio shows the
+  scaling is directional, not proportional). The sweep's next candidate up
+  (NMOS W 6 / PMOS W 12, ~1.6× lower worst-peak `Ron`) would scale the
+  `fs`/0.6 V point to ~1.2e-3, still ~12× over the line, and even the
+  largest committed candidate (NMOS W 12 / PMOS W 24, ~3.3× lower
+  worst-peak `Ron`) scales to ~5.9e-4, ~6× over the line; clearing 1e-4 at
+  `fs`/1.620 V/−40 °C would take roughly a 20×
   width increase, at which point the input load and injection trade collapses.
   **The line is therefore gated by #147 at those three corners, not by `Sin`
   sizing**; this record states that rather than relaxing the line.
