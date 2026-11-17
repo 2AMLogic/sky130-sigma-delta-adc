@@ -36,21 +36,30 @@ jobs:
       - name: Install numpy for the pure-Python checks
         run: pip install -r sim/bmodel/requirements.txt
 
-      # Pyflakes over every tracked Python file, failing on one finding class
-      # only: a name that is never bound ("undefined name" / "undefined local
-      # variable"). None of the fleet-only runner paths (the run_tran.py
-      # main() bodies and their kin) execute in CI, and issue #272 watched a
-      # NameError in exactly such a path reach main and crash a completed
-      # fleet run at its partial-cache save -- after the batch was already
-      # paid for. pyflakes has no rule-select flag, so the gate greps its
-      # output. The other finding kinds (unused imports, unused locals,
-      # placeholder-less f-strings -- 8 as of Nov 2026) are printed but
-      # deliberately not failed on; gating on them is separate cleanup, not
-      # this step's job. `.loom/` is installer-vendored, so a finding there
-      # is not actionable in this repo and is excluded by path. The listing
-      # is null-delimited so a filename with spaces survives, and an empty
-      # file list exits 0 rather than tripping grep's no-match status.
-      - name: Pyflakes over tracked Python - undefined names fail (no EDA tools)
+      # Two gates over every tracked Python file, in one listing pass. Gate
+      # 1 is pyflakes, failing on one finding class only: a name that is
+      # never bound ("undefined name" / "undefined local variable"). None of
+      # the fleet-only runner paths (the run_tran.py main() bodies and their
+      # kin) execute in CI, and issue #272 watched a NameError in exactly
+      # such a path reach main and crash a completed fleet run at its
+      # partial-cache save -- after the batch was already paid for. pyflakes
+      # has no rule-select flag, so the gate greps its output. The other
+      # finding kinds (unused imports, unused locals, placeholder-less
+      # f-strings -- 8 as of Nov 2026) are printed but deliberately not
+      # failed on; gating on them is separate cleanup, not this step's job.
+      # Gate 2 (issue #277) compiles every file in the same listing:
+      # an unparseable file makes pyflakes print a syntax-error line whose
+      # wording varies by shape ("invalid syntax", "'(' was never closed",
+      # IndentationError, ...) and exit 1 -- neither a string the grep
+      # matches nor an rc the rc>1 guard fires on, so such a file used to
+      # pass green. compile() is the parser import itself uses, so the gate
+      # is wording-independent, and it writes no bytecode (python -m
+      # py_compile emits __pycache__ even under PYTHONDONTWRITEBYTECODE=1 --
+      # measured on 3.12). `.loom/` is installer-vendored, so a finding
+      # there is not actionable in this repo and is excluded by path. The
+      # listing is null-delimited so a filename with spaces survives, and an
+      # empty file list exits 0 rather than tripping grep's no-match status.
+      - name: Tracked Python parses and has no undefined names (no EDA tools)
         run: |
           set -euo pipefail
           pip install pyflakes==4.1.0
@@ -75,6 +84,30 @@ jobs:
             exit 1
           fi
           echo "pyflakes: no undefined names in ${#files[@]} tracked Python files"
+          crc=0
+          python3 - "${files[@]}" <<'PYEOF' || crc=$?
+          import sys
+
+          status = 0
+          for path in sys.argv[1:]:
+              try:
+                  with open(path, "rb") as fh:
+                      compile(fh.read(), path, "exec")
+              except OSError as exc:
+                  print(f"::error file={path}::unreadable: {exc.strerror or exc}")
+                  status = 1
+              except (SyntaxError, ValueError) as exc:
+                  line = getattr(exc, "lineno", None) or 1
+                  msg = getattr(exc, "msg", None) or str(exc)
+                  print(f"::error file={path},line={line}::{type(exc).__name__}: {msg}")
+                  status = 1
+          sys.exit(status)
+          PYEOF
+          if [ "$crc" -ne 0 ]; then
+            echo "::error::a tracked Python file does not parse - see the annotations above"
+            exit 1
+          fi
+          echo "compile: all ${#files[@]} tracked Python files parse"
 
       - name: Validate committed JSON parses
         run: |
