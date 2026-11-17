@@ -5,7 +5,11 @@ No ngspice, no PDK, no klt: only `tg_points()`, `sci_points()`, `vtag()`,
 `geom()` and the CLI's point-set / result-file wiring are exercised. The
 simulated numbers themselves are evidence, not test fixtures -- they live in
 probe-i92.json / probe-i106.json / probe-i147.json and are reproduced by
-re-running the bench, not asserted here.
+re-running the bench, not asserted here. What the suite does pin about the
+committed rows is internal, not their measured values: the deck hashes
+pinning their provenance (CommittedRecordProvenance) and the half-current
+sum re-derived on every row that reports the split (CommittedHalfCurrentSum,
+issue #279).
 
 What is pinned here (issue #106): the pass-gate sweep really covers the input
 range spec row 11 asks for, at the resolution the bench claims, and its device
@@ -607,10 +611,33 @@ class HalfCurrentSumCheck(unittest.TestCase):
         row = self._run_tg_with_scalars(1.0e-07, 4.99995e-08, 5.0e-08)
         self.assertEqual(row["current_A"], 1.0e-07)
 
-    def test_a_counter_running_pair_refuses(self):
-        """~1e-2 relative residual is the halves fighting; it must exit."""
+    def test_a_residual_above_the_bound_refuses(self):
+        """~1e-2 relative residual is above the 1e-4 bound; it must exit.
+
+        Named for what it pins (issue #279 renamed this from
+        test_a_counter_running_pair_refuses): a 1e-2 shortfall is a bound
+        violation, not the O(1) counter-running signature -- that case is
+        the next test.
+        """
         with self.assertRaises(SystemExit) as ctx:
             self._run_tg_with_scalars(1.0e-07, 4.95e-08, 4.95e-08)
+        self.assertIn("REFUSE: half currents do not sum", str(ctx.exception))
+
+    def test_an_opposed_pair_whose_share_exceeds_one_refuses(self):
+        """The O(1) counter-running signature itself refuses.
+
+        The deck abs()es each half independently, so halves running counter
+        *sum* instead of cancelling: i_nmos alone exceeds i_dev, and the row
+        would report nmos_current_share > 1. No print rounding can fake an
+        O(1) residual; run_tg must refuse before reporting such a row.
+        """
+        i_dev, i_nmos, i_pmos = 1.0e-08, 4.95e-08, 4.95e-08
+        self.assertGreater(
+            i_nmos / i_dev, 1,
+            "this case must be the counter-running signature: the NMOS "
+            "share alone exceeds 1")
+        with self.assertRaises(SystemExit) as ctx:
+            self._run_tg_with_scalars(i_dev, i_nmos, i_pmos)
         self.assertIn("REFUSE: half currents do not sum", str(ctx.exception))
 
     def test_the_gmin_floor_still_reports_not_refuses(self):
@@ -618,6 +645,50 @@ class HalfCurrentSumCheck(unittest.TestCase):
         row = self._run_tg_with_scalars(1.000000e-15, 4.999999e-16, 5.000001e-16)
         self.assertTrue(row["current_at_gmin_floor"])
         self.assertIsNone(row["ron_ohm"])
+
+
+class CommittedHalfCurrentSum(unittest.TestCase):
+    """The committed-record counterpart of the run_tg sum check.
+
+    run_probe.py refuses a *fresh* row whose half currents do not sum to the
+    gate current; the README promises the suite re-derives that sum on every
+    committed row too. This is the re-derivation (issue #279): an edit that
+    breaks the invariant on an append-only probe-*.json row fails here, in
+    CI, without re-running ngspice. The bound and the floor come from
+    run_probe.py itself -- a bound change moves both the refusal and this
+    test together, never a second literal.
+
+    Which records are tg-bearing is decided per record, not by name: every
+    probe-*.json whose rows report `current_nmos_A` is re-derived, and a
+    record that pins `tg_deck_sha256` must contribute rows (the grep an
+    auditor would run) or this test fails as vacuous.
+    """
+
+    def test_every_committed_half_current_row_sums_within_the_bound(self):
+        import json
+        rows = 0
+        for path in sorted(HERE.glob("probe-*.json")):
+            rec = json.loads(path.read_text())
+            has_rows = False
+            for key, row in rec["points"].items():
+                if not (isinstance(row, dict) and "current_nmos_A" in row):
+                    continue
+                has_rows = True
+                rows += 1
+                dev = row["current_A"]
+                n, p = row["current_nmos_A"], row["current_pmos_A"]
+                self.assertLessEqual(
+                    abs(n + p - dev),
+                    R.HALF_CURRENT_SUM_BOUND * max(dev, R.GMIN_FLOOR),
+                    f"{path.name}:{key}: half currents do not sum to the "
+                    f"gate current ({n:.6g} + {p:.6g} != {dev:.6g})")
+            if "tg_deck_sha256" in rec:
+                self.assertTrue(
+                    has_rows,
+                    f"{path.name} pins tg_deck_sha256 but no row reports "
+                    "the half-current split; the re-derivation is vacuous")
+        self.assertGreater(rows, 0,
+                           "no committed row reports the half-current split")
 
 
 if __name__ == "__main__":
