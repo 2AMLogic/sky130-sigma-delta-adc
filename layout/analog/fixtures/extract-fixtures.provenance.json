@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "what": "provenance for the captured `klt extract` netlists in this directory. Each netlist is real extractor output over the committed GDS named below -- no hand-synthesized netlist stands in for a captured one (issue #191).",
+  "captured": "2026-11-15",
+  "pdk": {
+    "variant": "sky130A",
+    "sources": "open_pdks f6eeac7 (sim/pdk.json)",
+    "version_stamp": "open_pdks f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7"
+  },
+  "host_path_scan": "both netlists and both full extract reports were grepped for /home/, ubuntu, /Users/ and .ciel -- no matches; the captures carry no host paths.",
+  "fixtures": {
+    "ota_fd": {
+      "netlist": "ota_fd.extract.spice",
+      "netlist_sha256": "ae86a7d8eb33fd141a64686c0b0fa917a12c36d6205e4bec0163c1605dd406e9",
+      "netlist_normalized_sha256": "8e5f1ee69294404ba1f747cd517f53ceb0388897b0a7d7a1dfc718add2fded01",
+      "source_gds": "layout/analog/ota_fd/ota_fd.gds",
+      "source_gds_sha256": "27ace056b255428e05c0fd6293dd08239fe97ba67379f6a330c30a94eeefe976",
+      "captured": "2026-11-15",
+      "capture_command": "klt extract ota_fd.gds --deck sky130 --top ota_fd --pdk sky130A --pdk-root ~/.ciel -o ota_fd.extract.spice --format json",
+      "klt_pin": {
+        "klt": "0.9.3.dev3+gd5d57daf9a14",
+        "git_commit": "d5d57daf9a145961ea01f5f891e4d87c0d435807",
+        "reinstall_spec": "klayout-tools @ git+https://github.com/2AMLogic/klayout-tools@d5d57daf9a145961ea01f5f891e4d87c0d435807",
+        "klayout": "0.30.13"
+      },
+      "recorded_pin_in_cell_evidence": {
+        "note": "read from this cell's committed extract-device-count.json -> tool; the capture klt above is NEWER than this pin. The parse-level numbers agreed anyway (see test_layout_common.py), which is itself evidence the parsers are stable across this drift.",
+        "klt": "0.9.2.dev964+g02db14ecf46b",
+        "git_commit": "02db14ecf46b038bf97cfd4b2a6170cbcfd7bf35",
+        "reinstall_spec": "klayout-tools @ git+https://github.com/2AMLogic/klayout-tools@02db14ecf46b038bf97cfd4b2a6170cbcfd7bf35",
+        "klayout": "0.30.13",
+        "deck": "sky130",
+        "top_cell": "ota_fd",
+        "pdk": "sky130A",
+        "pdk_sources": "open_pdks f6eeac7 (sim/pdk.json)"
+      },
+      "klt_extract_report": {
+        "schema_version": 4,
+        "status": "extracted",
+        "deck": "sky130",
+        "top": "ota_fd",
+        "device_count": 87,
+        "net_count": 21,
+        "pin_count": 8,
+        "netlist_sha256": "ae86a7d8eb33fd141a64686c0b0fa917a12c36d6205e4bec0163c1605dd406e9",
+        "netlist_normalized_sha256": "8e5f1ee69294404ba1f747cd517f53ceb0388897b0a7d7a1dfc718add2fded01",
+        "pdk": {
+          "variant": "sky130A",
+          "version": "open_pdks f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7"
+        }
+      }
+    },
+    "integrator": {
+      "netlist": "integrator.extract.spice",
+      "netlist_sha256": "064c122f1948918fdb8027b598f6b7b3c93b09bc3c794f623ec5d919a50ea401",
+      "netlist_normalized_sha256": "abd7cecad98272341635a24c6ae187c6eeea9cbc0a6e7a320f8d9fc8360e1b38",
+      "source_gds": "layout/analog/integrator/integrator.gds",
+      "source_gds_sha256": "5e9306a68221facae2f18bd3dc08a5df6d403140a84ec9d45e4745459dfe6c9a",
+      "captured": "2026-11-17",
+      "capture_command": "klt extract layout/analog/integrator/integrator.gds --deck sky130 --top integrator --pdk sky130A --pdk-root ~/.ciel -o layout/analog/fixtures/integrator.extract.spice --format json",
+      "klt_pin": {
+        "klt": "0.9.3.dev256+g59096013d161",
+        "git_commit": "59096013d161e35fffbda0958887b13887cf3fe5",
+        "reinstall_spec": "klayout-tools @ git+https://github.com/2AMLogic/klayout-tools@59096013d161e35fffbda0958887b13887cf3fe5",
+        "klayout": "0.30.13"
+      },
+      "recorded_pin_in_cell_evidence": {
+        "note": "read from this cell's committed extract-device-count.json -> tool; the capture klt above is the SAME version as this pin -- the 2026-11-17 re-capture used the same klt that generated the current cell evidence, so there is no version drift.",
+        "klt": "0.9.3.dev256+g59096013d161",
+        "git_commit": "59096013d161e35fffbda0958887b13887cf3fe5",
+        "reinstall_spec": "klayout-tools @ git+https://github.com/2AMLogic/klayout-tools@59096013d161e35fffbda0958887b13887cf3fe5",
+        "klayout": "0.30.13",
+        "deck": "sky130",
+        "top_cell": "integrator",
+        "pdk": "sky130A",
+        "pdk_sources": "open_pdks f6eeac7 (sim/pdk.json)"
+      },
+      "klt_extract_report": {
+        "schema_version": 4,
+        "status": "extracted",
+        "deck": "sky130",
+        "top": "integrator",
+        "device_count": 149,
+        "net_count": 43,
+        "pin_count": 18,
+        "netlist_sha256": "064c122f1948918fdb8027b598f6b7b3c93b09bc3c794f623ec5d919a50ea401",
+        "netlist_normalized_sha256": "abd7cecad98272341635a24c6ae187c6eeea9cbc0a6e7a320f8d9fc8360e1b38",
+        "pdk": {
+          "variant": "sky130A",
+          "version": "open_pdks f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7"
+        }
+      }
+    }
+  }
+}

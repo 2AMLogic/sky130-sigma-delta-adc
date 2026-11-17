@@ -22,7 +22,9 @@ repo-side gate:
 The repo invariant this asserts (issue #155, "Verified corrections"):
 
   a citation declares a `content_hash` if and only if the cited file carries
-  `provenance.input.content_hash`, and then the pin equals it;
+  `provenance.input.content_hash`, and then the pin equals it -- enforced
+  in both directions (issue #215: a citation omitting the pin on a file
+  that carries one fails too);
 
   a `not_applicable` `spec`/`statement` binding instead pins the cited
   file's own sha256.
@@ -62,6 +64,8 @@ def sha256_file(path: Path) -> str:
 def provenance_input_hash(path: Path) -> str | None:
     """The file's `provenance.input.content_hash`, or None when absent."""
     data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        return None
     provenance = data.get("provenance")
     if not isinstance(provenance, dict):
         return None
@@ -75,11 +79,14 @@ def provenance_input_hash(path: Path) -> str | None:
 def check_binding(key: str, binding: object, root: Path, pins_own_file: bool) -> list[str]:
     """Violations for one evidence binding.
 
-    `pins_own_file=False` is a citation: a declared pin must match the cited
-    file's `provenance.input.content_hash`, and absence is valid (no pin, no
-    claim for klt to grade -- 5.digital[1] today). `pins_own_file=True` is a
-    `not_applicable` `spec`/`statement` binding: the pin is required, and
-    must equal the cited file's own sha256, which is what klt hash-binds.
+    `pins_own_file=False` is a citation: the citation must declare a pin if
+    and only if the cited file carries `provenance.input.content_hash`, and
+    then the pin must equal it -- a missing pin where the file carries one
+    is a violation naming the hash the pin should carry (issue #215), and
+    absence stays valid only when the file carries none (5.digital[1]
+    today). `pins_own_file=True` is a `not_applicable` `spec`/`statement`
+    binding: the pin is required, and must equal the cited file's own
+    sha256, which is what klt hash-binds.
     """
     if not isinstance(binding, dict):
         return [f"{key}: evidence entry is not a JSON object"]
@@ -106,14 +113,24 @@ def check_binding(key: str, binding: object, root: Path, pins_own_file: bool) ->
             ]
         return []
 
-    if declared is None:
-        return []
-    if not isinstance(declared, str) or not declared:
+    missing_pin = declared is None
+    if not missing_pin and (not isinstance(declared, str) or not declared):
         return [f"{key}: content_hash must be a `sha256:...` string"]
     try:
         declared_input = provenance_input_hash(path)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        if missing_pin:
+            return []
         return [f"{key}: cited file {rel} is not readable JSON: {exc}"]
+    if missing_pin:
+        if declared_input is not None:
+            return [
+                f"{key}: cites {rel}, which carries provenance.input."
+                f"content_hash ({declared_input}), but declares no "
+                "content_hash pin; the invariant is if-and-only-if -- add "
+                "the pin (issue #215)"
+            ]
+        return []
     if declared_input is None:
         return [
             f"{key}: declares content_hash {declared}, but {rel} carries no "
@@ -138,6 +155,8 @@ def check_manifest(manifest_path: Path) -> list[str]:
     """
     root = manifest_path.resolve().parent.parent
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict):
+        return ["manifest top level is not a JSON object"]
     evidence = manifest.get("evidence")
     if not isinstance(evidence, dict):
         return ['manifest has no "evidence" object to check']

@@ -1,0 +1,2468 @@
+{
+  "fixture": "Transmission-gate DC probe: `Sin` pass-gate Ron versus the voltage it passes, over the five process skews at Vdda = 1.620 V / -40 C (issue #106)",
+  "result_kind": "simulated (ngspice, sky130 device models); one DC operating point per row, run locally; not measured, not a record, not a performance claim",
+  "purpose": "give the `Sin` sampling-resistance finding in issue #106 a committed testbench: Ron versus input for the as-built pass gate, which the single-device `ron` kind cannot show",
+  "method": {
+    "tg": "both halves in parallel between the swept voltage and 10 mV above it, NMOS gate at Vdda and PMOS gate at vssa (fully on), bulks on their static rails; Ron = bias / I, and each half's share of I is reported separately",
+    "geometry": "ad = as = 0.29*W, pd = ps = 2*W + 0.58, nrd = nrs = 0.29/W -- the rule the committed netlist itself uses",
+    "geometry_self_check": "28 switch lines in design/integrator/integrator.spice reproduce under that rule"
+  },
+  "pdk_sources_stamp": "open_pdks f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+  "pdk_pin": {
+    "file": "sim/pdk.json",
+    "open_pdks_revision": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7"
+  },
+  "ngspice": "ngspice-47",
+  "tg_deck_sha256": "98202c5bee4368e249632f0b47561169a8a22dbad3a4db5f60f4493620fa44fa",
+  "integrator_netlist_sha256": "18fc51475f667eea993fbef4e9a3abe7eaa35863ae88f86c25bfb56bc4074d53",
+  "points": {
+    "tg_sin_tt_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 4.489716e-05,
+      "ron_ohm": 222.7312,
+      "current_nmos_A": 4.489716e-05,
+      "current_pmos_A": 1.065814e-14,
+      "nmos_current_share": 1.0
+    },
+    "tg_sin_tt_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 3.02823e-05,
+      "ron_ohm": 330.226,
+      "current_nmos_A": 3.028229e-05,
+      "current_pmos_A": 2.732037e-12,
+      "nmos_current_share": 0.9999996697740924
+    },
+    "tg_sin_tt_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 1.472307e-05,
+      "ron_ohm": 679.2061,
+      "current_nmos_A": 1.472295e-05,
+      "current_pmos_A": 1.180602e-10,
+      "nmos_current_share": 0.9999918495259481
+    },
+    "tg_sin_tt_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 9.703748e-06,
+      "ron_ohm": 1030.53,
+      "current_nmos_A": 9.703385e-06,
+      "current_pmos_A": 3.626646e-10,
+      "nmos_current_share": 0.9999625917738177
+    },
+    "tg_sin_tt_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 5.340049e-06,
+      "ron_ohm": 1872.642,
+      "current_nmos_A": 5.338952e-06,
+      "current_pmos_A": 1.096517e-09,
+      "nmos_current_share": 0.9997945711734105
+    },
+    "tg_sin_tt_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 2.265569e-06,
+      "ron_ohm": 4413.902,
+      "current_nmos_A": 2.262285e-06,
+      "current_pmos_A": 3.283684e-09,
+      "nmos_current_share": 0.9985504745165563
+    },
+    "tg_sin_tt_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 7.145201e-07,
+      "ron_ohm": 13995.41,
+      "current_nmos_A": 7.047585e-07,
+      "current_pmos_A": 9.761671e-09,
+      "nmos_current_share": 0.9863382429689522
+    },
+    "tg_sin_tt_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 1.921753e-07,
+      "ron_ohm": 52035.81,
+      "current_nmos_A": 1.633518e-07,
+      "current_pmos_A": 2.882355e-08,
+      "nmos_current_share": 0.8500145440126802
+    },
+    "tg_sin_tt_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 1.139445e-07,
+      "ron_ohm": 87761.99,
+      "current_nmos_A": 2.951047e-08,
+      "current_pmos_A": 8.443408e-08,
+      "nmos_current_share": 0.25898985909806965
+    },
+    "tg_sin_tt_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 2.478795e-07,
+      "ron_ohm": 40342.18,
+      "current_nmos_A": 4.508555e-09,
+      "current_pmos_A": 2.43371e-07,
+      "nmos_current_share": 0.018188494813003896
+    },
+    "tg_sin_tt_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 6.667129e-07,
+      "ron_ohm": 14998.96,
+      "current_nmos_A": 6.305516e-10,
+      "current_pmos_A": 6.660823e-07,
+      "nmos_current_share": 0.0009457618114183781
+    },
+    "tg_sin_tt_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 1.595393e-06,
+      "ron_ohm": 6268.049,
+      "current_nmos_A": 8.458123e-11,
+      "current_pmos_A": 1.595308e-06,
+      "nmos_current_share": 5.301592146887946e-05
+    },
+    "tg_sin_tt_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 3.126488e-06,
+      "ron_ohm": 3198.477,
+      "current_nmos_A": 1.111289e-11,
+      "current_pmos_A": 3.126477e-06,
+      "nmos_current_share": 3.554432321505792e-06
+    },
+    "tg_sin_tt_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 5.085027e-06,
+      "ron_ohm": 1966.558,
+      "current_nmos_A": 1.445954e-12,
+      "current_pmos_A": 5.085026e-06,
+      "nmos_current_share": 2.843552256458029e-07
+    },
+    "tg_sin_tt_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 7.246159e-06,
+      "ron_ohm": 1380.041,
+      "current_nmos_A": 1.918465e-13,
+      "current_pmos_A": 7.246159e-06,
+      "nmos_current_share": 2.6475612803969664e-08
+    },
+    "tg_sin_tt_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 1.390409e-05,
+      "ron_ohm": 719.2129,
+      "current_nmos_A": 3.552714e-15,
+      "current_pmos_A": 1.390409e-05,
+      "nmos_current_share": 2.555157511207134e-10
+    },
+    "tg_sin_tt_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 2.019993e-05,
+      "ron_ohm": 495.0512,
+      "current_nmos_A": 3.552714e-15,
+      "current_pmos_A": 2.019993e-05,
+      "nmos_current_share": 1.7587754016969364e-10
+    },
+    "tg_sin_ss_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 3.549856e-05,
+      "ron_ohm": 281.7015,
+      "current_nmos_A": 3.549856e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sin_ss_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 2.261318e-05,
+      "ron_ohm": 442.2199,
+      "current_nmos_A": 2.261318e-05,
+      "current_pmos_A": 8.881784e-15,
+      "nmos_current_share": 1.0
+    },
+    "tg_sin_ss_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 9.277726e-06,
+      "ron_ohm": 1077.85,
+      "current_nmos_A": 9.277721e-06,
+      "current_pmos_A": 4.934719e-12,
+      "nmos_current_share": 0.9999994610748366
+    },
+    "tg_sin_ss_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 5.379099e-06,
+      "ron_ohm": 1859.047,
+      "current_nmos_A": 5.379077e-06,
+      "current_pmos_A": 2.261302e-11,
+      "nmos_current_share": 0.9999959100957243
+    },
+    "tg_sin_ss_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 2.468525e-06,
+      "ron_ohm": 4051.002,
+      "current_nmos_A": 2.46844e-06,
+      "current_pmos_A": 8.483525e-11,
+      "nmos_current_share": 0.9999655664820086
+    },
+    "tg_sin_ss_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 8.526275e-07,
+      "ron_ohm": 11728.45,
+      "current_nmos_A": 8.523374e-07,
+      "current_pmos_A": 2.901146e-10,
+      "nmos_current_share": 0.9996597576315566
+    },
+    "tg_sin_ss_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 2.220434e-07,
+      "ron_ohm": 45036.23,
+      "current_nmos_A": 2.210869e-07,
+      "current_pmos_A": 9.5649e-10,
+      "nmos_current_share": 0.9956922835805974
+    },
+    "tg_sin_ss_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 4.70659e-08,
+      "ron_ohm": 212468.1,
+      "current_nmos_A": 4.395867e-08,
+      "current_pmos_A": 3.107232e-09,
+      "nmos_current_share": 0.9339812900635066
+    },
+    "tg_sin_ss_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 1.712993e-08,
+      "ron_ohm": 583773.4,
+      "current_nmos_A": 7.109703e-09,
+      "current_pmos_A": 1.002023e-08,
+      "nmos_current_share": 0.4150456540102616
+    },
+    "tg_sin_ss_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 3.315658e-08,
+      "ron_ohm": 301599.2,
+      "current_nmos_A": 1.019309e-09,
+      "current_pmos_A": 3.213727e-08,
+      "nmos_current_share": 0.030742284035325716
+    },
+    "tg_sin_ss_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 1.023478e-07,
+      "ron_ohm": 97706.07,
+      "current_nmos_A": 1.378559e-10,
+      "current_pmos_A": 1.022099e-07,
+      "nmos_current_share": 0.0013469356449283716
+    },
+    "tg_sin_ss_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 3.1585e-07,
+      "ron_ohm": 31660.59,
+      "current_nmos_A": 1.814193e-11,
+      "current_pmos_A": 3.158319e-07,
+      "nmos_current_share": 5.743843596643977e-05
+    },
+    "tg_sin_ss_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 8.804534e-07,
+      "ron_ohm": 11357.78,
+      "current_nmos_A": 2.353673e-12,
+      "current_pmos_A": 8.804511e-07,
+      "nmos_current_share": 2.673251077229073e-06
+    },
+    "tg_sin_ss_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 1.984658e-06,
+      "ron_ohm": 5038.653,
+      "current_nmos_A": 3.03757e-13,
+      "current_pmos_A": 1.984657e-06,
+      "nmos_current_share": 1.5305256623559324e-07
+    },
+    "tg_sin_ss_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 3.536129e-06,
+      "ron_ohm": 2827.951,
+      "current_nmos_A": 4.263256e-14,
+      "current_pmos_A": 3.536129e-06,
+      "nmos_current_share": 1.2056279621020612e-08
+    },
+    "tg_sin_ss_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 8.947359e-06,
+      "ron_ohm": 1117.648,
+      "current_nmos_A": 0.0,
+      "current_pmos_A": 8.947359e-06,
+      "nmos_current_share": 0.0
+    },
+    "tg_sin_ss_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 1.419359e-05,
+      "ron_ohm": 704.5434,
+      "current_nmos_A": 3.552714e-15,
+      "current_pmos_A": 1.419359e-05,
+      "nmos_current_share": 2.503041161538413e-10
+    },
+    "tg_sin_ff_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 5.56419e-05,
+      "ron_ohm": 179.7207,
+      "current_nmos_A": 5.56419e-05,
+      "current_pmos_A": 1.575629e-12,
+      "nmos_current_share": 1.0
+    },
+    "tg_sin_ff_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 3.940542e-05,
+      "ron_ohm": 253.7722,
+      "current_nmos_A": 3.940537e-05,
+      "current_pmos_A": 5.452883e-11,
+      "nmos_current_share": 0.9999987311390158
+    },
+    "tg_sin_ff_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 2.186414e-05,
+      "ron_ohm": 457.3698,
+      "current_nmos_A": 2.186284e-05,
+      "current_pmos_A": 1.299171e-09,
+      "nmos_current_share": 0.9999405419101781
+    },
+    "tg_sin_ff_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 1.590426e-05,
+      "ron_ohm": 628.7624,
+      "current_nmos_A": 1.590061e-05,
+      "current_pmos_A": 3.651525e-09,
+      "nmos_current_share": 0.9997705017397853
+    },
+    "tg_sin_ff_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 1.020622e-05,
+      "ron_ohm": 979.7948,
+      "current_nmos_A": 1.019605e-05,
+      "current_pmos_A": 1.017026e-08,
+      "nmos_current_share": 0.99900354881631
+    },
+    "tg_sin_ff_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 5.358495e-06,
+      "ron_ohm": 1866.195,
+      "current_nmos_A": 5.330419e-06,
+      "current_pmos_A": 2.807622e-08,
+      "nmos_current_share": 0.9947604691242597
+    },
+    "tg_sin_ff_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 2.148522e-06,
+      "ron_ohm": 4654.362,
+      "current_nmos_A": 2.071739e-06,
+      "current_pmos_A": 7.678326e-08,
+      "nmos_current_share": 0.9642624092282974
+    },
+    "tg_sin_ff_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 7.820232e-07,
+      "ron_ohm": 12787.34,
+      "current_nmos_A": 5.747947e-07,
+      "current_pmos_A": 2.072286e-07,
+      "nmos_current_share": 0.7350097797610097
+    },
+    "tg_sin_ff_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 6.605775e-07,
+      "ron_ohm": 15138.27,
+      "current_nmos_A": 1.185145e-07,
+      "current_pmos_A": 5.420629e-07,
+      "nmos_current_share": 0.17941044010733034
+    },
+    "tg_sin_ff_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 1.32483e-06,
+      "ron_ohm": 7548.14,
+      "current_nmos_A": 1.965462e-08,
+      "current_pmos_A": 1.305175e-06,
+      "nmos_current_share": 0.014835578904463215
+    },
+    "tg_sin_ff_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 2.703225e-06,
+      "ron_ohm": 3699.286,
+      "current_nmos_A": 2.868742e-09,
+      "current_pmos_A": 2.700356e-06,
+      "nmos_current_share": 0.001061229457407356
+    },
+    "tg_sin_ff_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 4.692757e-06,
+      "ron_ohm": 2130.943,
+      "current_nmos_A": 3.931646e-10,
+      "current_pmos_A": 4.692364e-06,
+      "nmos_current_share": 8.378115466025622e-05
+    },
+    "tg_sin_ff_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 7.064245e-06,
+      "ron_ohm": 1415.579,
+      "current_nmos_A": 5.227996e-11,
+      "current_pmos_A": 7.064193e-06,
+      "nmos_current_share": 7.400643663972583e-06
+    },
+    "tg_sin_ff_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 9.618703e-06,
+      "ron_ohm": 1039.641,
+      "current_nmos_A": 6.838974e-12,
+      "current_pmos_A": 9.618696e-06,
+      "nmos_current_share": 7.11007918635184e-07
+    },
+    "tg_sin_ff_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 1.223923e-05,
+      "ron_ohm": 817.045,
+      "current_nmos_A": 8.881784e-13,
+      "current_pmos_A": 1.223923e-05,
+      "nmos_current_share": 7.256815992509333e-08
+    },
+    "tg_sin_ff_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 1.99991e-05,
+      "ron_ohm": 500.0225,
+      "current_nmos_A": 7.105427e-15,
+      "current_pmos_A": 1.99991e-05,
+      "nmos_current_share": 3.5528733793020687e-10
+    },
+    "tg_sin_ff_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 2.716296e-05,
+      "ron_ohm": 368.1484,
+      "current_nmos_A": 3.552714e-15,
+      "current_pmos_A": 2.716296e-05,
+      "nmos_current_share": 1.3079259403246186e-10
+    },
+    "tg_sin_sf_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 5.750009e-05,
+      "ron_ohm": 173.9128,
+      "current_nmos_A": 5.750009e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sin_sf_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 4.139433e-05,
+      "ron_ohm": 241.579,
+      "current_nmos_A": 4.139433e-05,
+      "current_pmos_A": 1.776357e-15,
+      "nmos_current_share": 1.0
+    },
+    "tg_sin_sf_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 2.389149e-05,
+      "ron_ohm": 418.559,
+      "current_nmos_A": 2.389149e-05,
+      "current_pmos_A": 8.881784e-14,
+      "nmos_current_share": 1.0
+    },
+    "tg_sin_sf_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 1.788251e-05,
+      "ron_ohm": 559.2055,
+      "current_nmos_A": 1.788251e-05,
+      "current_pmos_A": 8.668621e-13,
+      "nmos_current_share": 1.0
+    },
+    "tg_sin_sf_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 1.202044e-05,
+      "ron_ohm": 831.9163,
+      "current_nmos_A": 1.202043e-05,
+      "current_pmos_A": 7.918999e-12,
+      "nmos_current_share": 0.9999991680836974
+    },
+    "tg_sin_sf_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 6.777359e-06,
+      "ron_ohm": 1475.501,
+      "current_nmos_A": 6.7773e-06,
+      "current_pmos_A": 5.901057e-11,
+      "nmos_current_share": 0.9999912945440842
+    },
+    "tg_sin_sf_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 2.923067e-06,
+      "ron_ohm": 3421.065,
+      "current_nmos_A": 2.922742e-06,
+      "current_pmos_A": 3.247713e-10,
+      "nmos_current_share": 0.9998888154120311
+    },
+    "tg_sin_sf_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 9.054089e-07,
+      "ron_ohm": 11044.73,
+      "current_nmos_A": 9.040504e-07,
+      "current_pmos_A": 1.358522e-09,
+      "nmos_current_share": 0.9984995729553796
+    },
+    "tg_sin_sf_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 2.093417e-07,
+      "ron_ohm": 47768.8,
+      "current_nmos_A": 2.044668e-07,
+      "current_pmos_A": 4.874828e-09,
+      "nmos_current_share": 0.9767131918772036
+    },
+    "tg_sin_sf_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 5.26932e-08,
+      "ron_ohm": 189777.8,
+      "current_nmos_A": 3.628518e-08,
+      "current_pmos_A": 1.640802e-08,
+      "nmos_current_share": 0.6886121928446176
+    },
+    "tg_sin_sf_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 5.934183e-08,
+      "ron_ohm": 168515.2,
+      "current_nmos_A": 5.525042e-09,
+      "current_pmos_A": 5.381679e-08,
+      "nmos_current_share": 0.09310535249755526
+    },
+    "tg_sin_sf_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 1.73743e-07,
+      "ron_ohm": 57556.27,
+      "current_nmos_A": 7.774119e-10,
+      "current_pmos_A": 1.729656e-07,
+      "nmos_current_share": 0.004474493360883604
+    },
+    "tg_sin_sf_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 5.245106e-07,
+      "ron_ohm": 19065.39,
+      "current_nmos_A": 1.053255e-10,
+      "current_pmos_A": 5.244053e-07,
+      "nmos_current_share": 0.0002008071905505818
+    },
+    "tg_sin_sf_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 1.349075e-06,
+      "ron_ohm": 7412.484,
+      "current_nmos_A": 1.399592e-11,
+      "current_pmos_A": 1.349061e-06,
+      "nmos_current_share": 1.0374456572095695e-05
+    },
+    "tg_sin_sf_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 2.713241e-06,
+      "ron_ohm": 3685.629,
+      "current_nmos_A": 1.840306e-12,
+      "current_pmos_A": 2.713239e-06,
+      "nmos_current_share": 6.782685356737569e-07
+    },
+    "tg_sin_sf_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 8.077454e-06,
+      "ron_ohm": 1238.014,
+      "current_nmos_A": 7.105427e-15,
+      "current_pmos_A": 8.077454e-06,
+      "nmos_current_share": 8.796617102369138e-10
+    },
+    "tg_sin_sf_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 1.346523e-05,
+      "ron_ohm": 742.6536,
+      "current_nmos_A": 3.552714e-15,
+      "current_pmos_A": 1.346523e-05,
+      "nmos_current_share": 2.6384354370478634e-10
+    },
+    "tg_sin_fs_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 3.403191e-05,
+      "ron_ohm": 293.8419,
+      "current_nmos_A": 3.40319e-05,
+      "current_pmos_A": 6.130207e-12,
+      "nmos_current_share": 0.9999997061581322
+    },
+    "tg_sin_fs_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 2.105509e-05,
+      "ron_ohm": 474.9445,
+      "current_nmos_A": 2.105494e-05,
+      "current_pmos_A": 1.511946e-10,
+      "nmos_current_share": 0.9999928758319248
+    },
+    "tg_sin_fs_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 7.883408e-06,
+      "ron_ohm": 1268.487,
+      "current_nmos_A": 7.880217e-06,
+      "current_pmos_A": 3.190578e-09,
+      "nmos_current_share": 0.9995952258211169
+    },
+    "tg_sin_fs_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 4.277518e-06,
+      "ron_ohm": 2337.804,
+      "current_nmos_A": 4.268886e-06,
+      "current_pmos_A": 8.632554e-09,
+      "nmos_current_share": 0.9979820073229382
+    },
+    "tg_sin_fs_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 1.819407e-06,
+      "ron_ohm": 5496.297,
+      "current_nmos_A": 1.796282e-06,
+      "current_pmos_A": 2.312543e-08,
+      "nmos_current_share": 0.987289814758325
+    },
+    "tg_sin_fs_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 6.307002e-07,
+      "ron_ohm": 15855.39,
+      "current_nmos_A": 5.693775e-07,
+      "current_pmos_A": 6.132265e-08,
+      "nmos_current_share": 0.9027704446581751
+    },
+    "tg_sin_fs_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 2.972664e-07,
+      "ron_ohm": 33639.86,
+      "current_nmos_A": 1.366373e-07,
+      "current_pmos_A": 1.606291e-07,
+      "nmos_current_share": 0.4596459606602025
+    },
+    "tg_sin_fs_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 4.365386e-07,
+      "ron_ohm": 22907.48,
+      "current_nmos_A": 2.531506e-08,
+      "current_pmos_A": 4.112236e-07,
+      "nmos_current_share": 0.05799042742153844
+    },
+    "tg_sin_fs_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 9.971857e-07,
+      "ron_ohm": 10028.22,
+      "current_nmos_A": 3.881036e-09,
+      "current_pmos_A": 9.933047e-07,
+      "nmos_current_share": 0.0038919892252766964
+    },
+    "tg_sin_fs_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 2.128913e-06,
+      "ron_ohm": 4697.234,
+      "current_nmos_A": 5.364242e-10,
+      "current_pmos_A": 2.128376e-06,
+      "nmos_current_share": 0.00025197093540224515
+    },
+    "tg_sin_fs_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 3.882238e-06,
+      "ron_ohm": 2575.834,
+      "current_nmos_A": 7.063328e-11,
+      "current_pmos_A": 3.882168e-06,
+      "nmos_current_share": 1.819395925752105e-05
+    },
+    "tg_sin_fs_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 6.098634e-06,
+      "ron_ohm": 1639.712,
+      "current_nmos_A": 9.094947e-12,
+      "current_pmos_A": 6.098625e-06,
+      "nmos_current_share": 1.4913088734296894e-06
+    },
+    "tg_sin_fs_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 8.568261e-06,
+      "ron_ohm": 1167.098,
+      "current_nmos_A": 1.156408e-12,
+      "current_pmos_A": 8.56826e-06,
+      "nmos_current_share": 1.3496414266558872e-07
+    },
+    "tg_sin_fs_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 1.114449e-05,
+      "ron_ohm": 897.3047,
+      "current_nmos_A": 1.509903e-13,
+      "current_pmos_A": 1.114449e-05,
+      "nmos_current_share": 1.3548426172933888e-08
+    },
+    "tg_sin_fs_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 1.374462e-05,
+      "ron_ohm": 727.5573,
+      "current_nmos_A": 2.131628e-14,
+      "current_pmos_A": 1.374462e-05,
+      "nmos_current_share": 1.550881726813837e-09
+    },
+    "tg_sin_fs_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 2.130859e-05,
+      "ron_ohm": 469.2943,
+      "current_nmos_A": 0.0,
+      "current_pmos_A": 2.130859e-05,
+      "nmos_current_share": 0.0
+    },
+    "tg_sin_fs_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 2.814142e-05,
+      "ron_ohm": 355.3481,
+      "current_nmos_A": 3.552714e-15,
+      "current_pmos_A": 2.814142e-05,
+      "nmos_current_share": 1.262450153545912e-10
+    },
+    "tg_sin_tt_27c_1p8v_0p3v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 4.676617e-05,
+      "ron_ohm": 213.8298,
+      "current_nmos_A": 4.676616e-05,
+      "current_pmos_A": 8.700596e-12,
+      "nmos_current_share": 0.9999997861702166
+    },
+    "tg_sin_tt_27c_1p8v_0p45v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 3.732469e-05,
+      "ron_ohm": 267.9192,
+      "current_nmos_A": 3.732435e-05,
+      "current_pmos_A": 3.444072e-10,
+      "nmos_current_share": 0.9999908907481885
+    },
+    "tg_sin_tt_27c_1p8v_0p6v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 2.68445e-05,
+      "ron_ohm": 372.5158,
+      "current_nmos_A": 2.683884e-05,
+      "current_pmos_A": 5.658961e-09,
+      "nmos_current_share": 0.9997891560654882
+    },
+    "tg_sin_tt_27c_1p8v_0p65v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 2.312635e-05,
+      "ron_ohm": 432.4072,
+      "current_nmos_A": 2.311269e-05,
+      "current_pmos_A": 1.36636e-08,
+      "nmos_current_share": 0.9994093317795502
+    },
+    "tg_sin_tt_27c_1p8v_0p7v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 1.931173e-05,
+      "ron_ohm": 517.82,
+      "current_nmos_A": 1.92791e-05,
+      "current_pmos_A": 3.263424e-08,
+      "nmos_current_share": 0.9983103533448324
+    },
+    "tg_sin_tt_27c_1p8v_0p75v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 1.544008e-05,
+      "ron_ohm": 647.6651,
+      "current_nmos_A": 1.536291e-05,
+      "current_pmos_A": 7.717224e-08,
+      "nmos_current_share": 0.9950019689017154
+    },
+    "tg_sin_tt_27c_1p8v_0p8v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 1.161666e-05,
+      "ron_ohm": 860.833,
+      "current_nmos_A": 1.143662e-05,
+      "current_pmos_A": 1.800332e-07,
+      "nmos_current_share": 0.9845015692978876
+    },
+    "tg_sin_tt_27c_1p8v_0p85v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 8.085917e-06,
+      "ron_ohm": 1236.718,
+      "current_nmos_A": 7.67698e-06,
+      "current_pmos_A": 4.089369e-07,
+      "nmos_current_share": 0.9494260205737951
+    },
+    "tg_sin_tt_27c_1p8v_0p9v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 5.29519e-06,
+      "ron_ohm": 1888.506,
+      "current_nmos_A": 4.418048e-06,
+      "current_pmos_A": 8.771425e-07,
+      "nmos_current_share": 0.8343511753119341
+    },
+    "tg_sin_tt_27c_1p8v_0p95v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 3.766527e-06,
+      "ron_ohm": 2654.966,
+      "current_nmos_A": 2.064847e-06,
+      "current_pmos_A": 1.70168e-06,
+      "nmos_current_share": 0.5482097964517445
+    },
+    "tg_sin_tt_27c_1p8v_1v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 3.672784e-06,
+      "ron_ohm": 2722.73,
+      "current_nmos_A": 7.649243e-07,
+      "current_pmos_A": 2.90786e-06,
+      "nmos_current_share": 0.208268251005232
+    },
+    "tg_sin_tt_27c_1p8v_1p05v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 4.6387e-06,
+      "ron_ohm": 2155.776,
+      "current_nmos_A": 2.304631e-07,
+      "current_pmos_A": 4.408237e-06,
+      "nmos_current_share": 0.04968269127126135
+    },
+    "tg_sin_tt_27c_1p8v_1p1v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 6.143001e-06,
+      "ron_ohm": 1627.869,
+      "current_nmos_A": 5.935312e-08,
+      "current_pmos_A": 6.083648e-06,
+      "nmos_current_share": 0.009661909545513667
+    },
+    "tg_sin_tt_27c_1p8v_1p15v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 7.85817e-06,
+      "ron_ohm": 1272.561,
+      "current_nmos_A": 1.375531e-08,
+      "current_pmos_A": 7.844415e-06,
+      "nmos_current_share": 0.0017504469870211511
+    },
+    "tg_sin_tt_27c_1p8v_1p2v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 9.639796e-06,
+      "ron_ohm": 1037.366,
+      "current_nmos_A": 2.993541e-09,
+      "current_pmos_A": 9.636803e-06,
+      "nmos_current_share": 0.00031053987034580403
+    },
+    "tg_sin_tt_27c_1p8v_1p35v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 1.495544e-05,
+      "ron_ohm": 668.6529,
+      "current_nmos_A": 2.642153e-11,
+      "current_pmos_A": 1.495542e-05,
+      "nmos_current_share": 1.7666835612994335e-06
+    },
+    "tg_sin_tt_27c_1p8v_1p5v": {
+      "kind": "tg",
+      "switch": "Sin (and Sr, Mra, Mrb -- same device pair)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8",
+        "W_um": 4,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8",
+        "W_um": 8,
+        "L_um": 0.15
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 1.995611e-05,
+      "ron_ohm": 501.0996,
+      "current_nmos_A": 2.202682e-13,
+      "current_pmos_A": 1.995611e-05,
+      "nmos_current_share": 1.1037632083607477e-08
+    }
+  }
+}

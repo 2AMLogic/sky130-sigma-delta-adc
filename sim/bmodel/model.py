@@ -100,6 +100,21 @@ def tone_input(amplitude, cycles, n_out, decim, warmup_out, params, fs_hz=FS_HZ,
 
 def modulate(u, params, rng=None):
     """Run the loop over input ``u`` (FS units). Returns the +/-1 bitstream."""
+    out, _, _ = modulate_with_states(u, params, rng=rng)
+    return out
+
+
+def modulate_with_states(u, params, rng=None):
+    """The loop of ``modulate``, also returning the post-update states.
+
+    Returns ``(y, x1, x2)`` where ``x1[n]``/``x2[n]`` are the integrator
+    states AFTER clock n's update, in FS units. That is the state the
+    transistor-level benches sample at clock k's falling 50 % crossing (the
+    end of the phi2 integrate phase), so a cross-check compares ``x1[n]``
+    against the sampled ``o1d_v[n]/1.2`` directly (sim/modulator-tran/README
+    "samples/"). One loop implementation serves both entry points so the
+    traced and untraced bitstreams cannot drift.
+    """
     p = validate_params(params)
     if rng is None:
         rng = np.random.default_rng(p["seed"])
@@ -118,10 +133,14 @@ def modulate(u, params, rng=None):
     x1 = x2 = 0.0
     y = 1.0
     out = [0.0] * len(d1)
+    x1s = [0.0] * len(d1)
+    x2s = [0.0] * len(d1)
     for n, d in enumerate(d1):
         thr = -hh if y > 0.0 else hh
         y = 1.0 if x2 + off > thr else -1.0
         out[n] = y
         x2 = pole * x2 + k2 * (x1 - y)
         x1 = pole * x1 + d - k1 * y
-    return np.array(out)
+        x1s[n] = x1
+        x2s[n] = x2
+    return np.array(out), np.array(x1s), np.array(x2s)

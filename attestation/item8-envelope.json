@@ -3,16 +3,16 @@
   "kind": "generic",
   "status": "fail",
   "t1_item": 8,
-  "summary": "T1 item 8 (Characterization report): spec rows 6 evidenced, 6 partial, 2 pending; decimator Fmax/area/power 3/5 evidenced",
+  "summary": "T1 item 8 (Characterization report): spec rows 6 evidenced, 7 partial, 1 pending; decimator Fmax/area/power 3/5 evidenced, 1 declared gap",
   "source": "measurements/characterization.md",
   "metrics": {
-    "report_sha256": "sha256:e302e3a3e1e16e013744391d7dafc5c1e649e764bfa75d3d4f93fca9e2650be1",
+    "report_sha256": "sha256:4e596b9a06804c19e32e706a6dc0e5be380217640b287acb15066cc76fb70b96",
     "spec_rows": [
       {
         "row": 1,
         "verdict": "partial",
         "evidence": [
-          "sim/bmodel/records/20261113T142853Z-f8b2fa44.json"
+          "sim/bmodel/item5-model-run.json"
         ],
         "issues": [
           "33"
@@ -22,17 +22,21 @@
         "row": 2,
         "verdict": "partial",
         "evidence": [
-          "sim/bmodel/records/20261113T142853Z-f8b2fa44.json"
+          "sim/bmodel/item5-model-run.json",
+          "sim/bmodel/xcheck-record.json"
         ],
         "issues": [
-          "33"
+          "33",
+          "138",
+          "148"
         ]
       },
       {
         "row": 3,
         "verdict": "partial",
         "evidence": [
-          "design/modulator/modulator.spice",
+          "sim/modulator-tran/record.json",
+          "sim/bmodel/xcheck-record.json",
           "sim/bmodel/model.py"
         ],
         "issues": [
@@ -43,7 +47,7 @@
         "row": 4,
         "verdict": "evidenced",
         "evidence": [
-          "sim/bmodel/records/20261113T142853Z-f8b2fa44.json"
+          "sim/bmodel/item5-model-run.json"
         ],
         "issues": []
       },
@@ -51,7 +55,7 @@
         "row": 5,
         "verdict": "partial",
         "evidence": [
-          "sim/ota-settling/record-i51-rcm2M-cff100f.json"
+          "sim/modulator-tran/record.json"
         ],
         "issues": [
           "33"
@@ -63,9 +67,7 @@
         "evidence": [
           "verification/decimator/record.json"
         ],
-        "issues": [
-          "131"
-        ]
+        "issues": []
       },
       {
         "row": 7,
@@ -103,17 +105,18 @@
         "row": 11,
         "verdict": "partial",
         "evidence": [
-          "sim/bmodel/records/20261113T142853Z-f8b2fa44.json"
+          "sim/modulator-tran/record.json"
         ],
         "issues": [
-          "33"
+          "33",
+          "148"
         ]
       },
       {
         "row": 12,
         "verdict": "partial",
         "evidence": [
-          "sim/ota-settling/record-i51-rcm2M-cff100f.json"
+          "sim/modulator-tran/record.json"
         ],
         "issues": [
           "33"
@@ -121,10 +124,13 @@
       },
       {
         "row": 13,
-        "verdict": "pending",
-        "evidence": [],
+        "verdict": "partial",
+        "evidence": [
+          "sim/modulator-tran/record.json"
+        ],
         "issues": [
-          "33"
+          "33",
+          "35"
         ]
       },
       {
@@ -142,54 +148,65 @@
       {
         "quantity": "Cell area (synthesized)",
         "evidenced": true,
+        "declared_gap": false,
         "evidence": [
           "verification/decimator/record.json"
         ],
+        "records": [],
         "issues": []
       },
       {
         "quantity": "Placed die / core area",
         "evidenced": true,
+        "declared_gap": false,
         "evidence": [
           "layout/README.md",
           "layout/digital/decimator.gds"
         ],
+        "records": [],
         "issues": []
       },
       {
         "quantity": "Fmax at the ten declared `sky130_fd_sc_hd` liberty corners",
         "evidenced": true,
+        "declared_gap": false,
         "evidence": [
           "layout/digital/sta-decimator.report.json"
         ],
+        "records": [],
         "issues": []
       },
       {
         "quantity": "Fmax at the other 35 DR-002 corners",
         "evidenced": false,
+        "declared_gap": true,
         "evidence": [],
-        "issues": [
-          "131"
-        ]
+        "records": [
+          "spec/decisions/DR-008-digital-timing-corners.md"
+        ],
+        "issues": []
       },
       {
         "quantity": "Power at each of the 45 corners",
         "evidenced": false,
+        "declared_gap": false,
         "evidence": [],
+        "records": [],
         "issues": [
           "33"
         ]
       }
     ],
     "evidence_sha256": {
-      "design/modulator/modulator.spice": "sha256:3a7b0cece4d81961e0dc06ee9cd6de06c3e1de199e372f0eecd99a8edbae8318",
-      "layout/README.md": "sha256:61b34df98041c5aa2020db87b389c9782c62a6322e0ffa51d17a9a3a2b82bfa9",
+      "layout/README.md": "sha256:91d7a9df4b002582c114042c177ada58bbecfee2b4777892cc5ece081fac10a5",
       "layout/digital/decimator.gds": "sha256:211d42ef71f676bb26b16fb0feef6ed3db8fc9ec7c99033ce074e8a66458d676",
       "layout/digital/sta-decimator.report.json": "sha256:f39a9fcbc1220744fd0496aba1a68f366bcbe20aad736b8172032f05d06c57e2",
       "rtl/decimator.v": "sha256:2a77b51270910bdee6cfa421af221768bbd1dc0d9ca1afd69580b2f9c69b7376",
-      "sim/bmodel/model.py": "sha256:04b9b299a656b039333baad926f3b0f35d67ce807d0885541beb1a5e4edd6ec2",
-      "sim/bmodel/records/20261113T142853Z-f8b2fa44.json": "sha256:c2136d1f327973dbf05d8a39326c644641744f563c14675c0dc3ba6d8e34ab41",
-      "sim/ota-settling/record-i51-rcm2M-cff100f.json": "sha256:c8f25c25f37cb18478240e025ed41b7521fc759e486f3899d310328ba729cdd8",
+      "sim/bmodel/item5-model-run.json": "sha256:c6be230a9ea161591be72ab6e53dfba3dfa27f8e1d9dcd4c11d960fcf3cd5b54",
+      "sim/bmodel/model.py": "sha256:470a03379c7676890f65122a29496faf4ba6701389012ba555b5e85d7f10a839",
+      "sim/bmodel/xcheck-record.json": "sha256:443684806398ac5a1a8e02e5044792c63584187979f669c16d289fee9870d236",
+      "sim/modulator-tran/record.json": "sha256:0c9675afaf63d0ade7e53be629ca04944c386d859c692ee53d04a8e74030c278",
+      "spec/decisions/DR-008-digital-timing-corners.md": "sha256:9fe14c8771e8d077bc477ca63832ca995a5ce635e891779f2c7ced387a5acd2d",
       "verification/decimator/record.json": "sha256:6a772739a0020e2fede4a90d801de3113de559ccdb6b8e93f9fe6495eb42e1bd"
     },
     "pending_issues": [
@@ -197,7 +214,8 @@
       "32",
       "33",
       "35",
-      "131"
+      "138",
+      "148"
     ]
   }
 }
