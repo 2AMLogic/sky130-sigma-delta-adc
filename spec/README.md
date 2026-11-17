@@ -37,6 +37,11 @@ delta-sigma ADC.
     klt-pin reopen trigger's first discharge, at the `0.9.2` pin: the
     first `klt characterize` ground still stands verbatim there; DR-008's
     Decision is unchanged
+  - [DR-008 corrigendum 03](decisions/DR-008-corrigendum-03.md) — the
+    decimator power row named in DR-008's Consequences bullet is owned by
+    #35, not the closed item-5 tracker #33, matching rows 13, 14 and the
+    45-corner power row in `measurements/characterization.md`; DR-008's
+    Decision is unchanged
   - [DR-010](decisions/DR-010-input-sampling-completeness.md) —
     input-sampling completeness line (error ≤ 1e-4 at both amplitudes over
     the DR-002 grid, on the bottom-plate-only reading) and the low-Vth
