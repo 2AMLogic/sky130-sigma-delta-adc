@@ -34,7 +34,10 @@ klt characterize --help` prints exactly the Scope line DR-008 quotes:
 
 > Scope: one corner per invocation, combinational arcs only.
 
-It is **scoped to that pin, and no longer true at klt 0.9.x**. Observed
+It is **scoped to that pin, and no longer true on the host dev build it
+was re-read against** — `klt 0.9.3.dev181+g2f281f0d605c`, a `0.9.3.dev*`
+build rather than a released 0.9.x (released `0.9.2` still prints the
+`0.8.0` Scope line; corrigendum 02 records that re-read). Observed
 2026-11-16 on the host tool (`klt --version` → `klt
 0.9.3.dev181+g2f281f0d605c`), `klt characterize --help` reports:
 
@@ -47,11 +50,11 @@ It is **scoped to that pin, and no longer true at klt 0.9.x**. Observed
 
 So the sequential arcs DR-008 said `klt characterize` "cannot produce" —
 the register-to-register setup/hold constraint arcs the rejection ground
-turned on — are emitted at klt 0.9.x. For completeness, the same `--help`
-still lists what 0.9.x does **not** emit: recovery/removal arcs, async
-set/reset arcs, the `ff`/`latch` state groups, latch time borrowing,
+turned on — are emitted on that dev build. For completeness, the same
+`--help` still lists what it does **not** emit: recovery/removal arcs,
+async set/reset arcs, the `ff`/`latch` state groups, latch time borrowing,
 min-pulse-width. The one-corner-per-invocation clause of the ground still
-holds at 0.9.x.
+holds there.
 
 ## What is unchanged
 
@@ -84,18 +87,21 @@ superseding record, either that it still stands at the new pin (quoting the
 new pin's `klt characterize --help` Scope line) or what the new pin changes
 about it. The record carrying the re-read cites the klt version observed and
 the date. The staleness this trigger guards against is not hypothetical: it
-was observed pre-emptively at klt 0.9.x, as quoted above, while this repo's
-pin was still 0.8.0. This corrigendum is itself the first record in that
-series: it re-read the ground at klt 0.9.x and finds the combinational-arcs
-clause no longer holds there, while the rejection itself still stands on the
-third ground.
+was observed pre-emptively on the host dev build quoted above, while this
+repo's pin was still 0.8.0. This corrigendum is itself the first record in
+that series: it re-read the ground on a host dev build
+(`0.9.3.dev181+g2f281f0d605c`) and finds the combinational-arcs clause no
+longer holds there, while the rejection itself still stands on the third
+ground. (The trigger's first discharge, at the next pin, is corrigendum 02:
+released `0.9.2` still prints the `0.8.0` Scope line.)
 
 ## Provenance
 
 - Verified against `origin/main` @ `22c56af`, 2026-11-16, by Builder on
   issue #227: `.github/klt-version` reads `0.8.0`; `uvx --from
   "klayout-tools==0.8.0" klt characterize --help` prints the Scope line
-  DR-008 quotes; the host klt prints the 0.9.x Scope line quoted above;
+  DR-008 quotes; the host klt prints the `0.9.3.dev181+g2f281f0d605c`
+  Scope line quoted above;
   `python3 -I attestation/item8_envelope.py --check` passes with DR-008
   byte-identical and no envelope regeneration.
 - Discovered during Judge evaluation of PR #156; tracked as issue #227.
