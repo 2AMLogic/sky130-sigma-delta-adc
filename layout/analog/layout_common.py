@@ -378,10 +378,13 @@ class Router:
         self.trunk_y: dict[tuple[str, float], list[float]] = defaultdict(list)
         self.via1_y: dict[tuple[str, float], list[float]] = defaultdict(list)
         self.wire_um: dict[str, float] = defaultdict(float)
-        #: Every routed rectangle, keyed by (net, layer).  Populated only by
-        #: ``add_shape`` calls that name a net -- the OTA generator names
-        #: none, so its dict stays empty; the integrator reads it back after
-        #: the fact, in ``summing_node_report()``.
+        #: Every routed rectangle, keyed by (net, layer).  ``add_shape`` tags
+        #: only when a net is named; the shared ``finish_trunks`` always names
+        #: one, so every cell's met2 trunks land here.  Tagging on the other
+        #: layers is caller-dependent: only the integrator's ``add_met1``/
+        #: ``add_met`` overrides name nets there, so met1 and met3/met4
+        #: entries are integrator-only.  The integrator reads the dict back
+        #: after the fact, in ``summing_node_report()``.
         self.by_net: dict[tuple[str, tuple[int, int]], list[Rect]] = defaultdict(list)
 
     # -- geometry bookkeeping -------------------------------------------------
