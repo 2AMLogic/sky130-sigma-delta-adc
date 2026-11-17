@@ -13,12 +13,14 @@ and nothing is edited in a GUI.
     python3 layout/analog/integrator/gen_integrator.py --check  # regenerate into a
                                                                 # temp dir, compare
 
-Reference netlist: ``design/integrator/integrator.spice`` -- 44 primitive
-device lines (7 ``nfet_01v8``, 14 ``nfet_01v8_lvt``, 7 ``pfet_01v8``, 10
+Reference netlist: ``design/integrator/integrator.spice`` -- 50 primitive
+device lines (8 ``nfet_01v8``, 14 ``nfet_01v8_lvt``, 8 ``pfet_01v8``, 14
 ``pfet_01v8_lvt``, 6 ``cap_mim_m3_1``; issue #129 moved the four ``Sin``
-halves to the low-Vth flavours) plus the ``xota`` instance of
+halves to the low-Vth flavours, #147 added the ``Sci``/``Scr`` PMOS halves
+and the ``phi1eb`` inverter pair) plus the ``xota`` instance of
 ``ota_fd``.  Ports: ``vdda vssa vinp vinn vrefp vrefn vcm ibias phi1 phi1b
-phi1e phi2 dp dn voutp voutn``.  Sizing rationale:
+phi1e phi2 dp dn voutp voutn`` (``phi1eb`` is generated in-cell, not a
+port).  Sizing rationale:
 ``design/integrator/SIZING.md``.  PDK pin: ``sim/pdk.json`` (sky130A, open_pdks
 ``f6eeac7``), resolved from ``~/.ciel`` unless ``--pdk-root`` says otherwise.
 
@@ -30,7 +32,7 @@ it in turn follows the pinned ``2AMLogic/sky130-comparator`` at
   transistor and one ``cap_array`` unit per netlist capacitor, so the drawn
   device count equals the netlist's line for line.  Blocks that share a
   geometry share one ``klt gen`` call (the report is referenced by several
-  ``blocks[]`` entries) -- 11 calls cover all 44 devices.
+  ``blocks[]`` entries) -- 11 calls cover all 50 devices.
 * **The OTA is instantiated, never redrawn**: a ``blocks[].cell`` entry naming
   ``layout/analog/ota_fd/ota_fd.gds`` / cell ``ota_fd``, whose sha256 this
   script asserts before it runs.  Its eight ports are recovered with
@@ -150,7 +152,7 @@ OTA_GDS_SHA256 = "27ace056b255428e05c0fd6293dd08239fe97ba67379f6a330c30a94eeefe9
 #: netlist moved underneath it is stale, not merely out of date.  Same
 #: `integrator_netlist_sha256` convention the `sim/` records use.
 NETLIST_REL = "../../../design/integrator/integrator.spice"
-NETLIST_SHA256 = "00df9de0d8b62508719df5a1e8af02f9eb31fd1db44eda8b28cbb90b72003eda"
+NETLIST_SHA256 = "6857c4ca5422d9736e6e18a898ab873a7fab9cc1bc89e3e395abe55ab66e1c9d"
 
 #: The OTA's eight `.subckt` ports, as `met1.pin` label text in its stream, and
 #: the integrator net each one is.  `inp`/`inn` are the OTA's *inputs*: the OTA
@@ -225,11 +227,14 @@ GEOMETRIES: dict[str, tuple[str, dict]] = {
     "pl24": ("mos_array", {
         "w_um": 24.0, "l_um": 0.35, "fingers": 1, "rows": 1, "cols": 1,
         "dummy": 0, "flavor": "pfet", "gate_contact": True}),
-    # low-Vth pFET top-plate switch (W=4, L=0.35) -- needs the lvtn marker
+    # low-Vth pFET top-plate switch half (W=4, L=0.35) -- the Sti/Str
+    # precedent, also drawn for the #147 Sci/Scr PMOS halves; needs the
+    # lvtn marker
     "pl4": ("mos_array", {
         "w_um": 4.0, "l_um": 0.35, "fingers": 1, "rows": 1, "cols": 1,
         "dummy": 0, "flavor": "pfet", "gate_contact": True}),
-    # phi2b inverter, mult=4 drawn as 4 fingers of the netlist's own W
+    # clock-inverter halves (the phi2b pair, the #147 phi1eb pair), mult=4
+    # drawn as 4 fingers of the netlist's own W
     "inv_n": ("mos_array", {
         "w_um": 2.0, "l_um": 0.15, "fingers": 4, "rows": 1, "cols": 1,
         "dummy": 0, "flavor": "nfet", "gate_contact": True}),
@@ -258,8 +263,8 @@ LVT_GEOMETRIES = ("nl4", "nl12", "pl8", "pl24", "pl4")
 # design/integrator/SIZING.md:72-74.
 #
 # `p` blocks carry the p-side suffix, `n` blocks the n-side one; every entry
-# below has a mirror-image partner except the phi2b inverter, which is single
-# ended and sits in its own row outside the mirrored field.
+# below has a mirror-image partner except the phi2b and phi1eb inverters,
+# which are single ended and sit in their own rows outside the mirrored field.
 DEVICES: dict[str, tuple[str, dict[str, str]]] = {
     # -- p side, nFET ----------------------------------------------------------
     "sin_p_n":  ("nl4",  {"D": "vinp", "G": "phi1", "S": "bpi_p"}),
@@ -279,6 +284,8 @@ DEVICES: dict[str, tuple[str, dict[str, str]]] = {
     "sr_p_p":   ("p8",   {"D": "rsel_p", "G": "phi1b", "S": "bpr_p"}),
     "sbi_p_p":  ("pl24", {"D": "bpi_p", "G": "phi2b", "S": "vcm"}),
     "sbr_p_p":  ("pl24", {"D": "bpr_p", "G": "phi2b", "S": "vcm"}),
+    "sci_p_p":  ("pl4",  {"D": "tpi_p", "G": "phi1eb", "S": "vcm"}),
+    "scr_p_p":  ("pl4",  {"D": "tpr_p", "G": "phi1eb", "S": "vcm"}),
     "sti_p_p":  ("pl4",  {"D": "tpi_p", "G": "phi2b", "S": "sump"}),
     "str_p_p":  ("pl4",  {"D": "tpr_p", "G": "phi2b", "S": "sump"}),
     # -- p side, capacitors ----------------------------------------------------
@@ -303,13 +310,17 @@ DEVICES: dict[str, tuple[str, dict[str, str]]] = {
     "sr_n_p":   ("p8",   {"D": "rsel_n", "G": "phi1b", "S": "bpr_n"}),
     "sbi_n_p":  ("pl24", {"D": "bpi_n", "G": "phi2b", "S": "vcm"}),
     "sbr_n_p":  ("pl24", {"D": "bpr_n", "G": "phi2b", "S": "vcm"}),
+    "sci_n_p":  ("pl4",  {"D": "tpi_n", "G": "phi1eb", "S": "vcm"}),
+    "scr_n_p":  ("pl4",  {"D": "tpr_n", "G": "phi1eb", "S": "vcm"}),
     "sti_n_p":  ("pl4",  {"D": "tpi_n", "G": "phi2b", "S": "sumn"}),
     "str_n_p":  ("pl4",  {"D": "tpr_n", "G": "phi2b", "S": "sumn"}),
     # -- n side, capacitors ----------------------------------------------------
     "csi_n":    ("cap1p", {"TOP": "tpi_n", "BOT": "bpi_n"}),
     "csr_n":    ("cap1p", {"TOP": "tpr_n", "BOT": "bpr_n"}),
     "ci_n":     ("cap2p", {"TOP": "sumn", "BOT": "voutn"}),
-    # -- the phi2b inverter (single ended, mult=4 each) ------------------------
+    # -- the clock inverters (single ended, mult=4 each) ------------------------
+    "iphi1eb_n": ("inv_n", {"D": "phi1eb", "G": "phi1e", "S": "vssa"}),
+    "iphi1eb_p": ("inv_p", {"D": "vdda", "G": "phi1e", "S": "phi1eb"}),
     "iphi2b_n": ("inv_n", {"D": "phi2b", "G": "phi2", "S": "vssa"}),
     "iphi2b_p": ("inv_p", {"D": "vdda", "G": "phi2", "S": "phi2b"}),
 }
@@ -355,14 +366,14 @@ HALF_ROWS: list[tuple[str, float, str, tuple[str, ...]]] = [
     ("nfet", 11.0, "left", ("mra_{s}_n", "mrb_{s}_n", "sin_{s}_n", "sr_{s}_n",
                             "sbi_{s}", "sbr_{s}", "sci_{s}", "scr_{s}")),
     ("pfet", 13.0, "left", ("mra_{s}_p", "mrb_{s}_p", "sin_{s}_p", "sr_{s}_p",
-                            "sbi_{s}_p", "sbr_{s}_p")),
+                            "sbi_{s}_p", "sbr_{s}_p", "sci_{s}_p", "scr_{s}_p")),
 ]
 
-#: The two inverter rows, beyond the p-side `pfet` row, outside the mirrored
-#: field (the inverter is single ended, so it has no mirror partner).
+#: The inverter rows, beyond the p-side `pfet` row, outside the mirrored
+#: field (each inverter is single ended, so it has no mirror partner).
 INV_ROWS: list[tuple[str, float, str, tuple[str, ...]]] = [
-    ("inv_n", 13.0, "left", ("iphi2b_n",)),
-    ("inv_p", 9.0, "left", ("iphi2b_p",)),
+    ("inv_n", 13.0, "left", ("iphi1eb_n", "iphi2b_n")),
+    ("inv_p", 9.0, "left", ("iphi1eb_p", "iphi2b_p")),
 ]
 
 #: Which rows each ring encloses.  One ring per (flavour, half-row, side),
@@ -402,7 +413,7 @@ NET_ORDER = (
     "bpi_p", "bpi_n", "bpr_p", "bpr_n",
     "rsel_p", "rsel_n",
     "voutp", "voutn",
-    "phi1e", "phi2b", "phi1", "phi1b", "phi2",
+    "phi1e", "phi1eb", "phi2b", "phi1", "phi1b", "phi2",
     "dp", "dn", "vinp", "vinn", "vrefp", "vrefn",
     "vcm", "ibias", "vssa", "vdda",
 )
@@ -417,22 +428,23 @@ NET_ORDER = (
 #: curator probe that found `klt extract --deck sky130` ignoring an `lvtn`
 #: marker; on this cell's geometry it does not -- the extracted netlist names
 #: `sky130_fd_pr__nfet_01v8_lvt` and `sky130_fd_pr__pfet_01v8_lvt` and gets
-#: all twenty-four right (14 nfet + 10 pfet since #129 moved the `Sin` halves
-#: to the low-Vth flavours).  See this directory's README for the difference
-#: between the two probes.  Asserting the stronger thing is the point of the
-#: check, so it asserts the stronger thing.
+#: all twenty-eight right (14 nfet + 14 pfet since #147 added the `Sci`/`Scr`
+#: PMOS halves; #129 moved the `Sin` halves to the low-Vth flavours).  See
+#: this directory's README for the difference between the two probes.
+#: Asserting the stronger thing is the point of the check, so it asserts the
+#: stronger thing.
 EXPECTED_DEVICES = {
-    "sky130_fd_pr__nfet_01v8": 7,
+    "sky130_fd_pr__nfet_01v8": 8,
     "sky130_fd_pr__nfet_01v8_lvt": 14,
-    "sky130_fd_pr__pfet_01v8": 7,
-    "sky130_fd_pr__pfet_01v8_lvt": 10,
+    "sky130_fd_pr__pfet_01v8": 8,
+    "sky130_fd_pr__pfet_01v8_lvt": 14,
     "sky130_fd_pr__cap_mim_m3_1": 6,
 }
 
 #: The flavour-blind totals the issue's own acceptance criterion asks for,
 #: recorded beside the per-model counts so the committed evidence answers the
 #: criterion as written as well as the stronger question.
-EXPECTED_FLAVOUR_BLIND = {"nfet": 21, "pfet": 17, "cap_mim": 6}
+EXPECTED_FLAVOUR_BLIND = {"nfet": 22, "pfet": 22, "cap_mim": 6}
 
 
 def sha256_of(path: Path) -> str:
@@ -667,9 +679,9 @@ def build_floorplan(reports: dict[str, dict]) -> tuple[dict[str, Block],
                 min(b["x0"] for b in boxes), min(b["y0"] for b in boxes),
                 max(b["x1"] for b in boxes), max(b["y1"] for b in boxes))
 
-    # -- the two inverter rows, above the p-side field ------------------------
-    # The phi2b inverter is single ended, so it has no mirror partner and sits
-    # outside the mirrored field rather than unbalancing one of its rows.
+    # -- the inverter rows, above the p-side field -----------------------------
+    # Each clock inverter is single ended, so it has no mirror partner and
+    # sits outside the mirrored field rather than unbalancing one of its rows.
     inv_offset = half_height
     for base, gap, _align, members in INV_ROWS:
         inv_offset += gap
@@ -992,8 +1004,8 @@ def capacitor_report(blocks: dict[str, Block], axis_y: float) -> dict:
 #: The two nodes DR-004 names as the most sensitive on the die.
 SUMMING_NETS = ("sump", "sumn")
 #: Every net that carries a clock edge in this cell, including the internally
-#: inverted `phi2b`.
-CLOCK_NETS = ("phi1", "phi1b", "phi1e", "phi2", "phi2b")
+#: inverted `phi2b` and `phi1eb`.
+CLOCK_NETS = ("phi1", "phi1b", "phi1e", "phi1eb", "phi2", "phi2b")
 #: How close a clock run may come to a summing-node run, on the same layer,
 #: before this script calls it "beside" and the README has to name it.
 SHIELD_CLEARANCE_UM = 1.0
@@ -1543,13 +1555,14 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path, cell_dir: Path,
             "klt extract over layout/analog/integrator/integrator.gds, which "
             "the extractor flattens through the placed ota_fd instance, minus "
             "klt extract over the committed layout/analog/ota_fd/ota_fd.gds on "
-            "its own in the same run. The difference is this cell's own 44 "
+            "its own in the same run. The difference is this cell's own 50 "
             "devices. Counts are merged first (devices sharing a model and all "
             "terminals, after normalising the terminals a device is symmetric "
             "in), which is what an LVS combine-parallel-devices pass does and "
-            "what makes the 4-finger phi2b inverter devices count once each."),
+            "what makes the 4-finger phi2b/phi1eb inverter devices count once "
+            "each."),
         "comparison_basis": (
-            "merged_counts(integrator) - merged_counts(ota_fd) vs the 44 "
+            "merged_counts(integrator) - merged_counts(ota_fd) vs the 50 "
             "primitive X-lines of design/integrator/integrator.spice"),
         "expected_own_devices": {**EXPECTED_DEVICES,
                                  "total": sum(EXPECTED_DEVICES.values())},
@@ -1566,8 +1579,9 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path, cell_dir: Path,
             "(125/44) marker drawn over a two-column mos_array. On this cell's "
             "geometry it does not ignore it: the extracted netlist names "
             "sky130_fd_pr__nfet_01v8_lvt and sky130_fd_pr__pfet_01v8_lvt and "
-            "gets all twenty-four right (14 nfet + 10 pfet since #129 moved "
-            "the Sin halves to the low-Vth flavours). The marker here covers a whole "
+            "gets all twenty-eight right (14 nfet + 14 pfet since #147 added "
+            "the Sci/Scr PMOS halves; #129 moved the Sin halves to the "
+            "low-Vth flavours). The marker here covers a whole "
             "single-finger device plus a 0.38um enclosure, which is the "
             "condition klayout-tools#5301 says the deck needs (a marker that "
             "ends inside a shared source/drain diffusion mis-classifies). Both "

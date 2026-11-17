@@ -23,11 +23,11 @@ written through `klt draw` and merged by `klt gen-compose` used as a **placer
 only** (`placement.strategy: "explicit"`, no `routing` block) — the same split
 the sibling `analog/ota_fd/gen_ota_fd.py` documents.
 
-Cell outline **493.67 x 313.32 um** (154,677 um^2), 3965 flattened polygons,
-269,844 bytes (`klt stats`; 3183 polygons / 269,580 bytes before #129 moved
-the `Sin` halves to the low-Vth flavours). The OTA instance is 352.58 x 144.16 um of that, so the
+Cell outline **494.57 x 313.32 um** (154,961 um^2), 4259 flattened polygons,
+289,704 bytes (`klt stats`; 3965 polygons / 269,844 bytes before #147 added
+the `Sci`/`Scr` PMOS halves and the `phi1eb` inverter pair). The OTA instance is 352.58 x 144.16 um of that, so the
 integrator's own device field and routing channel account for roughly the left
-140 um. The cell's bbox starts at x = **-1.67 um**, not 0: the router's met2
+141 um. The cell's bbox starts at x = **-1.67 um**, not 0: the router's met2
 column grid extends two pitches past the leftmost block (the westmost guard
 ring, whose own bbox starts at x = 1.58 um), and four trunks take the columns at
 x = -1.5, -1.0, -0.5 and 0.0. #29 places this cell by its bbox, so the negative
@@ -42,7 +42,7 @@ anything and aborts with a "the geometry here is stale" message if either moved:
 | Input | sha256 |
 |---|---|
 | `layout/analog/ota_fd/ota_fd.gds` (124,534 bytes) | `27ace056b255428e05c0fd6293dd08239fe97ba67379f6a330c30a94eeefe976` |
-| `design/integrator/integrator.spice` | `00df9de0d8b62508719df5a1e8af02f9eb31fd1db44eda8b28cbb90b72003eda` |
+| `design/integrator/integrator.spice` | `6857c4ca5422d9736e6e18a898ab873a7fab9cc1bc89e3e395abe55ab66e1c9d` |
 
 Same `ota_netlist_sha256` / `integrator_netlist_sha256` convention the `sim/`
 records already use, and both are repeated in `extract-device-count.json`. This
@@ -61,7 +61,7 @@ python3 layout/analog/integrator/gen_integrator.py --check    # regenerate into 
 **`--check` is a byte-level comparison** of the regenerated GDS against the
 committed `integrator.gds`, not a `klt diff` geometry comparison. That is a
 stronger assertion and it holds: consecutive runs on this host reproduced the
-committed 269,844-byte stream exactly. The script has no randomness and no
+committed 289,704-byte stream exactly. The script has no randomness and no
 dict-ordering dependence (every iteration order is sorted or table-driven).
 
 **Both checks are local-only; CI does not run them.** `.github/workflows/signoff.yml`
@@ -74,7 +74,7 @@ exactly as it does for `ota_fd` and for the digital partition.
 
 | | |
 |---|---|
-| klt | `0.9.2.dev1022+g2a9c52b27ce7` (`klayout-tools @ git+https://github.com/2AMLogic/klayout-tools@2a9c52b27ce7`) |
+| klt | `0.9.3.dev256+g59096013d161` (`klayout-tools @ git+https://github.com/2AMLogic/klayout-tools@59096013d161e35fffbda0958887b13887cf3fe5`) |
 | klayout | `0.30.13` |
 | PDK | `sky130A`, open_pdks `f6eeac7` (the `sim/pdk.json` pin), resolved from `~/.ciel` |
 
@@ -125,7 +125,7 @@ holds, independent of the klt build used here.
 ## Device groups
 
 One `klt gen` call per distinct geometry; several netlist devices share a
-report, so 44 devices cost 9 `klt gen` calls (plus 10 `guard_ring` calls). Every
+report, so 50 devices cost 11 `klt gen` calls (plus 10 `guard_ring` calls). Every
 netlist device is drawn as its own block — no device is folded into a shared
 array — so the drawn device count equals the netlist's line for line.
 
@@ -138,13 +138,15 @@ array — so the drawn device count equals the netlist's line for line.
 | `Sbi_*`, `Sbr_*`, `Sci_*`, `Scr_*`, `Sti_*`, `Str_*` (12) | `nl12` | `mos_array` | W=12, L=0.15, `nfet` **+ `lvtn` marker** |
 | `Sbi_*_p`, `Sbr_*_p` (4) | `pl24` | `mos_array` | W=24, L=0.35, `pfet` **+ `lvtn` marker** |
 | `Sti_*_p`, `Str_*_p` (4) | `pl4` | `mos_array` | W=4, L=0.35, `pfet` **+ `lvtn` marker** |
-| `Iphi2b_n` (`mult=4`) | `inv_n` | `mos_array` | W=2, L=0.15, **4 fingers** |
-| `Iphi2b_p` (`mult=4`) | `inv_p` | `mos_array` | W=4, L=0.15, **4 fingers** |
+| `Sci_*_p`, `Scr_*_p` (4) | `pl4` | `mos_array` | W=4, L=0.35, 1 finger, `pfet` **+ `lvtn` marker** (the #147 PMOS halves, at the Sti precedent size — same geometry entry as `Sti_*_p`/`Str_*_p`) |
+| `Iphi1eb_n`, `Iphi2b_n` (`mult=4`) | `inv_n` | `mos_array` | W=2, L=0.15, **4 fingers** |
+| `Iphi1eb_p`, `Iphi2b_p` (`mult=4`) | `inv_p` | `mos_array` | W=4, L=0.15, **4 fingers** |
 | `Csi_*`, `Csr_*` (4) | `cap1p` | `cap_array` | one 22.17 x 22.17 um MiM unit |
 | `Ci_*` (2) | `cap2p` | `cap_array` | one 31.43 x 31.43 um MiM unit |
 
 `dummy=0` on every `mos_array`, as in the sibling cell. The only devices the
-netlist gives a `mult` are the two inverter halves, drawn as 4 fingers each of
+netlist gives a `mult` are the four inverter halves (`phi2b` and the #147
+`phi1eb` pair), drawn as 4 fingers each of
 the netlist's own W — so the drawn total width equals the schematic's, and the
 four units merge back to one device in the count (below).
 
@@ -159,11 +161,11 @@ issue against `design/`, not a layout-only change.
 `klt gen mos_array`'s `voltage_flavor` resolves **no** marker on the sky130
 family for any low-Vth name — it accepts `hvi`, `native` and `nvt`, and reports
 `drc_hints.voltage_flavor_mark_present: false` with "no marker was drawn" for
-anything else. So the 24 `_lvt` devices get their `lvtn` (125/44) rectangle
+anything else. So the 28 `_lvt` devices get their `lvtn` (125/44) rectangle
 from this script: one per device, the placed block's own bbox grown by 0.38 um,
 emitted in the same `klt draw` document as the routing. The generator then
 asserts that no marker reaches a device the netlist declares standard-Vth, and
-`route-summary.json` → `lvtn_markers` records all 24 rectangles.
+`route-summary.json` → `lvtn_markers` records all 28 rectangles.
 
 Filed as a tool gap: **2AMLogic/klayout-tools#5607**.
 
@@ -233,7 +235,8 @@ Two honest caveats:
 ## Floorplan
 
 Five half-rows per side, listed from the mirror axis outward, plus two rows for
-the single-ended `phi2b` inverter and the OTA instance to the east.
+the single-ended `phi2b` and `phi1eb` inverters and the OTA instance to the
+east.
 
 | |y - axis| (um) | Row | Blocks | Ring |
 |---|---|---|---|
@@ -241,8 +244,8 @@ the single-ended `phi2b` inverter and the OTA instance to the east.
 | 26.1 – 31.5 | `swp` | `Sti_p`, `Str_p` (pFET low-Vth, W=4) | `ntap_swp_p`/`_n` |
 | 41.5 – 74.9 | `cap` | `Csr`, `Csi`, `Ci` (left to right) | — |
 | 85.9 – 99.0 | `nfet` | `Mra_n`, `Mrb_n`, `Sin_n`, `Sr_n`, `Sbi`, `Sbr`, `Sci`, `Scr` | `ptap_p`/`_n` |
-| 112.0 – 137.4 | `pfet` | `Mra_p`, `Mrb_p`, `Sin_p`, `Sr_p`, `Sbi_p`, `Sbr_p` | `ntap_p`/`_n` |
-| p side only, beyond `pfet` | `inv_n`, `inv_p` | `Iphi2b_n`, `Iphi2b_p` | `ptap_inv`, `ntap_inv` |
+| 112.0 – 137.4 | `pfet` | `Mra_p`, `Mrb_p`, `Sin_p`, `Sr_p`, `Sbi_p`, `Sbr_p`, `Sci_p`, `Scr_p` | `ntap_p`/`_n` |
+| p side only, beyond `pfet` | `inv_n`, `inv_p` | `Iphi1eb_n`, `Iphi2b_n` / `Iphi1eb_p`, `Iphi2b_p` | `ptap_inv`, `ntap_inv` |
 
 **The first two rows exist to keep the summing node short.** Every device on
 `sump`/`sumn` — the four `Sti`/`Str` switch halves per side and the integrating
@@ -250,7 +253,8 @@ capacitor's top plate — is in the three rows nearest the axis, and the two
 switch rows are **right-aligned** against the device field's eastern edge, which
 is the edge the OTA sits beyond. Before that restructuring the switch halves
 were distributed by flavour across the whole field and the two summing nodes
-routed 240.1 / 244.0 um; afterwards they route 130.5 / 134.5 um.
+routed 240.1 / 244.0 um; afterwards they route 130.5 / 134.5 um (120.7 / 133.1
+in the current, post-#147 field).
 
 **Body ties.** Ten `klt gen guard_ring` blocks, one per (flavour, row): an
 `add_well=false` p+ tap ring in the p-substrate around each nFET row, tied to
@@ -262,7 +266,7 @@ committed stream, which it could not do without a contacted tie.
 Inter-block gaps are 14 um, far wider than any DRC minimum. That is a routing
 constraint, not a matching one: the router gives every met2 trunk its own global
 x column on a 0.5 um grid, so the field has to be wide enough to hold one column
-per anchor. 168 columns are reserved (trunks plus riser keep-outs).
+per anchor. 186 columns are reserved (trunks plus riser keep-outs).
 
 ## How the OTA is reached
 
@@ -284,19 +288,19 @@ apart in y at the closest, against a 0.9 um met3 pitch, so the eight runs cannot
 collide; the columns are assigned west-to-east in descending landing y, so a
 column never lies under a higher landing's own run.
 
-The instance origin is (138.72, 40.80); the landings below are in the composed
+The instance origin is (139.62, 40.80); the landings below are in the composed
 frame, listed in the order the escape columns are assigned (descending y):
 
 | OTA port | Integrator net | Landing x, y (um) |
 |---|---|---|
-| `vdda` | `vdda` | 142.07, 170.85 |
-| `inn` | `sump` | 145.57, 148.20 |
-| `outp` | `voutp` | 154.07, 141.70 |
-| `inp` | `sumn` | 145.37, 138.65 |
-| `outn` | `voutn` | 157.87, 132.65 |
-| `vssa` | `vssa` | 142.57, 130.25 |
-| `vcm` | `vcm` | 175.04, 118.55 |
-| `ibias` | `ibias` | 143.57, 115.05 |
+| `vdda` | `vdda` | 142.97, 170.85 |
+| `inn` | `sump` | 146.47, 148.20 |
+| `outp` | `voutp` | 154.97, 141.70 |
+| `inp` | `sumn` | 146.27, 138.65 |
+| `outn` | `voutn` | 158.77, 132.65 |
+| `vssa` | `vssa` | 143.47, 130.25 |
+| `vcm` | `vcm` | 175.94, 118.55 |
+| `ibias` | `ibias` | 144.47, 115.05 |
 
 (`route-summary.json` → `ota` carries these, the instance origin, and
 `gen-compose`'s own `source_digest` of the stream it read.)
@@ -335,7 +339,7 @@ Three planes, the same split the sibling cell uses:
   onto a pad is met1; met2 carries per-anchor vertical trunks and nothing else.
 - **One global x column per trunk.** Columns sit on a 0.5 um grid and a trunk
   owns its column outright, so two met2 runs can never come within a pitch of
-  each other and no met2–met2 spacing search is needed. 168 columns are
+  each other and no met2–met2 spacing search is needed. 186 columns are
   reserved (trunks plus riser keep-outs).
 - **met3/met4 risers.** `cap_array` reports its bottom plate on met3 and its top
   plate on met4, so each capacitor terminal gets a same-layer run out of the
@@ -360,7 +364,7 @@ re-asserted: they shift with the klt deck build.
 `layers_in_stream_without_rules` (drawn, no rule) is `66/13` (the resistor-ID
 marker, which comes in with the OTA instance) and `68/5` (`met1.pin`, the port
 labels); `rules_skipped` is 51, all no-applicable-geometry angle/ongrid/width
-rules on layers absent from this stream. The 20 `lvtn` rectangles **are**
+rules on layers absent from this stream. The 28 `lvtn` rectangles **are**
 checked (`lvtn.angle.1`, `lvtn.ongrid.1`).
 
 This is klt's curated deck, **not** the foundry-complete deck, and not the same
@@ -378,14 +382,14 @@ The difference is this cell's own devices:
 
 | Netlist model | Netlist | Extracted |
 |---|---|---|
-| `sky130_fd_pr__nfet_01v8` | 7 | **7** |
+| `sky130_fd_pr__nfet_01v8` | 8 | **8** |
 | `sky130_fd_pr__nfet_01v8_lvt` | 14 | **14** |
-| `sky130_fd_pr__pfet_01v8` | 7 | **7** |
-| `sky130_fd_pr__pfet_01v8_lvt` | 10 | **10** |
+| `sky130_fd_pr__pfet_01v8` | 8 | **8** |
+| `sky130_fd_pr__pfet_01v8_lvt` | 14 | **14** |
 | `sky130_fd_pr__cap_mim_m3_1` | 6 | **6** |
-| total | 44 | **44** |
+| total | 50 | **50** |
 
-matching `design/integrator/integrator.spice`'s 44 primitive `X` lines exactly,
+matching `design/integrator/integrator.spice`'s 50 primitive `X` lines exactly,
 plus the OTA's own 29 devices through its instance.
 
 **This is stronger than #119's acceptance criterion, and the criterion's premise
@@ -395,14 +399,15 @@ that found `klt extract --deck sky130` reporting an `lvtn` marker as
 recognition-only and classifying marked and unmarked arrays identically. On this
 cell's geometry it does not: the extracted netlist names
 `sky130_fd_pr__nfet_01v8_lvt` and `sky130_fd_pr__pfet_01v8_lvt` and gets all
-twenty-four right (14 nfet + 10 pfet since #129 moved the `Sin` halves). The likely difference is the marker's extent —
+twenty-eight right (14 nfet + 14 pfet; #129 moved the `Sin` halves, #147 added
+the `Sci`/`Scr` PMOS halves). The likely difference is the marker's extent —
 2AMLogic/klayout-tools#5301 records that the sky130 deck decides flavour by
 channel overlap and mis-classifies a marker that ends inside a shared
 source/drain diffusion, and the probe used a two-column array while every marker
 here covers one whole single-finger device plus a 0.38 um enclosure.
 `extract-device-count.json` records **both** results: the per-model counts under
 `found_own_devices`, with `lvt_split_confirmed_by_extraction: true`, and the
-criterion as written under `flavour_blind_check` (21 / 17 / 6, also passing).
+criterion as written under `flavour_blind_check` (22 / 22 / 6, also passing).
 No regression report was filed upstream against the closed
 klayout-tools#5283/#5301, because the behaviour those describe did not reproduce
 here.
@@ -410,8 +415,8 @@ here.
 Counts are **merged** first — devices sharing a model and all terminals, after
 normalising the terminals a device is symmetric in — which is what an LVS
 combine-parallel-devices pass does, and what makes each 4-finger inverter half
-count once. `raw_counts` records the unmerged figures beside them (62
-`nfet_01v8` and 43 `pfet_01v8` across the whole stream, OTA included), so the
+count once. `raw_counts` records the unmerged figures beside them (64
+`nfet_01v8` and 45 `pfet_01v8` across the whole stream, OTA included), so the
 merge is visible rather than silent.
 
 ### Pins
@@ -431,7 +436,7 @@ grouping; a label that landed on metal its net does not own would break it.
 
 ### Net count
 
-The extracted netlist has **42** distinct device-terminal nets: this cell's 29
+The extracted netlist has **43** distinct device-terminal nets: this cell's 30
 schematic nets plus the OTA's 21, less the 8 they share. A terminal the router
 left dangling still extracts, as an extra node on an otherwise correct device,
 so the device count alone cannot see it; this count can.
@@ -440,41 +445,47 @@ so the device count alone cannot see it; this count can.
 
 `route-summary.json` → `summing_nodes` records the whole of the following.
 
-**Drawn lengths: `sump` 130.485 um, `sumn` 134.475 um** — a 3.0 % difference.
+**Drawn lengths: `sump` 120.695 um, `sumn` 133.075 um** — a 9.3 % difference.
 Both are shorter than every other multi-anchor net in the cell. The full ranking
 is `ibias` (16.2, one anchor — it has no device in this cell and only reaches
-the OTA), `vinp` (34.3), `vinn` (40.7), then **`sump` and `sumn`**, then
-`voutn` (144.1) and everything else up to `vcm` (1508.5). So the claim that
+the OTA), `vinp` (38.6), `vinn` (40.6), then **`sump` and `sumn`**, then
+`voutn` (143.0) and everything else up to `vcm` (1954.7). So the claim that
 holds, and the one the generator can support, is: *the two summing nodes are the
-shortest nets in the cell that connect more than three anchors, and they are
-symmetric to 3 %.* The residual asymmetry is the router's greedy column and
-track choice — `sump` is routed first and takes the better columns — not a
-floorplan asymmetry: the capacitor and switch placements are exact mirrors
-(above), and the OTA's `inn`/`inp` are equidistant from the axis by construction.
+shortest nets in the cell that connect more than three anchors.* The asymmetry
+between them grew from 3 % (pre-#147) to 9.3 % when the field widened: the two
+rows the extra `Sci`/`Scr` PMOS halves joined are left-aligned, so the pfet row
+became the widest row and the whole field grew 0.9 um east — and `sump`, routed
+first, kept more of the short-column advantage than `sumn`. The asymmetry is
+the router's greedy column and track choice, not a floorplan asymmetry: the
+capacitor and switch placements are exact mirrors (above), and the OTA's
+`inn`/`inp` are equidistant from the axis by construction.
 
 **Clock proximity is disclosed, not shielded.** Nothing in this cell is
 shielded, so every place a clock run comes within 1.0 um of a summing-node run
 on the same layer, or crosses one on a different layer, is listed here and in
-the committed summary:
+the committed summary. `phi1eb` — the #147 local complement that gates the
+`Sci`/`Scr` PMOS halves — is a clock net like the others and is disclosed the
+same way:
 
-*Beside* — four met1 adjacencies, all against `phi2`:
+*Beside* — two met1 adjacencies, both against `phi1eb`:
 
 | Summing net | Clock | Layer | Gap |
 |---|---|---|---|
-| `sumn` | `phi2` | met1 | 0.180 um |
-| `sumn` | `phi2` | met1 | 0.211 um |
-| `sump` | `phi2` | met1 | 0.320 um |
-| `sump` | `phi2` | met1 | 0.320 um |
+| `sump` | `phi1eb` | met1 | 0.160 um |
+| `sump` | `phi1eb` | met1 | 0.160 um |
 
-*Over* — fifteen orthogonal met1/met2 crossings, 0.1156 um^2 each (a 0.34 x
-0.34 um overlap): `sump`/`sumn` against `phi2` (6), `phi2b` (5) and `phi1e` (4).
+*Over* — nineteen orthogonal met1/met2 crossings (16 of 0.1156 um^2 — a 0.34 x
+0.34 um overlap — one of 0.0986 and two of 0.0782): `sump`/`sumn` against
+`phi2` (8), `phi1eb` (5), `phi2b` (4) and `phi1e` (2).
 
 `phi2` is the phase that closes `Sti`/`Str` onto the summing node, so a `phi2`
 coupling injects while the summing node is already connected to the amplifier
 rather than during the hold — which is the less damaging of the two cases, but
-it is not nothing, and no number here says how much charge it is. **Quantifying
-it is parasitic extraction's job (#35), not this cell's**; what this cell owes
-is the list, and the list is above.
+it is not nothing, and no number here says how much charge it is. `phi1eb`
+couples to `sump` while the top plate is being driven to `vcm` through the
+`Sci`/`Scr` half it gates, i.e. during the reset, not the hold. **Quantifying
+any of it is parasitic extraction's job (#35), not this cell's**; what this
+cell owes is the list, and the list is above.
 
 ## What this cell does *not* claim
 
