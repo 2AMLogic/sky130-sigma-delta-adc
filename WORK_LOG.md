@@ -4,6 +4,7 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-17
 
+- **Issue #169** (closed): Confirm klayout-tools#1962 actually describes the #121 blocker that parks analog items 2, 3, 4, 7, 11
 - **PR #298**: docs: sync ROADMAP T1 counts and row states to the verdict of record, gate prose counts in CI
 - **Issue #221** (closed): ROADMAP.md T1 counts and row 4 are stale vs the verdict of record; nothing in CI gates a prose count
 - **PR #300**: docs: prune landed rows and stale klt-pin prose from ROADMAP's Now table
