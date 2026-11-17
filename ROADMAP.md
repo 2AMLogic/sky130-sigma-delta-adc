@@ -39,29 +39,14 @@ Evidence on `main` that does not yet move a row:
   the low-Vth PMOS switch halves (#93, #99), charge injection (#111), and comparator
   decision time, offset, hysteresis and kickback (#151).
 - `ota_fd` generated GDS, DRC-clean on the curated deck, device count matching the
-  netlist (`layout/analog/ota_fd/`), built with a newer klt than the 0.8.0 CI pin.
-
-`README.md` still says "there is no transistor-level modulator yet"; that is stale
-(see Now).
+  netlist (`layout/analog/ota_fd/`), built with a klt newer than the CI pin
+  (`.github/klt-version`).
 
 ## Now (can start today, or already in a pull request)
 
 | What | Done when | Issue | State |
 |---|---|---|---|
-| Integrator cell GDS, instantiating `ota_fd` | generated stream under `layout/analog/` with a `--check` regeneration, DRC report and device-count record | #119 | building |
-| Short full-modulator transistor-level transient on the DR-002 anchors | bench and record committed with power and swing per anchor | #125 | PR #149, changes requested, CI red |
-| OTA DC gain and integrator thermal noise over the 45 corners | record committed as model B parameters | #126 | PR #139 in review |
-| `Sin` input-sampling completeness over PVT | record and Ron-vs-input curve committed | #106 | PR #130, changes requested, conflicted |
-| Decimator STA with a propagated clock | `sta-decimator.report.json` reads a propagated clock mode; hold verdict includes clock-tree latency | #136 | PR #154 in review |
-| Record the digital-timing corner set and the 35-corner gap | spec text or decision record names the declared corners and what is uncovered | #131 | PR #156, changes requested, conflicted |
-| Comparator trip staircase that brackets at sf/1.620 V/-40 C | `sim/comparator-decision/record.json` brackets the trip point at that corner | #150 | triage; its cited blocker (PR #151) has merged |
-| `ota_fd` MiM plate orientation and README row table | cap-group terminals match the netlist order; regenerated stream passes `--check` | #146 | labelled blocked; its cited blocker (PR #141) has merged |
-| Define the manifest `content_hash` for the item-8 envelope | the meaning is written down and the manifest value re-hashes | #155 | triage |
-| Decimator LVS, digital only (item 4) | `klt lvs` report on `decimator.gds` against `decimator_pnr.v` reads `status: match`, `power_connectivity` not `mismatch`; manifest cites `4.digital` | none (seed 1) | not filed; split from #32 as #82 was from #31 |
-| SDF-annotated decimator re-run, digital only (item 7) | `klt functional-verification` report with `environment.sdf.annotated: true`; manifest cites `7.digital` | none (seed 2) | not filed; split from #35 |
-| README status and maturity position | status paragraph matches the verdict of record; item-10 envelope re-attested | none (seed 3) | not filed |
-
-Housekeeping already in pull requests: #152 (PR #157), #105 (PR #145), #103 (PR #133).
+| Comparator trip staircase that brackets at sf/1.620 V/-40 C | `sim/comparator-decision/record.json` brackets the trip point at that corner | #150 | PR #199 approved, held on a maintainer merge decision |
 
 ## Next (unblocked by a named item above)
 
@@ -99,8 +84,9 @@ Housekeeping already in pull requests: #152 (PR #157), #105 (PR #145), #103 (PR 
 - **How is digital timing graded at the 35 DR-002 points with no liberty file?**
   `sky130_fd_sc_hd` ships no `sf`/`fs` corner and nothing above 100 C (#131).
 - **Which klt pin grades the analog layout?** `ota_fd` was generated with a klt
-  newer than the 0.8.0 CI pin; stream and envelopes must be regenerated when the
-  pin moves, before an item-2 analog envelope can be cited.
+  newer than the CI pin (`.github/klt-version`); stream and envelopes must be
+  regenerated when the pin catches up, before an item-2 analog envelope can be
+  cited.
 
 ## Blocked and waiting
 
@@ -118,9 +104,9 @@ Housekeeping already in pull requests: #152 (PR #157), #105 (PR #145), #103 (PR 
 - **klayout-tools#5550**: the functional-verification report carries no provenance
   block, so the manifest pins no `content_hash` for that citation.
 
-No open issue is labelled ready for a builder today: everything open is in
-progress, parked, or awaiting curation. The three unfiled Now items can be drawn
-without waiting on anything.
+Which open issues are ready for a builder is the label-generated queue in
+`WORK_PLAN.md`, regenerated from the forge labels; this file asserts no snapshot
+of that state here. The holds above need a human decision, not a label change.
 
 ## Not planned
 
