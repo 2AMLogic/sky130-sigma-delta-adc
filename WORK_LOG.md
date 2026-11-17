@@ -4,6 +4,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-17
 
+- **PR #298**: docs: sync ROADMAP T1 counts and row states to the verdict of record, gate prose counts in CI
+- **Issue #221** (closed): ROADMAP.md T1 counts and row 4 are stale vs the verdict of record; nothing in CI gates a prose count
 - **PR #300**: docs: prune landed rows and stale klt-pin prose from ROADMAP's Now table
 - **Issue #297** (closed): ROADMAP.md residual prose drift: Now-table rows for landed work and stale klt 0.8.0 pin mentions
 - **PR #295**: docs: add DR-008 corrigendum 03 and re-point the STA-gap citation off closed #131
