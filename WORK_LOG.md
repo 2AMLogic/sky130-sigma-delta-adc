@@ -4,6 +4,9 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-17
 
+- **PR #295**: docs: add DR-008 corrigendum 03 and re-point the STA-gap citation off closed #131
+- **PR #292**: chore(loom): resync installed Loom to v0.19.1306
+- **PR #289**: fix(integrator-layout): route sump/sumn as a matched pair, gating 3% symmetry
 - **PR #291**: docs: re-point characterization's closed-#33 citations at open owners
 - **PR #287**: docs: point GEOMETRIES comment at extract-device-count.json instead of stale counts
 - **PR #285**: docs: refresh integrator section of layout/README.md from committed post-#274 artifacts
@@ -12,6 +15,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 - **PR #280**: fix: fail signoff gate when a tracked Python file cannot parse
 - **PR #278**: fix: set the tg half-current sum bound to 1e-4 relative, clear of the print floor
 - **PR #273**: ci: fail signoff on undefined names via pinned pyflakes
+- **Issue #293** (closed): Closed-issue citations outside characterization.md: DR-008 consequence prose, item9-inventory, ROADMAP, and the #131 line-17 citation
+- **Issue #284** (closed): The integrator's summing-node routing symmetry dropped from 3% to 9.3% when the #147 field widened, and nothing tracks recovering it
 - **Issue #288** (closed): Re-grade characterization rows after #33's closure (curator verdict of record) — unblocks PR #213's cited-issue CI
 - **Issue #286** (closed): gen_integrator.py's GEOMETRIES comment still says "44 devices cost 9 klt gen calls" (now 50 / 11)
 - **Issue #282** (closed): layout/README.md's integrator section has been stale since #129 and nothing tracks it
