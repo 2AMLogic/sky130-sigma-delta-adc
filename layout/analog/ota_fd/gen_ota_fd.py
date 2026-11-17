@@ -52,12 +52,8 @@ which is what ``--check`` asserts.
 """
 from __future__ import annotations
 
-import argparse
 import json
-import shutil
 import sys
-import tempfile
-import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -67,11 +63,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_MET2,
-                           PDK_ROOT_DEFAULT, PDK_VARIANT, TRACK_PITCH_UM,
-                           TRUNK_PITCH_UM, Anchor, PinError, Rect, RouteError,
+                           PDK_VARIANT, TRACK_PITCH_UM,
+                           TRUNK_PITCH_UM, Anchor, Rect, RouteError,
                            Router as RouterBase, WIRE_UM, assert_drc_clean,
-                           emit, extract_nets, klt_pin, nm,
-                           parse_extract_devices, recorded_pin, run, snap)
+                           extract_nets, klt_pin, nm,
+                           parse_extract_devices, run, run_cli, snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
 # The router core's layers (L_MCON/L_MET1/L_MET2/L_VIA) come from layout_common,
@@ -782,145 +778,8 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path,
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Generate and verify layout/analog/ota_fd/ota_fd.gds and "
-                    "its committed evidence; see this directory's README.md.")
-    parser.add_argument("--check", action="store_true",
-                        help="regenerate into a temp dir and byte-compare the "
-                             "GDS against the committed stream, evaluated at "
-                             "the klt build and klayout version recorded in "
-                             "drc.report.json; write nothing. Exit 0 pass, "
-                             "1 geometry regression, 2 cannot verify")
-    parser.add_argument("--klt", default="klt")
-    parser.add_argument("--pdk-root", default=PDK_ROOT_DEFAULT)
-    parser.add_argument("--keep-scratch", action="store_true",
-                        help="with --check, leave the scratch directory in place")
-    args = parser.parse_args()
-
-    cell_dir = Path(__file__).resolve().parent
-    pdk_root = Path(args.pdk_root).expanduser()
-
-    if args.check:
-        committed = cell_dir / f"{TOP_CELL}.gds"
-        if not committed.exists():
-            print(f"--check: CANNOT VERIFY -- {committed} does not exist yet",
-                  file=sys.stderr)
-            return 2
-        try:
-            pin = recorded_pin(cell_dir)
-        except PinError as exc:
-            print(f"gen_ota_fd.py --check: CANNOT VERIFY -- {exc}",
-                  file=sys.stderr)
-            return 2
-        try:
-            running = klt_pin([args.klt])
-        except OSError:
-            running = {"klt": "unknown"}
-        if running.get("git_commit") == pin["git_commit"]:
-            got_layout = running.get("klayout")
-            if got_layout != pin["klayout"]:
-                saw = (f"runs klayout {got_layout}, not the recorded "
-                       f"{pin['klayout']}" if got_layout else
-                       "does not report a klayout version, so the recorded "
-                       f"one ({pin['klayout']}) cannot be checked")
-                print("gen_ota_fd.py --check: CANNOT VERIFY -- host klt "
-                      f"matches the recorded build {pin['klt']} but {saw} "
-                      "(drc.report.json provenance); the committed bytes "
-                      "were written by the recorded klayout, so a byte "
-                      "difference could not be attributed. Run under the "
-                      "recorded environment: "
-                      f'uvx --from "{pin["reinstall_spec"]}" '
-                      f'--with "klayout=={pin["klayout"]}" klt ...',
-                      file=sys.stderr)
-                return 2
-            klt_cmd = [args.klt]
-            print("gen_ota_fd.py --check: host klt matches the recorded "
-                  f"build {pin['klt']} and klayout {got_layout} "
-                  "(drc.report.json provenance); byte-comparing directly",
-                  flush=True)
-        else:
-            uvx = shutil.which("uvx")
-            if uvx is None:
-                print("gen_ota_fd.py --check: CANNOT VERIFY -- host klt "
-                      f"{running.get('klt', 'unknown')} is not the recorded "
-                      f"build {pin['klt']} and uvx is not on PATH to resolve "
-                      "it. Run under the recorded build: "
-                      f'uvx --from "{pin["reinstall_spec"]}" '
-                      f'--with "klayout=={pin["klayout"]}" klt ...',
-                      file=sys.stderr)
-                return 2
-            klt_cmd = [uvx, "--from", pin["reinstall_spec"],
-                       "--with", f"klayout=={pin['klayout']}", "klt"]
-            print("gen_ota_fd.py --check: host klt "
-                  f"{running.get('klt', 'unknown')} is not the recorded build "
-                  f"{pin['klt']} (drc.report.json provenance); evaluating the "
-                  "recorded build via uvx", flush=True)
-            for attempt in range(3):
-                probe = run([*klt_cmd, "version", "--format", "json"],
-                            check=False)
-                if probe.returncode == 0:
-                    break
-                if attempt < 2:
-                    time.sleep(2)
-            if probe.returncode != 0:
-                print("gen_ota_fd.py --check: CANNOT VERIFY -- the recorded "
-                      f"build did not resolve ({' '.join(klt_cmd)}): "
-                      f"{probe.stderr.strip()[-300:]}", file=sys.stderr)
-                return 2
-            try:
-                resolved = json.loads(probe.stdout)
-            except Exception:
-                resolved = {}
-            if resolved.get("git_commit") != pin["git_commit"]:
-                print("gen_ota_fd.py --check: CANNOT VERIFY -- uvx-resolved "
-                      f"klt commit {resolved.get('git_commit')} is not the "
-                      f"recorded pin {pin['git_commit']}", file=sys.stderr)
-                return 2
-            got_layout = resolved.get("klayout_version")
-            if got_layout != pin["klayout"]:
-                print("gen_ota_fd.py --check: CANNOT VERIFY -- the pinned "
-                      f"resolution resolved with klayout {got_layout}, not "
-                      f"the recorded {pin['klayout']}: the uvx invocation "
-                      f'already carries --with "klayout=={pin["klayout"]}", '
-                      "so the pin was not honoured (a stale cached "
-                      "environment, or the recorded release being yanked or "
-                      "unavailable for this platform). The committed bytes "
-                      "were written by the recorded klayout, so a byte "
-                      "difference could not be attributed. Diagnose the "
-                      "resolution: "
-                      f'uvx --from "{pin["reinstall_spec"]}" '
-                      f'--with "klayout=={pin["klayout"]}" --refresh '
-                      "klt version --format json",
-                      file=sys.stderr)
-                return 2
-        tmp = Path(tempfile.mkdtemp(prefix="ota-fd-check-"))
-        try:
-            flow(klt_cmd, pdk_root, tmp, verbose=False)
-            a, b = committed.read_bytes(), (tmp / f"{TOP_CELL}.gds").read_bytes()
-            if a == b:
-                print("gen_ota_fd.py --check: PASS -- regenerated GDS is "
-                      f"byte-identical to {committed.name} ({len(a)} bytes; "
-                      f"evaluated against recorded klt {pin['klt']})")
-                return 0
-            print("gen_ota_fd.py --check: FAIL -- regenerated GDS differs "
-                  f"from {committed.name} under the recorded build "
-                  f"{pin['klt']} (committed {len(a)} bytes, fresh {len(b)} "
-                  "bytes) -- a generator or geometry regression, not a "
-                  "toolchain mismatch", file=sys.stderr)
-            return 1
-        finally:
-            if args.keep_scratch:
-                print(f"scratch kept at {tmp}", file=sys.stderr)
-            else:
-                shutil.rmtree(tmp, ignore_errors=True)
-
-    result = flow([args.klt], pdk_root, cell_dir / "_gen")
-    emit(cell_dir / "_gen", cell_dir, TOP_CELL)
-    drc = result["drc"]
-    print(f"gen_ota_fd.py: wrote {TOP_CELL}.gds + evidence to {cell_dir} "
-          f"(drc status={drc.get('status')!r}, "
-          f"violations={drc.get('violation_count')})")
-    return 0
+    return run_cli("gen_ota_fd.py", Path(__file__).resolve().parent,
+                   TOP_CELL, flow)
 
 
 if __name__ == "__main__":
