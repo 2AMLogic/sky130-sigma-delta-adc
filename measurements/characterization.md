@@ -15,9 +15,11 @@ envelope that item 8 is graded on; see the CI step for what `--check` covers.
 
 **State as of this report: item 8 is not met.** Rows listed `pending` wait on
 the loop-scaling and noise work (#148, #138), Monte Carlo and post-layout
-(#34, #35), the uncovered STA corners (#131) and DRC/LVS (#31, #32). The
-item-5 tracker #33 closed 2026-11-17 on a Curator verdict of record (item 5
-analog `unmet`, digital `met`); its remaining work is owned by #148 and #138,
+(#34, #35), the uncovered STA corners (a declared gap under DR-008,
+`spec/decisions/DR-008-digital-timing-corners.md`) and DRC/LVS (#31, #32).
+The item-5 tracker #33 closed 2026-11-17 on a Curator verdict of record
+(item 5 analog `unmet`, digital `met`); its remaining work is owned by #148
+and #138,
 with Monte Carlo (#34) and post-layout (#35) out of its scope, and the
 per-row mapping below carries that verdict. This report records that state;
 it does not relax a spec row.
