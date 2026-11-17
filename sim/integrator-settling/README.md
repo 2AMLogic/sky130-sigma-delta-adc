@@ -13,6 +13,17 @@ hand-calc in `design/integrator/SIZING.md`)?
 |---|---|---|---|---|
 | `record.json` | as built (#53) | 29/45 | 10/45 | **0/15 both variants** |
 | `record-i92.json` | with the #92 switch fix | **45/45** | 13/45 | **15/15 `int1`** |
+| `record-i129.json` | with the #129 `Sin` low-Vth fix | **45/45** | 13/45 | **15/15 `int1`** |
+
+`record-i129.json` (2026-11-17, batch fleet jobs `klt-sim-fca8952108d7` /
+`klt-sim-89f25e92a593`) is the #92 table re-run on the #129 cell (the `Sin`
+input gate went low-Vth; see `design/integrator/SIZING.md` -> "Issue #129"):
+**no corner that passed 1e-4 on `record-i92.json` now fails** — `int1` stays
+45/45 (worst 4.8e-5 at `ss`/1.620 V/-40 C, marginally better than `i92`'s
+5.9e-5) and `int2` stays at exactly the same 13 passing corners (its residual
+is the comparator input capacitance, an open item against #147's switch
+family, untouched by a `Sin` change). `record-i92.json` is append-only
+evidence of the pre-#129 cell and stays as committed.
 
 Both are the 45-point DR-002 grid per variant (90 points each), all simulated
 on the batch fleet, nothing measured. The 1.620 V collapse `record.json` shows

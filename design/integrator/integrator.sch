@@ -24,7 +24,7 @@ V {}
 S {}
 E {}
 * p-side input path: Cs_in, TG sample switch, bottom-plate and top-plate switches
-C {sky130_fd_pr/nfet_01v8.sym} -800 0 0 0 {name=Sin_p_n
+C {sky130_fd_pr/nfet_01v8_lvt.sym} -800 0 0 0 {name=Sin_p_n
 L=0.15
 W=4
 nf=1
@@ -38,7 +38,7 @@ nrs=0.0725
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N -780 -30 -760 -40 {}
 C {devices/lab_pin.sym} -760 -40 0 0 {name=l1 lab=vinp}
@@ -48,8 +48,8 @@ N -820 0 -840 0 {}
 C {devices/lab_pin.sym} -840 0 0 0 {name=l3 lab=phi1}
 N -780 0 -750 0 {}
 C {devices/lab_pin.sym} -750 0 0 0 {name=l4 lab=vssa}
-C {sky130_fd_pr/pfet_01v8.sym} -600 0 0 0 {name=Sin_p_p
-L=0.15
+C {sky130_fd_pr/pfet_01v8_lvt.sym} -600 0 0 0 {name=Sin_p_p
+L=0.35
 W=8
 nf=1
 mult=1
@@ -62,7 +62,7 @@ nrs=0.03625
 sa=0
 sb=0
 sd=0
-model=pfet_01v8
+model=pfet_01v8_lvt
 spiceprefix=X}
 N -580 30 -560 40 {}
 C {devices/lab_pin.sym} -560 40 0 0 {name=l5 lab=vinp}
@@ -393,7 +393,7 @@ C {devices/lab_pin.sym} 2550 -50 0 0 {name=l61 lab=sump}
 N 2550 30 2550 50 {}
 C {devices/lab_pin.sym} 2550 50 0 0 {name=l62 lab=voutp}
 * n-side input path: Cs_in, TG sample switch, bottom-plate and top-plate switches
-C {sky130_fd_pr/nfet_01v8.sym} -800 1500 0 0 {name=Sin_n_n
+C {sky130_fd_pr/nfet_01v8_lvt.sym} -800 1500 0 0 {name=Sin_n_n
 L=0.15
 W=4
 nf=1
@@ -407,7 +407,7 @@ nrs=0.0725
 sa=0
 sb=0
 sd=0
-model=nfet_01v8
+model=nfet_01v8_lvt
 spiceprefix=X}
 N -780 1470 -760 1460 {}
 C {devices/lab_pin.sym} -760 1460 0 0 {name=l63 lab=vinn}
@@ -417,8 +417,8 @@ N -820 1500 -840 1500 {}
 C {devices/lab_pin.sym} -840 1500 0 0 {name=l65 lab=phi1}
 N -780 1500 -750 1500 {}
 C {devices/lab_pin.sym} -750 1500 0 0 {name=l66 lab=vssa}
-C {sky130_fd_pr/pfet_01v8.sym} -600 1500 0 0 {name=Sin_n_p
-L=0.15
+C {sky130_fd_pr/pfet_01v8_lvt.sym} -600 1500 0 0 {name=Sin_n_p
+L=0.35
 W=8
 nf=1
 mult=1
@@ -431,7 +431,7 @@ nrs=0.03625
 sa=0
 sb=0
 sd=0
-model=pfet_01v8
+model=pfet_01v8_lvt
 spiceprefix=X}
 N -580 1530 -560 1540 {}
 C {devices/lab_pin.sym} -560 1540 0 0 {name=l67 lab=vinn}

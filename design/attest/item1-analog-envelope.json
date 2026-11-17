@@ -38,7 +38,7 @@
         "role": "source",
         "path": "design/integrator/integrator.sch",
         "passed": true,
-        "content_hash": "sha256:5cdfb2cf37e2fd38e57d2ba609514408e38a7bea85e74056c3cb7ce350d00cbb"
+        "content_hash": "sha256:96a9edeaea82ea08c43c3d8e5f93b5a865e6fde640fc7c8ebe06fb00cfdcef2a"
       },
       {
         "check": "present",
@@ -115,7 +115,7 @@
         "role": "derived",
         "path": "design/integrator/integrator.spice",
         "passed": true,
-        "content_hash": "sha256:18fc51475f667eea993fbef4e9a3abe7eaa35863ae88f86c25bfb56bc4074d53"
+        "content_hash": "sha256:00df9de0d8b62508719df5a1e8af02f9eb31fd1db44eda8b28cbb90b72003eda"
       },
       {
         "check": "present",
@@ -129,7 +129,7 @@
         "role": "derived",
         "path": "design/modulator/modulator.spice",
         "passed": true,
-        "content_hash": "sha256:3a7b0cece4d81961e0dc06ee9cd6de06c3e1de199e372f0eecd99a8edbae8318"
+        "content_hash": "sha256:738e57c87fea99f917ae2c3dd481366c06c7fbbab0467a0847484262e217a7c6"
       },
       {
         "check": "present",
@@ -222,16 +222,147 @@
     ]
   },
   "provenance": {
-    "klt_version": "0.8.0",
+    "klt_version": "0.9.2",
     "klayout_version": null,
     "pdk": null,
     "deck": null,
     "input": {
-      "path": {
-        "path": "design/attest/item1-analog-inventory.json",
-        "scope": "repo"
-      },
-      "content_hash": "sha256:7e278564c29d8056c7422d9e9ea4876408f335798d3525188cd88069251d1333"
+      "paths": [
+        {
+          "path": {
+            "path": "design/attest/check_analog_netlists.py",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:a1c4b7f7cc25877d7aa0076b7425ac41c4dbcaca99b2a4eb89168fe2ab9593b9"
+        },
+        {
+          "path": {
+            "path": "design/attest/item1-analog-inventory.json",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:7e278564c29d8056c7422d9e9ea4876408f335798d3525188cd88069251d1333"
+        },
+        {
+          "path": {
+            "path": "design/clkgen/clkgen.sch",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:6758ba800809b0ce8f0f484edb922bf0f190ca0917afab53f27d709f9104b29d"
+        },
+        {
+          "path": {
+            "path": "design/clkgen/clkgen.spice",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:2acfb7ea9651c042359fff51fcc9e6f698e7b0d374dba604d5a5d083b6db6326"
+        },
+        {
+          "path": {
+            "path": "design/clkgen/clkgen.sym",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:708ee1cd6c93c601161e132536d0e8dd760478523fa0cc0a558cbbf5615854f4"
+        },
+        {
+          "path": {
+            "path": "design/integrator/integrator.sch",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:96a9edeaea82ea08c43c3d8e5f93b5a865e6fde640fc7c8ebe06fb00cfdcef2a"
+        },
+        {
+          "path": {
+            "path": "design/integrator/integrator.spice",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:00df9de0d8b62508719df5a1e8af02f9eb31fd1db44eda8b28cbb90b72003eda"
+        },
+        {
+          "path": {
+            "path": "design/integrator/integrator.sym",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:8be2528489dcb8ec0e7989d7e388c08d5d2e813088d754e7ee57396e3c5fb9df"
+        },
+        {
+          "path": {
+            "path": "design/modulator/comparator/comparator.spice",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:cb1cfac0f055297827874c930c8dac10a332073c96a6b8e5e2ee880180c1c89e"
+        },
+        {
+          "path": {
+            "path": "design/modulator/comparator/comparator.sym",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:624ef086a9212266f595c29fe145310832451c8f9bad0f03049c8c882dee9243"
+        },
+        {
+          "path": {
+            "path": "design/modulator/comparator/wrap_comparator.sh",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:f3375698b940be11489b3ce244c5ce22971a433f7d1d76f4a201f51cb2c56d3e"
+        },
+        {
+          "path": {
+            "path": "design/modulator/modulator.sch",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:68accf5d036ad10fadd7cf11680f91596effab9a7b121891cc02e7cf36d5a0ff"
+        },
+        {
+          "path": {
+            "path": "design/modulator/modulator.spice",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:738e57c87fea99f917ae2c3dd481366c06c7fbbab0467a0847484262e217a7c6"
+        },
+        {
+          "path": {
+            "path": "design/modulator/modulator.sym",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:8c0ff1983ca6184e17a0ce578a2d737975bb005d6a0f50c517266488550ba4a1"
+        },
+        {
+          "path": {
+            "path": "design/ota/ota_fd.sch",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:03061df2a6859d66b870e841a8cfde49f65c566c267bcdf077304199cd7060c5"
+        },
+        {
+          "path": {
+            "path": "design/ota/ota_fd.spice",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:7f4724e9631c05760bc98d161100c41b06928b98e0526c027e6a9271d70f7977"
+        },
+        {
+          "path": {
+            "path": "design/ota/ota_fd.sym",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:a2564600f678859274db0c12acdca0e1f0e6c4cf4fd34618cce5a862684aac43"
+        },
+        {
+          "path": {
+            "path": "design/xschemrc",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:e7ad9e8750c2f9e4feeb91ab264c7e33430673c787eb4edf0eec6f1a6158c39b"
+        },
+        {
+          "path": {
+            "path": "reuse.lock.json",
+            "scope": "repo"
+          },
+          "content_hash": "sha256:624a9fc1435634b3abd0924af782c28a43dd411eda67bd85a768a59ee896b437"
+        }
+      ],
+      "content_hash": "sha256:fd90631d33cd75efaa676bfe053e9b5bf04315bfb3e2c81acaf5dad44dbb798c"
     }
   }
 }

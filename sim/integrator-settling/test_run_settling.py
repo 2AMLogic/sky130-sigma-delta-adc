@@ -163,5 +163,48 @@ class Probe(RunnerCase):
                          "a probe must not write a partial")
 
 
+class CommittedRecordI129(unittest.TestCase):
+    """The committed #129 settling record, against the #92 baseline.
+
+    Issue #129's acceptance criterion: no corner that passed 1e-4 on the
+    pre-change cell (`record-i92.json`) may fail on the changed cell. The
+    records are append-only, so this is a read-only pin — it fails if either
+    file is hand-edited or regenerated against a different cell than it
+    names.
+    """
+
+    def setUp(self):
+        rec = HERE / "record-i129.json"
+        base = HERE / "record-i92.json"
+        if not (rec.exists() and base.exists()):
+            self.skipTest("record-i129.json / record-i92.json not committed")
+        self.rec = json.loads(rec.read_text())
+        self.base = json.loads(base.read_text())
+
+    def _passing(self, rec, v):
+        return {c for c, r in rec["variants"][v]["corners"].items()
+                if r["status"] == "pass"}
+
+    def test_int1_still_passes_every_corner(self):
+        self.assertEqual(self.rec["variants"]["int1"]["summary"]["pass"], 45)
+        self.assertEqual(self._passing(self.rec, "int1"), self._passing(self.base, "int1"))
+
+    def test_int2_regresses_no_corner(self):
+        """int2's residual is the comparator input cap (#147's family), not Sin."""
+        before = self._passing(self.base, "int2")
+        after = self._passing(self.rec, "int2")
+        self.assertFalse(before - after,
+                         f"{sorted(before - after)} passed on record-i92 and fail on "
+                         "record-i129: the #129 change regressed settling")
+
+    def test_the_record_names_the_cell_it_ran_on(self):
+        import hashlib
+        netlist = HERE.parents[1] / "design/integrator/integrator.spice"
+        self.assertEqual(
+            self.rec["integrator_netlist_sha256"],
+            hashlib.sha256(netlist.read_bytes()).hexdigest(),
+            "record-i129.json was not taken on the committed integrator.spice")
+
+
 if __name__ == "__main__":
     unittest.main()

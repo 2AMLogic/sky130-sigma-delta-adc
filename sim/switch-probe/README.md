@@ -11,12 +11,13 @@ numbers is `sim/integrator-settling/` (`run_diag.py` for the mechanism,
 `run_variants.py` for the switch-isolation cross-check and the PMOS-half size
 bounds) and, for the input sampling phase, `sim/integrator-ci/record-i106.json`.
 
-There are two point sets, each with its own result file, selected with `--set`:
+There are three point sets, each with its own result file, selected with `--set`:
 
 | set | what it probes | result file | filed as |
 |---|---|---|---|
 | `i92` | one device at a time: `ron`, `leakage` | `probe-i92.json` | issue #92 |
 | `i106` | the `Sin` complementary pass gate, both halves in parallel, Ron versus the voltage it passes | `probe-i106.json` | issue #106 |
+| `i129` | the low-Vth sizing sweep: candidate `Sin` replacement pairs, same bench as `i106` | `probe-i129.json` | issue #129 |
 
 Device geometry is generated from the same rule the committed netlist uses
 (`ad = as = 0.29*W`, `pd = ps = 2*W + 0.58`, `nrd = nrs = 0.29/W`), and the
@@ -100,11 +101,36 @@ invalidate the committed record's provenance.)
 the probed device pair against `integrator.spice`, so a later edit that narrows
 the evidence fails a test instead of doing it quietly.
 
+## The `i129` set — the low-Vth sizing sweep (`tg_probe.cir.tmpl`, issue #129)
+
+Same deck, bias and read-out as `i106`; what changes is the device pair and
+how many of them are swept. Four candidate replacements for the `Sin` gate,
+each an `nfet_01v8_lvt` half at L 0.15 in parallel with a `pfet_01v8_lvt`
+half at L 0.35 (the lvt PMOS model's own minimum length), at width pairs
+starting at the phi2 `vcm` switches' geometry (NMOS 12 / PMOS 24, the #92
+remedy) and going DOWN — unlike those switches, `Sin` sits on the input, so
+every micron of width is gate area the input drives and channel the phi1
+turn-off injects onto. Candidates: (4, 8), (6, 12), (8, 16), (12, 24).
+
+The input sweep spans 0.3 .. 1.5 V with the 0.7 .. 1.1 V window (where every
+`i106` skew peaked) resolved at 50 mV, over the same six conditions as
+`i106`. The record's `derived` block reduces each candidate x condition sweep
+to its peak `Ron`, the input it peaks at, and the NMOS share at the peak —
+that block is what `design/integrator/SIZING.md` -> "Issue #129" reads the
+chosen size from. The keys are `tg129_lvt_n<W>_p<W>_<corner>_<temp>c_<vdda>v_<vin>v`,
+self-describing like the `i106` keys.
+
+`test_run_probe.py` pins the candidate set against the `vcm`-switch geometry
+ceiling, the models against their lvt lengths, the sweep against the peak
+window and the conditions, and `i129_derived()` against a synthetic grid —
+so narrowing the sweep or breaking the reduction fails a test.
+
 ## Running
 
-    python3 -I sim/switch-probe/run_probe.py                    # print both sets
+    python3 -I sim/switch-probe/run_probe.py                    # print all sets
     python3 -I sim/switch-probe/run_probe.py --set i92  --write  # probe-i92.json
     python3 -I sim/switch-probe/run_probe.py --set i106 --write  # probe-i106.json
+    python3 -I sim/switch-probe/run_probe.py --set i129 --write  # probe-i129.json
 
     # tool-free unit tests (no ngspice, no PDK, no klt):
     python3 -I -m unittest discover -s sim/switch-probe -p 'test_*.py'

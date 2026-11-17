@@ -86,7 +86,8 @@ All `L` = 0.15 um, `nf` = 1, 1.8 V core devices (`nfet_01v8`/`pfet_01v8`).
 | `vcm`/summing-node NMOS: `Sbi`, `Sci`, `Sti`, `Sbr`, `Scr`, `Str` (both sides) | `nfet_01v8_lvt`, L 0.15 | 12 | 0.57 kohm at 0.9 V, 1.8 V (0.07 at 0.3 V, 0.11 at 0.6 V) | bottom plate and top plate reset to `vcm`, top plate to summing node |
 | PMOS half of the four phi2-gated families: `Sbi`, `Sbr` | `pfet_01v8_lvt`, L 0.35 | 24 | see the 1.620 V table below | carries the integrate-phase transfer at the low rail |
 | PMOS half of the four phi2-gated families: `Sti`, `Str` | `pfet_01v8_lvt`, L 0.35 | 4 | see the 1.620 V table below | as above, deliberately small (summing-node capacitance) |
-| Transmission gate `Sin_*`, `Sr_*`, `Mra_*`, `Mrb_*` | `nfet_01v8` + `pfet_01v8`, L 0.15 | NMOS 4, PMOS 8 | **`tt`/27 C/1.8 V only** (per "Labelling"): 1.73 kohm at 0.9 V; 0.21 at 0.3 V, 0.36 at 0.6 V, 1.08 at 1.2 V, 0.51 at 1.5 V. **Not a PVT worst case, and 0.9 V is not the peak** -- see "`Sin` over PVT" below | input sample, reference sample, DAC reference mux |
+| Transmission gate `Sr_*`, `Mra_*`, `Mrb_*` | `nfet_01v8` + `pfet_01v8`, L 0.15 | NMOS 4, PMOS 8 | **`tt`/27 C/1.8 V only** (per "Labelling"): 1.73 kohm at 0.9 V; 0.21 at 0.3 V, 0.36 at 0.6 V, 1.08 at 1.2 V, 0.51 at 1.5 V. **Not a PVT worst case, and 0.9 V is not the peak** -- see "`Sin` over PVT" below (the pair is shared with the pre-#129 `Sin`, so the #106 curve still describes these) | reference sample, DAC reference mux |
+| Input sampling gate `Sin_*` | `nfet_01v8_lvt` + `pfet_01v8_lvt`, L 0.15 / 0.35 | NMOS 4, PMOS 8 | **`ss`/1.620 V/-40 C: peak 3.16 kohm at 0.85 V** (probe-i129.json); 5670x the pre-change pair's 0.5044 sampling error at the filed corner is gone -- see "Issue #129: the `Sin` low-Vth fix" below | input sample |
 
 The `vcm`/summing-node switches only ever connect nodes near `vcm` (0.9 V);
 the transmission gates cover the full input and reference range (assumed
@@ -179,11 +180,81 @@ half" below), reasoned from the netlist and **not separately simulated**.
 
 **No spec row bounds input-sampling completeness, so none of this is a pass/fail
 result and no SNDR or resolution consequence is claimed** -- nothing here has
-been through model B. The cell is **unchanged** by that extraction. The two
+been through model B. The cell is **unchanged by that extraction** (the #106
+record and this section up to here describe the pre-#129 cell; the rows above
+name `Sin` as one shared pair only up to that point). The two
 mechanisms are deferred separately, because they are different switches with
-different remedies: whether to give `Sin` the issue #92 treatment, lengthen
-`phi1`, or accept the bottom-plate error is **#129**; the `Sci` top-plate hold
-is **#147**. Both were filed from these numbers.
+different remedies: the `Sin` bottom-plate term is **#129**, fixed as below;
+the `Sci` top-plate hold is **#147**, still open. Both were filed from these
+numbers.
+
+### Issue #129: the `Sin` low-Vth fix (2026-11-17)
+
+**Decision (spec/decisions/DR-010): make `Sin` the same low-Vth pair the phi2
+`vcm` switches got in #92, sized by a committed sweep.** Both halves change
+flavour: `XSin_<p,n>_n` `nfet_01v8` W 4 L 0.15 → **`nfet_01v8_lvt` W 4
+L 0.15**, and `XSin_<p,n>_p` `pfet_01v8` W 8 L 0.15 → **`pfet_01v8_lvt` W 8
+L 0.35** (the lvt PMOS model has no bin below L = 0.35, the length every lvt
+PMOS half in this cell already sits at). Widths are unchanged, so the input
+load and the drawn footprint barely move; only the PMOS channel grows
+(8 x 0.15 → 8 x 0.35).
+
+**The sweep** (`sim/switch-probe/probe-i129.json`, 312 points, one DC
+operating point each, local, simulated; same bench and bias as the #106
+sweep): four candidate width pairs, from the #92 `vcm`-switch geometry
+(NMOS 12 / PMOS 24) down to the old gate's own widths (4 / 8), each over the
+six conditions (five skews at 1.620 V/-40 C, `tt`/27 C/1.8 V) with the
+0.7-1.1 V window resolved at 50 mV. Worst-condition peaks, from the record's
+`derived` block:
+
+| candidate (NMOS/PMOS W) | worst peak Ron | at condition | at Vin |
+|---|---|---|---|
+| **4 / 8 (chosen)** | **3158 ohm** | `ss`/1.620 V/-40 C | 0.85 V |
+| 6 / 12 | 1931 ohm | `ss`/1.620 V/-40 C | 0.85 V |
+| 8 / 16 | 1423 ohm | `ss`/1.620 V/-40 C | 0.85 V |
+| 12 / 24 | 945 ohm | `ss`/1.620 V/-40 C | 0.85 V |
+
+The chosen size is the **smallest** candidate: its 3158 ohm peak is ~3x under
+the ~9.8 kohm the DR-010 line implies (1e-4 needs ~9.2 tau; tau = Ron x 1 pF
+against the 90.4 ns window), so the smaller gate's lower input load and
+channel charge win. The larger candidates are committed as the ladder, not as
+alternatives that were needed.
+
+**Before/after on the graded grid** (`sim/integrator-ci/record-i106.json` ->
+`record-i129.json`, DR-002 full 45 corners at both amplitudes, batch fleet;
+simulated, graded on `error_rel_bpi_only` per DR-010):
+
+| corner | input | `error_rel_bpi_only` before | after |
+|---|---|---|---|
+| `ss`/1.620 V/-40 C | 0.2 V | **0.5044** | **8.9e-5** (5670x) |
+| `sf`/1.620 V/-40 C | 0.2 V | 0.2833 | 0.0 |
+| `tt`/1.620 V/-40 C | 0.2 V | 0.0138 | 0.0 |
+| `fs`/1.620 V/-40 C | 0.6 V | 0.0026 | 0.0020 (still over the 1e-4 line) |
+| `ss`/1.620 V/-40 C | 0.6 V | 0.0019 | 0.0004 (still over the 1e-4 line) |
+
+87 of the 90 corner-amplitude points meet the line (44/45 and 43/45); the record names `fs`/1.620 V/-40 C as the
+binding corner per amplitude on the bottom-plate reading. **The three
+remaining corners are not `Sin` sizing**: their error is a p-side bottom-plate
+shortfall that tracks `Sci`'s top-plate anomaly (worst exactly at the 78.9 mV
+`fs`/1.620 V/-40 C corner, smallest at `ss` -- backwards for a settling
+mechanism), i.e. #147 coupling through `Csi` onto the bottom-plate reading.
+It scales with `1/Ron_Sin`; the ladder above shows even the 12/24 candidate
+(~3x lower Ron) would leave it over the line, and ~20x width would be needed
+-- at which point the input load and injection trade collapses. DR-010 says
+this: the line is gated by #147 at those three corners, and #147 is where the
+remainder is owned.
+
+**Input capacitance presented by the new gate**: not extracted. The DC probe
+records no operating-point capacitances and no transient Cgg extraction was
+run for this change; the qualitative statement (unchanged W, PMOS channel
+8 x 0.35 vs 8 x 0.15) is not a number and is not offered as one. Owed with
+the charge-injection re-extraction (follow-up #266).
+
+**Invalidated records** -- every number taken on the pre-change cell is
+marked as such where it lives and named in the #129 PR body; the
+re-extraction of charge injection and the model-B `ci_*` parameters is the
+follow-up #266's job, the same split #92 -> #102 used.
+
 
 `phi2b`, the complement the PMOS halves need, is generated inside this cell by
 one inverter (`Iphi2b_n`/`Iphi2b_p`, NMOS W 2 / PMOS W 4, both m = 4) from the

@@ -15,6 +15,7 @@
       "netlist_normalized_sha256": "8e5f1ee69294404ba1f747cd517f53ceb0388897b0a7d7a1dfc718add2fded01",
       "source_gds": "layout/analog/ota_fd/ota_fd.gds",
       "source_gds_sha256": "27ace056b255428e05c0fd6293dd08239fe97ba67379f6a330c30a94eeefe976",
+      "captured": "2026-11-15",
       "capture_command": "klt extract ota_fd.gds --deck sky130 --top ota_fd --pdk sky130A --pdk-root ~/.ciel -o ota_fd.extract.spice --format json",
       "klt_pin": {
         "klt": "0.9.3.dev3+gd5d57daf9a14",
@@ -51,22 +52,23 @@
     },
     "integrator": {
       "netlist": "integrator.extract.spice",
-      "netlist_sha256": "f3c51cb8cc57a07ddf9d6fc200f20243e6cde89d2b2e65a5c2bd2ebd3edf5d62",
-      "netlist_normalized_sha256": "4eeefdcec0eb1003ffe60cb12dcaa359fc24f34d6de552995891f36e7b4a7d36",
+      "netlist_sha256": "bda56775cb77d35c1cb00aeb0f98fa0a689a62382c5f0709861ee2274d19e511",
+      "netlist_normalized_sha256": "88940e68673042b66bd3d8d1ef300130d10ada397383d040ed05ab0ec899f168",
       "source_gds": "layout/analog/integrator/integrator.gds",
-      "source_gds_sha256": "37b0f0db2ebf80dc37915aef5198a74120433b9b8aeeb8e7b52053d135ef367b",
-      "capture_command": "klt extract integrator.gds --deck sky130 --top integrator --pdk sky130A --pdk-root ~/.ciel -o integrator.extract.spice --format json",
+      "source_gds_sha256": "4e09458c531dcd31517e197682c634bcb33b90541acb5a1b86e496ff676e11a7",
+      "captured": "2026-11-17",
+      "capture_command": "klt extract layout/analog/integrator/integrator.gds --deck sky130 --top integrator --pdk sky130A --pdk-root ~/.ciel -o layout/analog/fixtures/integrator.extract.spice --format json",
       "klt_pin": {
-        "klt": "0.9.3.dev3+gd5d57daf9a14",
-        "git_commit": "d5d57daf9a145961ea01f5f891e4d87c0d435807",
-        "reinstall_spec": "klayout-tools @ git+https://github.com/2AMLogic/klayout-tools@d5d57daf9a145961ea01f5f891e4d87c0d435807",
+        "klt": "0.9.3.dev234+g5ed4e55bffbd",
+        "git_commit": "5ed4e55bffbd1ff909b9b3331d23d21c0a21894f",
+        "reinstall_spec": "klayout-tools @ git+https://github.com/2AMLogic/klayout-tools@5ed4e55bffbd1ff909b9b3331d23d21c0a21894f",
         "klayout": "0.30.13"
       },
       "recorded_pin_in_cell_evidence": {
-        "note": "read from this cell's committed extract-device-count.json -> tool; the capture klt above is NEWER than this pin. The parse-level numbers agreed anyway (see test_layout_common.py), which is itself evidence the parsers are stable across this drift.",
-        "klt": "0.9.2.dev1022+g2a9c52b27ce7",
-        "git_commit": "2a9c52b27ce7986b4372ae5d73129dac4773e02c",
-        "reinstall_spec": "klayout-tools @ git+https://github.com/2AMLogic/klayout-tools@2a9c52b27ce7986b4372ae5d73129dac4773e02c",
+        "note": "read from this cell's committed extract-device-count.json -> tool; the capture klt above is the SAME version as this pin -- the 2026-11-17 re-capture used the same klt that generated the current cell evidence, so there is no version drift.",
+        "klt": "0.9.3.dev234+g5ed4e55bffbd",
+        "git_commit": "5ed4e55bffbd1ff909b9b3331d23d21c0a21894f",
+        "reinstall_spec": "klayout-tools @ git+https://github.com/2AMLogic/klayout-tools@5ed4e55bffbd1ff909b9b3331d23d21c0a21894f",
         "klayout": "0.30.13",
         "deck": "sky130",
         "top_cell": "integrator",
@@ -81,8 +83,8 @@
         "device_count": 137,
         "net_count": 42,
         "pin_count": 18,
-        "netlist_sha256": "f3c51cb8cc57a07ddf9d6fc200f20243e6cde89d2b2e65a5c2bd2ebd3edf5d62",
-        "netlist_normalized_sha256": "4eeefdcec0eb1003ffe60cb12dcaa359fc24f34d6de552995891f36e7b4a7d36",
+        "netlist_sha256": "bda56775cb77d35c1cb00aeb0f98fa0a689a62382c5f0709861ee2274d19e511",
+        "netlist_normalized_sha256": "88940e68673042b66bd3d8d1ef300130d10ada397383d040ed05ab0ec899f168",
         "pdk": {
           "variant": "sky130A",
           "version": "open_pdks f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7"
