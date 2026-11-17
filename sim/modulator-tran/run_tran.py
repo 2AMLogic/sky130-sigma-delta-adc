@@ -544,8 +544,7 @@ def main():
                  "measurement_rollup": [m for m in rep.get("measurements", [])
                                         if m["name"] in KEYS],
                  **shas()}
-        PARTIALS.mkdir(exist_ok=True)
-        partial.write_text(json.dumps(saved, indent=2) + "\n")
+        sc.save_partial(PARTIALS / "anchors.json", saved)
 
     corners, samples = saved["corners"], saved["samples"]
     window_s = mk.N_REC * mk.TPER
