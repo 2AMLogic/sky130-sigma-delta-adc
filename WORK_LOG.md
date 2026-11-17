@@ -4,6 +4,22 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-16
 
+- **PR #256**: fix: fold SPICE continuation lines before parsing extracted X-devices
+- **PR #244**: feat: per-corner model-B evidence and DR-001 cross-check for item 5 analog
+- **PR #220**: chore(loom): resync installed Loom to v0.19.1302
+- **Issue #204** (closed): parse_extract_devices silently drops an X-line whose model token sits on a SPICE continuation line
+- **Issue #203** (closed): check-ci drift guard fails on main: the analog-generator test step (44e8cee) is not registered in CHECKS
+- **Issue #128** (closed): T1 item 5 (analog 4/4): per-corner model B parameters, DR-001 cross-check on the anchors, and the item-5 analog citation
+- **PR #249**: docs: add DR-008 corrigendum 01 — klt-pin scope of the characterize ground
+- **PR #245**: fix(test): pin ota_fd merge counts to parser-independent check.expected
+- **PR #130**: sim: extract Sin input-sampling completeness over PVT and its Ron-vs-input curve
+- **Issue #227** (closed): DR-008's `klt characterize` rejection ground is pinned to klt 0.8.0 and goes stale at the next klt pin bump
+- **Issue #210** (closed): test_layout_common.py mis-attributes check.found as a parser-independent source (it is parse_extract_devices' own output)
+- **Issue #106** (closed): Input sampling switch Sin is ~46% incomplete near vcm at ss/1.620 V/-40 C
+- **PR #242**: fix: regenerate item9 attest under the klt pin and document the rule
+- **PR #156**: spec: record the digital-timing corner set and declare the 35-corner gap
+- **Issue #223** (closed): item9-envelope provenance.klt_version now names an unpinned klt dev build; .github/klt-version pins 0.8.0
+- **Issue #131** (closed): Decimator STA: 35 of the 45 DR-002 corners have no liberty file, and the block-boundary I/O timing budget is undeclared
 - **PR #240**: fix: report a non-object manifest as a violation, not a traceback
 - **PR #238**: refactor: unify connect_met1, finish_trunks and add_shape into the shared Router base
 - **PR #235**: fix: treat a non-object cited JSON file as provenance-less in content-hash check

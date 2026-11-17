@@ -39,13 +39,21 @@ What is pinned here:
   reproduces the committed found_own_devices: this cell's own 44 devices.
 - Parser edges: empty and comment-only netlists return empty counters and
   an empty net list rather than raising; a `+` continuation line is never
-  parsed as a device (both captured netlists wrap PS=/PD= onto one); a
-  joined-label net name (`outn|voutn`) survives extract_nets intact.
+  parsed as a device (both captured netlists wrap PS=/PD= onto one); an
+  X-device wrapped at any token -- the model token or the terminals on the
+  `+` line -- folds into one logical line and is counted exactly once
+  (issue #204: the wrapped shapes used to be dropped silently); a joined
+  label net name (`outn|voutn`) survives extract_nets intact.
 """
+import contextlib
+import io
 import json
 import pathlib
+import shutil
+import tempfile
 import unittest
 from collections import Counter
+from unittest import mock
 
 import layout_common
 
@@ -118,9 +126,12 @@ class FixtureDrivenParserTests(unittest.TestCase):
         # The merge must do visible work, not merely run: raw != merged on the
         # ota_fd fixture, with the mult-expanded unit devices collapsing
         # 50 -> 14 nfet and 31 -> 9 pfet, and the merged basis equalling the
-        # committed check block (which the generator derived from the
-        # reference netlist's 29 X-lines -- a source independent of this
-        # parser).
+        # committed check.expected block (EXPECTED_DEVICES, transcribed from
+        # the 29 X-lines of design/ota/ota_fd.spice -- a source independent
+        # of this parser). The sibling check.found block is NOT independent:
+        # the generator writes it from this same parser's merged counts,
+        # re-expressed in short model names, so asserting against it would
+        # compare the parser with itself.
         raw, merged = PARSED["ota_fd"]
         evidence = EVIDENCE["ota_fd"]
         self.assertNotEqual(dict(raw), dict(merged))
@@ -129,10 +140,10 @@ class FixtureDrivenParserTests(unittest.TestCase):
         self.assertEqual(raw["sky130_fd_pr__pfet_01v8"], 31)
         self.assertEqual(merged["sky130_fd_pr__pfet_01v8"], 9)
         # The committed check block uses the models' short names plus a total.
-        found = evidence["check"]["found"]
+        expected = evidence["check"]["expected"]
         for model, count in merged.items():
-            self.assertEqual(count, found[model.split("__", 1)[-1]], model)
-        self.assertEqual(sum(merged.values()), found["total"])
+            self.assertEqual(count, expected[model.split("__", 1)[-1]], model)
+        self.assertEqual(sum(merged.values()), expected["total"])
 
     def test_merged_collapses_to_per_model_distinct_groups(self):
         # merged[model] must be the number of distinct symmetric-terminal
@@ -212,6 +223,73 @@ class ParserEdgeCaseTests(unittest.TestCase):
         self.assertEqual(dict(raw), {"sky130_fd_pr__nfet_01v8": 1})
         self.assertEqual(dict(merged), {"sky130_fd_pr__nfet_01v8": 1})
         self.assertEqual(layout_common.extract_nets(text), ["a", "b", "c", "d"])
+
+    def test_wrapped_model_token_is_counted(self):
+        # A writer may break an X-line at any token, the model token
+        # included; the device must be counted from the folded logical
+        # line, not silently dropped (issue #204 -- before the fold this
+        # returned empty counters and no nets: the X-line found no model
+        # token and the '+' line does not start with X).
+        text = "X$1 a b c d\n+ sky130_fd_pr__nfet_01v8 L=0.5 W=2\n"
+        raw, merged = layout_common.parse_extract_devices(text)
+        self.assertEqual(dict(raw), {"sky130_fd_pr__nfet_01v8": 1})
+        self.assertEqual(dict(merged), {"sky130_fd_pr__nfet_01v8": 1})
+        self.assertEqual(layout_common.extract_nets(text), ["a", "b", "c", "d"])
+
+    def test_wrapped_terminals_and_model_are_counted(self):
+        # Terminals precede the model token on an X-line, so a tight wrap
+        # can push both onto the '+' line; the same fold must still count
+        # the one device and collect all four terminals.
+        text = "X$1 a b\n+ c d sky130_fd_pr__nfet_01v8 L=0.5 W=2\n"
+        raw, merged = layout_common.parse_extract_devices(text)
+        self.assertEqual(dict(raw), {"sky130_fd_pr__nfet_01v8": 1})
+        self.assertEqual(dict(merged), {"sky130_fd_pr__nfet_01v8": 1})
+        self.assertEqual(layout_common.extract_nets(text), ["a", "b", "c", "d"])
+
+    def test_multiple_continuations_fold_into_one_device(self):
+        # Several '+' lines are one logical line: counted exactly once,
+        # and every wrapped net reaches extract_nets exactly once.
+        text = "X$1 a b\n" \
+               "+ c d sky130_fd_pr__nfet_01v8\n" \
+               "+ L=0.5 W=2\n" \
+               "+ PS=4.84 PD=4.84\n"
+        raw, merged = layout_common.parse_extract_devices(text)
+        self.assertEqual(dict(raw), {"sky130_fd_pr__nfet_01v8": 1})
+        self.assertEqual(dict(merged), {"sky130_fd_pr__nfet_01v8": 1})
+        self.assertEqual(layout_common.extract_nets(text), ["a", "b", "c", "d"])
+
+    def test_orphan_continuation_line_yields_nothing(self):
+        # A '+' line with nothing before it has no line to fold into (the
+        # joiner keeps it as it stands); it starts with '+', not X, so it
+        # is neither a device nor a net source.
+        text = "+ sky130_fd_pr__nfet_01v8 L=0.5 W=2\n"
+        raw, merged = layout_common.parse_extract_devices(text)
+        self.assertEqual(raw, Counter())
+        self.assertEqual(merged, Counter())
+        self.assertEqual(layout_common.extract_nets(text), [])
+
+    def test_continuation_after_comment_line_is_not_a_device(self):
+        # A '+' line folds onto whatever precedes it, a comment included;
+        # the folded logical line still starts with '*' and must count no
+        # device even though it now carries a device-shaped body.
+        text = "* device instance $1 r0 *1 6.795,72.47 nfet\n" \
+               "+ X$1 a b c d sky130_fd_pr__nfet_01v8\n"
+        raw, merged = layout_common.parse_extract_devices(text)
+        self.assertEqual(raw, Counter())
+        self.assertEqual(merged, Counter())
+        self.assertEqual(layout_common.extract_nets(text), [])
+
+    def test_continuation_of_subckt_port_list_is_not_a_device(self):
+        # The integrator fixture wraps the .SUBCKT port list onto a '+'
+        # line; folded, the logical line starts with .SUBCKT and must stay
+        # a non-device.
+        text = ".SUBCKT integrator dn dp ibias inn inp outn|voutn outp|voutp" \
+               " phi1 phi1b phi1e\n" \
+               "+ phi2 vcm vdda vinn vinp vrefn vrefp vssa\n"
+        raw, merged = layout_common.parse_extract_devices(text)
+        self.assertEqual(raw, Counter())
+        self.assertEqual(merged, Counter())
+        self.assertEqual(layout_common.extract_nets(text), [])
 
     def test_non_device_lines_are_ignored(self):
         text = ".SUBCKT ota_fd ibias vdda vssa\n" \
@@ -309,6 +387,152 @@ class ModelTokenTests(unittest.TestCase):
                       "X$1"):               # instance names
             with self.subTest(token=token):
                 self.assertFalse(layout_common._is_model_token(token))
+
+
+class RunCliTests(unittest.TestCase):
+    """The shared `--check` CLI driver's contract (issue #258): exit 0 pass,
+    1 geometry regression, 2 cannot verify -- with the recorded pin, the
+    host pin and the cell's `flow` faked, so no klt, no PDK, no scratch and
+    no uvx resolution is involved.  The two generators' `main` copies used
+    to pin this contract by hand; after #258 it is pinned once, here.
+    """
+
+    PROG = "gen_x.py"
+
+    PIN = {"klt": "0.9.2", "git_commit": "c0ffee0000000000000000000000000000000000",
+           "reinstall_spec": "klayout-tools==0.9.2", "klayout": "0.30.13"}
+
+    def setUp(self):
+        self.cell_dir = pathlib.Path(tempfile.mkdtemp(prefix="runcli-cell-"))
+        self.addCleanup(shutil.rmtree, self.cell_dir, ignore_errors=True)
+        self.calls: list[tuple] = []
+
+    def fake_flow(self, payload: bytes | None = None, top: str = "x"):
+        """A flow stand-in recording its calls; `payload` is the GDS bytes
+        it regenerates (None: write the generate-path deliverables instead).
+        """
+        def flow(klt_cmd, pdk_root, out_dir, **kwargs):
+            self.calls.append((list(klt_cmd), pdk_root, pathlib.Path(out_dir),
+                               kwargs))
+            out_dir.mkdir(parents=True, exist_ok=True)
+            if payload is not None:
+                (out_dir / f"{top}.gds").write_bytes(payload)
+            else:
+                (out_dir / f"{top}.gds").write_bytes(b"generated")
+                (out_dir / "drc.report.json").write_text("{}\n")
+                (out_dir / "extract-device-count.json").write_text("{}\n")
+                (out_dir / "route.summary.json").write_text("{}\n")
+            return {"drc": {"status": "clean", "violation_count": 0}}
+
+        return flow
+
+    def run_cli(self, *argv, top="x", flow=None, pin=None, pin_error=None,
+                host=None, which=None):
+        flow = self.fake_flow(top=top) if flow is None else flow
+        pin = self.PIN if pin is None else pin
+        host = self.PIN if host is None else host
+        out, err = io.StringIO(), io.StringIO()
+        pin_patch = mock.patch.object(
+            layout_common, "recorded_pin",
+            side_effect=pin_error) if pin_error is not None else \
+            mock.patch.object(layout_common, "recorded_pin",
+                              return_value=pin)
+        with pin_patch, \
+             mock.patch.object(layout_common, "klt_pin",
+                               return_value=host), \
+             mock.patch("sys.argv", [self.PROG, *argv]), \
+             mock.patch("shutil.which", return_value=which), \
+             contextlib.redirect_stdout(out), \
+             contextlib.redirect_stderr(err):
+            rc = layout_common.run_cli(self.PROG, self.cell_dir, top, flow)
+        return rc, out.getvalue(), err.getvalue()
+
+    def committed(self, top="x", payload=b"committed-bytes"):
+        (self.cell_dir / f"{top}.gds").write_bytes(payload)
+
+    def test_check_pass_returns_0(self):
+        self.committed(payload=b"same")
+        flow = self.fake_flow(payload=b"same")
+        rc, out, err = self.run_cli("--check", flow=flow)
+        self.assertEqual(rc, 0)
+        self.assertIn(f"{self.PROG} --check: PASS -- regenerated GDS is "
+                      "byte-identical", out)
+        self.assertIn("evaluated against recorded klt 0.9.2", out)
+        self.assertEqual(err, "")
+
+    def test_check_pass_runs_the_flow_quietly_into_a_scratch_dir(self):
+        self.committed(payload=b"same")
+        flow = self.fake_flow(payload=b"same")
+        self.run_cli("--check", flow=flow)
+        (klt_cmd, pdk_root, out_dir, kwargs), = self.calls
+        self.assertEqual(klt_cmd, ["klt"])
+        self.assertEqual(kwargs, {"verbose": False})
+        self.assertTrue(out_dir.name.startswith("x-check-"),
+                        out_dir.name)
+        self.assertFalse(out_dir.exists(), "scratch must be removed")
+
+    def test_check_geometry_regression_returns_1(self):
+        self.committed(payload=b"committed-bytes")
+        flow = self.fake_flow(payload=b"regressed")
+        rc, out, err = self.run_cli("--check", flow=flow)
+        self.assertEqual(rc, 1)
+        self.assertIn(f"{self.PROG} --check: FAIL -- regenerated GDS "
+                      "differs", err)
+        self.assertIn("a generator or geometry regression, not a "
+                      "toolchain mismatch", err)
+
+    def test_check_missing_committed_gds_returns_2(self):
+        rc, out, err = self.run_cli("--check")
+        self.assertEqual(rc, 2)
+        self.assertIn("does not exist yet", err)
+        self.assertEqual(self.calls, [], "no flow may run")
+
+    def test_check_unreadable_pin_returns_2(self):
+        self.committed()
+        rc, out, err = self.run_cli("--check",
+                                    pin_error=layout_common.PinError("no pin"))
+        self.assertEqual(rc, 2)
+        self.assertIn("CANNOT VERIFY -- no pin", err)
+        self.assertEqual(self.calls, [])
+
+    def test_check_host_klayout_mismatch_returns_2(self):
+        self.committed()
+        rc, out, err = self.run_cli(
+            "--check", host={**self.PIN, "klayout": "0.30.12"})
+        self.assertEqual(rc, 2)
+        self.assertIn("CANNOT VERIFY", err)
+        self.assertIn("runs klayout 0.30.12, not the recorded 0.30.13", err)
+        self.assertEqual(self.calls, [])
+
+    def test_check_host_klt_unknown_without_uvx_returns_2(self):
+        self.committed()
+        rc, out, err = self.run_cli("--check", host={"klt": "unknown"},
+                                    which=None)
+        self.assertEqual(rc, 2)
+        self.assertIn("uvx is not on PATH", err)
+        self.assertEqual(self.calls, [])
+
+    def test_scratch_prefix_maps_underscores_to_dashes(self):
+        self.committed(top="a_b", payload=b"same")
+        flow = self.fake_flow(payload=b"same", top="a_b")
+        rc, out, err = self.run_cli("--check", top="a_b", flow=flow)
+        self.assertEqual(rc, 0)
+        (_, _, out_dir, _), = self.calls
+        self.assertTrue(out_dir.name.startswith("a-b-check-"), out_dir.name)
+
+    def test_generate_path_emits_deliverables_and_returns_0(self):
+        rc, out, err = self.run_cli()
+        self.assertEqual(rc, 0)
+        self.assertIn(f"{self.PROG}: wrote x.gds + evidence to {self.cell_dir}",
+                      out)
+        self.assertIn("drc status='clean', violations=0", out)
+        (klt_cmd, pdk_root, out_dir, kwargs), = self.calls
+        self.assertEqual(klt_cmd, ["klt"])
+        self.assertEqual(kwargs, {})
+        self.assertEqual(out_dir, self.cell_dir / "_gen")
+        for name in ("x.gds", "drc.report.json", "extract-device-count.json",
+                     "route-summary.json"):
+            self.assertTrue((self.cell_dir / name).exists(), name)
 
 
 if __name__ == "__main__":

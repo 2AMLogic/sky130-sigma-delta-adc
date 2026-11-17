@@ -28,24 +28,90 @@ corner in the cited record, or the only one it has.
 
 | Row | Parameter | Verdict | Binding corner | Evidence | Remaining |
 |---|---|---|---|---|---|
-| 1 | Signal bandwidth 20 kHz | partial | none (ideal B parameters) | `sim/bmodel/records/20261113T142853Z-f8b2fa44.json` (B; band 0-20 kHz) | T-level and post-layout: pending (#33) |
-| 2 | Peak SNDR >= 80 dB | partial | none (ideal B parameters) | `sim/bmodel/records/20261113T142853Z-f8b2fa44.json` | cross-check, T-extracted non-idealities, corners: pending (#33) |
-| 3 | 2nd-order single-bit SC modulator | partial | tt/27C/1.80V (load check only) | `design/modulator/modulator.spice`, `sim/bmodel/model.py` | transistor-level behaviour of the assembled modulator: pending (#33) |
-| 4 | OSR 128 | evidenced | none (arithmetic and B config) | `sim/bmodel/records/20261113T142853Z-f8b2fa44.json` | none |
-| 5 | Modulator clock 5.12 MHz | partial | sf/1.62V/125C (OTA only) | `sim/ota-settling/record-i51-rcm2M-cff100f.json` | integrator-cell and comparator-decision settling over the grid: pending (#33) |
+| 1 | Signal bandwidth 20 kHz | partial | none (band is the analysis configuration every record stamps) | `sim/bmodel/item5-model-run.json` (B, rows 1 and 4, all seven DR-002 anchors; band 0-20 kHz) | T-level and post-layout: pending (#33) |
+| 2 | Peak SNDR >= 80 dB | partial | ss/1.620V/125C (71.35 dB) | `sim/bmodel/item5-model-run.json`, `sim/bmodel/xcheck-record.json` (B with T-extracted corner parameters, N = 2^16) | every B number uncross-checked (DR-001 cross-check incomplete at the 1024-clock T record), all seven anchors 6.8-8.7 dB under target, #148 and #138 open: pending (#33) |
+| 3 | 2nd-order single-bit SC modulator | partial | all seven DR-002 anchors (1024-clock transient) | `sim/modulator-tran/record.json`, `sim/bmodel/xcheck-record.json`, `sim/bmodel/model.py` | long-record T behaviour and the DR-001 in-band SNDR leg (not computable at 1024 clocks): pending (#33) |
+| 4 | OSR 128 | evidenced | all seven DR-002 anchors (B) | `sim/bmodel/item5-model-run.json` (rows 1 and 4) | none |
+| 5 | Modulator clock 5.12 MHz | partial | all seven DR-002 anchors (1024 clock edges) | `sim/modulator-tran/record.json` (phi1_edges, bs_edges pass at every anchor) | raw klt sim report not retained, so no envelope cites it; 45-point grid: pending (#33) |
 | 6 | Output rate 80 kSps | evidenced | tt/27C/1.80V (RTL sim) | `verification/decimator/record.json` | none for function; corner timing evidenced at the ten declared liberty corners (`layout/digital/sta-decimator.report.json`), which DR-008 sets as the digital partition's corner set; the other 35 DR-002 points are a declared gap under DR-008, not evidenced and not closable by a further STA run |
 | 7 | 16-bit two's complement word | evidenced | tt/27C/1.80V (RTL sim) | `verification/decimator/record.json` | none |
 | 8 | Passband ripple <= 0.1 dB | evidenced | analytic (0.0401 dB peak-to-peak) | `verification/decimator/record.json` | none |
 | 9 | Stopband >= 90 dB (alias bands), >= 75 dB (gaps) | evidenced | analytic (93.91 dB at 300 kHz alias bands, 79.20 dB at 284.5 kHz gaps) | `verification/decimator/record.json` | none |
 | 10 | CIC order >= 3, then FIR | evidenced | none (structure; CIC order 4, 41-tap FIR) | `rtl/decimator.v` | none |
-| 11 | Differential input <= 0.5 VREF | partial | none (ideal B parameters, -6 dBFS) | `sim/bmodel/records/20261113T142853Z-f8b2fa44.json` | T-level swing over corners: pending (#33) |
-| 12 | Supply 1.62-1.98 V | partial | sf/1.62V/125C (OTA only) | `sim/ota-settling/record-i51-rcm2M-cff100f.json` | assembled modulator and decimator over the supply range: pending (#33) |
-| 13 | P_ana <= 1 mW, P_dig reported | pending | none | none | no block power record: pending (#33) |
+| 11 | Differential input <= 0.5 VREF | partial | all seven DR-002 anchors (swing measured and failing) | `sim/modulator-tran/record.json` (o1/o2_swing_pp fail the 1.39 Vpp section 5.4 bound at every anchor, worst 3.500 Vpp; #148) | swing failure recorded, not fixed (#148); raw klt sim report not retained, so no envelope cites it; 45-point grid: pending (#33) |
+| 12 | Supply 1.62-1.98 V | partial | 1.62 V and 1.98 V anchors (transient ran) | `sim/modulator-tran/record.json` (seven anchors spanning the supply range; no row-12-tagged limit) | no row-12-tagged measurement in any committed envelope; 45-point grid and assembled-modulator supply evidence: pending (#33) |
+| 13 | P_ana <= 1 mW, P_dig reported | partial | ff/1.980V/125C (0.5804 mW, pass) | `sim/modulator-tran/record.json` (p_ana tagged row 13, pass at all seven anchors) | raw klt sim report not retained, so no envelope cites it; P_dig: pending (#33), post-layout power: pending (#35) |
 | 14 | DRC + LVS clean, post-layout | pending | none | none | DRC pending (#31), LVS pending (#32), post-layout pending (#35) |
 
 ### Notes on the cited records
 
-- **Rows 1, 2, 4, 11 (B).** `sim/bmodel/records/20261113T142853Z-f8b2fa44.json`:
+- **Rows 1, 2, 4 (B with T-extracted corner parameters), added 2026-11-16
+  (#128).** `sim/bmodel/item5-model-run.json` (the klt `model-run` envelope,
+  generated by `sim/bmodel/make_item5_envelope.py`) cites seven long records,
+  one per DR-002 anchor: `sim/bmodel/records/20261116T202*.json`, each N =
+  65 536 output samples, Blackman-Harris 4-term window, coherent tone (1639
+  cycles, 2000.73 Hz), bin bandwidth 1.2207 Hz, band 0-20 kHz with the DC and
+  tone-lobe bins excluded, OSR 128, fs 5.12 MHz, 12-point amplitude sweep
+  peaking at the -6 dBFS ceiling. Parameters come from
+  `sim/bmodel/corners/<anchor>.json` (generated by
+  `sim/bmodel/make_corners.py` from the committed T records: OTA DC gain
+  `sim/ota-gain/record.json`, settling `sim/integrator-settling/record-i92.json`,
+  charge injection `sim/integrator-ci/record.json`, thermal noise
+  `sim/integrator-noise/record-i140.json`, comparator offset and hysteresis
+  `sim/comparator-decision/record.json`; every parameter names its record and
+  hash, and `ci_gain_error` and `jitter_rms_s` are declared no-T-source, not
+  defaulted). Peak SNDR: 73.24 dB (sf), 73.20 (ff/-40C), 72.39 (tt), 72.39
+  (ss/-40C), 72.20 (ff/125C), 71.56 (fs), 71.35 (ss/125C) — **every corner
+  below the 80 dB row-2 target and every corner uncross-checked**: DR-001
+  item 3's cross-check is incomplete at every anchor
+  (`sim/bmodel/xcheck-record.json` — the committed T record is 1024 clocks,
+  at which the in-band SNDR leg is not computable), so none of these numbers
+  carries row 2 (spec section 1.2). They are recorded as the per-corner B
+  results the spec asks the model to provide; the rows the envelope does
+  carry are 1 and 4 (band and OSR configuration). The ideal-parameter record
+  below remains the DR-001 item 1 baseline. #148 (integrator swing) and #138
+  (integrator-1 thermal noise over the 5.3 budget) were open when these
+  numbers were recorded at tree commit 9fa9dd8; either landing changes the
+  parameters and requires a re-run of `make_corners.py`, the cross-check and
+  the sweeps.
+- **Row 2's cross-check (#128).** `sim/bmodel/xcheck-record.json`: model B,
+  loaded with each anchor's corner parameters, run on the committed
+  per-clock input sequence of the short T transient
+  (`sim/modulator-tran/samples/`, 1024 clocks), integrator waveforms and
+  in-band power compared per corner. In-band power agrees within 0.11 dB at
+  every anchor (limit 3 dB, DR-001's tolerance verbatim); loop duty within
+  0.05; integrator span within 10 % at five anchors, failing at
+  ss/1.620V/125C (o1 16.9 %, o2 29.9 %) and ss/1.620V/-40C (o1 11.2 %) — the
+  span failures are consistent with #106 (input sampling ~46 % incomplete at
+  ss/-40C) and #148, recorded not fixed. Every corner is reported
+  `incomplete` (never passed): DR-001's in-band SNDR leg is not computable at
+  this record length. Sample-wise bitstream agreement is recorded but not
+  gated (a single-bit loop is chaotic;
+  `sim/modulator-tran/README.md`). Lengthening the T record is a DR-001
+  decision-record change and is not done here.
+- **Row 3 (#128 update).** The assembled modulator's transistor-level
+  behaviour is now recorded beyond the tt load check:
+  `sim/modulator-tran/record.json` ran the full netlist stack
+  (`design/modulator/modulator.spice` with the cell netlists) at all seven
+  DR-002 anchors for 1024 clocks, and `sim/bmodel/xcheck-record.json`
+  compares model B against those bitstreams and integrator waveforms. Still
+  partial: no long-record T transient exists, so row 2's DR-001 cross-check
+  remains incomplete (the first-revisit item DR-001 itself flags).
+- **Rows 5, 11, 12, 13 (T, #125 through #128).**
+  `sim/modulator-tran/record.json`: ngspice, seven DR-002 anchors, 1024
+  clocks each, every measurement carrying `limits` and a `spec_row` tag. Row
+  5: phi1_edges 1024 of 1024 and bs_edges within limits at every anchor.
+  Row 11: o1_swing_pp up to 3.500 V and o2_swing_pp up to 2.256 V against
+  the 1.39 Vpp bound — failing at every anchor (#148). Row 13: p_ana worst
+  0.5804 mW at ff/1.980V/125C against the 1 mW limit — passing at every
+  anchor; the vcm source is reported as p_vcm and is not in the sum. Row 12:
+  no row-tagged measurement. The bench's raw `klt sim` report was not
+  retained (`sim/modulator-tran/.artifacts/` is gitignored), so the manifest
+  declares these rows gaps with those findings in the gap reasons rather
+  than citing an envelope that does not exist; re-running the bench to
+  regenerate a citable report is out of scope (#125's bench).
+- **Rows 1, 2, 4, 11 (B, ideal parameters).**
+  `sim/bmodel/records/20261113T142853Z-f8b2fa44.json`:
   source B, ideal parameters (no finite gain, settling, charge injection, kT/C
   noise or comparator offset), uncross-checked against transistor level. Record
   65 536 output samples, Blackman-Harris 4-term window, coherent tone (1639
@@ -66,7 +132,7 @@ corner in the cited record, or the only one it has.
   is cited. The corrected figure sits 8.03 dB below the spec §5.1 ideal
   quantization-noise ceiling of 94.2 dB; that gap is unexplained and tracked in
   #108.
-- **Rows 5, 12 (T).** `sim/ota-settling/record-i51-rcm2M-cff100f.json`: ngspice,
+- **Rows 5, 12 (T, OTA settling bound).** `sim/ota-settling/record-i51-rcm2M-cff100f.json`: ngspice,
   `design/ota/ota_fd`, DR-002 full grid (45 corners), 45 of 45 pass
   `err_phase <= 1e-4`, worst 6.84e-05 at sf/1.620V/125C. The bench uses ideal
   reset switches and ideal Cs/Ci, so it bounds the OTA step only, not the

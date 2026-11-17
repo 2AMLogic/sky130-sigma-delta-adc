@@ -22,6 +22,16 @@
       "file": "layout/digital/lvs-decimator.report.json",
       "content_hash": "sha256:211d42ef71f676bb26b16fb0feef6ed3db8fc9ec7c99033ce074e8a66458d676"
     },
+    "5.analog": [
+      {
+        "file": "sim/bmodel/item5-model-run.json",
+        "content_hash": "sha256:443684806398ac5a1a8e02e5044792c63584187979f669c16d289fee9870d236",
+        "rows": [
+          "1",
+          "4"
+        ]
+      }
+    ],
     "5.digital": [
       {
         "file": "layout/digital/sta-decimator.report.json",
@@ -43,12 +53,49 @@
         }
       }
     },
-    "8.analog": {"file": "attestation/item8-envelope.json"},
-    "8.digital": {"file": "attestation/item8-envelope.json"},
-    "9": {"file": "attestation/item9-envelope.json", "content_hash": "sha256:b8d3bb89fc360daeb8a34750603f42f01c3e5695b70e3b2424064ac38f985774"},
+    "8.analog": {
+      "file": "attestation/item8-envelope.json"
+    },
+    "8.digital": {
+      "file": "attestation/item8-envelope.json"
+    },
+    "9": {
+      "file": "attestation/item9-envelope.json",
+      "content_hash": "sha256:e319615f8ce711413ebbb185ed0e86c61e2950c8aed5cfb1597bd8022523f7b7"
+    },
     "10": {
       "file": "attestation/item10-envelope.json",
       "content_hash": "sha256:02c59c092ccf82d8c16fe91d33b430d381d06a2275646b2901ccec8ce2d1eeac"
     }
+  },
+  "spec_rows": {
+    "5.analog": [
+      {
+        "id": "1"
+      },
+      {
+        "id": "2",
+        "gap": "long-record B SNDR exists at every DR-002 anchor (71.35-73.24 dB peak, N = 2^16, Blackman-Harris 4-term, coherent tone; sim/bmodel/records/) but it is uncross-checked: DR-001 item 3's cross-check is incomplete at every corner because the committed transistor-level record is 1024 clocks, at which the in-band SNDR leg is not computable (sim/bmodel/xcheck-record.json, sndr_inband_db.reason). Spec section 1.2 meets row 2 only by the B model with the T-extracted non-idealities AND the DR-001 cross-check at every anchor, so no number here may carry the row. Lengthening the T record or revisiting the 3 dB tolerance is a DR-001 decision-record change, not done in this issue. The numbers also sit 6.8-8.7 dB under the 80 dB target while #148 (integrator swing) and #138 (integrator-1 thermal noise over the 5.3 budget) are open; either landing invalidates the parameters and requires a re-run."
+      },
+      {
+        "id": "4"
+      },
+      {
+        "id": "5",
+        "gap": "no envelope can express this row: the committed transistor-level bench measures the 5.12 MHz clock over its record (sim/modulator-tran/record.json, phi1_edges 1024 of 1024 and bs_edges within limits at all seven anchors, tagged spec_row 5) but its raw klt sim report was not retained (sim/modulator-tran/.artifacts/ is gitignored), and the committed record.json is the bench's own reduction, not a klt-ingestible envelope. Re-running the seven-corner transistor-level transient to regenerate a citable report is out of scope here (#125's bench)."
+      },
+      {
+        "id": "11",
+        "gap": "measured and failing, but not citable: the committed transistor-level bench reports o1_swing_pp up to 3.500 V and o2_swing_pp up to 2.256 V against the 1.39 Vpp spec section 5.4 bound at the row-11 input amplitude, failing at all seven anchors (sim/modulator-tran/record.json, measurement_rollup; issue #148, open). Its raw klt sim report was not retained (gitignored .artifacts/), so no envelope can carry the failure; a gap is declared rather than leaving the row silently uncovered. The failure is recorded, not fixed, here."
+      },
+      {
+        "id": "12",
+        "gap": "no committed envelope carries a row-12-tagged measurement: the bench ran the 1.62-1.98 V anchor supplies but tags no supply-row limit (sim/modulator-tran/record.json), model B has no supply parameter (FS-normalised), and the bench's raw klt sim report was not retained. Supply-range operation of the assembled analog half therefore has no citable evidence yet."
+      },
+      {
+        "id": "13",
+        "gap": "no envelope can express this row: the committed transistor-level bench measures P_ana passing at all seven anchors, worst 0.5804 mW at ff/1.980V/125C against the 1 mW limit (sim/modulator-tran/record.json, p_ana tagged spec_row 13), but its raw klt sim report was not retained (sim/modulator-tran/.artifacts/ is gitignored), so the pass cannot be cited. Re-running the bench to regenerate a citable report is out of scope here."
+      }
+    ]
   }
 }
