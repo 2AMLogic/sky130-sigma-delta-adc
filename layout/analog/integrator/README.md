@@ -23,7 +23,7 @@ written through `klt draw` and merged by `klt gen-compose` used as a **placer
 only** (`placement.strategy: "explicit"`, no `routing` block) — the same split
 the sibling `analog/ota_fd/gen_ota_fd.py` documents.
 
-Cell outline **494.57 x 313.32 um** (154,961 um^2), 4259 flattened polygons,
+Cell outline **494.57 x 313.32 um** (154,959 um^2), 4259 flattened polygons,
 289,704 bytes (`klt stats`; 3965 polygons / 269,844 bytes before #147 added
 the `Sci`/`Scr` PMOS halves and the `phi1eb` inverter pair). The OTA instance is 352.58 x 144.16 um of that, so the
 integrator's own device field and routing channel account for roughly the left
