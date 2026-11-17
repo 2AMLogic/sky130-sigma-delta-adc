@@ -14,6 +14,12 @@ come back silently, and both are pinned here without klt, a PDK or fixtures:
   mirror partner within `SUMMING_MIRROR_TOL_UM` on the same plane, and a
   residual beyond that is a floorplan regression (raised), not a routing
   choice to absorb; unpaired leftovers raise too.
+- `route_summing_pair()`'s degraded-pair fallback keeps the run when the
+  n-side pinned commit fails: the greedy connector's own (col, y) is what
+  lands in `placed`, the monotonicity key and the evidence log -- a tuple
+  or a stale pinned column here loses the run with a TypeError two frames
+  away and writes a column the stream does not carry into
+  route-summary.json.
 
 Both are pure geometry over synthetic `Anchor`/`Rect` inputs, exactly like
 test_router_core.py / test_router_shared.py; the generator module is loaded
@@ -23,7 +29,8 @@ import importlib.util
 import pathlib
 import unittest
 
-from layout_common import Anchor, L_MET1, L_MET2, Rect, RouteError
+from layout_common import (Anchor, L_MET1, L_MET2, Rect, RouteError, nm,
+                           snap)
 
 HERE = pathlib.Path(__file__).resolve().parent
 
@@ -156,6 +163,107 @@ class ClockProximityShapeTests(unittest.TestCase):
                                     ("phi2", L_MET1): [rect_clk]})
         report = GI.summing_node_report(router, lengths(121.465, 122.505))
         self.assertEqual(report["beside_count"], 0)
+
+
+class DegradedPairFallbackRouter:
+    """A synthetic router whose n-side pinned commit always fails.
+
+    `connect_pinned` commits the p side (reserving the column) and raises on
+    the n side, exactly the state the degraded-pair fallback exists for: the
+    pinned proposal never became geometry, so the greedy connector answers
+    with its own column, `GREEDY_DX` off the anchor, and its own y.
+    """
+
+    GREEDY_DX = -3.0
+
+    def __init__(self):
+        self.used_cols = set()
+        self.pair_log = None
+        self.pinned = []
+        self.greedy_cols = []
+
+    def neighbours_free(self, _col):
+        return True
+
+    def _greedy(self, a):
+        col = snap(a.xmid + self.GREEDY_DX)
+        self.used_cols.add(nm(col))
+        self.greedy_cols.append(col)
+        return col, a.y + 2.0
+
+    def connect_pinned(self, a, col):
+        self.pinned.append((a.net, col))
+        if a.net == "sumn":
+            raise RouteError("forced: the n-side pinned commit fails")
+        self.used_cols.add(nm(col))
+        return col, a.y
+
+    def connect_met1(self, a):
+        return self._greedy(a)
+
+    def connect_cap(self, a):
+        return self._greedy(a)
+
+
+class DegradedPairFallbackTests(unittest.TestCase):
+    """The degraded pair records what the stream actually carries.
+
+    `connect_cap`/`connect_met1` answer (col, y); the fallback must unpack
+    both and record the column the greedy call reserved -- indexing `[1]`
+    off it (the old defect) hands `finish_net` a tuple, whose first spine
+    statement `(ya + yb) / 2` raises TypeError two frames away from the
+    branch whose own comment says "rather than lose the run"; recording the
+    failed pinned column instead writes one the stream does not carry into
+    route-summary.json.  Both planes that reach the fallback are exercised.
+    """
+
+    AXIS_Y = 100.0
+    PAIRS = (("a_p", "a_n", 50.0, 20.0), ("b_p", "b_n", 52.0, 30.0))
+
+    def _groups(self, plane):
+        groups = {"sump": [], "sumn": []}
+        for pblk, nblk, xmid, py in self.PAIRS:
+            groups["sump"].append(
+                Anchor("sump", pblk, plane, py, xmid - 0.5, xmid + 0.5, ()))
+            groups["sumn"].append(
+                Anchor("sumn", nblk, plane, 2 * self.AXIS_Y - py,
+                       xmid - 0.5, xmid + 0.5, ()))
+        return groups
+
+    def test_degraded_pair_records_the_greedy_column_and_a_float_y(self):
+        for plane in ("met1", "cap4"):
+            with self.subTest(plane=plane):
+                router = DegradedPairFallbackRouter()
+                placed = GI.route_summing_pair(router, self._groups(plane),
+                                               self.AXIS_Y, {})
+                greedy = router.greedy_cols
+                self.assertEqual(
+                    greedy, [snap(50.0 + DegradedPairFallbackRouter.GREEDY_DX),
+                             snap(52.0 + DegradedPairFallbackRouter.GREEDY_DX)])
+                # The n side carries the greedy call's columns -- never the
+                # pinned proposals that failed (50.5 / 52.5).
+                self.assertEqual([t[0] for t in placed["sumn"]], greedy)
+                for failed in (snap(50.5), snap(52.5)):
+                    self.assertNotIn(failed, [t[0] for t in placed["sumn"]])
+                # Ys are floats: finish_net feeds them to route_spine, whose
+                # first statement is (ya + yb) / 2.
+                for _col, y, _a in placed["sumn"]:
+                    self.assertIsInstance(y, float)
+                for (_ca, ya, _), (_cb, yb, _) in zip(placed["sumn"],
+                                                      placed["sumn"][1:]):
+                    self.assertIsInstance((ya + yb) / 2, float)
+                # The p side is untouched: it committed pinned, as planned.
+                self.assertEqual([t[0] for t in placed["sump"]],
+                                 [snap(50.0), snap(52.0)])
+                # The evidence log is honest: every pair degraded, and the
+                # n column / displacement are the ones actually used.
+                self.assertEqual(router.pair_log["greedy_fallbacks"], 2)
+                for entry, gcol, xmid in zip(router.pair_log["pairs"], greedy,
+                                             (50.0, 52.0)):
+                    self.assertTrue(entry["degraded"])
+                    self.assertEqual(entry["columns_um"]["sumn"], gcol)
+                    self.assertEqual(entry["displacement_um"]["sumn"],
+                                     round(abs(gcol - xmid), 3))
 
 
 if __name__ == "__main__":

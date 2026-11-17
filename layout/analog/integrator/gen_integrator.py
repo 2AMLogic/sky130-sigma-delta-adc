@@ -1104,22 +1104,26 @@ def route_summing_pair(router: "Router", groups: dict[str, list[Anchor]],
             except RouteError:
                 continue  # nothing was committed; offer the next candidate
             try:
-                yn = router.connect_pinned(na, cn)[1]
+                cn_used, yn = cn, router.connect_pinned(na, cn)[1]
             except RouteError:
                 # p's trunk is already placed; finish the n anchor greedily
                 # and record the pair as degraded rather than lose the run.
-                yn = router.connect_cap(na) if cap else router.connect_met1(na)
+                # The greedy connector answers (col, y) with the column it
+                # actually reserved: record that one, not the pinned
+                # proposal that just failed.
+                cn_used, yn = (router.connect_cap(na) if cap
+                               else router.connect_met1(na))
                 degraded += 1
                 pair_degraded = True
             placed[p_net].append((cp, yp, pa))
-            placed[n_net].append((cn, yn, na))
-            last[p_net], last[n_net] = cp, cn
+            placed[n_net].append((cn_used, yn, na))
+            last[p_net], last[n_net] = cp, cn_used
             log.append({"blocks": [pa.block, na.block],
                         "plane": pa.plane,
                         "xmid_um": round(pa.xmid, 3),
-                        "columns_um": {p_net: cp, n_net: cn},
+                        "columns_um": {p_net: cp, n_net: cn_used},
                         "displacement_um": {p_net: round(abs(cp - pa.xmid), 3),
-                                            n_net: round(abs(cn - pa.xmid), 3)},
+                                            n_net: round(abs(cn_used - pa.xmid), 3)},
                         "shift_pitches": k,
                         "degraded": pair_degraded})
             break
