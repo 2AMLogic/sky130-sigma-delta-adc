@@ -49,8 +49,9 @@ until the envelope passes (#148) or klt credits row-scoped citation evidence.
 Regenerated 2026-11-17 with the pinned klt 0.9.2 (`uvx --from
 "klayout-tools==0.9.2"` driving `run_tran.py`), batch fleet, ngspice-47,
 three 3-unit jobs. The values reproduce the committed record (`record.json`,
-run under ngspice-46): worst `p_ana` 0.5804 mW, worst `o1_swing_pp` 3.500 V,
-`phi1_edges` 1024/1024 at every anchor. The committed `record.json` and
+the same ngspice-47 engine) bit-for-bit at all seven anchors: worst `p_ana`
+0.5804 mW, worst `o1_swing_pp` 3.500 V, `phi1_edges` 1024/1024 at every
+anchor. The committed `record.json` and
 `samples/` are deliberately untouched: they are the original run's reduction,
 still bound to the unchanged `request.json`/deck, and the T-extraction chain
 (`sim/bmodel/`) is built on them.
