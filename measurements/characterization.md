@@ -14,9 +14,13 @@ only items 1, 9 and 10), so the pin-compatible form is the bare generic
 envelope that item 8 is graded on; see the CI step for what `--check` covers.
 
 **State as of this report: item 8 is not met.** Rows listed `pending` wait on
-the corner, Monte Carlo and post-layout work (#33, #34, #35), the uncovered
-STA corners (#131) and DRC/LVS (#31, #32). This report records that state; it
-does not relax a spec row.
+the loop-scaling and noise work (#148, #138), Monte Carlo and post-layout
+(#34, #35), the uncovered STA corners (#131) and DRC/LVS (#31, #32). The
+item-5 tracker #33 closed 2026-11-17 on a Curator verdict of record (item 5
+analog `unmet`, digital `met`); its remaining work is owned by #148 and #138,
+with Monte Carlo (#34) and post-layout (#35) out of its scope, and the
+per-row mapping below carries that verdict. This report records that state;
+it does not relax a spec row.
 
 ## Per-row characterization
 
@@ -28,19 +32,19 @@ corner in the cited record, or the only one it has.
 
 | Row | Parameter | Verdict | Binding corner | Evidence | Remaining |
 |---|---|---|---|---|---|
-| 1 | Signal bandwidth 20 kHz | partial | none (band is the analysis configuration every record stamps) | `sim/bmodel/item5-model-run.json` (B, rows 1 and 4, all seven DR-002 anchors; band 0-20 kHz) | T-level and post-layout: pending (#33) |
-| 2 | Peak SNDR >= 80 dB | partial | ss/1.620V/125C (71.35 dB) | `sim/bmodel/item5-model-run.json`, `sim/bmodel/xcheck-record.json` (B with T-extracted corner parameters, N = 2^16) | every B number uncross-checked (DR-001 cross-check incomplete at the 1024-clock T record), all seven anchors 6.8-8.7 dB under target, #148 and #138 open: pending (#33) |
-| 3 | 2nd-order single-bit SC modulator | partial | all seven DR-002 anchors (1024-clock transient) | `sim/modulator-tran/record.json`, `sim/bmodel/xcheck-record.json`, `sim/bmodel/model.py` | long-record T behaviour and the DR-001 in-band SNDR leg (not computable at 1024 clocks): pending (#33) |
+| 1 | Signal bandwidth 20 kHz | partial | none (band is the analysis configuration every record stamps) | `sim/bmodel/item5-model-run.json` (B, rows 1 and 4, all seven DR-002 anchors; band 0-20 kHz) | T-level band evidence waits on the bench re-run (#148); post-layout: pending (#35) |
+| 2 | Peak SNDR >= 80 dB | partial | ss/1.620V/125C (71.35 dB) | `sim/bmodel/item5-model-run.json`, `sim/bmodel/xcheck-record.json` (B with T-extracted corner parameters, N = 2^16) | every B number uncross-checked (DR-001 cross-check incomplete at the 1024-clock T record; the long-record cross-check leg needs a DR-001 decision-record change), all seven anchors 6.8-8.7 dB under target, parameters invalidated while #148 and #138 are open |
+| 3 | 2nd-order single-bit SC modulator | partial | all seven DR-002 anchors (1024-clock transient) | `sim/modulator-tran/record.json`, `sim/bmodel/xcheck-record.json`, `sim/bmodel/model.py` | long-record T behaviour and the DR-001 in-band SNDR leg (not computable at 1024 clocks) wait on the bench re-run (#148) and the noise fix that invalidates today's parameters (#138) |
 | 4 | OSR 128 | evidenced | all seven DR-002 anchors (B) | `sim/bmodel/item5-model-run.json` (rows 1 and 4) | none |
-| 5 | Modulator clock 5.12 MHz | partial | all seven DR-002 anchors (1024 clock edges) | `sim/modulator-tran/record.json` (phi1_edges, bs_edges pass at every anchor) | raw klt sim report not retained, so no envelope cites it; 45-point grid: pending (#33) |
+| 5 | Modulator clock 5.12 MHz | partial | all seven DR-002 anchors (1024 clock edges) | `sim/modulator-tran/record.json` (phi1_edges, bs_edges pass at every anchor) | raw klt sim report not retained, so no envelope cites it; envelope credit waits on #148 (or upstream klt row-scoped citation credit, klayout-tools issue 6027) |
 | 6 | Output rate 80 kSps | evidenced | tt/27C/1.80V (RTL sim) | `verification/decimator/record.json` | none for function; corner timing evidenced at the ten declared liberty corners (`layout/digital/sta-decimator.report.json`), which DR-008 sets as the digital partition's corner set; the other 35 DR-002 points are a declared gap under DR-008, not evidenced and not closable by a further STA run |
 | 7 | 16-bit two's complement word | evidenced | tt/27C/1.80V (RTL sim) | `verification/decimator/record.json` | none |
 | 8 | Passband ripple <= 0.1 dB | evidenced | analytic (0.0401 dB peak-to-peak) | `verification/decimator/record.json` | none |
 | 9 | Stopband >= 90 dB (alias bands), >= 75 dB (gaps) | evidenced | analytic (93.91 dB at 300 kHz alias bands, 79.20 dB at 284.5 kHz gaps) | `verification/decimator/record.json` | none |
 | 10 | CIC order >= 3, then FIR | evidenced | none (structure; CIC order 4, 41-tap FIR) | `rtl/decimator.v` | none |
-| 11 | Differential input <= 0.5 VREF | partial | all seven DR-002 anchors (swing measured and failing) | `sim/modulator-tran/record.json` (o1/o2_swing_pp fail the 1.39 Vpp section 5.4 bound at every anchor, worst 3.500 Vpp; #148) | swing failure recorded, not fixed (#148); raw klt sim report not retained, so no envelope cites it; 45-point grid: pending (#33) |
-| 12 | Supply 1.62-1.98 V | partial | 1.62 V and 1.98 V anchors (transient ran) | `sim/modulator-tran/record.json` (seven anchors spanning the supply range; no row-12-tagged limit) | no row-12-tagged measurement in any committed envelope; 45-point grid and assembled-modulator supply evidence: pending (#33) |
-| 13 | P_ana <= 1 mW, P_dig reported | partial | ff/1.980V/125C (0.5804 mW, pass) | `sim/modulator-tran/record.json` (p_ana tagged row 13, pass at all seven anchors) | raw klt sim report not retained, so no envelope cites it; P_dig: pending (#33), post-layout power: pending (#35) |
+| 11 | Differential input <= 0.5 VREF | partial | all seven DR-002 anchors (swing measured and failing) | `sim/modulator-tran/record.json` (o1/o2_swing_pp fail the 1.39 Vpp section 5.4 bound at every anchor, worst 3.500 Vpp; #148) | swing failure recorded, not fixed (#148); raw klt sim report not retained, so no envelope cites it; envelope credit also waits on #148 (klayout-tools issue 6027 upstream) |
+| 12 | Supply 1.62-1.98 V | partial | 1.62 V and 1.98 V anchors (transient ran) | `sim/modulator-tran/record.json` (seven anchors spanning the supply range; no row-12-tagged limit) | no row-12-tagged measurement in any committed envelope; the spec_row 12 tagging is deferred to the next justified re-run, owned by #148 |
+| 13 | P_ana <= 1 mW, P_dig reported | partial | ff/1.980V/125C (0.5804 mW, pass) | `sim/modulator-tran/record.json` (p_ana tagged row 13, pass at all seven anchors) | raw klt sim report not retained, so no envelope cites it; envelope credit waits on #148 (klayout-tools issue 6027 upstream); P_dig and post-layout power: pending (#35) |
 | 14 | DRC + LVS clean, post-layout | pending | none | none | DRC pending (#31), LVS pending (#32), post-layout pending (#35) |
 
 ### Notes on the cited records
@@ -109,7 +113,11 @@ corner in the cited record, or the only one it has.
   retained (`sim/modulator-tran/.artifacts/` is gitignored), so the manifest
   declares these rows gaps with those findings in the gap reasons rather
   than citing an envelope that does not exist; re-running the bench to
-  regenerate a citable report is out of scope (#125's bench).
+  regenerate a citable report is out of scope (#125's bench). Per the #33
+  verdict of record, rows 5 and 13 pass their limits at all seven anchors
+  but klt 0.9.2 credits no per-row coverage from a failing envelope
+  (2AMLogic/klayout-tools#6027), so they resolve when #148 lands or klt
+  gains row-scoped citation credit.
 - **Rows 1, 2, 4, 11 (B, ideal parameters).**
   `sim/bmodel/records/20261113T142853Z-f8b2fa44.json`:
   source B, ideal parameters (no finite gain, settling, charge injection, kT/C
@@ -165,7 +173,7 @@ library is `sky130_fd_sc_hd`.
 | Placed die / core area | 129 758 um^2 die, 121 877 um^2 core, 42.4 % utilization | corner-independent | `layout/README.md`, `layout/digital/decimator.gds` | evidenced (place-and-route) |
 | Fmax at the ten declared `sky130_fd_sc_hd` liberty corners | 26.69 MHz worst, 109.79 MHz best; every declared corner clears the 5.12 MHz clock | ss/-40C/1.60V binds (setup slack 157.838 ns of the 195.3125 ns period) | `layout/digital/sta-decimator.report.json` | evidenced (STA on the routed DEF; propagated clock, no SPEF) |
 | Fmax at the other 35 DR-002 corners | none | the sf, fs, 1.98 V, 125 C and 27 C points | none | declared-gap per `spec/decisions/DR-008-digital-timing-corners.md`: the pinned PDK ships no liberty file for these points, so no STA run can close it. Not evidenced, and outside the digital partition's corner set per that record; it reopens only if a PDK pin bump brings new liberty files |
-| Power at each of the 45 corners | none | all 45 | none | pending (#33) |
+| Power at each of the 45 corners | none | all 45 | none | pending (#35) |
 
 - **Fmax.** `klt sta` (0.8.0, OpenROAD `26Q3-1510-g6cb3f2b704`) on the committed
   routed DEF, one fixed geometry characterized at ten corners in one request
