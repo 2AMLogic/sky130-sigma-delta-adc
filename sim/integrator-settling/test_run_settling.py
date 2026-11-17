@@ -163,5 +163,53 @@ class Probe(RunnerCase):
                          "a probe must not write a partial")
 
 
+class CommittedRecordI129(unittest.TestCase):
+    """The committed #129 settling record, against the #92 baseline.
+
+    Issue #129's acceptance criterion: no corner that passed 1e-4 on the
+    pre-change cell (`record-i92.json`) may fail on the changed cell. The
+    records are append-only, so this is a read-only pin — it fails if either
+    file is hand-edited or regenerated against a different cell than it
+    names.
+    """
+
+    def setUp(self):
+        rec = HERE / "record-i129.json"
+        base = HERE / "record-i92.json"
+        if not (rec.exists() and base.exists()):
+            self.skipTest("record-i129.json / record-i92.json not committed")
+        self.rec = json.loads(rec.read_text())
+        self.base = json.loads(base.read_text())
+
+    def _passing(self, rec, v):
+        return {c for c, r in rec["variants"][v]["corners"].items()
+                if r["status"] == "pass"}
+
+    def test_int1_still_passes_every_corner(self):
+        self.assertEqual(self.rec["variants"]["int1"]["summary"]["pass"], 45)
+        self.assertEqual(self._passing(self.rec, "int1"), self._passing(self.base, "int1"))
+
+    def test_int2_regresses_no_corner(self):
+        """int2's residual is the comparator input cap (#147's family), not Sin."""
+        before = self._passing(self.base, "int2")
+        after = self._passing(self.rec, "int2")
+        self.assertFalse(before - after,
+                         f"{sorted(before - after)} passed on record-i92 and fail on "
+                         "record-i129: the #129 change regressed settling")
+
+    def test_the_record_names_the_cell_it_ran_on(self):
+        import hashlib
+        # record-i129.json was taken on the #129 cell -- main's HEAD netlist
+        # when PR #268 merged (25a2735), sha256 00df9de0... The committed cell
+        # has since moved on (#147's Sci/Scr PMOS halves merged on top), so the
+        # old equality-to-HEAD check became the historical pin the record
+        # READMEs describe: the committed sha256 is the marker, and it is
+        # recoverable from git history at that commit if it must be re-derived.
+        self.assertEqual(
+            self.rec["integrator_netlist_sha256"],
+            "00df9de0d8b62508719df5a1e8af02f9eb31fd1db44eda8b28cbb90b72003eda",
+            "record-i129.json no longer names the #129 cell it was taken on")
+
+
 if __name__ == "__main__":
     unittest.main()

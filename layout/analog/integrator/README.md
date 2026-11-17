@@ -23,8 +23,9 @@ written through `klt draw` and merged by `klt gen-compose` used as a **placer
 only** (`placement.strategy: "explicit"`, no `routing` block) — the same split
 the sibling `analog/ota_fd/gen_ota_fd.py` documents.
 
-Cell outline **493.67 x 313.32 um** (154,677 um^2), 3183 flattened polygons,
-269,580 bytes. The OTA instance is 352.58 x 144.16 um of that, so the
+Cell outline **493.67 x 313.32 um** (154,677 um^2), 3965 flattened polygons,
+269,844 bytes (`klt stats`; 3183 polygons / 269,580 bytes before #129 moved
+the `Sin` halves to the low-Vth flavours). The OTA instance is 352.58 x 144.16 um of that, so the
 integrator's own device field and routing channel account for roughly the left
 140 um. The cell's bbox starts at x = **-1.67 um**, not 0: the router's met2
 column grid extends two pitches past the leftmost block (the westmost guard
@@ -41,7 +42,7 @@ anything and aborts with a "the geometry here is stale" message if either moved:
 | Input | sha256 |
 |---|---|
 | `layout/analog/ota_fd/ota_fd.gds` (124,534 bytes) | `27ace056b255428e05c0fd6293dd08239fe97ba67379f6a330c30a94eeefe976` |
-| `design/integrator/integrator.spice` | `18fc51475f667eea993fbef4e9a3abe7eaa35863ae88f86c25bfb56bc4074d53` |
+| `design/integrator/integrator.spice` | `00df9de0d8b62508719df5a1e8af02f9eb31fd1db44eda8b28cbb90b72003eda` |
 
 Same `ota_netlist_sha256` / `integrator_netlist_sha256` convention the `sim/`
 records already use, and both are repeated in `extract-device-count.json`. This
@@ -60,7 +61,7 @@ python3 layout/analog/integrator/gen_integrator.py --check    # regenerate into 
 **`--check` is a byte-level comparison** of the regenerated GDS against the
 committed `integrator.gds`, not a `klt diff` geometry comparison. That is a
 stronger assertion and it holds: consecutive runs on this host reproduced the
-committed 269,580-byte stream exactly. The script has no randomness and no
+committed 269,844-byte stream exactly. The script has no randomness and no
 dict-ordering dependence (every iteration order is sorted or table-driven).
 
 **Both checks are local-only; CI does not run them.** `.github/workflows/signoff.yml`
@@ -130,8 +131,10 @@ array — so the drawn device count equals the netlist's line for line.
 
 | Netlist devices | Geometry | Generator | Drawn as |
 |---|---|---|---|
-| `Sin_*_n`, `Sr_*_n`, `Mra_*_n`, `Mrb_*_n` (8) | `n4` | `mos_array` | W=4, L=0.15, 1 finger, `nfet` |
-| `Sin_*_p`, `Sr_*_p`, `Mra_*_p`, `Mrb_*_p` (8) | `p8` | `mos_array` | W=8, L=0.15, 1 finger, `pfet` |
+| `Sin_*_n` (2) | `nl4` | `mos_array` | W=4, L=0.15, 1 finger, `nfet` **+ `lvtn` marker** (the #129 low-Vth fix) |
+| `Sr_*_n`, `Mra_*_n`, `Mrb_*_n` (6) | `n4` | `mos_array` | W=4, L=0.15, 1 finger, `nfet` |
+| `Sin_*_p` (2) | `pl8` | `mos_array` | W=8, L=0.35, 1 finger, `pfet` **+ `lvtn` marker** (the #129 low-Vth fix; the lvt PMOS model has no bin below L=0.35) |
+| `Sr_*_p`, `Mra_*_p`, `Mrb_*_p` (6) | `p8` | `mos_array` | W=8, L=0.15, 1 finger, `pfet` |
 | `Sbi_*`, `Sbr_*`, `Sci_*`, `Scr_*`, `Sti_*`, `Str_*` (12) | `nl12` | `mos_array` | W=12, L=0.15, `nfet` **+ `lvtn` marker** |
 | `Sbi_*_p`, `Sbr_*_p` (4) | `pl24` | `mos_array` | W=24, L=0.35, `pfet` **+ `lvtn` marker** |
 | `Sti_*_p`, `Str_*_p` (4) | `pl4` | `mos_array` | W=4, L=0.35, `pfet` **+ `lvtn` marker** |
@@ -156,11 +159,11 @@ issue against `design/`, not a layout-only change.
 `klt gen mos_array`'s `voltage_flavor` resolves **no** marker on the sky130
 family for any low-Vth name — it accepts `hvi`, `native` and `nvt`, and reports
 `drc_hints.voltage_flavor_mark_present: false` with "no marker was drawn" for
-anything else. So the 20 `_lvt` devices get their `lvtn` (125/44) rectangle
+anything else. So the 24 `_lvt` devices get their `lvtn` (125/44) rectangle
 from this script: one per device, the placed block's own bbox grown by 0.38 um,
 emitted in the same `klt draw` document as the routing. The generator then
 asserts that no marker reaches a device the netlist declares standard-Vth, and
-`route-summary.json` → `lvtn_markers` records all 20 rectangles.
+`route-summary.json` → `lvtn_markers` records all 24 rectangles.
 
 Filed as a tool gap: **2AMLogic/klayout-tools#5607**.
 
@@ -375,10 +378,10 @@ The difference is this cell's own devices:
 
 | Netlist model | Netlist | Extracted |
 |---|---|---|
-| `sky130_fd_pr__nfet_01v8` | 9 | **9** |
-| `sky130_fd_pr__nfet_01v8_lvt` | 12 | **12** |
-| `sky130_fd_pr__pfet_01v8` | 9 | **9** |
-| `sky130_fd_pr__pfet_01v8_lvt` | 8 | **8** |
+| `sky130_fd_pr__nfet_01v8` | 7 | **7** |
+| `sky130_fd_pr__nfet_01v8_lvt` | 14 | **14** |
+| `sky130_fd_pr__pfet_01v8` | 7 | **7** |
+| `sky130_fd_pr__pfet_01v8_lvt` | 10 | **10** |
 | `sky130_fd_pr__cap_mim_m3_1` | 6 | **6** |
 | total | 44 | **44** |
 
@@ -392,7 +395,7 @@ that found `klt extract --deck sky130` reporting an `lvtn` marker as
 recognition-only and classifying marked and unmarked arrays identically. On this
 cell's geometry it does not: the extracted netlist names
 `sky130_fd_pr__nfet_01v8_lvt` and `sky130_fd_pr__pfet_01v8_lvt` and gets all
-twenty right. The likely difference is the marker's extent —
+twenty-four right (14 nfet + 10 pfet since #129 moved the `Sin` halves). The likely difference is the marker's extent —
 2AMLogic/klayout-tools#5301 records that the sky130 deck decides flavour by
 channel overlap and mis-classifies a marker that ends inside a shared
 source/drain diffusion, and the probe used a two-column array while every marker

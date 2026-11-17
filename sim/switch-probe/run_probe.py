@@ -34,11 +34,22 @@ Three probe kinds, in three point sets:
               as-built NMOS alone, the two PMOS-half precedents already in the
               cell (Sti W 4 / Sbi W 24) added to it, and a widened-NMOS-only
               counterfactual, over the same condition grid as i106.
+  i129 set, the low-Vth sizing sweep (issue #129):
+    tg        each candidate low-Vth replacement for `Sin` -- NMOS
+              `nfet_01v8_lvt` L 0.15 in parallel with PMOS `pfet_01v8_lvt`
+              L 0.35 (that model's minimum length), at a small set of width
+              pairs starting at the phi2 `vcm` switches' geometry (issue #92's
+              remedy) and going down -- passes the same swept input under the
+              same bias. The record's `derived` block reduces each candidate x
+              condition sweep to its peak Ron, the input it peaks at, and the
+              NMOS share at the peak, which is what design/integrator/SIZING.md
+              reads the chosen size off.
 
     python3 -I sim/switch-probe/run_probe.py                       # print all sets
     python3 -I sim/switch-probe/run_probe.py --set i106 --write     # probe-i106.json
     python3 -I sim/switch-probe/run_probe.py --set i92  --write     # probe-i92.json
     python3 -I sim/switch-probe/run_probe.py --set i147 --write     # probe-i147.json
+    python3 -I sim/switch-probe/run_probe.py --set i129 --write     # probe-i129.json
 """
 import argparse, hashlib, json, pathlib, re, subprocess, sys, tempfile
 
@@ -232,6 +243,79 @@ def sci_points():
 
 
 SCI_POINTS = sci_points()
+def i129_derived(points):
+    """Reduce each candidate's sweep to its peak Ron per condition (issue #129).
+
+    Pure: points in, summary out. SIZING.md reads the chosen size from here:
+    for every candidate and condition, the worst Ron over the swept input, the
+    input it occurs at, and the NMOS share there (which half is limiting at
+    the peak). `overall_worst` names the condition that binds the candidate.
+    """
+    out = {}
+    for nw, pw in I129_CANDIDATES:
+        prefix = f"tg129_lvt_n{nw:g}_p{pw:g}_"
+        per_cond = {}
+        for corner, temp, vdda in TG_CONDITIONS:
+            tag = f"{corner}_{vtag(temp)}c_{vtag(vdda)}v"
+            rows = [(p["ron_ohm"], p["vin_V"], p["nmos_current_share"])
+                    for k, p in points.items() if k.startswith(prefix + tag + "_")]
+            if not rows:
+                continue
+            ron, vin, share = max(rows)
+            per_cond[tag] = {"peak_ron_ohm": ron, "peak_at_vin_V": vin,
+                             "nmos_current_share_at_peak": share}
+        worst_key, worst = max(per_cond.items(), key=lambda kv: kv[1]["peak_ron_ohm"])
+        out[f"nmos_w{nw:g}_pmos_w{pw:g}"] = {
+            "nmos": {"model": I129_NMOS[0], "W_um": nw, "L_um": I129_NMOS[1]},
+            "pmos": {"model": I129_PMOS[0], "W_um": pw, "L_um": I129_PMOS[1]},
+            "per_condition": per_cond,
+            "overall_worst_condition": worst_key,
+            "overall_worst_peak_ron_ohm": worst["peak_ron_ohm"],
+            "overall_worst_peak_at_vin_V": worst["peak_at_vin_V"],
+        }
+    return out
+
+
+# -------------------------------- issue #129: the low-Vth sizing sweep ----
+# Candidate replacements for the `Sin` gate, in the same flavours issue #92
+# gave the phi2 `vcm` switches: an `nfet_01v8_lvt` half at L 0.15 and a
+# `pfet_01v8_lvt` half at L 0.35 -- the lvt PMOS model's own minimum length,
+# and the length every lvt PMOS half in the committed cell already sits at
+# (the standard-Vth `Sin` PMOS at L 0.15 cannot simply be re-flavoured).
+# Width pairs start at the phi2 `vcm` switches' geometry (NMOS W 12, PMOS
+# W 24) and go DOWN, because unlike those switches `Sin` sits directly on the
+# input: every micron of width is gate area the input drives and channel the
+# phi1 turn-off injects onto. The chosen size is read from the committed
+# sweep, never from a calculation -- `derived` reduces each sweep below.
+I129_NMOS = ("sky130_fd_pr__nfet_01v8_lvt", 0.15)
+I129_PMOS = ("sky130_fd_pr__pfet_01v8_lvt", 0.35)
+I129_CANDIDATES = ((4, 8), (6, 12), (8, 16), (12, 24))
+# The same input range the i106 sweep resolves, re-pointed at where a
+# low-Vth pair can actually peak: the full 0.3 .. 1.5 V span for context,
+# with the 0.7 .. 1.1 V window (around vcm, where every i106 skew peaked)
+# resolved at 50 mV. i106's probes of the old gate peaked at 0.80-1.00 V;
+# the coarse steps outside that window do not straddle it.
+I129_VIN = (0.3, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.2, 1.5)
+
+
+def i129_points():
+    """The sizing-sweep rows: one ngspice .op per candidate x condition x Vin.
+
+    Pure: no PDK, no simulator. `test_run_probe.py` pins the candidate set
+    against the phi2 `vcm` switches' geometry and the condition set against
+    the i106 conditions, so a later edit that quietly narrows either fails a
+    test rather than shrinking the evidence.
+    """
+    nmodel, nl = I129_NMOS
+    pmodel, pl = I129_PMOS
+    return [(f"tg129_lvt_n{nw:g}_p{pw:g}_{corner}_{vtag(temp)}c_{vtag(vdda)}v_{vtag(vin)}v",
+             nw, pw, nmodel, nl, pmodel, pl, corner, temp, vdda, vin)
+            for nw, pw in I129_CANDIDATES
+            for corner, temp, vdda in TG_CONDITIONS
+            for vin in I129_VIN]
+
+
+I129_POINTS = i129_points()
 
 
 def run(key, model, w, l, corner, temp, vdda, kind, ng, pdk_lib, tmp):
@@ -335,7 +419,7 @@ def run_tg(key, corner, temp, vdda, vin, ng, pdk_lib, tmp, *,
 
 
 # (set name) -> (what the rows are, the metadata the set contributes)
-POINT_SETS = ("i92", "i106", "i147")
+POINT_SETS = ("i92", "i106", "i147", "i129")
 
 
 def main():
@@ -345,7 +429,8 @@ def main():
     ap.add_argument("--set", choices=POINT_SETS + ("all",), default="all",
                     help="which point set to run: i92 (single-device ron/leakage), "
                          "i106 (pass-gate Ron vs input), i147 (Sci top-plate hold vs "
-                         "top-plate voltage), or all (default; print only)")
+                         "top-plate voltage), i129 (low-Vth Sin sizing sweep), or all "
+                         "(default; print only)")
     ap.add_argument("--out", default=None,
                     help="result file name (default: probe-<set>.json)")
     ap.add_argument("--write", action="store_true", help="save the result file")
@@ -378,6 +463,9 @@ def main():
                 "nfet_01v8_lvt, no PMOS half) Ron versus the top-plate voltage it must "
                 "hold to vcm, with the #92-precedent PMOS halves and a widened-NMOS "
                 "counterfactual as variants, over the same condition grid (issue #147)",
+        "i129": "Low-Vth transmission-gate sizing sweep: candidate `nfet_01v8_lvt` + "
+                "`pfet_01v8_lvt` replacements for the `Sin` gate, Ron versus the voltage "
+                "each passes, over the same six conditions as i106 (issue #129)",
     }
     purpose = {
         "i92": "give the switch-resistance and leakage numbers in "
@@ -389,6 +477,9 @@ def main():
                 "0.6 V-input sampling error in sim/integrator-ci/record-i106.json) a "
                 "committed mechanism testbench, and the change-or-accept decision its "
                 "own evidence",
+        "i129": "give issue #129's cell decision a committed testbench: rank the "
+                "candidate low-Vth `Sin` sizes by measured peak Ron so the chosen "
+                "size is read from a record, not from a calculation",
     }
     method = {}
     if "i92" in sets:
@@ -422,6 +513,18 @@ def main():
                          "of the sweep, and a row there reports ron_ohm = null with "
                          "current_at_gmin_floor = true -- effectively open (>= 1e13 "
                          "ohm at the 10 mV bias), not a floored finite number")
+    if "i129" in sets:
+        method["tg129"] = (method.get("tg", "") + " Identical bench and bias on each "
+                           "candidate pair; the candidates differ only in the two "
+                           "halves' widths.")
+        method["i129_candidates"] = {
+            f"nmos_w{nw:g}_pmos_w{pw:g}": {
+                "nmos": {"model": I129_NMOS[0], "W_um": nw, "L_um": I129_NMOS[1]},
+                "pmos": {"model": I129_PMOS[0], "W_um": pw, "L_um": I129_PMOS[1]},
+            } for nw, pw in I129_CANDIDATES}
+        method["i129_candidates_note"] = (
+            "width pairs from the phi2 `vcm` switches' geometry (n 12 / p 24, the "
+            "issue #92 remedy) downward; the lvt PMOS sits at its L = 0.35 minimum")
     method["geometry"] = ("ad = as = 0.29*W, pd = ps = 2*W + 0.58, nrd = nrs = 0.29/W -- the "
                           "rule the committed netlist itself uses")
     method["geometry_self_check"] = (f"{checked} switch lines in "
@@ -475,6 +578,18 @@ def main():
                    else "   open (>=1e13)")
             print(f"  {key:46s} tg       Ron = {ron}   {share}",
                   file=sys.stderr)
+    if "i129" in sets:
+        for (key, nw, pw, nmodel, nl, pmodel, pl,
+             corner, temp, vdda, vin) in I129_POINTS:
+            res["points"][key] = run_tg(
+                key, corner, temp, vdda, vin, ng, pdk_lib, tmp,
+                nmos=(nmodel, nw, nl), pmos=(pmodel, pw, pl),
+                switch=(f"candidate low-Vth Sin pair: NMOS {nmodel} W {nw:g} / "
+                        f"L {nl:g} in parallel with PMOS {pmodel} W {pw:g} / L {pl:g}"))
+            p = res["points"][key]
+            print(f"  {key:48s} tg129    Ron = {p['ron_ohm']:10.4g} ohm   "
+                  f"(NMOS {100 * p['nmos_current_share']:5.1f} % of I)", file=sys.stderr)
+        res["derived"] = i129_derived(res["points"])
 
     txt = json.dumps(res, indent=2) + "\n"
     if a.write:

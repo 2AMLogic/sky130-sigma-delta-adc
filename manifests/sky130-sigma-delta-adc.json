@@ -4,7 +4,7 @@
   "evidence": {
     "1.analog": {
       "file": "design/attest/item1-analog-envelope.json",
-      "content_hash": "sha256:6e83ed01d381c0bad03d9acdcf5ec0faa5f9dba7db52acce4360a4326453046b"
+      "content_hash": "sha256:35fedd31baa3fe544b50056da74b5d57d695c9bda75d798afb3f391e81d11574"
     },
     "1.digital": {
       "file": "design/attest/item1-digital-envelope.json",
@@ -29,6 +29,13 @@
         "rows": [
           "1",
           "4"
+        ]
+      },
+      {
+        "file": "sim/modulator-tran/report.json",
+        "content_hash": "sha256:f5abe6dda67408c47de81e7b1c709a73524d598ad56c9da37af97baee7c37c61",
+        "rows": [
+          "11"
         ]
       }
     ],
@@ -82,19 +89,18 @@
       },
       {
         "id": "5",
-        "gap": "no envelope can express this row: the committed transistor-level bench measures the 5.12 MHz clock over its record (sim/modulator-tran/record.json, phi1_edges 1024 of 1024 and bs_edges within limits at all seven anchors, tagged spec_row 5) but its raw klt sim report was not retained (sim/modulator-tran/.artifacts/ is gitignored), and the committed record.json is the bench's own reduction, not a klt-ingestible envelope. Re-running the seven-corner transistor-level transient to regenerate a citable report is out of scope here (#125's bench)."
+        "gap": "the committed report carries the row but cannot carry it as coverage: sim/modulator-tran/report.json (the retained raw klt sim report of the seven-anchor transistor-level transient, #125's bench re-run) tags phi1_edges (exactly 1024) and bs_edges (594-624) with spec_row 5 and both pass their limits at all seven anchors, but the envelope's overall status is fail (row 11's integrator swing, #148), and klt 0.9.2 credits no per-row coverage from a failing envelope (2AMLogic/klayout-tools#6027). The row stays a declared gap until the envelope passes (#148) or klt gains row-scoped citation credit; the passing measurements are visible in the committed report either way."
       },
       {
-        "id": "11",
-        "gap": "measured and failing, but not citable: the committed transistor-level bench reports o1_swing_pp up to 3.500 V and o2_swing_pp up to 2.256 V against the 1.39 Vpp spec section 5.4 bound at the row-11 input amplitude, failing at all seven anchors (sim/modulator-tran/record.json, measurement_rollup; issue #148, open). Its raw klt sim report was not retained (gitignored .artifacts/), so no envelope can carry the failure; a gap is declared rather than leaving the row silently uncovered. The failure is recorded, not fixed, here."
+        "id": "11"
       },
       {
         "id": "12",
-        "gap": "no committed envelope carries a row-12-tagged measurement: the bench ran the 1.62-1.98 V anchor supplies but tags no supply-row limit (sim/modulator-tran/record.json), model B has no supply parameter (FS-normalised), and the bench's raw klt sim report was not retained. Supply-range operation of the assembled analog half therefore has no citable evidence yet."
+        "gap": "no citable coverage, for two stacked reasons. The committed report (sim/modulator-tran/report.json) ran the 1.620/1.800/1.980 V anchors, so the bench demonstrably spans the spec supply range, but the request tags no supply-row limit (no measurement carries spec_row 12): tagging vdda_v with the 1.62-1.98 V bounds would change request.json, whose sha256 the committed record.json and samples/ are bound to, re-binding the T-extraction chain (sim/bmodel/) built on this bench \u2014 deferred to the next re-run justified on its own. And even tagged, the row would not be credited while the envelope fails (row 11 swing, #148; 2AMLogic/klayout-tools#6027). Model B has no supply parameter (FS-normalised)."
       },
       {
         "id": "13",
-        "gap": "no envelope can express this row: the committed transistor-level bench measures P_ana passing at all seven anchors, worst 0.5804 mW at ff/1.980V/125C against the 1 mW limit (sim/modulator-tran/record.json, p_ana tagged spec_row 13), but its raw klt sim report was not retained (sim/modulator-tran/.artifacts/ is gitignored), so the pass cannot be cited. Re-running the bench to regenerate a citable report is out of scope here."
+        "gap": "the committed report carries the row but cannot carry it as coverage: sim/modulator-tran/report.json tags p_ana with spec_row 13 (<= 1 mW) and it passes at all seven anchors, worst 0.5804 mW at ff/1.980V/125C, but the envelope's overall status is fail (row 11's integrator swing, #148), and klt 0.9.2 credits no per-row coverage from a failing envelope (2AMLogic/klayout-tools#6027). Same disposition as row 5."
       }
     ]
   }

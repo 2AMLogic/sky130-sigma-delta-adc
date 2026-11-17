@@ -17,10 +17,10 @@
 *.ipin phi2
 *.ipin dp
 *.ipin dn
-XSin_p_n vinp phi1 bpi_p vssa sky130_fd_pr__nfet_01v8 L=0.15 W=4 nf=1 ad=1.16 as=1.16 pd=8.58 ps=8.58 nrd=0.0725 nrs=0.0725 sa=0
-+ sb=0 sd=0 mult=1 m=1
-XSin_p_p vinp phi1b bpi_p vdda sky130_fd_pr__pfet_01v8 L=0.15 W=8 nf=1 ad=2.32 as=2.32 pd=16.58 ps=16.58 nrd=0.03625 nrs=0.03625
+XSin_p_n vinp phi1 bpi_p vssa sky130_fd_pr__nfet_01v8_lvt L=0.15 W=4 nf=1 ad=1.16 as=1.16 pd=8.58 ps=8.58 nrd=0.0725 nrs=0.0725
 + sa=0 sb=0 sd=0 mult=1 m=1
+XSin_p_p vinp phi1b bpi_p vdda sky130_fd_pr__pfet_01v8_lvt L=0.35 W=8 nf=1 ad=2.32 as=2.32 pd=16.58 ps=16.58 nrd=0.03625
++ nrs=0.03625 sa=0 sb=0 sd=0 mult=1 m=1
 XSbi_p bpi_p phi2 vcm vssa sky130_fd_pr__nfet_01v8_lvt L=0.15 W=12 nf=1 ad=3.48 as=3.48 pd=24.58 ps=24.58 nrd=0.02416667
 + nrs=0.02416667 sa=0 sb=0 sd=0 mult=1 m=1
 XSci_p tpi_p phi1e vcm vssa sky130_fd_pr__nfet_01v8_lvt L=0.15 W=12 nf=1 ad=3.48 as=3.48 pd=24.58 ps=24.58 nrd=0.02416667
@@ -48,10 +48,10 @@ XStr_p tpr_p phi2 sump vssa sky130_fd_pr__nfet_01v8_lvt L=0.15 W=12 nf=1 ad=3.48
 + nrs=0.02416667 sa=0 sb=0 sd=0 mult=1 m=1
 XCsr_p tpr_p bpr_p sky130_fd_pr__cap_mim_m3_1 W=22.17 L=22.17 MF=1 m=1
 XCi_p sump voutp sky130_fd_pr__cap_mim_m3_1 W=31.43 L=31.43 MF=1 m=1
-XSin_n_n vinn phi1 bpi_n vssa sky130_fd_pr__nfet_01v8 L=0.15 W=4 nf=1 ad=1.16 as=1.16 pd=8.58 ps=8.58 nrd=0.0725 nrs=0.0725 sa=0
-+ sb=0 sd=0 mult=1 m=1
-XSin_n_p vinn phi1b bpi_n vdda sky130_fd_pr__pfet_01v8 L=0.15 W=8 nf=1 ad=2.32 as=2.32 pd=16.58 ps=16.58 nrd=0.03625 nrs=0.03625
+XSin_n_n vinn phi1 bpi_n vssa sky130_fd_pr__nfet_01v8_lvt L=0.15 W=4 nf=1 ad=1.16 as=1.16 pd=8.58 ps=8.58 nrd=0.0725 nrs=0.0725
 + sa=0 sb=0 sd=0 mult=1 m=1
+XSin_n_p vinn phi1b bpi_n vdda sky130_fd_pr__pfet_01v8_lvt L=0.35 W=8 nf=1 ad=2.32 as=2.32 pd=16.58 ps=16.58 nrd=0.03625
++ nrs=0.03625 sa=0 sb=0 sd=0 mult=1 m=1
 XSbi_n bpi_n phi2 vcm vssa sky130_fd_pr__nfet_01v8_lvt L=0.15 W=12 nf=1 ad=3.48 as=3.48 pd=24.58 ps=24.58 nrd=0.02416667
 + nrs=0.02416667 sa=0 sb=0 sd=0 mult=1 m=1
 XSci_n tpi_n phi1e vcm vssa sky130_fd_pr__nfet_01v8_lvt L=0.15 W=12 nf=1 ad=3.48 as=3.48 pd=24.58 ps=24.58 nrd=0.02416667

@@ -352,6 +352,19 @@ class AdmissionGates(RunnerCase):
         self.assertIn("append-only", err)
         self.assertEqual((self.here / "record-i106.json").read_text(), "{}\n")
 
+    def test_the_issue_flag_names_the_fixture_and_the_evidence_pointer(self):
+        """--issue 129 --record-name record-i129.json is the re-run shape."""
+        rc, out, err = self.run_main(
+            ["--record", "--issue", "129", "--record-name", "record-i129.json"],
+            self.all_submits())
+        self.assertEqual(rc, 0, err)
+        rec = self.record("record-i129.json")
+        self.assertIn("(issue #129)", rec["fixture"])
+        self.assertEqual(rec["related_evidence"]["switch_ron_vs_input"],
+                         "sim/switch-probe/probe-i129.json")
+        self.assertEqual(rec["related_evidence"]["charge_injection_extraction"],
+                         "sim/integrator-ci/record.json (issue #102)")
+
     def test_a_complete_grid_without_the_record_flag_writes_nothing(self):
         rc, out, err = self.run_main([], self.all_submits())
         self.assertEqual(rc, 0, err)
@@ -496,6 +509,33 @@ class Derivations(unittest.TestCase):
             row["sampled_bpi_only_V"] - row["sampled_V"],
             row["top_plate_differential_V"], places=9)
 
+    def test_the_bpi_only_binding_is_the_worst_on_that_reading(self):
+        """DR-010's line grades error_rel_bpi_only; its binding is a separate worst."""
+        g0 = grid(ideal(AMPS[0]), ideal(AMPS[0]))
+        g0[CORNER_IDS[5]][f"samp_bpi_s{MK.SAMP_REPORT}"] = ideal(AMPS[0]) * 0.9
+        g1 = grid(ideal(AMPS[1]), ideal(AMPS[1]))
+        g1[CORNER_IDS[9]][f"samp_bpi_s{MK.SAMP_REPORT}"] = ideal(AMPS[1]) * 0.5
+        d = RUNNER.derive({AMPS[0]: {"corners": g0}, AMPS[1]: {"corners": g1}})
+        self.assertEqual(d["binding_bpi_only"]["amplitude"], AMPS[1])
+        self.assertEqual(d["binding_bpi_only"]["corner"], CORNER_IDS[9])
+        self.assertAlmostEqual(
+            d["binding_bpi_only"]["error_rel_bpi_only"], 0.5, places=9)
+        self.assertIn("BOTTOM-PLATE-ONLY", d["binding_bpi_only"]["note"])
+        # The across-Csi headline is clean in this fixture: the two bindings
+        # are independent readings of the same grid.
+        self.assertAlmostEqual(d["binding"]["error_rel"], 0.0, places=12)
+
+    def test_bpi_only_corners_over_the_line_are_listed_separately(self):
+        """Over on bpi_only, under on the headline: listed on the bpi list only."""
+        g = grid(ideal(AMPS[0]), ideal(AMPS[0]))
+        g[CORNER_IDS[3]][f"samp_bpi_s{MK.SAMP_REPORT}"] = ideal(AMPS[0]) * (1 - 5e-4)
+        d = RUNNER.derive({AMPS[0]: {"corners": g},
+                           AMPS[1]: {"corners": grid(ideal(AMPS[1]), ideal(AMPS[1]))}})
+        amp = d["amplitudes"][AMPS[0]]
+        self.assertEqual(amp["corners_over_reference_line_bpi_only"], [CORNER_IDS[3]])
+        self.assertEqual(amp["corners_over_reference_line_bpi_only_count"], 1)
+        self.assertEqual(amp["corners_over_reference_line"], [])
+
     def test_the_frozen_control_difference_is_carried(self):
         g = grid(0.2, 0.2)
         g[CORNER_IDS[0]][f"samp_f{MK.SAMP_REPORT}"] = 0.2004
@@ -588,15 +628,67 @@ class CommittedRecordProse(unittest.TestCase):
                           f"measured_quantity does not mention {field}")
 
     def test_the_committed_conditions_block_still_matches_the_runner(self):
-        """Generator and record must not drift.
+        """Generator and record must not drift -- except where #129 moved the cell.
 
-        `conditions()` takes no arguments -- it is a pure function of the
-        source constants and depends on no simulated value -- so this holds
-        without re-running anything. It is what stops a corrected sentence
-        from silently reverting the next time the record is regenerated, and
-        what catches a hand-edit to either side.
+        `conditions()` derives `switch_under_test` from the committed netlist
+        since issue #129, so this record -- taken on the PRE-#129 cell --
+        legitimately differs in that one field. Every other field is still a
+        pure function of the source constants and must match. The historical
+        switch text is pinned verbatim below so neither side can hand-edit it.
+        The record taken on the changed cell carries the guard forward in
+        test_the_current_records_conditions_match_the_runner.
         """
-        self.assertEqual(self.rec["conditions"], RUNNER.conditions())
+        got = dict(self.rec["conditions"])
+        want = dict(RUNNER.conditions())
+        historical = got.pop("switch_under_test")
+        self.assertIn("nfet_01v8 W 4", historical)
+        self.assertIn("no low-Vth half", historical)
+        want.pop("switch_under_test")
+        self.assertEqual(got, want)
+
+    def test_the_current_records_conditions_match_the_runner(self):
+        """The same drift guard, on the record taken on the changed cell."""
+        rec_file = HERE / "record-i129.json"
+        if not rec_file.exists():
+            self.skipTest("record-i129.json is not committed yet")
+        rec = json.loads(rec_file.read_text())
+        self.assertEqual(rec["conditions"], RUNNER.conditions())
+
+    def test_the_current_record_grades_on_the_bottom_plate_reading(self):
+        """DR-010's line is graded on error_rel_bpi_only; the record carries it."""
+        rec_file = HERE / "record-i129.json"
+        if not rec_file.exists():
+            self.skipTest("record-i129.json is not committed yet")
+        rec = json.loads(rec_file.read_text())
+        d = rec["derived"]
+        self.assertIn("binding_bpi_only", d)
+        for amp in d["amplitudes"].values():
+            self.assertIn("worst_corner_bpi_only", amp)
+            self.assertIn("corners_over_reference_line_bpi_only", amp)
+            self.assertIn("corners_over_reference_line_bpi_only_count", amp)
+
+    def test_the_current_records_bpi_verdict_matches_the_decision_record(self):
+        """The committed verdict is exactly what DR-010 states: 87/90, 3 named corners.
+
+        A re-run that changes this state must update DR-010 in the same PR --
+        this pin makes the drift loud instead of silent.
+        """
+        rec_file = HERE / "record-i129.json"
+        if not rec_file.exists():
+            self.skipTest("record-i129.json is not committed yet")
+        d = json.loads(rec_file.read_text())["derived"]
+        over = sorted((v, cid)
+                      for v, amp in d["amplitudes"].items()
+                      for cid in amp["corners_over_reference_line_bpi_only"])
+        self.assertEqual(over, [("post_v0p2", "fs/1.620V/-40C"),
+                                ("post_v0p6", "fs/1.620V/-40C"),
+                                ("post_v0p6", "ss/1.620V/-40C")],
+                         "the corners over the DR-010 line moved; update DR-010's "
+                         "status section in the same PR")
+        self.assertEqual(d["binding_bpi_only"]["corner"], "fs/1.620V/-40C")
+        met = sum(45 - amp["corners_over_reference_line_bpi_only_count"]
+                  for amp in d["amplitudes"].values())
+        self.assertEqual(met, 87)    # of the 90 corner-amplitude points (44 + 43)
 
 
 if __name__ == "__main__":

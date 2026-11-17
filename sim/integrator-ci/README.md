@@ -25,6 +25,7 @@ sqrt(W L) growth the design notes predicted is not what dominates it.**
 | Signal-dependent part (`ci_gain_error`) | **below this bench's resolution**; the measured slope is accounted for by the drawn capacitor ratio, the finite-gain leak and, at the slow/cold corners, incomplete *input* sampling (#106) | `record.json` |
 | **Cost in model B** | **0.17 dB** of peak SNDR: 86.00 dB against the 86.17 dB ideal record | `sim/bmodel/records/20261113T145641Z-a793a24d.json` |
 | *Input* sampling completeness (a **different** mechanism, issue #106) | worst **0.5432** of a 0.2 V differential input unsampled at `ss`/1.620 V/−40 °C, and strongly **input-level dependent** (0.0083 at 0.6 V); no SNDR consequence claimed | `record-i106.json` |
+| … same, **on the #129 cell** (low-Vth `Sin`), graded per DR-010 on `error_rel_bpi_only` | filed point **0.5044 → 8.9e-5**; **87/90 corner-amplitude points meet the 1e-4 line**; the 3 exceptions (`fs`/1.620 V/−40 °C both amplitudes, `ss`/1.620 V/−40 °C at 0.6 V) are the #147 `Sci` top-plate coupling, not `Sin` sizing — see `record-i129.json` and DR-010 | `record-i129.json` |
 
 Everything here is **simulated**, never measured, and the records carry no
 pass/fail criterion: no spec row bounds this residual. **Read "Limits" at the
@@ -646,6 +647,16 @@ Append-only JSON, one file per campaign:
 | `record-mc.json` | Monte Carlo mismatch, 2 cells × 7 anchors × N = 100 | `run_ci.py --mc --record` |
 | `record-i106.json` | input sampling, 2 amplitudes × 45 DR-002 points | `run_sampling.py --record` |
 | `record-i147.json` | input sampling on the #147 cell (Sci/Scr PMOS half), 2 amplitudes × 45 DR-002 points | `run_sampling.py --record --record-name record-i147.json` |
+| `record-i129.json` | input sampling on the #129 cell (low-Vth `Sin`), 2 amplitudes × 45 DR-002 points | `run_sampling.py --from-partials --record --issue 129 --record-name record-i129.json` |
+
+**Pre-change-cell marking (issue #129).** `record.json`, `record-mc.json`,
+`record-i106.json`, `bmodel-ci-*.json` and the `sim/integrator-noise` records
+were taken on the **pre-#129 cell** (standard-Vth `Sin`); their committed
+`integrator_netlist_sha256` values pin that cell and are the marker. The #129
+change regenerated `design/integrator/integrator.spice`, so those records are
+evidence of the old cell, kept append-only; re-extracting charge injection and
+the model-B `ci_*` parameters on the #129 cell is #266 (the same split #92 → #102). `record-i129.json` is the first record
+on the new cell.
 
 Each names the bench, the netlist sha256s (shipped cell, pre-#92 fixture,
 `ota_fd`), the PDK `SOURCES` stamp and pin, the `klt` version, the corner set or
