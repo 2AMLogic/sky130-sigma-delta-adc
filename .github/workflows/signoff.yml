@@ -36,6 +36,46 @@ jobs:
       - name: Install numpy for the pure-Python checks
         run: pip install -r sim/bmodel/requirements.txt
 
+      # Pyflakes over every tracked Python file, failing on one finding class
+      # only: a name that is never bound ("undefined name" / "undefined local
+      # variable"). None of the fleet-only runner paths (the run_tran.py
+      # main() bodies and their kin) execute in CI, and issue #272 watched a
+      # NameError in exactly such a path reach main and crash a completed
+      # fleet run at its partial-cache save -- after the batch was already
+      # paid for. pyflakes has no rule-select flag, so the gate greps its
+      # output. The other finding kinds (unused imports, unused locals,
+      # placeholder-less f-strings -- 8 as of Nov 2026) are printed but
+      # deliberately not failed on; gating on them is separate cleanup, not
+      # this step's job. `.loom/` is installer-vendored, so a finding there
+      # is not actionable in this repo and is excluded by path. The listing
+      # is null-delimited so a filename with spaces survives, and an empty
+      # file list exits 0 rather than tripping grep's no-match status.
+      - name: Pyflakes over tracked Python - undefined names fail (no EDA tools)
+        run: |
+          set -euo pipefail
+          pip install pyflakes==4.1.0
+          python3 -m pyflakes --version
+          mapfile -d '' files < <(git ls-files -z '*.py' | grep -zv '^\.loom/')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no tracked Python outside .loom/ - nothing to lint"
+            exit 0
+          fi
+          rc=0
+          out="$(python3 -m pyflakes "${files[@]}" 2>&1)" || rc=$?
+          if [ "$rc" -gt 1 ]; then
+            echo "::error::pyflakes exited $rc (usage/interpreter error), see output below"
+            echo "$out"
+            exit 1
+          fi
+          if [ -n "$out" ]; then
+            echo "$out"
+          fi
+          if grep -Eq "undefined name|undefined local variable" <<<"$out"; then
+            echo "::error::pyflakes found a name that is never bound - see the output above"
+            exit 1
+          fi
+          echo "pyflakes: no undefined names in ${#files[@]} tracked Python files"
+
       - name: Validate committed JSON parses
         run: |
           set -euo pipefail
