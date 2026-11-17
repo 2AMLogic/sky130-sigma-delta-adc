@@ -61,6 +61,7 @@ from settling_common import join_continuations, ngspice_version, pdk_stamp
 VCM = 0.9
 RON_BIAS = 0.010      # 10 mV across the closed switch
 GMIN_FLOOR = 1e-15    # the decks' `option gmin`; currents at/below it are "effectively open"
+HALF_CURRENT_SUM_BOUND = 1e-4    # tg sum check, relative (issue #275); see run_tg and README.md
 
 
 def ron_from_current(i_dev):
@@ -405,7 +406,8 @@ def run_tg(key, corner, temp, vdda, vin, ng, pdk_lib, tmp, *,
     # therefore 1e-4 relative: clear of the print floor with ~100x headroom
     # over the worst measured row, while a counter-running pair is an O(1)
     # discrepancy that still refuses instead of measuring.
-    if abs(vals["i_nmos"] + vals["i_pmos"] - vals["i_dev"]) > 1e-4 * max(vals["i_dev"], 1e-15):
+    if (abs(vals["i_nmos"] + vals["i_pmos"] - vals["i_dev"])
+            > HALF_CURRENT_SUM_BOUND * max(vals["i_dev"], GMIN_FLOOR)):
         sys.exit(f"REFUSE: half currents do not sum to the gate current for '{key}' "
                  f"({vals['i_nmos']:.6g} + {vals['i_pmos']:.6g} != {vals['i_dev']:.6g})")
     # Which half carries the current decides what a remedy should change: a

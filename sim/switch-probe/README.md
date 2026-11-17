@@ -77,12 +77,15 @@ remedy should add a low-Vth NMOS half or widen the PMOS half.
 takes `abs()` of each half's current independently, so if the halves ever ran
 counter to one another their currents would be *summed* rather than cancelled
 and the shares could exceed 1. The check that rules this out is
-`current_nmos_A + current_pmos_A == current_A`, which the deck asserts agrees
-to 7 digits and `test_run_probe.py` re-derives on every committed row. The
+`current_nmos_A + current_pmos_A == current_A`: `run_probe.py` refuses a
+fresh row beyond the relative bound stated next, and `test_run_probe.py`
+re-derives the sum on every committed row that reports the split (all 652
+tg rows of probe-i106/i129/i147 as of 2026-11-17). The
 bound is 1e-4 *relative*: the three operands arrive at ngspice's print
 precision (~7 significant digits), so rounding them independently already
 leaves residuals near 1e-6 — the committed i106/i129/i147 rows measure at
-worst 0.70x of that floor — while a counter-running pair is an O(1)
+worst 0.70x of that floor (7.04e-7, a probe-i129 row) — while a
+counter-running pair is an O(1)
 discrepancy that no print rounding can fake. Read a future row whose shares
 do not sum to the total as the halves fighting, not as a measurement of
 either one. (The note belongs here
