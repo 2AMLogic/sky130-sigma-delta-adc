@@ -157,6 +157,18 @@ jobs:
           python3 -I -m unittest discover -s manifests -p 'test_check_content_hashes.py'
           python3 -I manifests/check_content_hashes.py
 
+      # The status documents hand-state the record's headline counts
+      # ("N met, M not applicable, K unmet"), which is how ROADMAP.md said
+      # 9 / 1 / 12 beside a record reading 10 / 1 / 11 through two regrades
+      # (issue #221). This step derives the counts from the record's t1_*
+      # fields and fails on any sentence in README.md or ROADMAP.md that
+      # disagrees; a file with no count sentence asserts nothing. Same
+      # fixtures-only shape as the content-hash gate above.
+      - name: Prose T1-count sentences match the verdict of record (no EDA tools)
+        run: |
+          python3 -I -m unittest discover -s manifests -p 'test_check_prose_counts.py'
+          python3 -I manifests/check_prose_counts.py
+
       # Item 6 (digital partition) is discharged by a recorded
       # `not_applicable`, which klt signoff hash-binds to two JSON files under
       # spec/. klt cannot see that those files are a projection of the ratified
