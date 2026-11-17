@@ -4,6 +4,12 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-17
 
+- **PR #270**: feat(sim): retain the raw modulator-tran klt sim report and cite it for row 11
+- **PR #269**: sim: probe the Sci top-plate hold, give Sci/Scr the PMOS half the sweep says they need
+- **PR #268**: fix(design): make the Sin input gate a low-Vth pair, sized and graded per DR-010
+- **Issue #263** (closed): T1 item 5 analog: retain a citable klt sim report for the modulator transient and cite rows 5, 11, 12, 13
+- **Issue #147** (closed): Sci top-plate hold: 98% of the fs/1.620 V/-40 C sampling error at 0.6 V is Sci, not Sin, and Sci has never been probed
+- **Issue #129** (closed): Sin pass gate: decide the remedy for the input-sampling error now that the grid exists (54.3% unsampled at ss/1.620 V/-40 C, and level-dependent)
 - **PR #267**: docs: record the klt-pin reopen trigger's re-read at the 0.9.2 pin
 - **PR #262**: refactor: share the --check CLI driver between the cell generators via layout_common.run_cli
 - **PR #261**: docs: correct Router by_net comment; shared finish_trunks tags every cell's met2 trunks
