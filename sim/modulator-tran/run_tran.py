@@ -461,6 +461,15 @@ def dump_samples(s):
     return text + "\n"
 
 
+def samples_dir_for(record_name):
+    """Per-record samples directory: `samples/` for the original `record.json`,
+    `samples-<stem>/` for any later record (issue #148). Records are
+    append-only, and a second record must not overwrite the first record's
+    committed per-clock samples, whose sha256 other artifacts bind."""
+    stem = pathlib.Path(record_name).stem
+    return SAMPLES if stem == "record" else HERE / f"samples-{stem}"
+
+
 def write_samples(samples, outdir):
     outdir.mkdir(parents=True, exist_ok=True)
     index = {}
@@ -468,7 +477,7 @@ def write_samples(samples, outdir):
         name = f"{corner_slug(s_corner(s))}.json"
         path = outdir / name
         path.write_text(dump_samples(s))
-        index[cid] = {"file": f"samples/{name}", "sha256": sha256(path),
+        index[cid] = {"file": f"{outdir.name}/{name}", "sha256": sha256(path),
                       "n_clocks": s["n_clocks"]}
     return index
 
@@ -563,7 +572,7 @@ def main():
         print("all 7 anchors complete; re-run with --record to write the record")
         return 0
 
-    index = write_samples(samples, SAMPLES)
+    index = write_samples(samples, samples_dir_for(a.record_name))
     rec = build_record({"corners": corners, "samples_index": index,
                         "staged_request_sha256":
                             saved.get("staged_request_sha256")

@@ -1,7 +1,7 @@
 v {xschem version=3.4.7 file_version=1.2
 * modulator -- second-order single-bit switched-capacitor delta-sigma modulator
 * (issue #41). Structure follows behavioural model B (sim/bmodel/model.py:41-42):
-* two delaying integrators (the one design/integrator cell, C1 = C2 = 0.5),
+* two delaying integrators (the one design/integrator cell, C1 = C2 = 0.3, DR-007),
 * the 1-bit decision fed back to BOTH integrators, a clocked comparator
 * (vendored sky130-comparator at the reuse.lock.json pin) and an SR latch that
 * holds the decision through the sampling phase.

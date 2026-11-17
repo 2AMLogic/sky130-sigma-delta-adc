@@ -240,7 +240,14 @@ class PerClockReduction(unittest.TestCase):
             for cid, entry in index.items():
                 self.assertEqual(entry["n_clocks"], MK.N_REC)
                 self.assertEqual(len(entry["sha256"]), 64)
-                self.assertTrue(entry["file"].startswith("samples/"))
+                self.assertTrue(entry["file"].startswith(pathlib.Path(td).name + "/"))
+
+    def test_later_records_do_not_reuse_the_committed_samples_dir(self):
+        # issue #148: a second record must not overwrite record.json's samples
+        self.assertEqual(RUNNER.samples_dir_for("record.json"), RUNNER.SAMPLES)
+        other = RUNNER.samples_dir_for("record-c0p3.json")
+        self.assertNotEqual(other, RUNNER.SAMPLES)
+        self.assertEqual(other.name, "samples-record-c0p3")
 
     def test_corner_slug_is_a_safe_filename(self):
         for c in report()["corners"]:

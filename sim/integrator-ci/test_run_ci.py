@@ -568,9 +568,9 @@ class DrawnCapRatio(unittest.TestCase):
 
     def test_ratio_is_the_drawn_area_ratio_not_the_nominal_one_half(self):
         self.assertAlmostEqual(self.c["cs_drawn_area_um2"], 22.17 ** 2, places=3)
-        self.assertAlmostEqual(self.c["ci_drawn_area_um2"], 31.43 ** 2, places=3)
+        self.assertAlmostEqual(self.c["ci_drawn_area_um2"], 40.64 ** 2, places=3)
         self.assertAlmostEqual(self.c["drawn_area_ratio_cs_over_ci"],
-                               22.17 ** 2 / 31.43 ** 2, places=9)
+                               22.17 ** 2 / 40.64 ** 2, places=9)
         self.assertNotAlmostEqual(self.c["drawn_area_ratio_cs_over_ci"], 0.5, places=4,
                                   msg="if the drawn ratio were exactly 0.5 there "
                                       "would be nothing to separate")
@@ -580,7 +580,7 @@ class DrawnCapRatio(unittest.TestCase):
         cid = CORNER_IDS[0]
         ratio = self.c["drawn_area_ratio_cs_over_ci"]
         # A cell whose slope is exactly the drawn capacitor ratio has no gain
-        # error to attribute to injection, but a nonzero bound against C1 = 0.5.
+        # error to attribute to injection, but a nonzero bound against C1 = 0.3.
         results = {v: {"corners": {cid: corner(ratio * MK.VARIANTS[v]["vin_diff"])}}
                    for v in ("post_v0", "post_v0p1", "post_v0p2")}
         results["post_dac"] = {"corners": {}}
