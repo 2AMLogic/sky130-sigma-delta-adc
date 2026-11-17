@@ -2,6 +2,21 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-17
+
+- **PR #267**: docs: record the klt-pin reopen trigger's re-read at the 0.9.2 pin
+- **PR #262**: refactor: share the --check CLI driver between the cell generators via layout_common.run_cli
+- **PR #261**: docs: correct Router by_net comment; shared finish_trunks tags every cell's met2 trunks
+- **PR #259**: fix: register manifests and sim/modulator-tran tool-free steps in check-ci.sh CHECKS
+- **PR #255**: refactor: delegate runners' shas/load_partial/save_partial to settling_common
+- **PR #247**: ci: collapse signoff.yml's two overlapping layout/analog test steps into one
+- **Issue #258** (closed): Share the --check CLI driver between gen_integrator.py and gen_ota_fd.py: two ~145-line main() copies
+- **Issue #253** (closed): Finish settling_common consolidation: drop hand-rolled shas/partial/sha256 copies in 4 runners
+- **Issue #250** (closed): Record the DR-008 klt-pin re-read at the 0.9.2 pin (corrigendum 01's reopen trigger, fired by #244)
+- **Issue #246** (closed): check-ci drift guard fails on main: manifests and sim/modulator-tran tool-free steps are not registered in CHECKS
+- **Issue #239** (closed): layout_common.Router: by_net comment says the OTA cell's dict stays empty, but the shared finish_trunks tags every trunk
+- **Issue #211** (closed): signoff.yml's two layout/analog unittest steps overlap: the DRC-guard step's test_*.py pattern already runs test_layout_common.py
+
 ### 2026-11-16
 
 - **PR #256**: fix: fold SPICE continuation lines before parsing extracted X-devices
