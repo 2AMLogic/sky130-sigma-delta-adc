@@ -4,6 +4,23 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-17
 
+- **PR #291**: docs: re-point characterization's closed-#33 citations at open owners
+- **PR #287**: docs: point GEOMETRIES comment at extract-device-count.json instead of stale counts
+- **PR #285**: docs: refresh integrator section of layout/README.md from committed post-#274 artifacts
+- **PR #283**: Regenerate the integrator layout for the #147 50-device netlist
+- **PR #281**: test: re-derive the tg half-current sum on every committed probe row
+- **PR #280**: fix: fail signoff gate when a tracked Python file cannot parse
+- **PR #278**: fix: set the tg half-current sum bound to 1e-4 relative, clear of the print floor
+- **PR #273**: ci: fail signoff on undefined names via pinned pyflakes
+- **Issue #288** (closed): Re-grade characterization rows after #33's closure (curator verdict of record) — unblocks PR #213's cited-issue CI
+- **Issue #286** (closed): gen_integrator.py's GEOMETRIES comment still says "44 devices cost 9 klt gen calls" (now 50 / 11)
+- **Issue #282** (closed): layout/README.md's integrator section has been stale since #129 and nothing tracks it
+- **Issue #279** (closed): switch-probe README overstates what the half-current sum check's tests pin
+- **Issue #277** (closed): CI: the signoff pyflakes gate passes green on a Python file that cannot be parsed
+- **Issue #275** (closed): switch-probe: the half-current sum refusal aborts a whole sweep at a tolerance that sits on the print-rounding floor
+- **Issue #274** (closed): The committed integrator layout is stale against the #147 cell (50 devices vs the 44 it pins) and nothing tracks it
+- **Issue #272** (closed): CI: add a pyflakes step — a NameError in a fleet-only runner path reached main and cost a completed batch run
+- **Issue #33** (closed): T1 item 5 (corner verification): transistor-level PVT SNDR/power sweep of the modulator, plus decimator STA and klt functional-verification
 - **PR #270**: feat(sim): retain the raw modulator-tran klt sim report and cite it for row 11
 - **PR #269**: sim: probe the Sci top-plate hold, give Sci/Scr the PMOS half the sweep says they need
 - **PR #268**: fix(design): make the Sin input gate a low-Vth pair, sized and graded per DR-010
