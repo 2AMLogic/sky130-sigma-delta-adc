@@ -11,6 +11,7 @@ import json
 import math
 import pathlib
 import sys
+from types import SimpleNamespace
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
@@ -36,11 +37,55 @@ TRISE0 = TCLK0 + TEDGE / 2.0   # first rising 50 % crossing
 N_SETTLE = 64                  # discarded start-up clocks
 N_REC = 1024                   # recorded clocks = 8 output samples at OSR 128
 
+# Long-record bench (DR-001 corrigendum 01, issue #290). DR-001 item 3's
+# in-band SNDR leg needs in-band noise bins beside the tone lobe; at 1024
+# clocks the 4-term Blackman-Harris lobe covers the whole 20 kHz band
+# (sim/bmodel/xcheck-record.json, sndr_inband_db.reason). The corrigendum
+# lengthens the cross-check record to 4096 recorded clocks: 1250 Hz bins, 16
+# band bins, the tone at bin 12, and 7 in-band noise bins -- thin, but
+# computable, which is what the operator ruling requires ("lengthen the T
+# record until in-band SNDR is computable"; the 3 dB gate is unchanged). The
+# length is the longest band-resolving power of two that fits the fleet's
+# 3600 s whole-job ceiling: the probe run measured 1104.6 s of unit runtime for
+# one corner (tt/27 C/1.80 V, 4160 clocks, klt-sim-56a43a043984, ~0.265
+# s/clock) against 441-606 s per 1088 clocks for the committed run, which puts
+# 8192 recorded clocks past the ceiling at every measured per-clock rate, and
+# one unit's runtime is not reducible by sharding (sharding divides units per
+# job, never one unit's transient). Each long corner therefore gets its own
+# batch job with the whole budget: one unit per job, timeout_s 3300, so the
+# pre-submit serial bound 3300*1 + 120 = 3420 s stays inside the ceiling.
+N_REC_LONG = 4096              # recorded clocks = 32 output samples at OSR 128
+CYCLES_LONG = 12               # 12 cycles over 4096 clocks = 15 kHz, bin 12 exactly
+DECK_LONG = "modulator_tran_long.cir"
+REQUEST_LONG = "request_long.json"
+PER_CORNER_TIMEOUT_S_LONG = 3300
+MAX_UNITS_PER_JOB_LONG = 1
+MAX_CONCURRENT_JOBS_LONG = 7   # one job per corner; capacity_wait_s absorbs refusals
+
 # Coherent tone: CYCLES whole periods over the N_REC recorded clocks. 3 is odd
 # and coprime with 1024, and puts the tone at 15 kHz, inside the 20 kHz band of
-# spec row 1.
+# spec row 1. The long bench (CYCLES_LONG over N_REC_LONG) lands the tone on
+# the same 15 kHz: 12 cycles over 4096 clocks is exactly bin 12 at 1250 Hz
+# bin bandwidth. On the bitstream route the tone bin only has to be an
+# integer (coherence is by construction over the whole window), which 12 is.
 CYCLES = 3
 FIN_HZ = CYCLES * FS_HZ / N_REC
+
+# Window actually measured: clocks N_SETTLE .. N_SETTLE+n_rec-1. The 1024
+# constants below are this function applied to the committed bench length; the
+# long bench calls it with N_REC_LONG (identical formulas, so identical
+# floats where the lengths coincide).
+def window(n_rec):
+    """(T_REC_FROM, T_REC0, T_REC1, T_END) for an n_rec-clock record."""
+    t_rec_from = TCLK0 + N_SETTLE * TPER
+    t_rec0 = TRISE0 + N_SETTLE * TPER
+    t_rec1 = t_rec0 + n_rec * TPER
+    t_end = TRISE0 + (N_SETTLE + n_rec + 1) * TPER   # one spare clock after
+    return t_rec_from, t_rec0, t_rec1, t_end
+
+
+T_REC_FROM, T_REC0, T_REC1, T_END = window(N_REC)
+T_MAX_STEP = 1.0e-9
 
 # Amplitude. Model B's full scale is the 1.2 V differential reference
 # (sim/bmodel/model.py: "+/-1 is full scale ... spec row 11 (0.5*VREF peak) is
@@ -50,13 +95,6 @@ FIN_HZ = CYCLES * FS_HZ / N_REC
 VREF_DIFF_V = 1.2
 AMP_DBFS = -6.0
 AMP_SE_V = 0.5 * VREF_DIFF_V * 10.0 ** (AMP_DBFS / 20.0)   # 0.30069 V per side
-
-# Window actually measured: clocks N_SETTLE .. N_SETTLE+N_REC-1.
-T_REC_FROM = TCLK0 + N_SETTLE * TPER        # before that clock's rising edge
-T_REC0 = TRISE0 + N_SETTLE * TPER           # the rising 50 % crossing itself
-T_REC1 = T_REC0 + N_REC * TPER
-T_END = TRISE0 + (N_SETTLE + N_REC + 1) * TPER   # one spare clock after the window
-T_MAX_STEP = 1.0e-9
 
 # Per-clock sampling instant: the clock's own falling 50 % crossing, which is
 # the end of the phi2 integrate phase and a few hundred ps *before* clkgen
@@ -113,15 +151,16 @@ def win_mask(lo, hi):
 MASK = win_mask(T_REC0, T_REC1)
 
 
-def wmax(vec):
-    return f"vecmax({vec}*{MASK} - 10*(1-{MASK}))"
+def wmax(vec, mask):
+    return f"vecmax({vec}*{mask} - 10*(1-{mask}))"
 
 
-def wmin(vec):
-    return f"vecmin({vec}*{MASK} + 10*(1-{MASK}))"
+def wmin(vec, mask):
+    return f"vecmin({vec}*{mask} + 10*(1-{mask}))"
 
 
-def cycle_mean(signal, unit, limits=None, spec_row=None, name=None):
+def cycle_mean(signal, unit, limits=None, spec_row=None, name=None,
+               t_rec_from=None, n_rec=None):
     """Time-weighted mean of `signal` over the N_REC recorded clock periods.
 
     Aligned on the clock's own mid-rail crossing, so the window is a whole
@@ -133,7 +172,7 @@ def cycle_mean(signal, unit, limits=None, spec_row=None, name=None):
     m = {"name": name, "unit": unit,
          "cycle_mean": {"signal": signal, "align": "v(clk)-0.5*v(vdda)",
                         "level": 0.0, "edge": "rise",
-                        "from": T_REC_FROM, "cycles": N_REC}}
+                        "from": t_rec_from, "cycles": n_rec}}
     if limits:
         m["limits"] = limits
     if spec_row:
@@ -141,16 +180,17 @@ def cycle_mean(signal, unit, limits=None, spec_row=None, name=None):
     return m
 
 
-def energy(name, source, voltage):
+def energy(name, source, voltage, t_rec0, t_rec1):
     return {"name": name, "unit": "J",
             "energy": {"source": source, "voltage": voltage,
-                       "from": T_REC0, "to": T_REC1}}
+                       "from": t_rec0, "to": t_rec1}}
 
 
-def crossings(name, signal, edge, limits=None, spec_row=None, unit=None):
+def crossings(name, signal, edge, limits=None, spec_row=None, unit=None,
+              t_rec_from=None, t_rec1=None):
     m = {"name": name,
          "crossings": {"signal": signal, "level": 0.0, "edge": edge,
-                       "from": T_REC_FROM, "to": T_REC1, "max": 100000}}
+                       "from": t_rec_from, "to": t_rec1, "max": 100000}}
     if unit:
         m["unit"] = unit
     if limits:
@@ -160,57 +200,74 @@ def crossings(name, signal, edge, limits=None, spec_row=None, unit=None):
     return m
 
 
-def measurements():
+def measurements(n_rec=N_REC):
+    """The request's measurement list for an n_rec-clock record.
+
+    With the default n_rec the output is byte-identical to the committed
+    request's measurements (same formulas, same module constants); the long
+    bench passes N_REC_LONG. Per-clock limits and window arguments follow the
+    record length; nothing else moves.
+    """
+    t_rec_from, t_rec0, t_rec1, _ = window(n_rec)
+    rec_clocks = tuple(range(N_SETTLE, N_SETTLE + n_rec))
+    mask = win_mask(t_rec0, t_rec1)
     ms = [
         # --- what was actually simulated (reference validity, not a spec row)
         e("vdda_v", "v(vdda)[0]", "V"),
 
         # --- row 13: analog power -------------------------------------------
-        cycle_mean("v(pana)", "W", {"max": P_ANA_MAX_W}, "13", name="p_ana"),
-        cycle_mean("v(pvdda)", "W", name="p_vdda"),
-        cycle_mean("v(pref)", "W", name="p_ref"),
-        cycle_mean("v(pvcm)", "W", name="p_vcm"),
+        cycle_mean("v(pana)", "W", {"max": P_ANA_MAX_W}, "13", name="p_ana",
+                   t_rec_from=t_rec_from, n_rec=n_rec),
+        cycle_mean("v(pvdda)", "W", name="p_vdda",
+                   t_rec_from=t_rec_from, n_rec=n_rec),
+        cycle_mean("v(pref)", "W", name="p_ref",
+                   t_rec_from=t_rec_from, n_rec=n_rec),
+        cycle_mean("v(pvcm)", "W", name="p_vcm",
+                   t_rec_from=t_rec_from, n_rec=n_rec),
         # Independent second route to the same quantity: klt integrates each
         # source's own v*i over the window. run_tran.py cross-checks the two
         # and refuses a record whose routes disagree.
-        energy("e_vdda", "vdda", "v(vdda)"),
-        energy("e_vrefp", "vrefp", "v(vrefp)"),
-        energy("e_vrefn", "vrefn", "v(vrefn)"),
-        energy("e_vvcm", "vvcm", "v(vcm)"),
+        energy("e_vdda", "vdda", "v(vdda)", t_rec0, t_rec1),
+        energy("e_vrefp", "vrefp", "v(vrefp)", t_rec0, t_rec1),
+        energy("e_vrefn", "vrefn", "v(vrefn)", t_rec0, t_rec1),
+        energy("e_vvcm", "vvcm", "v(vcm)", t_rec0, t_rec1),
 
         # --- row 11: integrator output swing --------------------------------
-        e("o1_max", wmax("v(o1d)"), "V"),
-        e("o1_min", wmin("v(o1d)"), "V"),
+        e("o1_max", wmax("v(o1d)", mask), "V"),
+        e("o1_min", wmin("v(o1d)", mask), "V"),
         e("o1_swing_pp", "o1_max - o1_min", "V", {"max": SWING_MAX_VPP}, "11"),
-        e("o2_max", wmax("v(o2d)"), "V"),
-        e("o2_min", wmin("v(o2d)"), "V"),
+        e("o2_max", wmax("v(o2d)", mask), "V"),
+        e("o2_min", wmin("v(o2d)", mask), "V"),
         e("o2_swing_pp", "o2_max - o2_min", "V", {"max": SWING_MAX_VPP}, "11"),
         # Single-ended extremes: headroom to the rails, and the other reading
         # of spec sec 5.4's figure. Reported, never graded.
-        e("o1p_max", wmax("v(xmod.o1p)"), "V"),
-        e("o1p_min", wmin("v(xmod.o1p)"), "V"),
-        e("o2p_max", wmax("v(xmod.o2p)"), "V"),
-        e("o2p_min", wmin("v(xmod.o2p)"), "V"),
+        e("o1p_max", wmax("v(xmod.o1p)", mask), "V"),
+        e("o1p_min", wmin("v(xmod.o1p)", mask), "V"),
+        e("o2p_max", wmax("v(xmod.o2p)", mask), "V"),
+        e("o2p_min", wmin("v(xmod.o2p)", mask), "V"),
 
         # --- row 5: the loop is clocked at fs and the bitstream is alive -----
         # phi1 rises exactly once per modulator clock, so its count over the
-        # window is N_REC if and only if the clock generator ran at fs for the
+        # window is n_rec if and only if the clock generator ran at fs for the
         # whole record.
         crossings("phi1_edges", "v(xmod.phi1)-0.5*v(vdda)", "rise",
-                  {"min": N_REC, "max": N_REC}, "5"),
+                  {"min": n_rec, "max": n_rec}, "5",
+                  t_rec_from=t_rec_from, t_rec1=t_rec1),
         # The bitstream must toggle (a stuck loop fails min) and must not
         # toggle more than once per clock (a glitching latch or a metastable
         # comparator fails max). The returned crossing times are the bitstream.
         crossings("bs_edges", "v(bs)-0.5*v(vdda)", "either",
-                  {"min": 1, "max": N_REC}, "5"),
-        cycle_mean("v(bs)", "V", name="bs_mean"),
+                  {"min": 1, "max": n_rec}, "5",
+                  t_rec_from=t_rec_from, t_rec1=t_rec1),
+        cycle_mean("v(bs)", "V", name="bs_mean",
+                   t_rec_from=t_rec_from, n_rec=n_rec),
     ]
     # --- per-clock held samples: the bitstream and both integrator outputs,
     # one value per recorded clock at the stated instant. These are .meas
     # cards rather than a waveform artifact so they come back inline in the
     # report from the batch fleet, with no artifact retrieval (#128 needs
     # them, DR-001 item 3 grades the model on them).
-    for k in REC_CLOCKS:
+    for k in rec_clocks:
         t = sample_time(k)
         for tag, vec in (("sb", "v(bs)"), ("s1", "v(o1d)"), ("s2", "v(o2d)")):
             name = f"{tag}_{k:05d}"
@@ -243,6 +300,10 @@ MAX_UNITS_PER_JOB = 3
 MAX_CONCURRENT_JOBS = 3
 
 DECK = "modulator_tran.cir"
+REQUEST = "request.json"
+SAMPLES_DIR = "samples"
+RECORD_NAME = "record.json"
+TAG = "anchors"
 
 
 def anchor_units():
@@ -257,19 +318,25 @@ def anchor_units():
             for p, v, t in ANCHOR_POINTS]
 
 
-def build_request():
+def build_request(long=False):
     # settling_common.request() carries the shared engine/models/backend block;
     # its full 45-point grid and 0.1 ns step are replaced here (DR-002 keeps the
     # full grid for the cheap single-mechanism runs; this one is an anchor run).
-    r = request(DECK, measurements(), T_END, timeout_s=PER_CORNER_TIMEOUT_S,
+    n_rec = N_REC_LONG if long else N_REC
+    deck = DECK_LONG if long else DECK
+    timeout = PER_CORNER_TIMEOUT_S_LONG if long else PER_CORNER_TIMEOUT_S
+    units = MAX_UNITS_PER_JOB_LONG if long else MAX_UNITS_PER_JOB
+    conc = MAX_CONCURRENT_JOBS_LONG if long else MAX_CONCURRENT_JOBS
+    _, _, _, t_end = window(n_rec)
+    r = request(deck, measurements(n_rec), t_end, timeout_s=timeout,
                 poll_timeout_s=POLL_TIMEOUT_S)
     r["corners"] = {"units": anchor_units(), "supply_waveforms": ["vclk"]}
     r["analysis"] = {"kind": "tran",
-                     "args": f"{T_MAX_STEP:.6g} {T_END:.9g} 0 {T_MAX_STEP:.6g}"}
+                     "args": f"{T_MAX_STEP:.6g} {t_end:.9g} 0 {T_MAX_STEP:.6g}"}
     # Keep only the vectors the measurements and the reduction need resident:
     # the assembled modulator has of the order of a thousand nodes and the
     # record is ~300 k timepoints, which `save all` would make expensive.
-    r["options"] = {"timeout_s": PER_CORNER_TIMEOUT_S, "keep_artifacts": False,
+    r["options"] = {"timeout_s": timeout, "keep_artifacts": False,
                     "save_vectors": SAVE_VECTORS}
     # Sharding is sized from the measured per-corner runtime (see
     # MAX_UNITS_PER_JOB). The fleet kills a job at its whole-job ceiling and
@@ -279,22 +346,25 @@ def build_request():
     # Spot quota has to find.
     r["batch"] = {"poll_timeout_s": POLL_TIMEOUT_S,
                   "capacity_wait_s": CAPACITY_WAIT_S,
-                  "max_units_per_job": MAX_UNITS_PER_JOB,
-                  "max_concurrent_jobs": MAX_CONCURRENT_JOBS}
+                  "max_units_per_job": units,
+                  "max_concurrent_jobs": conc}
     return r
 
 
-def build_deck():
+def build_deck(long=False):
     tmpl = (HERE / "modulator_tran.cir.tmpl").read_text()
+    cycles = CYCLES_LONG if long else CYCLES
+    n_rec = N_REC_LONG if long else N_REC
+    fin_hz = cycles * FS_HZ / n_rec
     subs = {
         "@TCLK0@": f"{TCLK0:.12g}",
         "@PW@": f"{PW:.12g}",
         "@TPER@": f"{TPER:.12g}",
         "@AMP@": f"{AMP_SE_V:.12g}",
-        "@FIN@": f"{FIN_HZ:.12g}",
+        "@FIN@": f"{fin_hz:.12g}",
         "@FS@": f"{FS_HZ:.12g}",
-        "@CYCLES@": str(CYCLES),
-        "@NREC@": str(N_REC),
+        "@CYCLES@": str(cycles),
+        "@NREC@": str(n_rec),
         "@DBFS@": f"{AMP_DBFS:g}",
         "@TRISE0@": f"{TRISE0:.12g}",
     }
@@ -303,11 +373,132 @@ def build_deck():
     return tmpl
 
 
+# -------------------------------------------------- record-facing identity ---
+# run_tran.build_record stamps these verbatim; they are the per-length bench
+# descriptions the committed record.json carries (kept byte-equal to it for
+# the default bench) and their long-record counterparts.
+RECORD_FIXTURE = (
+    "Short full-modulator transistor-level transient (issue #125, "
+    "DR-001 item 2): design/modulator/modulator.spice with "
+    "design/ota/ota_fd.spice and "
+    "design/modulator/comparator/comparator.spice, ideal DR-005 "
+    "boundary sources, a coherent single tone at -6 dBFS and the "
+    "5.12 MHz clock.")
+RECORD_EVIDENCE_SOURCE = "T (DR-001 item 2)"
+RECORD_LENGTH_NOTE = (
+    "Cost. Measured on the dispatch host before any corner ran: "
+    "about 3.1 s of ngspice per microsecond of transient at "
+    "tt/27 C/1.80 V with a 1 ns maximum timestep, i.e. about "
+    "0.61 s per modulator clock. 1088 clocks is ~11 min at tt and "
+    "~22 min at a corner twice as slow, inside the batch fleet's "
+    "3600 s whole-job ceiling with margin. DR-001 item 2 requires "
+    "the length to be stated; this is that statement, written "
+    "into make_request.py before the first result.")
+RECORD_SONDR_NOTE = (
+    "No SNDR is claimed from this record. An in-band figure needs "
+    "bins inside the 20 kHz band of spec row 1; {n_rec} "
+    "modulator clocks give a bin bandwidth of "
+    "{bin_bw:.0f} Hz on the bitstream and only "
+    "{n_out:g} output samples after decimation by the "
+    "OSR, so neither route resolves the band. Spec sec 1.2's row 2 "
+    "claim is a B-model result with the DR-001 cross-check; this "
+    "bench supplies the cross-check's transistor-level side as "
+    "bitstreams and integrator waveforms, not as an SNDR.")
+
+LONG_RECORD_FIXTURE = (
+    "Long-record full-modulator transistor-level transient (DR-001 item 2 "
+    "as amended by DR-001 corrigendum 01, issue #290): the same fixture as "
+    "the committed short bench (design/modulator/modulator.spice with "
+    "design/ota/ota_fd.spice and "
+    "design/modulator/comparator/comparator.spice, ideal DR-005 "
+    "boundary sources, a coherent single tone at -6 dBFS and the "
+    "5.12 MHz clock), run for "
+    f"{N_REC_LONG} recorded clocks so DR-001 item 3's in-band SNDR leg is "
+    "computable (1250 Hz bins: 16 band bins, tone bin 12, 7 in-band noise "
+    "bins beside the 9-bin Blackman-Harris lobe).")
+LONG_RECORD_EVIDENCE_SOURCE = ("T (DR-001 item 2, as amended by DR-001 "
+                               "corrigendum 01)")
+LONG_RECORD_LENGTH_NOTE = (
+    "Cost, measured before the set ran (operator ruling note, issue #290): "
+    "the probe run measured 1104.6 s of fleet unit runtime for one corner "
+    "(tt/27 C/1.80 V, 4160 clocks including settling, klt-sim-56a43a043984, "
+    "~0.86 GB peak RSS, ~0.265 s/clock), against 441-606 s per 1088 clocks "
+    "for the committed short run. 8192 recorded clocks extrapolate past the "
+    "fleet's 3600 s whole-job ceiling at every measured per-clock rate, and "
+    "one unit's runtime is not reducible by sharding (sharding divides units "
+    "per job, never one unit's transient), so 4096 is the longest "
+    "band-resolving power of two that fits; each corner gets its own job "
+    "(1 unit, timeout_s 3300, serial bound 3420 s <= 3600 s). "
+    "spec/decisions/DR-001-corrigendum-01.md states this as the length's "
+    "evidence.")
+LONG_RECORD_SONDR_NOTE = (
+    "No standalone SNDR is claimed from this record even though "
+    "{n_rec} clocks now resolve the 20 kHz band ({bin_bw:.0f} Hz bins, "
+    "{n_out:g} output samples at OSR 128): the bench supplies the "
+    "cross-check's transistor-level side as bitstreams and integrator "
+    "waveforms, and DR-001 item 3's in-band SNDR figures are computed on "
+    "BOTH sides, identically, by the cross-check itself "
+    "(sim/bmodel/xcheck.py, sim/bmodel/xcheck-record-long.json), never by "
+    "one side alone. Spec sec 1.2's row 2 claim remains a B-model result "
+    "with the DR-001 cross-check.")
+
+
+def _identity(long):
+    return {
+        "RECORD_FIXTURE": LONG_RECORD_FIXTURE if long else RECORD_FIXTURE,
+        "RECORD_EVIDENCE_SOURCE": (LONG_RECORD_EVIDENCE_SOURCE if long
+                                   else RECORD_EVIDENCE_SOURCE),
+        "RECORD_LENGTH_NOTE": LONG_RECORD_LENGTH_NOTE if long
+        else RECORD_LENGTH_NOTE,
+        "RECORD_SONDR_NOTE": LONG_RECORD_SONDR_NOTE if long
+        else RECORD_SONDR_NOTE,
+    }
+
+
+# The long bench under the attribute names run_tran.py reads off this module
+# for the default bench, so `B = mk` and `B = mk.LONG` are interchangeable
+# there. Window()/measurements()/build_request()/build_deck() stay functions
+# taking `long=`.
+LONG = SimpleNamespace(
+    DECK=DECK_LONG, REQUEST=REQUEST_LONG, N_REC=N_REC_LONG, CYCLES=CYCLES_LONG,
+    FIN_HZ=CYCLES_LONG * FS_HZ / N_REC_LONG,
+    REC_CLOCKS=tuple(range(N_SETTLE, N_SETTLE + N_REC_LONG)),
+    PER_CORNER_TIMEOUT_S=PER_CORNER_TIMEOUT_S_LONG,
+    MAX_UNITS_PER_JOB=MAX_UNITS_PER_JOB_LONG,
+    MAX_CONCURRENT_JOBS=MAX_CONCURRENT_JOBS_LONG,
+    SAMPLES_DIR="samples-long", RECORD_NAME="record-long.json",
+    TAG="anchors-long",
+    sample_time=sample_time, u_diff=u_diff,
+    **_identity(True))
+# Every remaining bench-independent name run_tran.py reads, spelled out so a
+# missing one fails here rather than deep inside a record build.
+for _name in ("N_SETTLE", "TPER", "T_MAX_STEP", "FS_HZ", "TRISE0",
+              "AMP_DBFS", "AMP_SE_V", "VREF_DIFF_V", "ANCHOR_POINTS",
+              "P_ANA_MAX_W", "SWING_MAX_VPP"):
+    setattr(LONG, _name, globals()[_name])
+
+
 if __name__ == "__main__":
-    (HERE / DECK).write_text(build_deck())
-    (HERE / "request.json").write_text(
-        json.dumps(build_request(), indent=2) + "\n")
-    print(f"wrote {DECK} and request.json: "
-          f"{N_REC} recorded clocks after {N_SETTLE} settling clocks, "
-          f"tone {FIN_HZ:.6g} Hz ({CYCLES} cycles), "
-          f"{AMP_SE_V:.6g} V peak per side, t_end {T_END:.6g} s")
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--long", action="store_true",
+                    help="write the long-record bench (DR-001 corrigendum 01, "
+                         "issue #290): modulator_tran_long.cir + "
+                         "request_long.json, %d recorded clocks" % N_REC_LONG)
+    a = ap.parse_args()
+    if a.long:
+        deck, req = DECK_LONG, REQUEST_LONG
+        n_rec, cycles = N_REC_LONG, CYCLES_LONG
+        body, request_doc = build_deck(long=True), build_request(long=True)
+    else:
+        deck, req = DECK, "request.json"
+        n_rec, cycles = N_REC, CYCLES
+        body, request_doc = build_deck(), build_request()
+    (HERE / deck).write_text(body)
+    (HERE / req).write_text(json.dumps(request_doc, indent=2) + "\n")
+    fin_hz = cycles * FS_HZ / n_rec
+    print(f"wrote {deck} and {req}: "
+          f"{n_rec} recorded clocks after {N_SETTLE} settling clocks, "
+          f"tone {fin_hz:.6g} Hz ({cycles} cycles), "
+          f"{AMP_SE_V:.6g} V peak per side, "
+          f"t_end {window(n_rec)[3]:.6g} s")
