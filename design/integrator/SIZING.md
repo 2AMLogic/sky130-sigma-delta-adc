@@ -381,9 +381,19 @@ append-only and untouched):
 Every 0.6 V corner now reads 0.0000 (print resolution): the top-plate term
 this issue owned is gone at the large amplitude, and the small-amplitude
 worst improved by 2.5x. The residual `error_rel` at 0.2 V is the `Sin`
-bottom-plate term (`error_rel_bpi_only`), unchanged in mechanism -- its
-`ss`/`sf` corners moved 0.543 -> 0.576 and 0.284 -> 0.300, which is the
-`Sin` gate at 584 kohm, not this cell's change; **that term is #129**.
+bottom-plate term (`error_rel_bpi_only`) -- `Sin`'s 584 kohm gate at
+`ss`/1.620 V/-40 C is still the mechanism and #129 still owns the term, but
+the move between these two records **is this cell's change, measured**: the
+records differ in exactly one input (`integrator_netlist_sha256`; deck,
+request, corner set, criterion and simulator identical), and that change
+moved `ss` `error_rel` 0.543 -> 0.576 (+0.033, of which bottom-plate-only
+0.5044 -> 0.5611, +0.057) and `sf` 0.284 -> 0.300 (+0.016). At `ss` the
+bottom plates themselves moved: `bpi_p` shortfall 0.0362 -> 0.0811 V and
+`bpi_n` shortfall 0.0647 -> 0.0311 V, leaving the sampled bottom-plate-only
+reading 0.09912 -> 0.08778 V against the 0.2 V ideal, ~11 mV further from
+it. That cost is accepted: it is small against the 0.6 V result (worst
+corner on the whole grid 2.0e-6) and the 0.2 V top-plate improvement
+(7.77 mV -> 3.03 mV), and the term itself stays **#129**.
 
 The sampling result is what motivated the change; the settling criterion is
 what bounds it, because the added halves put junction capacitance on the
@@ -393,8 +403,10 @@ untouched): `int1` (case B, the graded variant) still passes **45/45**, worst
 `err_phase` 5.26e-5 at `ss`/1.620 V/-40 C against the 1e-4 line -- slightly
 *better* than the #92 cell's 5.89e-5. `int2` (the case-A bound, which
 `record-i92.json` already did not pass and this file does not claim for it)
-went 13/45 to **12/45** passing -- `ff` and `tt`/1.980 V/27 C joined the
-fails -- with its worst unchanged (1.42e-3 at `fs`/1.620 V/125 C). That is
+went 13/45 to **12/45** passing -- `tt`/1.980 V/27 C (7.367e-5 -> 1.106e-4)
+and `ff`/1.980 V/27 C (7.978e-5 -> 1.022e-4) joined the fails while
+`ss`/1.980 V/27 C left them (1.422e-4 -> 8.885e-5) -- with its worst
+unchanged (1.4166e-3 at `fs`/1.620 V/125 C). That is
 the high-rail capacitance cost the #92 sizing history predicted, landing on
 a variant that was already failing, not on the criterion.
 
