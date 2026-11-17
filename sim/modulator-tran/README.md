@@ -24,6 +24,37 @@ The runner refuses a PDK whose `SOURCES` stamp differs from `sim/pdk.json`
 (exit 2) and refuses to overwrite an existing record (records are append-only;
 use `--record-name`).
 
+## `report.json` — the retained raw `klt sim` report
+
+The raw `klt sim` report of the anchor run is committed here as `report.json`
+(~10.7 MB: per-corner measurements including the 3 × 1024 per-clock `.meas`
+cards, the top-level limits-bearing `measurements[]` with their `spec_row`
+tags, the coverage block and full provenance). The runner still lands its
+working copy in the gitignored `.artifacts/`; on a successful seven-anchor
+run, copy it here:
+
+    cp .artifacts/report-anchors.json report.json
+
+`report.json` is the citable envelope: `klt signoff` verifies a citation's
+pin against its `provenance.input.content_hash`, which binds the committed
+deck (`modulator_tran.cir`, `role: netlist`) — the same sha256 `record.json`
+carries as `deck_sha256`. The manifest cites it for row 11
+(`manifests/sky130-sigma-delta-adc.json`, `evidence.5.analog`). Its overall
+status is `fail`: row 11's integrator swing exceeds the §5.4 bound at every
+anchor (#148). klt 0.9.2 credits no per-row coverage from a failing envelope
+(2AMLogic/klayout-tools#6027), so rows 5 and 13 — tagged, limited and passing
+at all seven anchors in this report — stay declared gaps in the manifest
+until the envelope passes (#148) or klt credits row-scoped citation evidence.
+
+Regenerated 2026-11-17 with the pinned klt 0.9.2 (`uvx --from
+"klayout-tools==0.9.2"` driving `run_tran.py`), batch fleet, ngspice-47,
+three 3-unit jobs. The values reproduce the committed record (`record.json`,
+run under ngspice-46): worst `p_ana` 0.5804 mW, worst `o1_swing_pp` 3.500 V,
+`phi1_edges` 1024/1024 at every anchor. The committed `record.json` and
+`samples/` are deliberately untouched: they are the original run's reduction,
+still bound to the unchanged `request.json`/deck, and the T-extraction chain
+(`sim/bmodel/`) is built on them.
+
 ## Record length, and why it is this one
 
 **1024 recorded modulator clocks** (200.0 µs) after **64 discarded start-up
@@ -142,7 +173,12 @@ transients between sample instants. Both are recorded; neither replaces the
 other.
 
 **Row 12** (supply 1.62–1.98 V) is covered by the anchor set spanning 1.620,
-1.800 and 1.980 V, not by a limit of its own.
+1.800 and 1.980 V, not by a limit of its own. The request carries no
+supply-row limit tag, and adding one would change `request.json`, whose
+sha256 the committed `record.json` and `samples/` are bound to — a rebind
+that would invalidate the T-extraction chain built on this bench
+(`sim/bmodel/`). The tag waits for the next bench re-run justified on its
+own (e.g. after #148).
 
 **`phi1_edges`** is also a record-admission gate, not just a limit: `phi1`
 rises exactly once per modulator clock, so a window that does not contain
