@@ -24,6 +24,8 @@ provenance.
 import importlib.util
 import pathlib
 import re
+import subprocess
+import tempfile
 import unittest
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -557,6 +559,65 @@ class SizingSweep(unittest.TestCase):
             blk = d[f"nmos_w{nw:g}_pmos_w{pw:g}"]
             self.assertEqual(blk["overall_worst_peak_ron_ohm"], 900.0)
             self.assertEqual(blk["overall_worst_peak_at_vin_V"], 0.85)
+
+
+class HalfCurrentSumCheck(unittest.TestCase):
+    """The run_tg sum check: print rounding passes, a counter-running pair refuses.
+
+    The check's three operands arrive at ngspice's print precision (~7
+    significant digits), so rounding them independently already bounds the
+    residual near 1e-6 relative (issue #275: the committed i106/i129/i147 rows
+    measure at worst 0.70x of that floor). The bound is 1e-4 relative -- clear
+    of the print floor with ~100x headroom over the worst measured row --
+    while a counter-running pair is an O(1) discrepancy that still refuses.
+    """
+
+    def _run_tg_with_scalars(self, i_dev, i_nmos, i_pmos):
+        """Drive run_tg with ngspice stubbed to print the given scalars."""
+        printed = (f"i_dev = {i_dev:.6e}\n"
+                   f"i_nmos = {i_nmos:.6e}\n"
+                   f"i_pmos = {i_pmos:.6e}\n")
+        stub = subprocess.CompletedProcess(["ngspice"], 0, stdout=printed, stderr="")
+        with tempfile.TemporaryDirectory() as tmp:
+            orig, R.subprocess.run = R.subprocess.run, (lambda *a, **k: stub)
+            try:
+                return R.run_tg("sum_check", "tt", 27, 1.8, 0.9,
+                                pathlib.Path(tmp), "pdk.lib", pathlib.Path(tmp))
+            finally:
+                R.subprocess.run = orig
+
+    def test_print_rounding_residual_passes(self):
+        """~6e-7 relative residual is print rounding, not the halves fighting.
+
+        The scalars are the committed worst row of probe-i106.json
+        (tg_sin_tt_27c_1p8v_0p8v), exactly as ngspice printed them.
+        """
+        row = self._run_tg_with_scalars(1.161666e-05, 1.143662e-05, 1.800332e-07)
+        self.assertEqual(row["kind"], "tg")
+        self.assertEqual(row["current_A"], 1.161666e-05)
+        self.assertEqual(row["current_nmos_A"], 1.143662e-05)
+        self.assertEqual(row["current_pmos_A"], 1.800332e-07)
+
+    def test_a_residual_between_the_print_floor_and_the_bound_passes(self):
+        """5e-5 relative: above the print floor, under the 1e-4 bound -- passes.
+
+        This is the case the bound change turns on: it refuses at the old
+        1e-6 bound and passes at 1e-4, so the test discriminates the bounds.
+        """
+        row = self._run_tg_with_scalars(1.0e-07, 4.99995e-08, 5.0e-08)
+        self.assertEqual(row["current_A"], 1.0e-07)
+
+    def test_a_counter_running_pair_refuses(self):
+        """~1e-2 relative residual is the halves fighting; it must exit."""
+        with self.assertRaises(SystemExit) as ctx:
+            self._run_tg_with_scalars(1.0e-07, 4.95e-08, 4.95e-08)
+        self.assertIn("REFUSE: half currents do not sum", str(ctx.exception))
+
+    def test_the_gmin_floor_still_reports_not_refuses(self):
+        """At the gmin floor the max(..., 1e-15) term guards, and the row reports."""
+        row = self._run_tg_with_scalars(1.000000e-15, 4.999999e-16, 5.000001e-16)
+        self.assertTrue(row["current_at_gmin_floor"])
+        self.assertIsNone(row["ron_ohm"])
 
 
 if __name__ == "__main__":

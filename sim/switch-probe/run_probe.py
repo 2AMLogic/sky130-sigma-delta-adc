@@ -398,9 +398,14 @@ def run_tg(key, corner, temp, vdda, vin, ng, pdk_lib, tmp, *,
     # The deck takes abs() of each half's current independently; if the halves
     # ever ran counter to one another their currents would be summed rather
     # than cancelled and the shares could exceed 1 (README.md, "What validates
-    # the split"). Every committed i106 row holds the sum to 1e-6; a row that
-    # does not is the halves fighting, and it refuses instead of measuring.
-    if abs(vals["i_nmos"] + vals["i_pmos"] - vals["i_dev"]) > 1e-6 * max(vals["i_dev"], 1e-15):
+    # the split"). The three operands arrive at ngspice's print precision
+    # (~7 significant digits), so rounding them independently already bounds
+    # the residual near 1e-6 relative -- the committed i106/i129/i147 rows
+    # measure at worst 0.70x of that floor (issue #275). The bound is
+    # therefore 1e-4 relative: clear of the print floor with ~100x headroom
+    # over the worst measured row, while a counter-running pair is an O(1)
+    # discrepancy that still refuses instead of measuring.
+    if abs(vals["i_nmos"] + vals["i_pmos"] - vals["i_dev"]) > 1e-4 * max(vals["i_dev"], 1e-15):
         sys.exit(f"REFUSE: half currents do not sum to the gate current for '{key}' "
                  f"({vals['i_nmos']:.6g} + {vals['i_pmos']:.6g} != {vals['i_dev']:.6g})")
     # Which half carries the current decides what a remedy should change: a
