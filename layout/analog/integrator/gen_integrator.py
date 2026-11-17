@@ -405,11 +405,13 @@ ESCAPE_PITCH_UM = 1.0     # x pitch of the eight OTA escape columns
 PIN_NETS = ("vdda", "vssa", "vinp", "vinn", "vrefp", "vrefn", "vcm", "ibias",
             "phi1", "phi1b", "phi1e", "phi2", "dp", "dn", "voutp", "voutn")
 
-#: Net routing order.  The two summing nodes go first -- they are the nodes
+#: Net routing order.  The two summing nodes go first and route as a matched
+#: pair (see "matched-pair summing routing" below) -- they are the nodes
 #: DR-004 names as the most sensitive on the die, and routing them before
 #: anything else is what makes their runs the shortest the floorplan allows.
 #: Then the other high-impedance plate nets, then the clocks, then the
 #: boundary signals, and the two supplies last (most anchors, most freedom).
+#: The two summing nets must stay adjacent: `build()` routes them in one pass.
 NET_ORDER = (
     "sump", "sumn",
     "tpi_p", "tpi_n", "tpr_p", "tpr_n",
@@ -928,11 +930,216 @@ class Router(RouterBase):
         self.add_trunk_via(a.net, col, y)
         return col, y
 
+    def connect_pinned(self, a: Anchor, col: float) -> tuple[float, float]:
+        """Run the shared connector for `a` with the column proposal pinned to
+        exactly ``col``.
+
+        The matched-pair allocator picks both nets' columns jointly; the
+        commit path -- jog tracks, met1 freedom, the via stacks -- stays the
+        shared base's, driven through a one-column proposal.  The shared
+        search reserves a column only after every freedom check passes, so a
+        pinned commit either places the trunk exactly there or raises without
+        touching the field, and the allocator can offer the next candidate.
+        """
+        self_columns = self.columns
+        self.columns = lambda x0, x1, pref: [col]  # noqa: E731
+        try:
+            if a.plane in ("cap3", "cap4"):
+                return self.connect_cap(a)
+            return self.connect_met1(a)
+        finally:
+            self.columns = self_columns
+
     # -- trunk-to-trunk spine --------------------------------------------------
     # route_spine and finish_trunks are both the shared base's now: the shared
     # finish skips zero-height trunks, measured (issue #201) to fire here on
     # exactly one trunk per generation -- an OTA escape's column collecting a
     # single via y with no spine.
+
+
+# --- matched-pair summing routing (issue #284) ---------------------------------
+#: The summing pair routes as a matched pair, not first-come.  The instrumented
+#: evidence for the greedy order this replaces: `sump`, routed first, kept every
+#: near-preference column (displacements 0.00-0.49 um), while every `sumn` trunk
+#: was pushed off its preferred column by a `sump` reservation (`sump(trunk)`
+#: at 97.0/97.5 and 112.0/112.5, the `sump` Ci riser's ±1-pitch keep-out at
+#: 94.5) -- and the displaced columns flipped which anchors became
+#: spine-adjacent, pairing the n-side Ci with the shallow switch anchor where
+#: the p side pairs it with the deep one.  That is where the extra trunk height
+#: came from: the pair routing held `sumn` to 9.30 % asymmetry (133.075 um
+#: against `sump`'s 120.695 um) where the 44-device cell measured 2.97 %.
+#:
+#: The allocator instead walks the mirror-paired anchors in shared-preference
+#: order and, per pair, takes two columns at a fixed mutual offset -- one trunk
+#: pitch apart for met1 trunks, three for the Ci MiM risers, whose ±1-pitch
+#: keep-outs must not collide.  The same offset for every pair of a kind keeps
+#: each net's column gaps identical, which keeps the spine adjacency structure
+#: (and with it the trunk heights and spine lengths) tracking the p side
+#: instead of drifting; monotonicity along the sequence is enforced, not
+#: hoped for.  Columns are committed through `connect_pinned`, so a candidate
+#: that fails a freedom check leaves the field untouched for the next one.
+SUMMING_TRUNK_OFFSET_PITCHES = 1
+SUMMING_RISER_OFFSET_PITCHES = 3
+#: How far (in pitches) a met1 pair may shift off its shared preference; the
+#: Ci riser pair stays within `connect_cap`'s own ±2 um proposal window, so it
+#: is held to a single pitch of slack.
+SUMMING_PAIR_REACH_PITCHES = 6
+#: Mirror-match tolerance.  The strap ladder offsets are computed per row from
+#: sorted net names, so a mirror pair sits up to a track pitch off an exact
+#: reflection about the axis; a worse error means the floorplan drifted away
+#: from the mirrored placement the allocator's correspondence assumes.
+SUMMING_MIRROR_TOL_UM = 1.0
+
+
+def match_mirrored_anchors(group_p: list[Anchor],
+                           group_n: list[Anchor],
+                           axis_y: float) -> list[tuple[Anchor, Anchor]]:
+    """Pair each p-side summing anchor with its mirror image on the n side.
+
+    Greedy nearest-mirror matching, guarded: candidates must share a plane,
+    and any residual mirror error beyond ``SUMMING_MIRROR_TOL_UM`` is a
+    floorplan regression, not a routing choice this allocator may absorb.
+    """
+    cands = sorted(
+        ((abs(2 * axis_y - pa.y - na.y), pa, na)
+         for pa in group_p for na in group_n if pa.plane == na.plane),
+        key=lambda t: (t[0], t[1].block, t[2].block))
+    used_p: set[int] = set()
+    used_n: set[int] = set()
+    pairs: list[tuple[Anchor, Anchor]] = []
+    for err, pa, na in cands:
+        if id(pa) in used_p or id(na) in used_n:
+            continue
+        if err > SUMMING_MIRROR_TOL_UM:
+            raise RouteError(
+                f"summing pair: no mirror partner within "
+                f"{SUMMING_MIRROR_TOL_UM}um for {pa.block}@y={pa.y:.2f} "
+                f"(closest {na.block}@y={na.y:.2f}, {err:.2f}um off) -- the "
+                "floorplan is not the mirrored placement the matched-pair "
+                "allocator assumes")
+        used_p.add(id(pa))
+        used_n.add(id(na))
+        pairs.append((pa, na))
+    if len(pairs) != len(group_p) or len(pairs) != len(group_n):
+        raise RouteError(
+            f"summing pair: mirror matching left anchors unpaired "
+            f"({len(pairs)} pairs for {len(group_p)} p / {len(group_n)} n "
+            "anchors)")
+    return pairs
+
+
+def route_summing_pair(router: "Router", groups: dict[str, list[Anchor]],
+                       axis_y: float,
+                       ota_anchors: dict[str, tuple[Anchor, float]],
+                       ) -> dict[str, list[tuple[float, float, Anchor]]]:
+    """Route `sump`/`sumn` as one matched pair; return per-net placed lists.
+
+    Both members of a mirror pair sit on the same x (the floorplan mirror is
+    in y), so one preference sequence governs both nets.  Per pair the
+    allocator offers ``(snap(pref + k*pitch), +offset)`` column candidates,
+    cheapest displacement first, filtered by column availability, the risers'
+    neighbour keep-outs, and strict monotonicity per net along the sequence --
+    the property that keeps both nets' spine adjacency identical.  The OTA
+    escapes are exempt: their columns are fixed by the landing-y order that
+    keeps the eight met3 runs non-crossing.
+    """
+    p_net, n_net = SUMMING_NETS
+    pairs = match_mirrored_anchors(groups[p_net], groups[n_net], axis_y)
+    pairs.sort(key=lambda t: t[0].xmid)
+    placed: dict[str, list[tuple[float, float, Anchor]]] = {p_net: [], n_net: []}
+    last: dict[str, float | None] = {p_net: None, n_net: None}
+    log: list[dict] = []
+    degraded = 0
+    for pa, na in pairs:
+        if pa.plane == "ota":
+            # The OTA escape landings are labels in the OTA's own frame,
+            # translated into this cell: their y is what the axis straddles,
+            # their x is whatever the OTA cell drew -- so the shared-x guard
+            # below applies only to this cell's own mirrored blocks.
+            for net, a in ((p_net, pa), (n_net, na)):
+                col, y = router.connect_ota(a, ota_anchors[net][1])
+                placed[net].append((col, y, a))
+            log.append({"blocks": [pa.block, na.block], "plane": "ota",
+                        "xmid_um": round(pa.xmid, 3),
+                        "columns_um": {p_net: ota_anchors[p_net][1],
+                                       n_net: ota_anchors[n_net][1]},
+                        "note": "escape column fixed by landing-y order"})
+            continue
+        if abs(pa.xmid - na.xmid) > GRID_UM:
+            raise RouteError(
+                f"summing pair: {pa.block}/{na.block} anchors share no x "
+                f"({pa.xmid:.3f} vs {na.xmid:.3f}) -- mirrored placement "
+                "expected")
+        cap = pa.plane in ("cap3", "cap4")
+        off = (SUMMING_RISER_OFFSET_PITCHES if cap
+               else SUMMING_TRUNK_OFFSET_PITCHES) * TRUNK_PITCH_UM
+        reach = 1 if cap else SUMMING_PAIR_REACH_PITCHES
+        cands = []
+        # Candidates live on the trunk-pitch grid -- `snap` alone would land
+        # on the manufacturing grid a fraction of a pitch off, and a met2
+        # feature off the pitch squeezes the gap to its neighbour below the
+        # met2.space minimum (measured: exactly that, two DRC violations).
+        base = round(pa.xmid / TRUNK_PITCH_UM)
+        for k in range(-reach, reach + 1):
+            cp = snap((base + k) * TRUNK_PITCH_UM)
+            cn = snap(cp + off)
+            if nm(cp) in router.used_cols or nm(cn) in router.used_cols:
+                continue
+            if cap and not (router.neighbours_free(cp)
+                            and router.neighbours_free(cn)):
+                continue
+            if last[p_net] is not None \
+                    and cp < last[p_net] + TRUNK_PITCH_UM - 1e-9:
+                continue
+            if last[n_net] is not None \
+                    and cn < last[n_net] + TRUNK_PITCH_UM - 1e-9:
+                continue
+            disp = abs(cp - pa.xmid) + abs(cn - pa.xmid)
+            cands.append((round(disp, 6), abs(k), k, cp, cn))
+        cands.sort()
+        pair_degraded = False
+        for _disp, _absk, k, cp, cn in cands:
+            try:
+                yp = router.connect_pinned(pa, cp)[1]
+            except RouteError:
+                continue  # nothing was committed; offer the next candidate
+            try:
+                cn_used, yn = cn, router.connect_pinned(na, cn)[1]
+            except RouteError:
+                # p's trunk is already placed; finish the n anchor greedily
+                # and record the pair as degraded rather than lose the run.
+                # The greedy connector answers (col, y) with the column it
+                # actually reserved: record that one, not the pinned
+                # proposal that just failed.
+                cn_used, yn = (router.connect_cap(na) if cap
+                               else router.connect_met1(na))
+                degraded += 1
+                pair_degraded = True
+            placed[p_net].append((cp, yp, pa))
+            placed[n_net].append((cn_used, yn, na))
+            last[p_net], last[n_net] = cp, cn_used
+            log.append({"blocks": [pa.block, na.block],
+                        "plane": pa.plane,
+                        "xmid_um": round(pa.xmid, 3),
+                        "columns_um": {p_net: cp, n_net: cn_used},
+                        "displacement_um": {p_net: round(abs(cp - pa.xmid), 3),
+                                            n_net: round(abs(cn_used - pa.xmid), 3)},
+                        "shift_pitches": k,
+                        "degraded": pair_degraded})
+            break
+        else:
+            raise RouteError(
+                f"summing pair: no legal column pair for {pa.block}/{na.block} "
+                f"at x={pa.xmid:.2f}: {len(router.used_cols)} columns taken, "
+                f"{len(cands)} candidates offered")
+    router.pair_log = {
+        "offset_pitches": {"met1_trunk": SUMMING_TRUNK_OFFSET_PITCHES,
+                           "cap_riser": SUMMING_RISER_OFFSET_PITCHES},
+        "mirror_tolerance_um": SUMMING_MIRROR_TOL_UM,
+        "greedy_fallbacks": degraded,
+        "pairs": log,
+    }
+    return placed
 
 
 # --- capacitor evidence -------------------------------------------------------
@@ -1012,6 +1219,12 @@ CLOCK_NETS = ("phi1", "phi1b", "phi1e", "phi1eb", "phi2", "phi2b")
 #: How close a clock run may come to a summing-node run, on the same layer,
 #: before this script calls it "beside" and the README has to name it.
 SHIELD_CLEARANCE_UM = 1.0
+#: Bound the matched-pair routing must meet (issue #284).  The 44-device cell
+#: asserted "symmetric to 3 %" (2.97 % measured); the 50-device regeneration
+#: drifted to 9.30 % while the pair routed first-come.  The bound holds the
+#: pair to the old cell's figure, and the assertion below turns the README's
+#: symmetry claim into a gate a regeneration cannot silently fail.
+SUMMING_ASYMMETRY_MAX_PCT = 3.0
 
 
 def _gap_um(a: Rect, b: Rect) -> float:
@@ -1080,8 +1293,19 @@ def summing_node_report(router: "Router", summary: dict) -> dict:
                                d["layer"], d["summing_rect_um"]))
     over.sort(key=lambda d: (-d["overlap_um2"], d["summing_net"], d["clock_net"],
                              d["at_um"]))
+    sump_len, sumn_len = lengths[SUMMING_NETS[0]], lengths[SUMMING_NETS[1]]
+    asymmetry_pct = round((sumn_len - sump_len) / sumn_len * 100.0, 2)
+    if abs(asymmetry_pct) > SUMMING_ASYMMETRY_MAX_PCT:
+        raise RouteError(
+            f"summing-node asymmetry {asymmetry_pct}% exceeds the "
+            f"{SUMMING_ASYMMETRY_MAX_PCT}% bound (sump {sump_len} um, sumn "
+            f"{sumn_len} um): the matched-pair allocation regressed past the "
+            "figure the README asserts")
     return {
         "wire_length_um": {net: lengths[net] for net in SUMMING_NETS},
+        "asymmetry_pct": asymmetry_pct,
+        "asymmetry_bound_pct": SUMMING_ASYMMETRY_MAX_PCT,
+        "matched_pair": getattr(router, "pair_log", None),
         "length_rank_of_all_nets": ranked,
         "shortest_net": ranked[0],
         "shield_clearance_um": SHIELD_CLEARANCE_UM,
@@ -1178,16 +1402,8 @@ def build(blocks: dict[str, Block], ota: dict, axis_y: float, ota_x: float):
                          f"no anchors {unrouted}")
 
     summary: dict[str, dict] = {}
-    for net in NET_ORDER:
-        group = sorted(by_net[net], key=lambda a: (a.block, a.plane, a.y, a.x0))
-        placed = []
-        for a in group:
-            if a.plane == "ota":
-                placed.append((*router.connect_ota(a, ota_anchors[net][1]), a))
-            elif a.plane in ("cap3", "cap4"):
-                placed.append((*router.connect_cap(a), a))
-            else:
-                placed.append((*router.connect_met1(a), a))
+
+    def finish_net(net: str, placed: list[tuple[float, float, Anchor]]) -> None:
         placed.sort(key=lambda t: (t[0], t[1]))
         spines = []
         for (ca, ya, _a), (cb, yb, _b) in zip(placed, placed[1:]):
@@ -1204,6 +1420,34 @@ def build(blocks: dict[str, Block], ota: dict, axis_y: float, ota_x: float):
                 raise RouteError(f"port net {net} has no met1 anchor to label")
             col, y, _a = on_met1[0]
             router.labels.append((L_MET1_PIN, net, col, y))
+
+    i = 0
+    while i < len(NET_ORDER):
+        net = NET_ORDER[i]
+        if net == SUMMING_NETS[0]:
+            assert NET_ORDER[i + 1] == SUMMING_NETS[1], \
+                "the summing pair must stay adjacent at the front of NET_ORDER"
+            placed_by = route_summing_pair(
+                router,
+                {n: sorted(by_net[n],
+                           key=lambda a: (a.block, a.plane, a.y, a.x0))
+                 for n in SUMMING_NETS},
+                axis_y, ota_anchors)
+            i += 2
+        else:
+            group = sorted(by_net[net], key=lambda a: (a.block, a.plane, a.y, a.x0))
+            placed = []
+            for a in group:
+                if a.plane == "ota":
+                    placed.append((*router.connect_ota(a, ota_anchors[net][1]), a))
+                elif a.plane in ("cap3", "cap4"):
+                    placed.append((*router.connect_cap(a), a))
+                else:
+                    placed.append((*router.connect_met1(a), a))
+            placed_by = {net: placed}
+            i += 1
+        for n, placed in placed_by.items():
+            finish_net(n, placed)
     router.finish_trunks()
 
     for net, info in summary.items():

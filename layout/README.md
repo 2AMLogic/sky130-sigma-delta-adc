@@ -336,12 +336,14 @@ not redrawn**: a `blocks[].cell` entry naming the committed
   bound to the MiM top plate, which is `design/integrator/SIZING.md:72-74`'s "to
   be confirmed in layout" step — though extraction cannot read a plate binding
   back, and whether `c0` is physically the top plate stays #146's question.
-- **Summing nodes**: `sump` 120.695 um, `sumn` 133.075 um of drawn wire, the
-  shortest nets in the cell that connect more than three anchors, asymmetric by
-  9.3 % (the cell's README attributes that to the router's greedy column and
-  track choice). Nothing is shielded, so both met1 clock adjacencies (0.16 um,
-  both against `phi1eb`) and all nineteen met1/met2 clock crossings are listed
-  in `analog/integrator/route-summary.json` and in the cell's README.
+- **Summing nodes**: `sump` 121.465 um, `sumn` 122.505 um of drawn wire, the
+  shortest nets in the cell that connect more than three anchors, symmetric to
+  0.85 % (routed as a matched pair, and gated at 3 % by the generator — the
+  first-come routing this pair replaced had drifted the pair to 9.3 %). Nothing
+  is shielded, so all eighteen met1/met2 clock crossings are listed
+  in `analog/integrator/route-summary.json` and in the cell's README; the
+  matched-pair columns left no clock run within 1.0 um of a summing-node run
+  on the same layer.
 - LVS (#32), parasitic extraction (#35) and power-delivery checks (#39) are not
   claimed.
 
