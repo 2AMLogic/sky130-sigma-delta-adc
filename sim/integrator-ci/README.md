@@ -646,6 +646,7 @@ Append-only JSON, one file per campaign:
 | `record.json` | nominal grid, 5 variants × 45 DR-002 points | `run_ci.py --record` |
 | `record-mc.json` | Monte Carlo mismatch, 2 cells × 7 anchors × N = 100 | `run_ci.py --mc --record` |
 | `record-i106.json` | input sampling, 2 amplitudes × 45 DR-002 points | `run_sampling.py --record` |
+| `record-i147.json` | input sampling on the #147 cell (Sci/Scr PMOS half), 2 amplitudes × 45 DR-002 points | `run_sampling.py --record --record-name record-i147.json` |
 | `record-i129.json` | input sampling on the #129 cell (low-Vth `Sin`), 2 amplitudes × 45 DR-002 points | `run_sampling.py --from-partials --record --issue 129 --record-name record-i129.json` |
 
 **Pre-change-cell marking (issue #129).** `record.json`, `record-mc.json`,

@@ -38,7 +38,7 @@
         "role": "source",
         "path": "design/integrator/integrator.sch",
         "passed": true,
-        "content_hash": "sha256:96a9edeaea82ea08c43c3d8e5f93b5a865e6fde640fc7c8ebe06fb00cfdcef2a"
+        "content_hash": "sha256:77e860ff9c7f231681462dbb0f890c8a0e9448d757bd274210fb3ab6d8e8e399"
       },
       {
         "check": "present",
@@ -115,7 +115,7 @@
         "role": "derived",
         "path": "design/integrator/integrator.spice",
         "passed": true,
-        "content_hash": "sha256:00df9de0d8b62508719df5a1e8af02f9eb31fd1db44eda8b28cbb90b72003eda"
+        "content_hash": "sha256:6857c4ca5422d9736e6e18a898ab873a7fab9cc1bc89e3e395abe55ab66e1c9d"
       },
       {
         "check": "present",
@@ -129,7 +129,7 @@
         "role": "derived",
         "path": "design/modulator/modulator.spice",
         "passed": true,
-        "content_hash": "sha256:738e57c87fea99f917ae2c3dd481366c06c7fbbab0467a0847484262e217a7c6"
+        "content_hash": "sha256:d07a9014880a3368db1e3cec71579465530a37891d6b74f8905b121683e8b8f2"
       },
       {
         "check": "present",
@@ -268,14 +268,14 @@
             "path": "design/integrator/integrator.sch",
             "scope": "repo"
           },
-          "content_hash": "sha256:96a9edeaea82ea08c43c3d8e5f93b5a865e6fde640fc7c8ebe06fb00cfdcef2a"
+          "content_hash": "sha256:77e860ff9c7f231681462dbb0f890c8a0e9448d757bd274210fb3ab6d8e8e399"
         },
         {
           "path": {
             "path": "design/integrator/integrator.spice",
             "scope": "repo"
           },
-          "content_hash": "sha256:00df9de0d8b62508719df5a1e8af02f9eb31fd1db44eda8b28cbb90b72003eda"
+          "content_hash": "sha256:6857c4ca5422d9736e6e18a898ab873a7fab9cc1bc89e3e395abe55ab66e1c9d"
         },
         {
           "path": {
@@ -317,7 +317,7 @@
             "path": "design/modulator/modulator.spice",
             "scope": "repo"
           },
-          "content_hash": "sha256:738e57c87fea99f917ae2c3dd481366c06c7fbbab0467a0847484262e217a7c6"
+          "content_hash": "sha256:d07a9014880a3368db1e3cec71579465530a37891d6b74f8905b121683e8b8f2"
         },
         {
           "path": {
@@ -362,7 +362,7 @@
           "content_hash": "sha256:624a9fc1435634b3abd0924af782c28a43dd411eda67bd85a768a59ee896b437"
         }
       ],
-      "content_hash": "sha256:fd90631d33cd75efaa676bfe053e9b5bf04315bfb3e2c81acaf5dad44dbb798c"
+      "content_hash": "sha256:35fedd31baa3fe544b50056da74b5d57d695c9bda75d798afb3f391e81d11574"
     }
   }
 }

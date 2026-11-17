@@ -4,7 +4,7 @@
   "evidence": {
     "1.analog": {
       "file": "design/attest/item1-analog-envelope.json",
-      "content_hash": "sha256:fd90631d33cd75efaa676bfe053e9b5bf04315bfb3e2c81acaf5dad44dbb798c"
+      "content_hash": "sha256:35fedd31baa3fe544b50056da74b5d57d695c9bda75d798afb3f391e81d11574"
     },
     "1.digital": {
       "file": "design/attest/item1-digital-envelope.json",
@@ -96,7 +96,7 @@
       },
       {
         "id": "12",
-        "gap": "no citable coverage, for two stacked reasons. The committed report (sim/modulator-tran/report.json) ran the 1.620/1.800/1.980 V anchors, so the bench demonstrably spans the spec supply range, but the request tags no supply-row limit (no measurement carries spec_row 12): tagging vdda_v with the 1.62-1.98 V bounds would change request.json, whose sha256 the committed record.json and samples/ are bound to, re-binding the T-extraction chain (sim/bmodel/) built on this bench — deferred to the next re-run justified on its own. And even tagged, the row would not be credited while the envelope fails (row 11 swing, #148; 2AMLogic/klayout-tools#6027). Model B has no supply parameter (FS-normalised)."
+        "gap": "no citable coverage, for two stacked reasons. The committed report (sim/modulator-tran/report.json) ran the 1.620/1.800/1.980 V anchors, so the bench demonstrably spans the spec supply range, but the request tags no supply-row limit (no measurement carries spec_row 12): tagging vdda_v with the 1.62-1.98 V bounds would change request.json, whose sha256 the committed record.json and samples/ are bound to, re-binding the T-extraction chain (sim/bmodel/) built on this bench \u2014 deferred to the next re-run justified on its own. And even tagged, the row would not be credited while the envelope fails (row 11 swing, #148; 2AMLogic/klayout-tools#6027). Model B has no supply parameter (FS-normalised)."
       },
       {
         "id": "13",

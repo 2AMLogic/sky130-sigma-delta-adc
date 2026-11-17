@@ -13,6 +13,7 @@ hand-calc in `design/integrator/SIZING.md`)?
 |---|---|---|---|---|
 | `record.json` | as built (#53) | 29/45 | 10/45 | **0/15 both variants** |
 | `record-i92.json` | with the #92 switch fix | **45/45** | 13/45 | **15/15 `int1`** |
+| `record-i147.json` | #147 cell (Sci/Scr PMOS half added) | **45/45** (worst 5.26e-5) | 12/45 | **15/15 `int1`** |
 | `record-i129.json` | with the #129 `Sin` low-Vth fix | **45/45** | 13/45 | **15/15 `int1`** |
 
 `record-i129.json` (2026-11-17, batch fleet jobs `klt-sim-fca8952108d7` /
