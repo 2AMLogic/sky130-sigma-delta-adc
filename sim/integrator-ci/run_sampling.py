@@ -39,6 +39,7 @@ import tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
+import settling_common as sc  # noqa: E402
 from settling_common import (CAPACITY_WAIT_S, GRID_POINTS, grid_complete,  # noqa: E402
                              join_continuations, measurements_present, pdk_stamp,
                              run_klt, sha256)
@@ -57,8 +58,7 @@ VCM = 0.9
 
 # ------------------------------------------------------------- plumbing -----
 def shas(v):
-    return {"request_sha256": sha256(HERE / f"request_i106_{v}.json"),
-            "deck_sha256": sha256(HERE / mk.deck_name(v))}
+    return sc.shas(HERE / f"request_i106_{v}.json", HERE / mk.deck_name(v))
 
 
 def partial_path(v):
@@ -67,24 +67,11 @@ def partial_path(v):
 
 def load_partial(v):
     """A previously-run variant, if it matches the current request and deck."""
-    p = partial_path(v)
-    if not p.exists():
-        return None
-    try:
-        d = json.loads(p.read_text())
-    except ValueError:
-        return None
-    cur = shas(v)
-    if {k: d.get(k) for k in cur} != cur:
-        print(f"NOTE: ignoring stale .partials/{p.name} (request or deck changed "
-              "since it ran)", file=sys.stderr)
-        return None
-    return d
+    return sc.load_partial(partial_path(v), shas(v))
 
 
 def save_partial(v, result):
-    PARTIALS.mkdir(exist_ok=True)
-    partial_path(v).write_text(json.dumps(result, indent=2) + "\n")
+    sc.save_partial(partial_path(v), result)
 
 
 def summarize(corners):

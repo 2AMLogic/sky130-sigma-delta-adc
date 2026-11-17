@@ -73,7 +73,9 @@ class SharedBodyTests(unittest.TestCase):
 
 class AddShapeTaggingTests(unittest.TestCase):
     """The base add_shape books a net-tagged copy into `by_net` only when a
-    net is named -- the OTA generator names none, the integrator names all."""
+    net is named; the shared finish_trunks always names one, so every cell's
+    met2 trunks are tagged.  Only the integrator's add_met1/add_met overrides
+    name nets on met1/met3/met4."""
 
     def test_untagged_shape_enters_shapes_only(self):
         r = CellRouter(0.0, 10.0, 0.0, 10.0)
@@ -143,6 +145,16 @@ class FinishTrunksTests(unittest.TestCase):
         self.assertEqual(got[0].as_um(),
                          Rect.vwire(6.0, 3.0, 7.0, WIRE_UM).as_um())
         self.assertEqual(sorted(r.by_net), [("m", L_MET2)])
+
+    def test_base_router_tags_trunks_without_subclass_help(self):
+        # The unification's measured case (#239): the shared finish names the
+        # net itself, so a bare Router -- no subclass override at all --
+        # still lands its met2 trunks in by_net.
+        r = Router(0.0, 50.0, 0.0, 50.0)
+        r.trunk_y[("vout", 10.0)].extend([2.0, 8.0])
+        r.finish_trunks()
+        self.assertEqual(sorted(r.by_net), [("vout", L_MET2)])
+        self.assertEqual(len(self.met2_shapes(r)), 1)
 
 
 class ConnectMet1BudgetTests(unittest.TestCase):

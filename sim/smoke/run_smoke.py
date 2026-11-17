@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
 """Analog smoke runner (smoke fixture, not design). See README.md."""
-import argparse, hashlib, json, pathlib, re, subprocess, sys, tempfile
+import argparse, json, pathlib, re, subprocess, sys, tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import ngspice_version
+from settling_common import ngspice_version, sha256
 
 VIN, TOL = 0.6, 0.020  # hold voltage must be within 20 mV of the 0.6 V input
-
-
-def sha256(p):
-    return hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
 
 
 def resolve_root(variant, pdk_root):
