@@ -78,10 +78,14 @@ takes `abs()` of each half's current independently, so if the halves ever ran
 counter to one another their currents would be *summed* rather than cancelled
 and the shares could exceed 1. The check that rules this out is
 `current_nmos_A + current_pmos_A == current_A`, which the deck asserts agrees
-to 7 digits and `test_run_probe.py` re-derives on every committed row — all
-102 rows of `probe-i106.json` hold it to 1e-6, so no row on this grid is in
-that regime. Read a future row whose shares do not sum to the total as the
-halves fighting, not as a measurement of either one. (The note belongs here
+to 7 digits and `test_run_probe.py` re-derives on every committed row. The
+bound is 1e-4 *relative*: the three operands arrive at ngspice's print
+precision (~7 significant digits), so rounding them independently already
+leaves residuals near 1e-6 — the committed i106/i129/i147 rows measure at
+worst 0.70x of that floor — while a counter-running pair is an O(1)
+discrepancy that no print rounding can fake. Read a future row whose shares
+do not sum to the total as the halves fighting, not as a measurement of
+either one. (The note belongs here
 rather than in `tg_probe.cir.tmpl`: `probe-i106.json` pins the template's
 bytes as `tg_deck_sha256`, so editing the deck would move that hash and
 invalidate the committed record's provenance.)
@@ -146,8 +150,8 @@ reports `ron_ohm` = null with `current_at_gmin_floor` = true — effectively
 open (≥ 1e13 Ω at the 10 mV bias), not a floored finite number. Which half
 carries the current is reported per row (`current_nmos_A` /
 `current_pmos_A` / `nmos_current_share`), and the runner refuses any row whose
-half currents do not sum to the gate current (the same abs()-split check the
-`i106` set documents above).
+half currents do not sum to the gate current to 1e-4 relative (the same
+abs()-split check the `i106` set documents above).
 
 ### Points
 
