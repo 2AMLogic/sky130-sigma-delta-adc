@@ -66,7 +66,7 @@ committed 289,704-byte stream exactly. The script has no randomness and no
 dict-ordering dependence (every iteration order is sorted or table-driven).
 
 **Both checks are local-only; CI does not run them.** `.github/workflows/signoff.yml`
-installs the pinned klt (`.github/klt-version`, currently `0.8.0`) but installs
+installs the pinned klt (`.github/klt-version`, currently `0.9.2`) but installs
 **no PDK**, and every `klt gen` / `klt drc` / `klt extract` / `klt gen-compose`
 call here needs a resolved `sky130A`. CI checks the committed envelopes instead,
 exactly as it does for `ota_fd` and for the digital partition.
@@ -79,7 +79,7 @@ exactly as it does for `ota_fd` and for the digital partition.
 | klayout | `0.30.13` |
 | PDK | `sky130A`, open_pdks `f6eeac7` (the `sim/pdk.json` pin), resolved from `~/.ciel` |
 
-This is **not** the klt CI pin (`0.8.0`), and it is a later build than the one
+This is **not** the klt CI pin (`0.9.2`), and it is a later build than the one
 that produced `ota_fd.gds` (`0.9.2.dev964`). Byte-reproducibility is an
 assertion about *this* klt build: a generator change upstream moves geometry, so
 `--check` asserts the build recorded in this cell's own evidence, not whatever
