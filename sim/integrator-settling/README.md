@@ -13,6 +13,7 @@ hand-calc in `design/integrator/SIZING.md`)?
 |---|---|---|---|---|
 | `record.json` | as built (#53) | 29/45 | 10/45 | **0/15 both variants** |
 | `record-i92.json` | with the #92 switch fix | **45/45** | 13/45 | **15/15 `int1`** |
+| `record-i147.json` | #147 cell (Sci/Scr PMOS half added) | **45/45** (worst 5.26e-5) | 12/45 | **15/15 `int1`** |
 
 Both are the 45-point DR-002 grid per variant (90 points each), all simulated
 on the batch fleet, nothing measured. The 1.620 V collapse `record.json` shows

@@ -645,6 +645,7 @@ Append-only JSON, one file per campaign:
 | `record.json` | nominal grid, 5 variants × 45 DR-002 points | `run_ci.py --record` |
 | `record-mc.json` | Monte Carlo mismatch, 2 cells × 7 anchors × N = 100 | `run_ci.py --mc --record` |
 | `record-i106.json` | input sampling, 2 amplitudes × 45 DR-002 points | `run_sampling.py --record` |
+| `record-i147.json` | input sampling on the #147 cell (Sci/Scr PMOS half), 2 amplitudes × 45 DR-002 points | `run_sampling.py --record --record-name record-i147.json` |
 
 Each names the bench, the netlist sha256s (shipped cell, pre-#92 fixture,
 `ota_fd`), the PDK `SOURCES` stamp and pin, the `klt` version, the corner set or
