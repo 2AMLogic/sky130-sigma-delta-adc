@@ -6,7 +6,7 @@
   "summary": "T1 item 8 (Characterization report): spec rows 6 evidenced, 7 partial, 1 pending; decimator Fmax/area/power 3/5 evidenced, 1 declared gap",
   "source": "measurements/characterization.md",
   "metrics": {
-    "report_sha256": "sha256:4e596b9a06804c19e32e706a6dc0e5be380217640b287acb15066cc76fb70b96",
+    "report_sha256": "sha256:db4fd3e48687c5c7e7c0f68943fda7732ad5329ee889160e9b7bd0f42c54886e",
     "spec_rows": [
       {
         "row": 1,
@@ -15,7 +15,8 @@
           "sim/bmodel/item5-model-run.json"
         ],
         "issues": [
-          "33"
+          "35",
+          "148"
         ]
       },
       {
@@ -26,7 +27,6 @@
           "sim/bmodel/xcheck-record.json"
         ],
         "issues": [
-          "33",
           "138",
           "148"
         ]
@@ -40,7 +40,8 @@
           "sim/bmodel/model.py"
         ],
         "issues": [
-          "33"
+          "138",
+          "148"
         ]
       },
       {
@@ -58,7 +59,7 @@
           "sim/modulator-tran/record.json"
         ],
         "issues": [
-          "33"
+          "148"
         ]
       },
       {
@@ -108,7 +109,6 @@
           "sim/modulator-tran/record.json"
         ],
         "issues": [
-          "33",
           "148"
         ]
       },
@@ -119,7 +119,7 @@
           "sim/modulator-tran/record.json"
         ],
         "issues": [
-          "33"
+          "148"
         ]
       },
       {
@@ -129,8 +129,8 @@
           "sim/modulator-tran/record.json"
         ],
         "issues": [
-          "33",
-          "35"
+          "35",
+          "148"
         ]
       },
       {
@@ -193,7 +193,7 @@
         "evidence": [],
         "records": [],
         "issues": [
-          "33"
+          "35"
         ]
       }
     ],
@@ -212,7 +212,6 @@
     "pending_issues": [
       "31",
       "32",
-      "33",
       "35",
       "138",
       "148"
