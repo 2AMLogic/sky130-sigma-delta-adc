@@ -196,7 +196,8 @@ OTA_AXIS_LABELS = ("inn", "inp")
 #: share one entry -- the generated report is referenced by each of their
 #: `blocks[]` entries -- so the device count and the number of `klt gen` calls
 #: differ and drift as the netlist is regenerated.  Do not quote either here:
-#: `extract-device-count.json` records both and is the source of truth.
+#: `extract-device-count.json` records the device count, and the call count is
+#: one per entry in this table (see `gen_geometries`).
 #:
 #: `dummy` is 0 everywhere, as in the sibling OTA cell: klt's dummy elements do
 #: not extract as devices, but they widen every row and nothing here needs
