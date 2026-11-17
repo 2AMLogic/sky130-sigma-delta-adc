@@ -1,0 +1,5495 @@
+{
+  "fixture": "Top-plate hold switch DC probe: the as-built `Sci` NMOS (a lone nfet_01v8_lvt, no PMOS half) Ron versus the top-plate voltage it must hold to vcm, with the #92-precedent PMOS halves and a widened-NMOS counterfactual as variants, over the same condition grid (issue #147)",
+  "result_kind": "simulated (ngspice, sky130 device models); one DC operating point per row, run locally; not measured, not a record, not a performance claim",
+  "purpose": "give the `Sci` top-plate-hold finding (98 % of the fs/1.620 V/-40 C 0.6 V-input sampling error in sim/integrator-ci/record-i106.json) a committed mechanism testbench, and the change-or-accept decision its own evidence",
+  "method": {
+    "sci_tg": "the tg measurement on the top-plate hold switch: the swept terminal is the TOP PLATE, and during phi1e the switch sinks the coupled charge to vcm, so the informative half of the sweep is the half ABOVE vcm = 0.9 V -- the opposite half from the `Sin` gate's, whose binding half is below it. The whole range is swept anyway so both gates read on one grid. The 10 mV probe bias is direction-agnostic; the physical hold current flows top plate -> vcm. Variants in as_built, p_sti4, p_sbi24, n96: as_built and p_sti4 over every TG_CONDITIONS condition, p_sbi24 and n96 at the binding fs/-40 C/1.620 V corner only. NMOS gate at Vdda (phi1e's high rail); a PMOS half, when present, gates at 0 (the low rail a local phi1eb inverter would deliver) with its n-well at vdda",
+    "ron": "derived by the runner as bias / I from the deck's printed branch currents, not in the deck: on NMOS-only rows the current underflows to the deck's 1e-15 gmin floor at the top of the sweep, and a row there reports ron_ohm = null with current_at_gmin_floor = true -- effectively open (>= 1e13 ohm at the 10 mV bias), not a floored finite number",
+    "geometry": "ad = as = 0.29*W, pd = ps = 2*W + 0.58, nrd = nrs = 0.29/W -- the rule the committed netlist itself uses",
+    "geometry_self_check": "28 switch lines in design/integrator/integrator.spice reproduce under that rule"
+  },
+  "pdk_sources_stamp": "open_pdks f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+  "pdk_pin": {
+    "file": "sim/pdk.json",
+    "open_pdks_revision": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7"
+  },
+  "ngspice": "ngspice-47",
+  "sci_deck_sha256": "c9290b9bd54c9d1fb1e277be4a83d473faaaeddb8067b9f0ad5ec4ad64d8531c",
+  "integrator_netlist_sha256": "18fc51475f667eea993fbef4e9a3abe7eaa35863ae88f86c25bfb56bc4074d53",
+  "points": {
+    "tg_sci_as_built_tt_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 0.0001772491,
+      "ron_ohm": 56.41777588715543,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001772491,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 0.0001363929,
+      "ron_ohm": 73.31759937650713,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001363929,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 9.067069e-05,
+      "ron_ohm": 110.28922356276323,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 9.067069e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 7.422225e-05,
+      "ron_ohm": 134.73048849906868,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.422225e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 5.709206e-05,
+      "ron_ohm": 175.15570466366077,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.709206e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 3.954438e-05,
+      "ron_ohm": 252.88043459019968,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.954438e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 2.287641e-05,
+      "ron_ohm": 437.1315254447704,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.287641e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 9.968775e-06,
+      "ron_ohm": 1003.132280546005,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 9.968775e-06,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 3.086074e-06,
+      "ron_ohm": 3240.3629984245354,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.086074e-06,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 7.259229e-07,
+      "ron_ohm": 13775.56762570791,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.259229e-07,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 1.444646e-07,
+      "ron_ohm": 69221.11022354265,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.444646e-07,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 2.62817e-08,
+      "ron_ohm": 380492.8904903412,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.62817e-08,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 4.596437e-09,
+      "ron_ohm": 2175598.1861602804,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.596437e-09,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 7.943299e-10,
+      "ron_ohm": 12589227.725155506,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.943299e-10,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 1.374474e-10,
+      "ron_ohm": 72755104.86193264,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.374474e-10,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 7.531753e-13,
+      "ron_ohm": 13277121541.293242,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.531753e-13,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 0.0,
+      "ron_ohm": null,
+      "current_at_gmin_floor": true,
+      "current_nmos_A": 0.0,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": null
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 0.0001457052,
+      "ron_ohm": 68.63173037063879,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001457052,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 0.0001086275,
+      "ron_ohm": 92.05772019055948,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001086275,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 6.766284e-05,
+      "ron_ohm": 147.79160910183492,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.766284e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 5.299554e-05,
+      "ron_ohm": 188.69512415573084,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.299554e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 3.791877e-05,
+      "ron_ohm": 263.7216344306527,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.791877e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 2.323585e-05,
+      "ron_ohm": 430.3694506549147,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.323585e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 1.106109e-05,
+      "ron_ohm": 904.0700328810271,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.106109e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 3.768995e-06,
+      "ron_ohm": 2653.22718655769,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.768995e-06,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 9.489221e-07,
+      "ron_ohm": 10538.272846633037,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 9.489221e-07,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 1.962452e-07,
+      "ron_ohm": 50956.66034124656,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.962452e-07,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 3.625787e-08,
+      "ron_ohm": 275802.19135873124,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.625787e-08,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 6.334396e-09,
+      "ron_ohm": 1578682.4821182634,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.334396e-09,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 1.081567e-09,
+      "ron_ohm": 9245844.224167341,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.081567e-09,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 1.834763e-10,
+      "ron_ohm": 54502952.15240333,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.834763e-10,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 3.11573e-11,
+      "ron_ohm": 320952072.22705436,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.11573e-11,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 1.634248e-13,
+      "ron_ohm": 61190223270.88667,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.634248e-13,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ss_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 0.0,
+      "ron_ohm": null,
+      "current_at_gmin_floor": true,
+      "current_nmos_A": 0.0,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": null
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 0.0002118205,
+      "ron_ohm": 47.20978375558551,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0002118205,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 0.0001678232,
+      "ron_ohm": 59.586517239571165,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001678232,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 0.0001177839,
+      "ron_ohm": 84.90124711441887,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001177839,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 9.968003e-05,
+      "ron_ohm": 100.32099709440297,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 9.968003e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 8.074241e-05,
+      "ron_ohm": 123.85065048219394,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.074241e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 6.094739e-05,
+      "ron_ohm": 164.07593499902129,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.094739e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 4.078541e-05,
+      "ron_ohm": 245.1857171473819,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.078541e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 2.224331e-05,
+      "ron_ohm": 449.5733773435698,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.224331e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 8.94664e-06,
+      "ron_ohm": 1117.7380558511352,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.94664e-06,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 2.58882e-06,
+      "ron_ohm": 3862.7637301936793,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.58882e-06,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 5.912628e-07,
+      "ron_ohm": 16912.95308955679,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.912628e-07,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 1.179559e-07,
+      "ron_ohm": 84777.44648635635,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.179559e-07,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 2.20248e-08,
+      "ron_ohm": 454033.63481166685,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.20248e-08,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 4.018339e-09,
+      "ron_ohm": 2488590.4350031195,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.018339e-09,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 7.32804e-10,
+      "ron_ohm": 13646213.721540822,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.32804e-10,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 4.831691e-12,
+      "ron_ohm": 2069668776.4180286,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.831691e-12,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_ff_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 3.552714e-14,
+      "ron_ohm": 281474951262.6122,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.552714e-14,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 0.0002180243,
+      "ron_ohm": 45.866446996963184,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0002180243,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 0.0001748657,
+      "ron_ohm": 57.18674388402071,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001748657,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 0.0001254083,
+      "ron_ohm": 79.73953877055985,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001254083,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 0.0001074564,
+      "ron_ohm": 93.06099962403357,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001074564,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 8.865143e-05,
+      "ron_ohm": 112.80133890677229,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.865143e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 6.890733e-05,
+      "ron_ohm": 145.1224419811361,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.890733e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 4.845564e-05,
+      "ron_ohm": 206.3743250527699,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.845564e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 2.870328e-05,
+      "ron_ohm": 348.3922394931869,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.870328e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 1.298768e-05,
+      "ron_ohm": 769.9604548310399,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.298768e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 4.236178e-06,
+      "ron_ohm": 2360.6184631523984,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.236178e-06,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 1.060183e-06,
+      "ron_ohm": 9432.333851797284,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.060183e-06,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 2.266908e-07,
+      "ron_ohm": 44112.95032705342,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.266908e-07,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 4.471594e-08,
+      "ron_ohm": 223633.89878419193,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.471594e-08,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 8.552355e-09,
+      "ron_ohm": 1169268.5815778228,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.552355e-09,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 1.631228e-09,
+      "ron_ohm": 6130350.876762783,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.631228e-09,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 1.239187e-11,
+      "ron_ohm": 806980705.8983027,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.239187e-11,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_sf_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 1.207923e-13,
+      "ron_ohm": 82786733922.60931,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.207923e-13,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 0.0001409059,
+      "ron_ohm": 70.96934904783974,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001409059,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 0.0001034768,
+      "ron_ohm": 96.64001979187606,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001034768,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 6.230716e-05,
+      "ron_ohm": 160.49519830465712,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.230716e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 4.761598e-05,
+      "ron_ohm": 210.0135290715428,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.761598e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 3.269228e-05,
+      "ron_ohm": 305.882612041742,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.269228e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 1.869598e-05,
+      "ron_ohm": 534.8743419708408,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.869598e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 8.042661e-06,
+      "ron_ohm": 1243.3695763131134,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.042661e-06,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 2.463859e-06,
+      "ron_ohm": 4058.673812097202,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.463859e-06,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 5.753462e-07,
+      "ron_ohm": 17380.839571026976,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.753462e-07,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 1.135596e-07,
+      "ron_ohm": 88059.48594394486,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.135596e-07,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 2.04111e-08,
+      "ron_ohm": 489929.49914507306,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.04111e-08,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 3.508497e-09,
+      "ron_ohm": 2850223.3292489634,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.508497e-09,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 5.924221e-10,
+      "ron_ohm": 16879856.44019695,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.924221e-10,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 9.954704e-11,
+      "ron_ohm": 100455021.0634088,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 9.954704e-11,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 1.67546e-11,
+      "ron_ohm": 596851014.0498729,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.67546e-11,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 7.81597e-14,
+      "ron_ohm": 127943172760.38675,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.81597e-14,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_fs_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 0.0,
+      "ron_ohm": null,
+      "current_at_gmin_floor": true,
+      "current_nmos_A": 0.0,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": null
+    },
+    "tg_sci_as_built_tt_27c_1p8v_0p3v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 0.0001588658,
+      "ron_ohm": 62.946209945752955,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001588658,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_0p45v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 0.0001335099,
+      "ron_ohm": 74.90081259891588,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001335099,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_0p6v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 0.0001054178,
+      "ron_ohm": 94.86064023343306,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001054178,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_0p65v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 9.545535e-05,
+      "ron_ohm": 104.7610217761498,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 9.545535e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_0p7v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 8.517088e-05,
+      "ron_ohm": 117.41102123166978,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.517088e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_0p75v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 7.452261e-05,
+      "ron_ohm": 134.1874633752092,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.452261e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_0p8v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 6.344695e-05,
+      "ron_ohm": 157.61198922879666,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.344695e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_0p85v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 5.188671e-05,
+      "ron_ohm": 192.72757898891643,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.188671e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_0p9v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 3.989758e-05,
+      "ron_ohm": 250.64176824759798,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.989758e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_0p95v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 2.78922e-05,
+      "ron_ohm": 358.52317135256453,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.78922e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_1v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 1.692904e-05,
+      "ron_ohm": 590.7009493745659,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.692904e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_1p05v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 8.516326e-06,
+      "ron_ohm": 1174.2152660666115,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.516326e-06,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_1p1v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 3.49147e-06,
+      "ron_ohm": 2864.1231343817935,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.49147e-06,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_1p15v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 1.204479e-06,
+      "ron_ohm": 8302.344831250692,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.204479e-06,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_1p2v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 3.685189e-07,
+      "ron_ohm": 27135.650301789134,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.685189e-07,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_1p35v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 7.518132e-09,
+      "ron_ohm": 1330117.640924634,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.518132e-09,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_as_built_tt_27c_1p8v_1p5v": {
+      "kind": "tg",
+      "switch": "Sci/Scr as built: a lone nfet_01v8_lvt, no PMOS half",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 1.393943e-10,
+      "ron_ohm": 71738944.84925137,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.393943e-10,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 0.0001772491,
+      "ron_ohm": 56.41777588715543,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001772491,
+      "current_pmos_A": 8.839152e-12,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 0.0001363953,
+      "ron_ohm": 73.31630928631705,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001363929,
+      "current_pmos_A": 2.391284e-09,
+      "nmos_current_share": 0.9999824040857712
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 9.077294e-05,
+      "ron_ohm": 110.16498969847181,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 9.067069e-05,
+      "current_pmos_A": 1.02249e-07,
+      "nmos_current_share": 0.9988735629803331
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 7.449608e-05,
+      "ron_ohm": 134.23525103602765,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.422225e-05,
+      "current_pmos_A": 2.738348e-07,
+      "nmos_current_share": 0.9963242361208804
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 5.767797e-05,
+      "ron_ohm": 173.37642084144085,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.709206e-05,
+      "current_pmos_A": 5.859177e-07,
+      "nmos_current_share": 0.9898417021264792
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 4.056326e-05,
+      "ron_ohm": 246.5285088032865,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.954438e-05,
+      "current_pmos_A": 1.018881e-06,
+      "nmos_current_share": 0.9748817032950506
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 2.440828e-05,
+      "ron_ohm": 409.69703723490557,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.287641e-05,
+      "current_pmos_A": 1.531869e-06,
+      "nmos_current_share": 0.9372397399570965
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 1.206417e-05,
+      "ron_ohm": 828.900786378176,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 9.968775e-06,
+      "current_pmos_A": 2.095398e-06,
+      "nmos_current_share": 0.8263125436727102
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 5.778593e-06,
+      "ron_ohm": 1730.5250603390825,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.086074e-06,
+      "current_pmos_A": 2.692519e-06,
+      "nmos_current_share": 0.5340528395060874
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 4.038922e-06,
+      "ron_ohm": 2475.908175498314,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.259229e-07,
+      "current_pmos_A": 3.312999e-06,
+      "nmos_current_share": 0.1797318442891445
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 4.094062e-06,
+      "ron_ohm": 2442.5619348217006,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.444646e-07,
+      "current_pmos_A": 3.949597e-06,
+      "nmos_current_share": 0.035286373288924304
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 4.622636e-06,
+      "ron_ohm": 2163.2678843845806,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.62817e-08,
+      "current_pmos_A": 4.596354e-06,
+      "nmos_current_share": 0.0056854357557030236
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 5.252489e-06,
+      "ron_ohm": 1903.8592941365514,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.596437e-09,
+      "current_pmos_A": 5.247893e-06,
+      "nmos_current_share": 0.0008750969302363127
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 5.899958e-06,
+      "ron_ohm": 1694.9273198215988,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.943299e-10,
+      "current_pmos_A": 5.899163e-06,
+      "nmos_current_share": 0.00013463314484611584
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 6.545514e-06,
+      "ron_ohm": 1527.7639005890142,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.374474e-10,
+      "current_pmos_A": 6.545376e-06,
+      "nmos_current_share": 2.0998717594981844e-05
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 8.410326e-06,
+      "ron_ohm": 1189.0145518734946,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.531753e-13,
+      "current_pmos_A": 8.410325e-06,
+      "nmos_current_share": 8.95536391811685e-08
+    },
+    "tg_sci_p_sti4_tt_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 1.009086e-05,
+      "ron_ohm": 990.9958120516982,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0,
+      "current_pmos_A": 1.009086e-05,
+      "nmos_current_share": 0.0
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 0.0001457052,
+      "ron_ohm": 68.63173037063879,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001457052,
+      "current_pmos_A": 2.495781e-13,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 0.0001086276,
+      "ron_ohm": 92.05763544439903,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001086275,
+      "current_pmos_A": 1.169003e-10,
+      "nmos_current_share": 0.9999990794236455
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 6.767544e-05,
+      "ron_ohm": 147.76409285259174,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.766284e-05,
+      "current_pmos_A": 1.259483e-08,
+      "nmos_current_share": 0.9998138172430058
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 5.303682e-05,
+      "ron_ohm": 188.54825760669664,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.299554e-05,
+      "current_pmos_A": 4.127819e-08,
+      "nmos_current_share": 0.9992216727925995
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 3.804156e-05,
+      "ron_ohm": 262.8703975336448,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.791877e-05,
+      "current_pmos_A": 1.227882e-07,
+      "nmos_current_share": 0.9967722143886842
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 2.354662e-05,
+      "ron_ohm": 424.68940340481987,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.323585e-05,
+      "current_pmos_A": 3.107686e-07,
+      "nmos_current_share": 0.9868019274103883
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 1.16926e-05,
+      "ron_ohm": 855.2417768503155,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.106109e-05,
+      "current_pmos_A": 6.315115e-07,
+      "nmos_current_share": 0.9459906265501256
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 4.827983e-06,
+      "ron_ohm": 2071.2583287886473,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.768995e-06,
+      "current_pmos_A": 1.058987e-06,
+      "nmos_current_share": 0.7806562284912767
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 2.502846e-06,
+      "ron_ohm": 3995.4515779236917,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 9.489221e-07,
+      "current_pmos_A": 1.553924e-06,
+      "nmos_current_share": 0.37913723017716633
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 2.285337e-06,
+      "ron_ohm": 4375.722267656805,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.962452e-07,
+      "current_pmos_A": 2.089092e-06,
+      "nmos_current_share": 0.08587144915607633
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 2.68484e-06,
+      "ron_ohm": 3724.6167369377695,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.625787e-08,
+      "current_pmos_A": 2.648582e-06,
+      "nmos_current_share": 0.013504666944771383
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 3.228858e-06,
+      "ron_ohm": 3097.0702335005135,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.334396e-09,
+      "current_pmos_A": 3.222524e-06,
+      "nmos_current_share": 0.001961806929880472
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 3.804953e-06,
+      "ron_ohm": 2628.1533569534236,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.081567e-09,
+      "current_pmos_A": 3.803872e-06,
+      "nmos_current_share": 0.00028425239418200434
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 4.387115e-06,
+      "ron_ohm": 2279.402295130171,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.834763e-10,
+      "current_pmos_A": 4.386932e-06,
+      "nmos_current_share": 4.182162993219918e-05
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 4.966791e-06,
+      "ron_ohm": 2013.3724169186905,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.11573e-11,
+      "current_pmos_A": 4.966759e-06,
+      "nmos_current_share": 6.273124840566071e-06
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 6.644988e-06,
+      "ron_ohm": 1504.893613050919,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.634248e-13,
+      "current_pmos_A": 6.644988e-06,
+      "nmos_current_share": 2.459369377341238e-08
+    },
+    "tg_sci_p_sti4_ss_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ss",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 8.163429e-06,
+      "ron_ohm": 1224.975436180066,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0,
+      "current_pmos_A": 8.163429e-06,
+      "nmos_current_share": 0.0
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 0.0002118208,
+      "ron_ohm": 47.20971689276974,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0002118205,
+      "current_pmos_A": 3.022187e-10,
+      "nmos_current_share": 0.9999985837084933
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 0.0001678495,
+      "ron_ohm": 59.577180748229814,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001678232,
+      "current_pmos_A": 2.63109e-08,
+      "nmos_current_share": 0.9998433120146322
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 0.0001183198,
+      "ron_ohm": 84.51670810802587,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001177839,
+      "current_pmos_A": 5.35919e-07,
+      "nmos_current_share": 0.9954707496124908
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 0.0001006401,
+      "ron_ohm": 99.36397122021937,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 9.968003e-05,
+      "current_pmos_A": 9.60072e-07,
+      "nmos_current_share": 0.9904603632150603
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 8.221416e-05,
+      "ron_ohm": 121.63354828413988,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.074241e-05,
+      "current_pmos_A": 1.471754e-06,
+      "nmos_current_share": 0.9820985825312817
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 6.298852e-05,
+      "ron_ohm": 158.75908816400195,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.094739e-05,
+      "current_pmos_A": 2.041136e-06,
+      "nmos_current_share": 0.9675952062375811
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 4.343701e-05,
+      "ron_ohm": 230.21842433445582,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.078541e-05,
+      "current_pmos_A": 2.651591e-06,
+      "nmos_current_share": 0.9389552826034757
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 2.553683e-05,
+      "ron_ohm": 391.59128208160524,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.224331e-05,
+      "current_pmos_A": 3.293524e-06,
+      "nmos_current_share": 0.8710286280638592
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 1.290698e-05,
+      "ron_ohm": 774.7745793361421,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.94664e-06,
+      "current_pmos_A": 3.960345e-06,
+      "nmos_current_share": 0.6931629242471902
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 7.235441e-06,
+      "ron_ohm": 1382.0857636735618,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.58882e-06,
+      "current_pmos_A": 4.64662e-06,
+      "nmos_current_share": 0.357797126671339
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 5.938564e-06,
+      "ron_ohm": 1683.9087698642297,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.912628e-07,
+      "current_pmos_A": 5.347301e-06,
+      "nmos_current_share": 0.09956326142144802
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 6.175383e-06,
+      "ron_ohm": 1619.3327604134026,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.179559e-07,
+      "current_pmos_A": 6.057427e-06,
+      "nmos_current_share": 0.019100985315404728
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 6.794066e-06,
+      "ron_ohm": 1471.87266064239,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.20248e-08,
+      "current_pmos_A": 6.772041e-06,
+      "nmos_current_share": 0.003241770097611651
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 7.490213e-06,
+      "ron_ohm": 1335.0755178791312,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.018339e-09,
+      "current_pmos_A": 7.486194e-06,
+      "nmos_current_share": 0.0005364786021438909
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 8.195739e-06,
+      "ron_ohm": 1220.146224763868,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.32804e-10,
+      "current_pmos_A": 8.195006e-06,
+      "nmos_current_share": 8.941280340918616e-05
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 1.024337e-05,
+      "ron_ohm": 976.2412174899471,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.831691e-12,
+      "current_pmos_A": 1.024337e-05,
+      "nmos_current_share": 4.7168959043752196e-07
+    },
+    "tg_sci_p_sti4_ff_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "ff",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 1.209246e-05,
+      "ron_ohm": 826.9615942496398,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.552714e-14,
+      "current_pmos_A": 1.209246e-05,
+      "nmos_current_share": 2.937958033353015e-09
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 0.0002180243,
+      "ron_ohm": 45.866446996963184,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0002180243,
+      "current_pmos_A": 3.730349e-14,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 0.0001748657,
+      "ron_ohm": 57.18674388402071,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001748657,
+      "current_pmos_A": 1.915268e-11,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 0.000125412,
+      "ron_ohm": 79.73718623417216,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001254083,
+      "current_pmos_A": 3.716215e-09,
+      "nmos_current_share": 0.9999704972410932
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 0.0001074703,
+      "ron_ohm": 93.04896329497545,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001074564,
+      "current_pmos_A": 1.382578e-08,
+      "nmos_current_share": 0.9998706619410199
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 8.86963e-05,
+      "ron_ohm": 112.74427456387696,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.865143e-05,
+      "current_pmos_A": 4.486849e-08,
+      "nmos_current_share": 0.9994941164400319
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 6.903949e-05,
+      "ron_ohm": 144.84463891607544,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.890733e-05,
+      "current_pmos_A": 1.321593e-07,
+      "nmos_current_share": 0.9980857332520853
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 4.878809e-05,
+      "ron_ohm": 204.9680567531953,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.845564e-05,
+      "current_pmos_A": 3.324509e-07,
+      "nmos_current_share": 0.99318583695324
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 2.93775e-05,
+      "ron_ohm": 340.39656199472387,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.870328e-05,
+      "current_pmos_A": 6.742213e-07,
+      "nmos_current_share": 0.9770497829971917
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 1.411731e-05,
+      "ron_ohm": 708.3502451954374,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.298768e-05,
+      "current_pmos_A": 1.129635e-06,
+      "nmos_current_share": 0.9199826312519878
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 5.891477e-06,
+      "ron_ohm": 1697.3672306621922,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.236178e-06,
+      "current_pmos_A": 1.6553e-06,
+      "nmos_current_share": 0.7190349720452104
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 3.280753e-06,
+      "ron_ohm": 3048.080730246989,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.060183e-06,
+      "current_pmos_A": 2.22057e-06,
+      "nmos_current_share": 0.3231523372835443
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 3.034124e-06,
+      "ron_ohm": 3295.8442041261333,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.266908e-07,
+      "current_pmos_A": 2.807433e-06,
+      "nmos_current_share": 0.07471375593087164
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 3.44954e-06,
+      "ron_ohm": 2898.937249604295,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.471594e-08,
+      "current_pmos_A": 3.404824e-06,
+      "nmos_current_share": 0.012962870411707069
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 4.013594e-06,
+      "ron_ohm": 2491.532526707983,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.552355e-09,
+      "current_pmos_A": 4.005041e-06,
+      "nmos_current_share": 0.002130847066245365
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 4.60371e-06,
+      "ron_ohm": 2172.1611482912695,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.631228e-09,
+      "current_pmos_A": 4.602078e-06,
+      "nmos_current_share": 0.000354329008560487
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 6.327569e-06,
+      "ron_ohm": 1580.3857690054426,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.239187e-11,
+      "current_pmos_A": 6.327557e-06,
+      "nmos_current_share": 1.9583934999365474e-06
+    },
+    "tg_sci_p_sti4_sf_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "sf",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 7.883938e-06,
+      "ron_ohm": 1268.401654097229,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.207923e-13,
+      "current_pmos_A": 7.883938e-06,
+      "nmos_current_share": 1.5321315312220874e-08
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 0.0001409074,
+      "ron_ohm": 70.96859355860657,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001409059,
+      "current_pmos_A": 1.463826e-09,
+      "nmos_current_share": 0.9999893547109661
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 0.0001035534,
+      "ron_ohm": 96.56853372269767,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001034768,
+      "current_pmos_A": 7.659859e-08,
+      "nmos_current_share": 0.9992602850316841
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 6.318695e-05,
+      "ron_ohm": 158.2605268967722,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.230716e-05,
+      "current_pmos_A": 8.797869e-07,
+      "nmos_current_share": 0.9860763971041488
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 4.896654e-05,
+      "ron_ohm": 204.2210864806866,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.761598e-05,
+      "current_pmos_A": 1.350555e-06,
+      "nmos_current_share": 0.9724187169442643
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 3.456847e-05,
+      "ron_ohm": 289.28095458086517,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.269228e-05,
+      "current_pmos_A": 1.876188e-06,
+      "nmos_current_share": 0.9457253965824927
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 2.113852e-05,
+      "ron_ohm": 473.0700162546858,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.869598e-05,
+      "current_pmos_A": 2.44254e-06,
+      "nmos_current_share": 0.884450756249728
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 1.108436e-05,
+      "ron_ohm": 902.1720694744666,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.042661e-06,
+      "current_pmos_A": 3.041699e-06,
+      "nmos_current_share": 0.7255864118451584
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 6.132203e-06,
+      "ron_ohm": 1630.735316492295,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.463859e-06,
+      "current_pmos_A": 3.668345e-06,
+      "nmos_current_share": 0.40179018861573895
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 4.893445e-06,
+      "ron_ohm": 2043.5500960979432,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.753462e-07,
+      "current_pmos_A": 4.318098e-06,
+      "nmos_current_share": 0.11757487822995864
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 5.100381e-06,
+      "ron_ohm": 1960.6378425454884,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.135596e-07,
+      "current_pmos_A": 4.986822e-06,
+      "nmos_current_share": 0.02226492491443286
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 5.690746e-06,
+      "ron_ohm": 1757.2388576119897,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.04111e-08,
+      "current_pmos_A": 5.670335e-06,
+      "nmos_current_share": 0.003586717804660408
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 6.36783e-06,
+      "ron_ohm": 1570.3936819921387,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.508497e-09,
+      "current_pmos_A": 6.364321e-06,
+      "nmos_current_share": 0.0005509721522088373
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 7.064908e-06,
+      "ron_ohm": 1415.4465988799855,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.924221e-10,
+      "current_pmos_A": 7.064316e-06,
+      "nmos_current_share": 8.385418465463386e-05
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 7.765847e-06,
+      "ron_ohm": 1287.6895462916023,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 9.954704e-11,
+      "current_pmos_A": 7.765747e-06,
+      "nmos_current_share": 1.28185682772272e-05
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 8.464022e-06,
+      "ron_ohm": 1181.4714092189267,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.67546e-11,
+      "current_pmos_A": 8.464005e-06,
+      "nmos_current_share": 1.979508087289943e-06
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 1.04949e-05,
+      "ron_ohm": 952.8437622083107,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.81597e-14,
+      "current_pmos_A": 1.04949e-05,
+      "nmos_current_share": 7.44739826010729e-09
+    },
+    "tg_sci_p_sti4_fs_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 1.234645e-05,
+      "ron_ohm": 809.9494186588048,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0,
+      "current_pmos_A": 1.234645e-05,
+      "nmos_current_share": 0.0
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_0p3v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 0.0001588665,
+      "ron_ohm": 62.94593259120079,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001588658,
+      "current_pmos_A": 6.870469e-10,
+      "nmos_current_share": 0.9999955937847187
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_0p45v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 0.0001335422,
+      "ron_ohm": 74.88269625631449,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001335099,
+      "current_pmos_A": 3.223589e-08,
+      "nmos_current_share": 0.9997581288910923
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_0p6v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 0.0001058224,
+      "ron_ohm": 94.49795128441615,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001054178,
+      "current_pmos_A": 4.046563e-07,
+      "nmos_current_share": 0.9961766128910324
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_0p65v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 9.614499e-05,
+      "ron_ohm": 104.00957969832854,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 9.545535e-05,
+      "current_pmos_A": 6.8964e-07,
+      "nmos_current_share": 0.9928270833456845
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_0p7v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 8.620978e-05,
+      "ron_ohm": 115.99612016177284,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.517088e-05,
+      "current_pmos_A": 1.038895e-06,
+      "nmos_current_share": 0.9879491630763935
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_0p75v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 7.595548e-05,
+      "ron_ohm": 131.65607010843723,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.452261e-05,
+      "current_pmos_A": 1.432867e-06,
+      "nmos_current_share": 0.9811353966823725
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_0p8v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 6.530503e-05,
+      "ron_ohm": 153.12756153699033,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.344695e-05,
+      "current_pmos_A": 1.858086e-06,
+      "nmos_current_share": 0.9715476740459349
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_0p85v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 5.41929e-05,
+      "ron_ohm": 184.52601724580157,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.188671e-05,
+      "current_pmos_A": 2.306188e-06,
+      "nmos_current_share": 0.9574447944287905
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_0p9v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 4.266932e-05,
+      "ron_ohm": 234.3604257110261,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.989758e-05,
+      "current_pmos_A": 2.771734e-06,
+      "nmos_current_share": 0.935041383363972
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_0p95v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 3.114293e-05,
+      "ron_ohm": 321.1001662335561,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.78922e-05,
+      "current_pmos_A": 3.25073e-06,
+      "nmos_current_share": 0.8956190056619593
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_1v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 2.066888e-05,
+      "ron_ohm": 483.8191522714342,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.692904e-05,
+      "current_pmos_A": 3.739835e-06,
+      "nmos_current_share": 0.81905937815692
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_1p05v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 1.275231e-05,
+      "ron_ohm": 784.1716520379445,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.516326e-06,
+      "current_pmos_A": 4.235988e-06,
+      "nmos_current_share": 0.6678261428713699
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_1p1v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 8.227713e-06,
+      "ron_ohm": 1215.4045723276931,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.49147e-06,
+      "current_pmos_A": 4.736242e-06,
+      "nmos_current_share": 0.42435486021449703
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_1p15v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 6.442189e-06,
+      "ron_ohm": 1552.2674047594692,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.204479e-06,
+      "current_pmos_A": 5.23771e-06,
+      "nmos_current_share": 0.18696734914172805
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_1p2v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 6.106077e-06,
+      "ron_ohm": 1637.712724552933,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.685189e-07,
+      "current_pmos_A": 5.737558e-06,
+      "nmos_current_share": 0.060352809176824986
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_1p35v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 7.207903e-06,
+      "ron_ohm": 1387.3660619461723,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.518132e-09,
+      "current_pmos_A": 7.200385e-06,
+      "nmos_current_share": 0.00104304011860315
+    },
+    "tg_sci_p_sti4_tt_27c_1p8v_1p5v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sti precedent (pfet_01v8_lvt W 4 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 4,
+        "L_um": 0.35
+      },
+      "corner": "tt",
+      "temperature_c": 27,
+      "vdda_V": 1.8,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 8.558139e-06,
+      "ron_ohm": 1168.4783338994612,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.393943e-10,
+      "current_pmos_A": 8.558e-06,
+      "nmos_current_share": 1.6287921941908164e-05
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 0.0001409098,
+      "ron_ohm": 70.96738480928936,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001409059,
+      "current_pmos_A": 3.855853e-09,
+      "nmos_current_share": 0.9999723227199243
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 0.0001037572,
+      "ron_ohm": 96.37885370846553,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001034768,
+      "current_pmos_A": 2.804087e-07,
+      "nmos_current_share": 0.9972975369420146
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 6.689298e-05,
+      "ron_ohm": 149.4925177499941,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.230716e-05,
+      "current_pmos_A": 4.585818e-06,
+      "nmos_current_share": 0.9314454222251722
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 5.51508e-05,
+      "ron_ohm": 181.32103251448754,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.761598e-05,
+      "current_pmos_A": 7.53482e-06,
+      "nmos_current_share": 0.8633778657789188
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 4.358056e-05,
+      "ron_ohm": 229.46010790132115,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.269228e-05,
+      "current_pmos_A": 1.088828e-05,
+      "nmos_current_share": 0.7501574096340203
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 3.320763e-05,
+      "ron_ohm": 301.13561250833015,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.869598e-05,
+      "current_pmos_A": 1.451165e-05,
+      "nmos_current_share": 0.563002538874349
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 2.637891e-05,
+      "ron_ohm": 379.09072057943257,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.042661e-06,
+      "current_pmos_A": 1.833624e-05,
+      "nmos_current_share": 0.30488981538661
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 2.478465e-05,
+      "ron_ohm": 403.47553828680253,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.463859e-06,
+      "current_pmos_A": 2.232079e-05,
+      "nmos_current_share": 0.0994106836287783
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 2.700922e-05,
+      "ron_ohm": 370.2439389215979,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.753462e-07,
+      "current_pmos_A": 2.643387e-05,
+      "nmos_current_share": 0.021301844333157346
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 3.07605e-05,
+      "ron_ohm": 325.0922449244974,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.135596e-07,
+      "current_pmos_A": 3.064694e-05,
+      "nmos_current_share": 0.0036917345296727947
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 3.495219e-05,
+      "ron_ohm": 286.10510528810926,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.04111e-08,
+      "current_pmos_A": 3.493178e-05,
+      "nmos_current_share": 0.0005839719914546127
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 3.926319e-05,
+      "ron_ohm": 254.691480748253,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 3.508497e-09,
+      "current_pmos_A": 3.925968e-05,
+      "nmos_current_share": 8.935842961308035e-05
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 4.360197e-05,
+      "ron_ohm": 229.3474354484442,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.924221e-10,
+      "current_pmos_A": 4.360138e-05,
+      "nmos_current_share": 1.3587048933798174e-05
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 4.792749e-05,
+      "ron_ohm": 208.64852300840292,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 9.954704e-11,
+      "current_pmos_A": 4.792739e-05,
+      "nmos_current_share": 2.0770342865858404e-06
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 5.220849e-05,
+      "ron_ohm": 191.53972850009646,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.67546e-11,
+      "current_pmos_A": 5.220847e-05,
+      "nmos_current_share": 3.209171535127716e-07
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 6.450623e-05,
+      "ron_ohm": 155.02378607461637,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 7.81597e-14,
+      "current_pmos_A": 6.450623e-05,
+      "nmos_current_share": 1.2116612612456192e-09
+    },
+    "tg_sci_p_sbi24_fs_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sci + a PMOS half at the Sbi precedent (pfet_01v8_lvt W 24 L 0.35)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 12,
+        "L_um": 0.15
+      },
+      "pmos": {
+        "model": "sky130_fd_pr__pfet_01v8_lvt",
+        "W_um": 24,
+        "L_um": 0.35
+      },
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 7.549567e-05,
+      "ron_ohm": 132.45792771956326,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0,
+      "current_pmos_A": 7.549567e-05,
+      "nmos_current_share": 0.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_0p3v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.3,
+      "bias_V": 0.01,
+      "current_A": 0.001136085,
+      "ron_ohm": 8.802158289212516,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.001136085,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_0p45v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.45,
+      "bias_V": 0.01,
+      "current_A": 0.0008344846,
+      "ron_ohm": 11.98344463157259,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0008344846,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_0p6v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.6,
+      "bias_V": 0.01,
+      "current_A": 0.0005026555,
+      "ron_ohm": 19.894341154130412,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0005026555,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_0p65v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.65,
+      "bias_V": 0.01,
+      "current_A": 0.0003842177,
+      "ron_ohm": 26.026911305751923,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0003842177,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_0p7v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.7,
+      "bias_V": 0.01,
+      "current_A": 0.000263877,
+      "ron_ohm": 37.89644417664291,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.000263877,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_0p75v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.75,
+      "bias_V": 0.01,
+      "current_A": 0.0001509658,
+      "ron_ohm": 66.24016830301963,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 0.0001509658,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_0p8v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.8,
+      "bias_V": 0.01,
+      "current_A": 6.496739e-05,
+      "ron_ohm": 153.92337601987705,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.496739e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_0p85v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.85,
+      "bias_V": 0.01,
+      "current_A": 1.990436e-05,
+      "ron_ohm": 502.40248870096804,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.990436e-05,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_0p9v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.9,
+      "bias_V": 0.01,
+      "current_A": 4.646536e-06,
+      "ron_ohm": 2152.1408636455203,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.646536e-06,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_0p95v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 0.95,
+      "bias_V": 0.01,
+      "current_A": 9.166172e-07,
+      "ron_ohm": 10909.679635075581,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 9.166172e-07,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_1v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.0,
+      "bias_V": 0.01,
+      "current_A": 1.646428e-07,
+      "ron_ohm": 60737.5481952445,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.646428e-07,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_1p05v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.05,
+      "bias_V": 0.01,
+      "current_A": 2.828051e-08,
+      "ron_ohm": 353600.4124395211,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 2.828051e-08,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_1p1v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.1,
+      "bias_V": 0.01,
+      "current_A": 4.771834e-09,
+      "ron_ohm": 2095630.3173999768,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 4.771834e-09,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_1p15v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.15,
+      "bias_V": 0.01,
+      "current_A": 8.01208e-10,
+      "ron_ohm": 12481153.458278,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 8.01208e-10,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_1p2v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.2,
+      "bias_V": 0.01,
+      "current_A": 1.347757e-10,
+      "ron_ohm": 74197351.599732,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 1.347757e-10,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_1p35v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.35,
+      "bias_V": 0.01,
+      "current_A": 6.252776e-13,
+      "ron_ohm": 15992896595.048344,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 6.252776e-13,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    },
+    "tg_sci_n96_fs_m40c_1p62v_1p5v": {
+      "kind": "tg",
+      "switch": "Sci widened-NMOS-only counterfactual (nfet_01v8_lvt W 96, no PMOS half)",
+      "nmos": {
+        "model": "sky130_fd_pr__nfet_01v8_lvt",
+        "W_um": 96,
+        "L_um": 0.15
+      },
+      "pmos": null,
+      "corner": "fs",
+      "temperature_c": -40,
+      "vdda_V": 1.62,
+      "vin_V": 1.5,
+      "bias_V": 0.01,
+      "current_A": 5.684342e-14,
+      "ron_ohm": 175921856918.53165,
+      "current_at_gmin_floor": false,
+      "current_nmos_A": 5.684342e-14,
+      "current_pmos_A": 0.0,
+      "nmos_current_share": 1.0
+    }
+  }
+}
