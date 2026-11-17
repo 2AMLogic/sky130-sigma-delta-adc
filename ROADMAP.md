@@ -3,7 +3,7 @@
 A second-order, single-bit switched-capacitor delta-sigma ADC with its decimation
 filter on sky130, carried to T1 (sim-validated) evidence as graded by `klt signoff`.
 
-Status as of 2026-11-13, `main` @ `99689a1`. Every figure is simulated; none is
+Status as of 2026-11-17, `main` @ `0309c08`. Every figure is simulated; none is
 measured. The verdict of record is
 [`manifests/sky130-sigma-delta-adc.signoff.json`](manifests/sky130-sigma-delta-adc.signoff.json)
 and wins over this file. Tracking issue: #3 (its hand-kept checklist is stale).
@@ -12,15 +12,15 @@ and wins over this file. Tracking issue: #3 (its hand-kept checklist is stale).
 ## Where it stands
 
 `klt signoff` (pinned klt 0.9.2) grades 22 rows, 11 items by two partitions:
-**9 met, 1 not applicable, 12 unmet.**
+**10 met, 1 not applicable, 11 unmet.**
 
 | T1 item | Analog (modulator) | Digital (decimator) |
 |---|---|---|
 | 1 Design sources | met: `design/attest/item1-analog-envelope.json` (#116) | met |
-| 2 Layout | unmet: `ota_fd` cell only (#141); #29 | met: `layout/digital/decimator.gds` |
+| 2 Layout | unmet: `ota_fd` and `integrator` cells committed (#141, #119), no analog envelope yet; #29 | met: `layout/digital/decimator.gds` |
 | 3 DRC clean | unmet: #31 | met: `layout/digital/drc-decimator.report.json` (#83) |
-| 4 LVS clean | unmet: #32 | unmet: no LVS report yet |
-| 5 Corner verification | unmet: #33 (sub-issues #125 to #128) | met at ten liberty corners (#132); 35 DR-002 points uncovered, #131 |
+| 4 LVS clean | unmet: #32 | met: `layout/digital/lvs-decimator.report.json` (#82) |
+| 5 Corner verification | unmet (`check_failed`): envelope fails row 11 (integrator swing, #148) | met at ten liberty corners (#132); 35 DR-002 points uncovered, #131 |
 | 6 Monte Carlo | unmet: #34 | not applicable, hash-bound statement (#134) |
 | 7 Post-layout | unmet: #35 | unmet: no SDF-annotated run yet |
 | 8 Characterization report | unmet (`check_failed`): rows still `partial`/`pending` in `measurements/characterization.md` | same envelope |
@@ -50,8 +50,9 @@ Evidence on `main` that does not yet move a row:
 
 ## Next (unblocked by a named item above)
 
-- **Item 5, analog (4/4)**: per-corner model B parameters, DR-001 cross-check and
-  the item-5 citation: #128, after #125 and #126. Then #33 closes and #34 follows.
+- **Item 5, analog**: #125 to #128 landed and #33 closed; the item stays
+  `unmet` while the committed envelope fails row 11 (integrator swing, #148)
+  and the DR-001 cross-check gap keeps row 2 uncovered. #34 (Monte Carlo) follows.
 - **First-integrator noise**: sampled-data referral of 1/f noise (#140, after #126),
   a 1/f line in the spec 5.3 budget by decision record (#142, after #140), then the
   OTA flicker fix and re-run of the OTA-dependent benches (#143). Parent #138: the
@@ -70,7 +71,7 @@ Evidence on `main` that does not yet move a row:
   max-capacitance violations at `ss_n40C_1v60`. Done when the committed STA report
   shows zero at every declared corner, or a decision record accepts them.
 - **Item 8**: turns `met` only when rows 1 to 3, 5 and 11 to 14 of
-  `measurements/characterization.md` leave `partial`/`pending` (#33, #34, #35).
+  `measurements/characterization.md` leave `partial`/`pending` (#34, #35).
 
 ## Later (each needs its question answered first)
 
