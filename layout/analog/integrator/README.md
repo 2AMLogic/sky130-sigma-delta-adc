@@ -14,7 +14,7 @@ modulator uses this cell twice (`xi1`, `xi2` in
 | `integrator.gds` | the generated stream, top cell `integrator` |
 | `extract-device-count.json` | `klt extract` device count vs the netlist, plus the extracted pin list and net count |
 | `drc.report.json` | `klt drc` (sky130 deck) over the committed stream |
-| `route-summary.json` | capacitor symmetry, summing-node evidence, per-block origins and orientations, per-net anchors, reserved met2 columns, met1 spine tracks, every `lvtn` marker |
+| `route-summary.json` | capacitor symmetry, summing-node evidence with the matched-pair allocation log, per-block origins and orientations, per-net anchors, reserved met2 columns, met1 spine tracks, every `lvtn` marker |
 
 Nothing here is hand-drawn or GUI-edited. Every polygon comes from one of three
 places: a `klt gen` call (one per distinct device geometry), the committed
@@ -23,8 +23,9 @@ written through `klt draw` and merged by `klt gen-compose` used as a **placer
 only** (`placement.strategy: "explicit"`, no `routing` block) — the same split
 the sibling `analog/ota_fd/gen_ota_fd.py` documents.
 
-Cell outline **494.57 x 313.32 um** (154,959 um^2), 4259 flattened polygons,
-289,704 bytes (`klt stats`; 3965 polygons / 269,844 bytes before #147 added
+Cell outline **494.57 x 313.32 um** (154,959 um^2), 4257 flattened polygons,
+289,576 bytes (`klt stats`; 4259 polygons / 289,704 bytes under the pre-#284
+first-come summing routing; 3965 polygons / 269,844 bytes before #147 added
 the `Sci`/`Scr` PMOS halves and the `phi1eb` inverter pair). The OTA instance is 352.58 x 144.16 um of that, so the
 integrator's own device field and routing channel account for roughly the left
 141 um. The cell's bbox starts at x = **-1.67 um**, not 0: the router's met2
@@ -253,8 +254,8 @@ capacitor's top plate — is in the three rows nearest the axis, and the two
 switch rows are **right-aligned** against the device field's eastern edge, which
 is the edge the OTA sits beyond. Before that restructuring the switch halves
 were distributed by flavour across the whole field and the two summing nodes
-routed 240.1 / 244.0 um; afterwards they route 130.5 / 134.5 um (120.7 / 133.1
-in the current, post-#147 field).
+routed 240.1 / 244.0 um; afterwards they route 130.5 / 134.5 um (121.5 / 122.5
+in the current, post-#147 field, routed as a matched pair — issue #284).
 
 **Body ties.** Ten `klt gen guard_ring` blocks, one per (flavour, row): an
 `add_well=false` p+ tap ring in the p-substrate around each nFET row, tied to
@@ -445,20 +446,32 @@ so the device count alone cannot see it; this count can.
 
 `route-summary.json` → `summing_nodes` records the whole of the following.
 
-**Drawn lengths: `sump` 120.695 um, `sumn` 133.075 um** — a 9.3 % difference.
+**Drawn lengths: `sump` 121.465 um, `sumn` 122.505 um** — a 0.85 % difference.
 Both are shorter than every other multi-anchor net in the cell. The full ranking
 is `ibias` (16.2, one anchor — it has no device in this cell and only reaches
 the OTA), `vinp` (38.6), `vinn` (40.6), then **`sump` and `sumn`**, then
-`voutn` (143.0) and everything else up to `vcm` (1954.7). So the claim that
+`voutn` (144.0) and everything else up to `vcm` (1954.7). So the claim that
 holds, and the one the generator can support, is: *the two summing nodes are the
-shortest nets in the cell that connect more than three anchors.* The asymmetry
-between them grew from 3 % (pre-#147) to 9.3 % when the field widened: the two
-rows the extra `Sci`/`Scr` PMOS halves joined are left-aligned, so the pfet row
-became the widest row and the whole field grew 0.9 um east — and `sump`, routed
-first, kept more of the short-column advantage than `sumn`. The asymmetry is
-the router's greedy column and track choice, not a floorplan asymmetry: the
+shortest nets in the cell that connect more than three anchors.* They are
+**symmetric to 0.85 %**, and the figure is gated: `summing_node_report()`
+raises a `RouteError` past `SUMMING_ASYMMETRY_MAX_PCT` (3 %), so a
+regeneration cannot silently lose it — the assertion turns the README claim
+into a check. The history behind the bound: the 44-device cell measured 2.97 %;
+when the #147 field widened, the router's first-come column choice drifted the
+pair to 9.30 % (`sump` 120.695 / `sumn` 133.075; issue #284) — `sump`, routed
+first, kept every near-preference column and pushed every `sumn` trunk off
+its preferred one. That was a routing asymmetry, not a floorplan one: the
 capacitor and switch placements are exact mirrors (above), and the OTA's
-`inn`/`inp` are equidistant from the axis by construction.
+`inn`/`inp` are equidistant from the axis by construction. The pair now routes
+as a **matched pair** (`route_summing_pair()`): the allocator walks the
+mirror-paired anchors in shared-preference order and commits both nets'
+columns jointly, one trunk pitch apart (three for the `Ci` MiM risers, whose
+±1-pitch keep-outs must not collide), monotonic per net along the sequence so
+the spine adjacency structure tracks the p side; the OTA escapes are exempt,
+their columns fixed by the landing-y order that keeps the eight met3 runs
+non-crossing. Every pair took a matched column on its first legal candidate —
+`route-summary.json` → `summing_nodes.matched_pair` records the per-pair log
+(`greedy_fallbacks: 0`).
 
 **Clock proximity is disclosed, not shielded.** Nothing in this cell is
 shielded, so every place a clock run comes within 1.0 um of a summing-node run
@@ -467,23 +480,20 @@ the committed summary. `phi1eb` — the #147 local complement that gates the
 `Sci`/`Scr` PMOS halves — is a clock net like the others and is disclosed the
 same way:
 
-*Beside* — two met1 adjacencies, both against `phi1eb`:
+*Beside* — none. The matched-pair allocation left no clock run within 1.0 um
+of a summing-node run on the same layer (the first-come routing had two
+`sump`/`phi1eb` met1 adjacencies at 0.160 um, issue #284's edge datum).
 
-| Summing net | Clock | Layer | Gap |
-|---|---|---|---|
-| `sump` | `phi1eb` | met1 | 0.160 um |
-| `sump` | `phi1eb` | met1 | 0.160 um |
-
-*Over* — nineteen orthogonal met1/met2 crossings (16 of 0.1156 um^2 — a 0.34 x
-0.34 um overlap — one of 0.0986 and two of 0.0782): `sump`/`sumn` against
-`phi2` (8), `phi1eb` (5), `phi2b` (4) and `phi1e` (2).
+*Over* — eighteen orthogonal met1/met2 crossings (15 of 0.1156 um^2 — a 0.34 x
+0.34 um overlap — two of 0.0986 and one of 0.0765): `sump`/`sumn` against
+`phi2` (7), `phi2b` (6), `phi1eb` (3) and `phi1e` (2).
 
 `phi2` is the phase that closes `Sti`/`Str` onto the summing node, so a `phi2`
 coupling injects while the summing node is already connected to the amplifier
 rather than during the hold — which is the less damaging of the two cases, but
 it is not nothing, and no number here says how much charge it is. `phi1eb`
-couples to `sump` while the top plate is being driven to `vcm` through the
-`Sci`/`Scr` half it gates, i.e. during the reset, not the hold. **Quantifying
+crosses both summing runs; it gates the `Sci`/`Scr` halves that drive the top
+plate to `vcm` during the reset, not the hold. **Quantifying
 any of it is parasitic extraction's job (#35), not this cell's**; what this
 cell owes is the list, and the list is above.
 

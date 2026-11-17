@@ -104,8 +104,123 @@
   },
   "summing_nodes": {
     "wire_length_um": {
-      "sump": 120.695,
-      "sumn": 133.075
+      "sump": 121.465,
+      "sumn": 122.505
+    },
+    "asymmetry_pct": 0.85,
+    "asymmetry_bound_pct": 3.0,
+    "matched_pair": {
+      "offset_pitches": {
+        "met1_trunk": 1,
+        "cap_riser": 3
+      },
+      "mirror_tolerance_um": 1.0,
+      "greedy_fallbacks": 0,
+      "pairs": [
+        {
+          "blocks": [
+            "ci_p",
+            "ci_n"
+          ],
+          "plane": "cap4",
+          "xmid_um": 94.555,
+          "columns_um": {
+            "sump": 94.5,
+            "sumn": 96.0
+          },
+          "displacement_um": {
+            "sump": 0.055,
+            "sumn": 1.445
+          },
+          "shift_pitches": 0,
+          "degraded": false
+        },
+        {
+          "blocks": [
+            "sti_p_p",
+            "sti_n_p"
+          ],
+          "plane": "met1",
+          "xmid_um": 97.0,
+          "columns_um": {
+            "sump": 97.0,
+            "sumn": 97.5
+          },
+          "displacement_um": {
+            "sump": 0.0,
+            "sumn": 0.5
+          },
+          "shift_pitches": 0,
+          "degraded": false
+        },
+        {
+          "blocks": [
+            "sti_p",
+            "sti_n"
+          ],
+          "plane": "met1",
+          "xmid_um": 97.275,
+          "columns_um": {
+            "sump": 98.0,
+            "sumn": 98.5
+          },
+          "displacement_um": {
+            "sump": 0.725,
+            "sumn": 1.225
+          },
+          "shift_pitches": 1,
+          "degraded": false
+        },
+        {
+          "blocks": [
+            "str_p_p",
+            "str_n_p"
+          ],
+          "plane": "met1",
+          "xmid_um": 112.49,
+          "columns_um": {
+            "sump": 112.0,
+            "sumn": 112.5
+          },
+          "displacement_um": {
+            "sump": 0.49,
+            "sumn": 0.01
+          },
+          "shift_pitches": -1,
+          "degraded": false
+        },
+        {
+          "blocks": [
+            "str_p",
+            "str_n"
+          ],
+          "plane": "met1",
+          "xmid_um": 112.615,
+          "columns_um": {
+            "sump": 113.0,
+            "sumn": 113.5
+          },
+          "displacement_um": {
+            "sump": 0.385,
+            "sumn": 0.885
+          },
+          "shift_pitches": 1,
+          "degraded": false
+        },
+        {
+          "blocks": [
+            "ota",
+            "ota"
+          ],
+          "plane": "ota",
+          "xmid_um": 146.47,
+          "columns_um": {
+            "sump": 138.32,
+            "sumn": 136.32
+          },
+          "note": "escape column fixed by landing-y order"
+        }
+      ]
     },
     "length_rank_of_all_nets": [
       "ibias",
@@ -132,9 +247,9 @@
       "dn",
       "phi1b",
       "phi1e",
+      "phi1eb",
       "vssa",
       "vdda",
-      "phi1eb",
       "phi2",
       "phi2b",
       "vcm"
@@ -142,46 +257,9 @@
     "shortest_net": "ibias",
     "shield_clearance_um": 1.0,
     "shielded": false,
-    "beside_count": 2,
-    "beside": [
-      {
-        "summing_net": "sump",
-        "clock_net": "phi1eb",
-        "layer": "68/20",
-        "gap_um": 0.16,
-        "summing_rect_um": [
-          96.83,
-          161.83,
-          97.67,
-          162.17
-        ],
-        "clock_rect_um": [
-          6.83,
-          161.33,
-          102.17,
-          161.67
-        ]
-      },
-      {
-        "summing_net": "sump",
-        "clock_net": "phi1eb",
-        "layer": "68/20",
-        "gap_um": 0.16,
-        "summing_rect_um": [
-          97.33,
-          161.83,
-          112.17,
-          162.17
-        ],
-        "clock_rect_um": [
-          6.83,
-          161.33,
-          102.17,
-          161.67
-        ]
-      }
-    ],
-    "crossings_count": 19,
+    "beside_count": 0,
+    "beside": [],
+    "crossings_count": 18,
     "crossings": [
       {
         "summing_net": "sumn",
@@ -190,8 +268,8 @@
         "clock_layer": "69/20",
         "overlap_um2": 0.1156,
         "at_um": [
-          107.33,
-          114.83
+          116.33,
+          136.33
         ]
       },
       {
@@ -201,8 +279,8 @@
         "clock_layer": "69/20",
         "overlap_um2": 0.1156,
         "at_um": [
-          101.83,
-          114.83
+          102.33,
+          124.33
         ]
       },
       {
@@ -223,7 +301,7 @@
         "clock_layer": "68/20",
         "overlap_um2": 0.1156,
         "at_um": [
-          97.83,
+          98.33,
           127.35
         ]
       },
@@ -235,7 +313,7 @@
         "overlap_um2": 0.1156,
         "at_um": [
           103.33,
-          114.83
+          124.33
         ]
       },
       {
@@ -245,7 +323,7 @@
         "clock_layer": "68/20",
         "overlap_um2": 0.1156,
         "at_um": [
-          112.83,
+          113.33,
           127.35
         ]
       },
@@ -263,12 +341,23 @@
       {
         "summing_net": "sumn",
         "clock_net": "phi2b",
+        "summing_layer": "69/20",
+        "clock_layer": "68/20",
+        "overlap_um2": 0.1156,
+        "at_um": [
+          97.33,
+          112.23
+        ]
+      },
+      {
+        "summing_net": "sumn",
+        "clock_net": "phi2b",
         "summing_layer": "68/20",
         "clock_layer": "69/20",
         "overlap_um2": 0.1156,
         "at_um": [
           102.83,
-          114.83
+          124.33
         ]
       },
       {
@@ -296,28 +385,6 @@
       {
         "summing_net": "sump",
         "clock_net": "phi1eb",
-        "summing_layer": "69/20",
-        "clock_layer": "68/20",
-        "overlap_um2": 0.1156,
-        "at_um": [
-          97.33,
-          161.33
-        ]
-      },
-      {
-        "summing_net": "sump",
-        "clock_net": "phi1eb",
-        "summing_layer": "68/20",
-        "clock_layer": "69/20",
-        "overlap_um2": 0.1156,
-        "at_um": [
-          102.33,
-          161.83
-        ]
-      },
-      {
-        "summing_net": "sump",
-        "clock_net": "phi1eb",
         "summing_layer": "68/20",
         "clock_layer": "69/20",
         "overlap_um2": 0.1156,
@@ -333,7 +400,7 @@
         "clock_layer": "68/20",
         "overlap_um2": 0.1156,
         "at_um": [
-          112.33,
+          97.83,
           159.17
         ]
       },
@@ -360,24 +427,13 @@
         ]
       },
       {
-        "summing_net": "sumn",
+        "summing_net": "sump",
         "clock_net": "phi2",
         "summing_layer": "69/20",
         "clock_layer": "68/20",
         "overlap_um2": 0.0986,
         "at_um": [
           112.83,
-          127.35
-        ]
-      },
-      {
-        "summing_net": "sump",
-        "clock_net": "phi2",
-        "summing_layer": "69/20",
-        "clock_layer": "68/20",
-        "overlap_um2": 0.0782,
-        "at_um": [
-          97.44,
           159.17
         ]
       },
@@ -386,10 +442,21 @@
         "clock_net": "phi2",
         "summing_layer": "69/20",
         "clock_layer": "68/20",
-        "overlap_um2": 0.0782,
+        "overlap_um2": 0.0986,
         "at_um": [
-          97.44,
+          112.83,
           159.17
+        ]
+      },
+      {
+        "summing_net": "sumn",
+        "clock_net": "phi2b",
+        "summing_layer": "69/20",
+        "clock_layer": "68/20",
+        "overlap_um2": 0.0765,
+        "at_um": [
+          97.33,
+          112.23
         ]
       }
     ]
@@ -898,7 +965,7 @@
           "ports": [
             "U0_S"
           ],
-          "column_x_um": 97.5,
+          "column_x_um": 98.0,
           "y_um": 152.33
         },
         {
@@ -916,7 +983,7 @@
           "ports": [
             "U0_S"
           ],
-          "column_x_um": 112.5,
+          "column_x_um": 113.0,
           "y_um": 152.33
         },
         {
@@ -936,7 +1003,7 @@
         162.0,
         150.5
       ],
-      "wire_length_um": 120.695
+      "wire_length_um": 121.465
     },
     "sumn": {
       "anchors": [
@@ -950,22 +1017,22 @@
           "y_um": 103.09
         },
         {
-          "block": "sti_n",
-          "plane": "met1",
-          "ports": [
-            "U0_S"
-          ],
-          "column_x_um": 98.0,
-          "y_um": 134.03
-        },
-        {
           "block": "sti_n_p",
           "plane": "met1",
           "ports": [
             "U0_S"
           ],
-          "column_x_um": 98.5,
+          "column_x_um": 97.5,
           "y_um": 114.91
+        },
+        {
+          "block": "sti_n",
+          "plane": "met1",
+          "ports": [
+            "U0_S"
+          ],
+          "column_x_um": 98.5,
+          "y_um": 134.03
         },
         {
           "block": "str_n_p",
@@ -973,7 +1040,7 @@
           "ports": [
             "U0_S"
           ],
-          "column_x_um": 111.5,
+          "column_x_um": 112.5,
           "y_um": 114.91
         },
         {
@@ -982,7 +1049,7 @@
           "ports": [
             "U0_S"
           ],
-          "column_x_um": 113.0,
+          "column_x_um": 113.5,
           "y_um": 134.03
         },
         {
@@ -996,13 +1063,13 @@
         }
       ],
       "spine_y_um": [
-        118.5,
+        109.0,
         124.5,
-        115.0,
+        124.5,
         124.5,
         136.5
       ],
-      "wire_length_um": 133.075
+      "wire_length_um": 122.505
     },
     "tpi_p": {
       "anchors": [
@@ -1072,15 +1139,6 @@
           "y_um": 103.09
         },
         {
-          "block": "sti_n_p",
-          "plane": "met1",
-          "ports": [
-            "U0_D"
-          ],
-          "column_x_um": 93.0,
-          "y_um": 115.41
-        },
-        {
           "block": "sci_n",
           "plane": "met1",
           "ports": [
@@ -1106,15 +1164,24 @@
           ],
           "column_x_um": 101.5,
           "y_um": 134.53
+        },
+        {
+          "block": "sti_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 102.0,
+          "y_um": 115.41
         }
       ],
       "spine_y_um": [
-        109.0,
-        83.5,
+        77.0,
         40.0,
-        82.0
+        82.0,
+        125.0
       ],
-      "wire_length_um": 262.275
+      "wire_length_um": 253.595
     },
     "tpr_p": {
       "anchors": [
@@ -1133,7 +1200,7 @@
           "ports": [
             "U0_D"
           ],
-          "column_x_um": 113.5,
+          "column_x_um": 111.5,
           "y_um": 235.22
         },
         {
@@ -1170,7 +1237,7 @@
         205.0,
         162.5
       ],
-      "wire_length_um": 290.175
+      "wire_length_um": 289.945
     },
     "tpr_n": {
       "anchors": [
@@ -1182,6 +1249,15 @@
           ],
           "column_x_um": 17.0,
           "y_um": 103.09
+        },
+        {
+          "block": "str_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_D"
+          ],
+          "column_x_um": 110.5,
+          "y_um": 115.41
         },
         {
           "block": "scr_n",
@@ -1209,24 +1285,15 @@
           ],
           "column_x_um": 116.0,
           "y_um": 134.53
-        },
-        {
-          "block": "str_n_p",
-          "plane": "met1",
-          "ports": [
-            "U0_D"
-          ],
-          "column_x_um": 116.5,
-          "y_um": 115.41
         }
       ],
       "spine_y_um": [
-        77.0,
+        109.5,
+        83.5,
         40.0,
-        82.0,
-        125.0
+        82.0
       ],
-      "wire_length_um": 297.775
+      "wire_length_um": 305.935
     },
     "bpi_p": {
       "anchors": [
@@ -1592,7 +1659,7 @@
           "ports": [
             "C0_BOT"
           ],
-          "column_x_um": 110.0,
+          "column_x_um": 109.5,
           "y_um": 219.52
         },
         {
@@ -1608,7 +1675,7 @@
       "spine_y_um": [
         180.5
       ],
-      "wire_length_um": 148.675
+      "wire_length_um": 149.675
     },
     "voutn": {
       "anchors": [
@@ -1618,7 +1685,7 @@
           "ports": [
             "C0_BOT"
           ],
-          "column_x_um": 108.5,
+          "column_x_um": 108.0,
           "y_um": 67.34
         },
         {
@@ -1634,7 +1701,7 @@
       "spine_y_um": [
         100.0
       ],
-      "wire_length_um": 142.965
+      "wire_length_um": 143.965
     },
     "phi1e": {
       "anchors": [
@@ -1662,7 +1729,7 @@
           "ports": [
             "U0_G"
           ],
-          "column_x_um": 92.0,
+          "column_x_um": 92.5,
           "y_um": 242.23
         },
         {
@@ -1671,7 +1738,7 @@
           "ports": [
             "U0_G"
           ],
-          "column_x_um": 92.5,
+          "column_x_um": 93.0,
           "y_um": 44.63
         },
         {
@@ -1680,7 +1747,7 @@
           "ports": [
             "U0_G"
           ],
-          "column_x_um": 107.5,
+          "column_x_um": 116.5,
           "y_um": 44.63
         },
         {
@@ -1700,7 +1767,7 @@
         44.5,
         143.5
       ],
-      "wire_length_um": 611.015
+      "wire_length_um": 609.915
     },
     "phi1eb": {
       "anchors": [
@@ -1723,22 +1790,22 @@
           "y_um": 297.29
         },
         {
-          "block": "sci_n_p",
-          "plane": "met1",
-          "ports": [
-            "U0_G"
-          ],
-          "column_x_um": 102.0,
-          "y_um": 26.51
-        },
-        {
           "block": "sci_p_p",
           "plane": "met1",
           "ports": [
             "U0_G"
           ],
-          "column_x_um": 102.5,
+          "column_x_um": 92.0,
           "y_um": 260.35
+        },
+        {
+          "block": "sci_n_p",
+          "plane": "met1",
+          "ports": [
+            "U0_G"
+          ],
+          "column_x_um": 102.5,
+          "y_um": 26.51
         },
         {
           "block": "scr_n_p",
@@ -1761,12 +1828,12 @@
       ],
       "spine_y_um": [
         302.5,
-        161.5,
-        143.5,
+        279.0,
         143.0,
+        26.5,
         143.5
       ],
-      "wire_length_um": 773.995
+      "wire_length_um": 657.435
     },
     "phi2b": {
       "anchors": [
@@ -1870,9 +1937,9 @@
         90.5,
         144.0,
         143.5,
-        144.0
+        143.0
       ],
-      "wire_length_um": 1026.995
+      "wire_length_um": 1026.495
     },
     "phi1": {
       "anchors": [
@@ -2066,9 +2133,9 @@
         242.0,
         143.5,
         86.0,
-        144.0,
+        143.0,
         159.5,
-        142.5
+        144.0
       ],
       "wire_length_um": 820.095
     },
@@ -2667,9 +2734,9 @@
         290.5,
         243.0,
         143.5,
-        141.0
+        142.5
       ],
-      "wire_length_um": 756.03
+      "wire_length_um": 754.53
     }
   },
   "ota": {

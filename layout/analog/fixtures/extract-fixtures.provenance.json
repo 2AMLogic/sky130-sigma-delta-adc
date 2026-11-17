@@ -52,10 +52,10 @@
     },
     "integrator": {
       "netlist": "integrator.extract.spice",
-      "netlist_sha256": "064c122f1948918fdb8027b598f6b7b3c93b09bc3c794f623ec5d919a50ea401",
+      "netlist_sha256": "fafb2533851bdd11775228d962838fccacdf788c818541085fd06e27467d91bd",
       "netlist_normalized_sha256": "abd7cecad98272341635a24c6ae187c6eeea9cbc0a6e7a320f8d9fc8360e1b38",
       "source_gds": "layout/analog/integrator/integrator.gds",
-      "source_gds_sha256": "5e9306a68221facae2f18bd3dc08a5df6d403140a84ec9d45e4745459dfe6c9a",
+      "source_gds_sha256": "087cd0d14d83a5d7f1baa7dd0623cab10c0beb3527d7e4bc9193e47cdb62a7a6",
       "captured": "2026-11-17",
       "capture_command": "klt extract layout/analog/integrator/integrator.gds --deck sky130 --top integrator --pdk sky130A --pdk-root ~/.ciel -o layout/analog/fixtures/integrator.extract.spice --format json",
       "klt_pin": {
@@ -83,7 +83,7 @@
         "device_count": 149,
         "net_count": 43,
         "pin_count": 18,
-        "netlist_sha256": "064c122f1948918fdb8027b598f6b7b3c93b09bc3c794f623ec5d919a50ea401",
+        "netlist_sha256": "fafb2533851bdd11775228d962838fccacdf788c818541085fd06e27467d91bd",
         "netlist_normalized_sha256": "abd7cecad98272341635a24c6ae187c6eeea9cbc0a6e7a320f8d9fc8360e1b38",
         "pdk": {
           "variant": "sky130A",
