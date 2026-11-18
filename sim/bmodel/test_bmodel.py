@@ -490,5 +490,205 @@ class Item5EnvelopeRecords(unittest.TestCase):
             self._assert_entry_matches_record(self, entry)
 
 
+class CrossCheckLong(unittest.TestCase):
+    """compare_corner(long=True) at the corrigendum's 4096-clock record
+    (DR-001 corrigendum 01, issue #290): DR-001 item 3's in-band SNDR leg is
+    computable and applied, and the first record's in-band-power proxy is
+    demoted to a reported diagnostic. Both fixture sides still come from
+    model B itself -- these tests exercise the comparison arithmetic and its
+    gates, not model quality; the real evidence is the committed
+    xcheck-record-long-dc-excluded.json built from the long transistor-level
+    samples (the first derivation, xcheck-record-long.json, summed bins
+    1..edge without sec 1.2's DC-leakage exclusion and is superseded).
+
+    The tone bin (12) is read from the long bench's committed record
+    (record-long.json, input_sequence.tone_cycles_in_record), exactly as the
+    short path reads the short record."""
+
+    N = 4096
+
+    def side(self, params):
+        u = model.tone_input(10 ** (-6 / 20), 12, self.N, 1, 0, params)
+        y, x1, x2 = model.modulate_with_states(u, params)
+        return {
+            "n_clocks": self.N,
+            "u_diff_v": [float(v) * 1.2 for v in u],
+            "y": [int(v) for v in y],
+            "o1d_v": [round(float(v) * 1.2, 7) for v in x1],
+            "o2d_v": [round(float(v) * 1.2, 7) for v in x2],
+        }
+
+    def b_side(self, params):
+        s = self.side(params)
+        return {"y": s["y"],
+                "x1_fs": [v / 1.2 for v in s["o1d_v"]],
+                "x2_fs": [v / 1.2 for v in s["o2d_v"]]}
+
+    def fixture_corner_path(self, tmp, params=None):
+        doc = {
+            "schema": "fixture",
+            "corner_id": "tt/1.800V/27C",
+            "sample_slug": "zz-fixture-no-such-samples",
+            "params": dict(model.PARAM_DEFAULTS) if params is None
+            else dict(params),
+            "sources": {},
+            "no_t_source": {k: {"why": "fixture"} for k in
+                            ("dc_gain", "settling_error", "ci_offset",
+                             "ci_gain_error", "ktc_noise_var",
+                             "comparator_offset", "comparator_hysteresis",
+                             "jitter_rms_s")},
+        }
+        p = tmp / "corner.json"
+        p.write_text(json.dumps(doc))
+        return p
+
+    def compare(self, tmp, b_params, t_params):
+        # The corner file carries the B side's parameters, as the real
+        # pipeline does (run.py --xcheck loads them from the corner file),
+        # so the seed ensemble re-derives the committed B side exactly.
+        corner = self.fixture_corner_path(tmp, params=b_params)
+        t_path = tmp / "t.json"
+        t_path.write_text(json.dumps(self.side(t_params)))
+        b_path = tmp / "b.json"
+        b_path.write_text(json.dumps(self.b_side(b_params)))
+        return xcheck.compare_corner(corner, b_path, t_path, long=True)
+
+    def test_band_resolves_with_noise_bins_beside_the_lobe(self):
+        """The BH-lobe-vs-band edge case at N_T: 1250 Hz bins put the 20 kHz
+        band at bins 1..16, the coherent tone at exact bin 12, its lobe at
+        8..16, and -- after sec 1.2's DC-leakage exclusion (bins 0..4,
+        sndr.DC_EXCL_BINS) -- 3 in-band noise bins (5..7) beside it
+        (issue #290)."""
+        fs = run.model.FS_HZ
+        _, edge = xcheck.band_bins(self.N, fs, sndr.BW_HZ)
+        self.assertEqual(edge, 16)
+        self.assertEqual(sndr.BW_HZ * self.N / fs, 16.0)
+        lobe = xcheck.lobe_bins(12)
+        self.assertEqual(int(lobe[0]), 8)
+        self.assertEqual(int(lobe[-1]), 16)
+        noise = xcheck.inband_noise_bin_indices(edge, 12)
+        self.assertEqual([int(b) for b in noise], list(range(5, 8)))
+
+    def test_band_does_not_resolve_at_1024(self):
+        """The short record stays honestly incomputable: 5 kHz bins, band
+        bins 1..4, tone lobe -1..7 covering all of them."""
+        fs = run.model.FS_HZ
+        _, edge = xcheck.band_bins(1024, fs, sndr.BW_HZ)
+        self.assertEqual(edge, 4)
+        self.assertEqual(len(xcheck.inband_noise_bin_indices(edge, 3)), 0)
+
+    def test_near_identical_pair_passes_all_legs_including_sndr(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = dict(model.PARAM_DEFAULTS)
+            q = dict(p, comparator_offset=p["comparator_offset"] + 1e-4)
+            entry = xcheck.finalise_entry(self.compare(pathlib.Path(td), q, p),
+                                          long=True)
+            self.assertEqual(entry["legs_failed"], [], entry["legs"])
+            self.assertIn("sndr_inband_3db", entry["legs"])
+            self.assertNotIn("inband_power_3db", entry["legs"],
+                             "the proxy is demoted once the SNDR leg applies")
+            self.assertTrue(entry["sndr_inband_db"]["computable"])
+            self.assertLessEqual(entry["sndr_inband_db"]["delta_db"], 3.0)
+            self.assertTrue(entry["cross_check_status"].startswith("passed"))
+            self.assertIn("cross-checked", entry["cross_check_status"])
+
+    def test_wrong_parameter_set_fails(self):
+        """Negative control: a deliberately wrong B parameter set must fail
+        the cross-check at the long length too, not slide through."""
+        with tempfile.TemporaryDirectory() as td:
+            p = dict(model.PARAM_DEFAULTS)
+            wrong = dict(p, dc_gain=2.0, ktc_noise_var=1e-3,
+                         comparator_offset=0.2, comparator_hysteresis=0.2)
+            entry = xcheck.finalise_entry(self.compare(pathlib.Path(td), wrong, p),
+                                          long=True)
+            self.assertNotEqual(entry["legs_failed"], [],
+                                "the negative control must fail at least one leg")
+            self.assertTrue(entry["cross_check_status"].startswith("failed"))
+            self.assertIn("model finding", entry["cross_check_status"])
+
+    def test_length_mismatch_refused(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = pathlib.Path(td)
+            corner = self.fixture_corner_path(tmp)
+            t_path = tmp / "t.json"
+            t_path.write_text(json.dumps(self.side(dict(model.PARAM_DEFAULTS))))
+            b = self.b_side(dict(model.PARAM_DEFAULTS))
+            b["y"] = b["y"][:-1]
+            b_path = tmp / "b.json"
+            b_path.write_text(json.dumps(b))
+            with self.assertRaises(ValueError):
+                xcheck.compare_corner(corner, b_path, t_path, long=True)
+
+    def test_seed_ensemble_verdict_branches(self):
+        """The ensemble rule itself (issue #290 review round 3): the gate
+        returns a verdict only where its outcome is invariant across the
+        model's noise seeds -- all-out is a robust fail, all-in a robust
+        pass, a straddling ensemble is indeterminate."""
+        self.assertEqual(xcheck.ensemble_verdict([-8.0, -6.1, -9.4], 3.0),
+                         ("robust_fail", 0))
+        self.assertEqual(xcheck.ensemble_verdict([0.5, -2.9, 1.0], 3.0),
+                         ("robust_pass", 3))
+        self.assertEqual(xcheck.ensemble_verdict([2.0, 5.0, -4.0], 3.0),
+                         ("indeterminate", 1))
+        self.assertEqual(xcheck.ensemble_verdict([3.0], 3.0),
+                         ("robust_pass", 1))
+
+    def test_noise_free_ensemble_is_degenerate(self):
+        """Without seeded noise terms every seed reproduces the same
+        bitstream: zero spread, the verdict is the committed draw's, and
+        seed 1 re-derives the committed side exactly."""
+        with tempfile.TemporaryDirectory() as td:
+            p = dict(model.PARAM_DEFAULTS)
+            q = dict(p, comparator_offset=p["comparator_offset"] + 1e-4)
+            entry = xcheck.finalise_entry(self.compare(pathlib.Path(td), q, p),
+                                          long=True)
+            leg = entry["legs"]["sndr_inband_3db"]
+            ens = leg["seed_ensemble"]
+            self.assertEqual(ens["n_seeds"], xcheck.SEED_ENSEMBLE_N)
+            self.assertEqual(ens["spread_db"], 0.0)
+            self.assertEqual(leg["verdict"], "robust_pass")
+            self.assertEqual(ens["seed1_delta_vs_committed_db"], 0.0)
+            self.assertTrue(ens["seed1_matches_committed_side"])
+            self.assertTrue(entry["cross_check_status"].startswith("passed"))
+
+    def test_noisy_b_side_records_its_spread(self):
+        """With seeded noise the ensemble spreads and is recorded beside the
+        gate; the verdict is one of the three ensemble outcomes, never the
+        committed draw alone."""
+        with tempfile.TemporaryDirectory() as td:
+            p = dict(model.PARAM_DEFAULTS, ktc_noise_var=1e-5)
+            entry = xcheck.finalise_entry(self.compare(pathlib.Path(td), p, p),
+                                          long=True)
+            leg = entry["legs"]["sndr_inband_3db"]
+            ens = leg["seed_ensemble"]
+            self.assertEqual(ens["n_seeds"], xcheck.SEED_ENSEMBLE_N)
+            self.assertGreater(ens["spread_db"], 0.0)
+            self.assertIn(leg["verdict"],
+                          ("robust_fail", "robust_pass", "indeterminate"))
+            self.assertTrue(ens["seed1_matches_committed_side"])
+            lo, hi = (ens["delta_signed_db"]["min"],
+                      ens["delta_signed_db"]["max"])
+            self.assertLessEqual(lo, hi)
+            self.assertLessEqual(ens["spread_db"], hi - lo + 1e-9)
+
+    def test_missing_t_bitstream_reported_uncrosschecked(self):
+        with tempfile.TemporaryDirectory() as td:
+            entry = xcheck.finalise_entry(
+                xcheck.no_t_samples_entry(self.fixture_corner_path(
+                    pathlib.Path(td)), long=True), long=True)
+            self.assertTrue(entry["cross_check_status"].startswith("uncross-checked"))
+            self.assertIn("samples-long", entry["error"])
+
+    def test_long_record_header_names_the_corrigendum(self):
+        rec = xcheck.build_record([], long=True)
+        self.assertIn("DR-001-corrigendum-01", rec["method_basis"])
+        self.assertIn("4096", rec["corrigendum_length_evidence"])
+        self.assertIn("sndr_inband_3db", rec["acceptance_gates"])
+        self.assertIn("seed", rec["acceptance_gates"]["sndr_inband_3db"])
+        self.assertIn("indeterminate", rec["acceptance_gates"]["sndr_inband_3db"])
+        self.assertIn("indeterminate", rec["dr001_acceptance"])
+        self.assertIn("declined", rec["acceptance_gates"]["reported_not_gating"])
+
+
 if __name__ == "__main__":
     unittest.main()
