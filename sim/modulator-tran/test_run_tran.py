@@ -235,12 +235,15 @@ class PerClockReduction(unittest.TestCase):
         import tempfile
         _, samples = RUNNER.extract(report())
         with tempfile.TemporaryDirectory() as td:
-            index = RUNNER.write_samples(samples, pathlib.Path(td))
+            outdir = pathlib.Path(td) / "samples"
+            index = RUNNER.write_samples(samples, outdir)
             self.assertEqual(len(index), len(MK.ANCHOR_POINTS))
             for cid, entry in index.items():
                 self.assertEqual(entry["n_clocks"], MK.N_REC)
                 self.assertEqual(len(entry["sha256"]), 64)
+                # repo-relative, naming the bench's own samples directory
                 self.assertTrue(entry["file"].startswith("samples/"))
+                self.assertFalse(entry["file"].startswith("samples//"))
 
     def test_corner_slug_is_a_safe_filename(self):
         for c in report()["corners"]:

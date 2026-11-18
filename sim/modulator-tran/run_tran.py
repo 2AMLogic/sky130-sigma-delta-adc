@@ -458,7 +458,10 @@ def write_samples(samples, outdir):
         name = f"{corner_slug(s_corner(s))}.json"
         path = outdir / name
         path.write_text(dump_samples(s))
-        index[cid] = {"file": f"samples/{name}", "sha256": sha256(path),
+        # the index is repo-relative and names the bench's own samples
+        # directory (samples/ for the short bench, samples-long/ for the
+        # long bench -- record-long.json must never point into samples/)
+        index[cid] = {"file": f"{outdir.name}/{name}", "sha256": sha256(path),
                       "n_clocks": s["n_clocks"]}
     return index
 
