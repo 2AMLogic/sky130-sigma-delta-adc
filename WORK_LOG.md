@@ -2,8 +2,21 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-18
+
+- **PR #310**: gate: run the klt signoff --check re-hash steps locally in check-ci.sh
+- **Issue #308** (closed): No local gate catches a commit that touches an item-9 inventory file without regenerating the envelope
+
 ### 2026-11-17
 
+- **Issue #169** (closed): Confirm klayout-tools#1962 actually describes the #121 blocker that parks analog items 2, 3, 4, 7, 11
+- **PR #298**: docs: sync ROADMAP T1 counts and row states to the verdict of record, gate prose counts in CI
+- **Issue #221** (closed): ROADMAP.md T1 counts and row 4 are stale vs the verdict of record; nothing in CI gates a prose count
+- **PR #300**: docs: prune landed rows and stale klt-pin prose from ROADMAP's Now table
+- **Issue #297** (closed): ROADMAP.md residual prose drift: Now-table rows for landed work and stale klt 0.8.0 pin mentions
+- **PR #295**: docs: add DR-008 corrigendum 03 and re-point the STA-gap citation off closed #131
+- **PR #292**: chore(loom): resync installed Loom to v0.19.1306
+- **PR #289**: fix(integrator-layout): route sump/sumn as a matched pair, gating 3% symmetry
 - **PR #291**: docs: re-point characterization's closed-#33 citations at open owners
 - **PR #287**: docs: point GEOMETRIES comment at extract-device-count.json instead of stale counts
 - **PR #285**: docs: refresh integrator section of layout/README.md from committed post-#274 artifacts
@@ -12,6 +25,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 - **PR #280**: fix: fail signoff gate when a tracked Python file cannot parse
 - **PR #278**: fix: set the tg half-current sum bound to 1e-4 relative, clear of the print floor
 - **PR #273**: ci: fail signoff on undefined names via pinned pyflakes
+- **Issue #293** (closed): Closed-issue citations outside characterization.md: DR-008 consequence prose, item9-inventory, ROADMAP, and the #131 line-17 citation
+- **Issue #284** (closed): The integrator's summing-node routing symmetry dropped from 3% to 9.3% when the #147 field widened, and nothing tracks recovering it
 - **Issue #288** (closed): Re-grade characterization rows after #33's closure (curator verdict of record) — unblocks PR #213's cited-issue CI
 - **Issue #286** (closed): gen_integrator.py's GEOMETRIES comment still says "44 devices cost 9 klt gen calls" (now 50 / 11)
 - **Issue #282** (closed): layout/README.md's integrator section has been stale since #129 and nothing tracks it
