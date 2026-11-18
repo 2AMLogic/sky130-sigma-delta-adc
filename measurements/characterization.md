@@ -103,11 +103,10 @@ corner in the cited record, or the only one it has.
   not only of the model: at ss/1.620V/125C the implied verdict range lies
   entirely above the gate for both integrators (o1 11.0-23.3 %, o2
   15.4-38.7 %, 0 of 20 seeds within), and at ss/1.620V/-40C it straddles it
-  (o1 7.7-18.9 %, 2/20 seeds within; o2 0.8-24.1 %, 8/20). Every corner
-  is reported
-  `incomplete` (never passed): DR-001's in-band SNDR leg is not computable at
-  this record length. Sample-wise bitstream agreement is recorded but not
-  gated (a single-bit loop is chaotic;
+  (o1 7.7-18.9 %, 2/20 seeds within; o2 0.8-24.1 %, 8/20). Every corner is
+  reported `incomplete` (never passed): DR-001's in-band SNDR leg is not
+  computable at this record length. Sample-wise bitstream agreement is
+  recorded but not gated (a single-bit loop is chaotic;
   `sim/modulator-tran/README.md`). Lengthening the T record is a DR-001
   decision-record change and is not done here.
 - **Row 3 (#128 update).** The assembled modulator's transistor-level
