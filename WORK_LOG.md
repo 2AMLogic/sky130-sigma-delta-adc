@@ -4,6 +4,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-18
 
+- **PR #326**: ci: run the signoff check on merge_group events
+- **Issue #325** (closed): Merge queue: add the merge_group trigger to the required-check workflow(s)
 - **PR #323**: attest: hash the gate's command list - add scripts/check-ci.sh to item 10 hygiene
 - **Issue #321** (closed): item-10 attestation no longer hashes the file holding the gate's command list (scripts/check-ci.sh)
 - **PR #320**: bmodel: sweep the span seed spread over the landed long-record inputs
