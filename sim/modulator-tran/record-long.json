@@ -1,5 +1,5 @@
 {
-  "fixture": "Long-record full-modulator transistor-level transient (DR-001 item 2 as amended by DR-001 corrigendum 01, issue #290): the same fixture as the committed short bench (design/modulator/modulator.spice with design/ota/ota_fd.spice and design/modulator/comparator/comparator.spice, ideal DR-005 boundary sources, a coherent single tone at -6 dBFS and the 5.12 MHz clock), run for 4096 recorded clocks so DR-001 item 3's in-band SNDR leg is computable (1250 Hz bins: 16 band bins, tone bin 12, 7 in-band noise bins beside the 9-bin Blackman-Harris lobe).",
+  "fixture": "Long-record full-modulator transistor-level transient (DR-001 item 2 as amended by DR-001 corrigendum 01, issue #290): the same fixture as the committed short bench (design/modulator/modulator.spice with design/ota/ota_fd.spice and design/modulator/comparator/comparator.spice, ideal DR-005 boundary sources, a coherent single tone at -6 dBFS and the 5.12 MHz clock), run for 4096 recorded clocks so DR-001 item 3's in-band SNDR leg is computable (1250 Hz bins: 16 band bins, tone bin 12, 3 in-band noise bins (5..7, after spec sec 1.2's DC-leakage exclusion of bins 0..4) beside the 9-bin Blackman-Harris lobe).",
   "result_kind": "simulated (ngspice, transistor-level netlists of the assembled modulator; not the behavioural model, not measured silicon)",
   "evidence_source": "T (DR-001 item 2, as amended by DR-001 corrigendum 01)",
   "record_length": {
@@ -13,7 +13,7 @@
   },
   "sndr": {
     "computed": false,
-    "why_not": "No standalone SNDR is claimed from this record even though 4096 clocks now resolve the 20 kHz band (1250 Hz bins, 32 output samples at OSR 128): the bench supplies the cross-check's transistor-level side as bitstreams and integrator waveforms, and DR-001 item 3's in-band SNDR figures are computed on BOTH sides, identically, by the cross-check itself (sim/bmodel/xcheck.py, sim/bmodel/xcheck-record-long.json), never by one side alone. Spec sec 1.2's row 2 claim remains a B-model result with the DR-001 cross-check."
+    "why_not": "No standalone SNDR is claimed from this record even though 4096 clocks now resolve the 20 kHz band (1250 Hz bins, 32 output samples at OSR 128): the bench supplies the cross-check's transistor-level side as bitstreams and integrator waveforms, and DR-001 item 3's in-band SNDR figures are computed on BOTH sides, identically, by the cross-check itself (sim/bmodel/xcheck.py, sim/bmodel/xcheck-record-long-dc-excluded.json), never by one side alone. Spec sec 1.2's row 2 claim remains a B-model result with the DR-001 cross-check."
   },
   "corner_set": {
     "name": "DR-002 anchor set",

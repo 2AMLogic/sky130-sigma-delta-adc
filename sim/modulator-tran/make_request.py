@@ -42,7 +42,8 @@ N_REC = 1024                   # recorded clocks = 8 output samples at OSR 128
 # clocks the 4-term Blackman-Harris lobe covers the whole 20 kHz band
 # (sim/bmodel/xcheck-record.json, sndr_inband_db.reason). The corrigendum
 # lengthens the cross-check record to 4096 recorded clocks: 1250 Hz bins, 16
-# band bins, the tone at bin 12, and 7 in-band noise bins -- thin, but
+# band bins, the tone at bin 12, and 3 in-band noise bins (bins 5..7, after
+# spec sec 1.2's DC-leakage exclusion of bins 0..4) -- thin, but
 # computable, which is what the operator ruling requires ("lengthen the T
 # record until in-band SNDR is computable"; the 3 dB gate is unchanged). The
 # length is the longest band-resolving power of two that fits the fleet's
@@ -414,8 +415,9 @@ LONG_RECORD_FIXTURE = (
     "boundary sources, a coherent single tone at -6 dBFS and the "
     "5.12 MHz clock), run for "
     f"{N_REC_LONG} recorded clocks so DR-001 item 3's in-band SNDR leg is "
-    "computable (1250 Hz bins: 16 band bins, tone bin 12, 7 in-band noise "
-    "bins beside the 9-bin Blackman-Harris lobe).")
+    "computable (1250 Hz bins: 16 band bins, tone bin 12, 3 in-band noise "
+    "bins (5..7, after spec sec 1.2's DC-leakage exclusion of bins 0..4) "
+    "beside the 9-bin Blackman-Harris lobe).")
 LONG_RECORD_EVIDENCE_SOURCE = ("T (DR-001 item 2, as amended by DR-001 "
                                "corrigendum 01)")
 LONG_RECORD_LENGTH_NOTE = (
@@ -438,9 +440,9 @@ LONG_RECORD_SONDR_NOTE = (
     "cross-check's transistor-level side as bitstreams and integrator "
     "waveforms, and DR-001 item 3's in-band SNDR figures are computed on "
     "BOTH sides, identically, by the cross-check itself "
-    "(sim/bmodel/xcheck.py, sim/bmodel/xcheck-record-long.json), never by "
-    "one side alone. Spec sec 1.2's row 2 claim remains a B-model result "
-    "with the DR-001 cross-check.")
+    "(sim/bmodel/xcheck.py, sim/bmodel/xcheck-record-long-dc-excluded.json), "
+    "never by one side alone. Spec sec 1.2's row 2 claim remains a B-model "
+    "result with the DR-001 cross-check.")
 
 
 def _identity(long):

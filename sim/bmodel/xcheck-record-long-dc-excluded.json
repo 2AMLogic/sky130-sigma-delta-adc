@@ -937,12 +937,12 @@
     }
   ],
   "record_len_note": "per DR-001 item 5 each comparison states record length, window, bin bandwidth and amplitude; every number here is simulated, nothing measured",
-  "git_commit": "5b7e5826d37be5ea511252ce230d0f5a88d9f44d",
+  "git_commit": "97c9f981981025884d6e2f2498baa5b61c990429",
   "git_dirty": true,
   "code_sha256": {
     "sim/bmodel/model.py": "470a03379c7676890f65122a29496faf4ba6701389012ba555b5e85d7f10a839",
     "sim/bmodel/sndr.py": "afc75b3a312443aee5a1f819fcf8f2bcf31429f74cbba34f75cc97d47b7e33ef",
     "sim/bmodel/run.py": "6f51b30618fc610c3b3ed2c0ce7d97b5955f1c88eec23f1e72cfbc0e5869e58a",
-    "sim/bmodel/xcheck.py": "9c3d0549740658a9a41ebec321849d6e7cacbe5c4c693be39bbb2ff51eed427b"
+    "sim/bmodel/xcheck.py": "adbd031dc880b4a0ca24cf106fd352def7313b215c8827a40e1599baeee8669c"
   }
 }
