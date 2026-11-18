@@ -17,6 +17,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The merge queue runs this repo's required check (`signoff`) on
+  # merge_group events; without this trigger the queue never sees a
+  # result and repo-ruleset-policy.py refuses to enable the queue.
+  merge_group:
   workflow_dispatch:
 
 permissions:
