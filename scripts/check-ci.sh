@@ -1,20 +1,28 @@
 #!/usr/bin/env bash
 #
-# Local gate: run the tool-free checks CI already runs (issue #104).
+# Local gate: run the tool-free checks CI already runs (issue #104), plus the
+# two attestation re-hash steps (issue #308).
 #
 # This is what `npm run check:ci` / `npm test` resolve to, and it is the test
 # command a Builder records locally. It mirrors the "no EDA tools" steps of
 # .github/workflows/signoff.yml so that a green local gate means those tests
 # actually ran.
 #
-# Deliberately NOT here: the klt steps (`klt signoff --attest 9/10`, the signoff
-# re-run), the smoke runners and `run_synth.py`. They need the pinned klt,
-# ngspice, iverilog, yosys or the PDK; CI is their gate.
+# Also here: `klt signoff --attest 9/10 ... --check ...` (#308). --check skips
+# the local_only cold_start bench and only re-hashes, so these steps need no
+# EDA tools — just `uvx` and the pin in .github/klt-version, exactly how
+# attestation/README.md regenerates. These are the steps that caught the
+# twice-failed item-9 envelope drift on PR #306, and the ones authors never
+# ran before pushing. Still NOT here: the full signoff re-run (it executes
+# the bench), the smoke runners and `run_synth.py`. They need ngspice,
+# iverilog, yosys or the PDK; CI is their gate.
 #
-# Adding a tool-free step to the workflow? Add it to CHECKS below too — the
-# drift guard at the end of this file fails if the two lists diverge, which is
-# the recurrence this script exists to prevent (the suites and response.py
-# landed after the gate was written, and the gate was never revisited).
+# Adding a step to the workflow? Add a `python3 -I ...` command to CHECKS or
+# a `klt signoff ... --check ...` command to KLT_CHECKS below — the drift
+# guards at the end of this file fail if the lists diverge from the workflow,
+# which is the recurrence this script exists to prevent (the suites and
+# response.py landed after the gate was written, and the gate was never
+# revisited).
 #
 # Usage: scripts/check-ci.sh        (from anywhere; it cd's to the repo root)
 
@@ -34,6 +42,8 @@ CHECKS=(
   ".|python3 -I -m unittest discover -s attestation -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s manifests -p 'test_check_content_hashes.py'"
   ".|python3 -I manifests/check_content_hashes.py"
+  ".|python3 -I -m unittest discover -s manifests -p 'test_check_prose_counts.py'"
+  ".|python3 -I manifests/check_prose_counts.py"
   ".|python3 -I -m unittest discover -s spec -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s sim/bmodel -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s sim -p 'test_settling*.py'"
@@ -53,6 +63,21 @@ CHECKS=(
 # `python3 -I` or `python3 response.py`) but are deliberately not run locally.
 # Keep empty unless a real case appears; say why in a comment when adding one.
 WORKFLOW_ONLY=()
+
+# The klt attestation re-hash steps, as bare workflow commands (the workflow
+# wraps each across two lines with a trailing backslash; written here on one
+# line so the drift guard can compare them). Each is run through the pinned
+# uvx prefix built below, so a local pass uses exactly the klayout-tools
+# version CI installs (.github/klt-version). Nothing else here may call klt:
+# a full re-attest executes the bench and stays out of this gate.
+KLT_CHECKS=(
+  "klt signoff --attest 9 --inventory attestation/item9-inventory.json --check attestation/item9-envelope.json"
+  "klt signoff --attest 10 --inventory attestation/item10-inventory.json --check attestation/item10-envelope.json"
+)
+
+# klt commands in the workflow that carry --check but are deliberately not
+# run locally. Keep empty unless a real case appears; say why in a comment.
+KLT_ONLY=()
 
 # ---------------------------------------------------------------------------
 # Interpreter: prefer the repo-local .venv the README's Reproduce step creates,
@@ -95,10 +120,40 @@ fi
 echo "check:ci: $PY_LABEL ($("$PY" -V 2>&1), numpy $("$PY" -I -c 'import numpy;print(numpy.__version__)'))"
 
 # ---------------------------------------------------------------------------
+# Pinned klt: the attestation --check steps run through
+# `uvx --from "klayout-tools==$(cat .github/klt-version)"` so a local pass
+# means the same producer version CI installs. Fail loudly when uvx or the
+# pin file is missing — these checks are never skipped.
+# ---------------------------------------------------------------------------
+if [ ! -f ".github/klt-version" ]; then
+  echo "check:ci: FAIL - .github/klt-version not found; cannot pin the klt attestation checks" >&2
+  exit 1
+fi
+KLT_PIN="klayout-tools==$(tr -d '[:space:]' < .github/klt-version)"
+if ! command -v uvx >/dev/null 2>&1; then
+  cat >&2 <<EOF
+check:ci: FAIL - uvx is not on PATH.
+
+The item-9 and item-10 attestation re-hash steps (klt signoff --check) run
+through "uvx --from $KLT_PIN" so they use exactly the klayout-tools version
+CI installs (.github/klt-version). These checks are not skipped: the gate
+fails so a local pass cannot mean "the attestation checks did not run".
+
+Install uv, which provides uvx, and re-run:
+
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+
+(or your package manager's uv package). Nothing is installed host-wide by
+this gate; uvx resolves the pinned version into its own cache.
+EOF
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
 # The checks CI runs that need no EDA tools, in order, stopping at the first
 # failure. Plus the committed-JSON parse the gate has always done.
 # ---------------------------------------------------------------------------
-total=$(( ${#CHECKS[@]} + 1 ))
+total=$(( ${#CHECKS[@]} + ${#KLT_CHECKS[@]} + 1 ))
 step=0
 
 run_step() {
@@ -119,6 +174,15 @@ run_step() {
 
 run_step "committed JSON parses" "." \
   "'$PY' -I -c \"import json,pathlib; fs=sorted(pathlib.Path('manifests').rglob('*.json')); assert fs, 'no manifests found'; [json.load(open(f)) for f in fs]; print('ok:', len(fs), 'manifest JSON files parse')\""
+
+# The klt --check steps, in workflow order (item 9 then item 10), right after
+# the JSON parse: --check only re-hashes, so these are the fastest detectors
+# of the inventory/envelope drift that failed PR #306's CI twice, and failing
+# here spares the python suites.
+for entry in "${KLT_CHECKS[@]}"; do
+  run_step "workflow step (pinned klt): $entry" "." \
+    "uvx --from '$KLT_PIN' $entry"
+done
 
 for entry in "${CHECKS[@]}"; do
   cwd="${entry%%|*}"
@@ -182,5 +246,63 @@ if [ -n "$missing" ] || [ -n "$extra" ]; then
 fi
 
 printf '      ok: %d tool-free workflow commands, all run above\n' "$(printf '%s\n' "$in_workflow" | wc -l | tr -d ' ')"
+
+# ---------------------------------------------------------------------------
+# Same drift guard for the klt attestation --check steps: every bare
+# `klt signoff ... --check ...` command in the workflow must appear in
+# KLT_CHECKS (or KLT_ONLY). Lines the workflow wraps with a trailing
+# backslash are joined before matching, so the YAML formatting cannot hide
+# a step from the guard.
+# ---------------------------------------------------------------------------
+step=$(( step + 1 ))
+printf '\n[drift] %s klt signoff --check list matches KLT_CHECKS\n' "$WORKFLOW"
+
+klt_in_workflow="$(
+  sed -e ':a;N;$!ba' -e 's/\\\n[[:space:]]*/ /g' "$WORKFLOW" |
+    grep -E '^[[:space:]]*klt signoff .* --check ' |
+    sed -e 's/[[:space:]][[:space:]]*/ /g' -e 's/^ //' -e 's/ $//' |
+    sort -u
+)"
+
+klt_declared="$(
+  { [ "${#KLT_CHECKS[@]}" -gt 0 ] && printf '%s\n' "${KLT_CHECKS[@]}"
+    [ "${#KLT_ONLY[@]}" -gt 0 ] && printf '%s\n' "${KLT_ONLY[@]}"
+    true
+  } | sort -u
+)"
+
+klt_missing="$(comm -13 <(printf '%s\n' "$klt_declared") <(printf '%s\n' "$klt_in_workflow"))"
+klt_extra="$(comm -23 <(printf '%s\n' "$klt_declared") <(printf '%s\n' "$klt_in_workflow"))"
+
+if [ -n "$klt_missing" ] || [ -n "$klt_extra" ]; then
+  {
+    echo
+    echo "check:ci: FAIL - the klt --check list has drifted from $WORKFLOW."
+    if [ -n "$klt_missing" ]; then
+      echo
+      echo "  In the workflow but not run locally -- add to KLT_CHECKS in $0"
+      echo "  (or to KLT_ONLY, with a comment, if it needs the bench):"
+      printf '%s\n' "$klt_missing" | sed 's/^/    /'
+    fi
+    if [ -n "$klt_extra" ]; then
+      echo
+      echo "  Declared here but no longer a --check step in the workflow -- remove from KLT_CHECKS in $0:"
+      printf '%s\n' "$klt_extra" | sed 's/^/    /'
+    fi
+    echo
+    echo "  Note: the guard only sees workflow commands written as a bare"
+    echo "  'klt signoff ... --check ...' line (backslash continuations"
+    echo "  joined). A --check step written another way needs adding to"
+    echo "  KLT_CHECKS by hand."
+  } >&2
+  exit 1
+fi
+
+if [ -n "$klt_in_workflow" ]; then
+  printf '      ok: %d klt --check workflow commands, all run above\n' \
+    "$(printf '%s\n' "$klt_in_workflow" | wc -l | tr -d ' ')"
+else
+  echo "      ok: no klt --check steps in the workflow and none declared"
+fi
 
 printf '\ncheck:ci: PASS - %d checks\n' "$total"
