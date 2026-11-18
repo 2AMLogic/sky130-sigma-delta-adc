@@ -512,6 +512,7 @@ class CrossCheckLong(unittest.TestCase):
         y, x1, x2 = model.modulate_with_states(u, params)
         return {
             "n_clocks": self.N,
+            "u_diff_v": [float(v) * 1.2 for v in u],
             "y": [int(v) for v in y],
             "o1d_v": [round(float(v) * 1.2, 7) for v in x1],
             "o2d_v": [round(float(v) * 1.2, 7) for v in x2],
@@ -523,12 +524,13 @@ class CrossCheckLong(unittest.TestCase):
                 "x1_fs": [v / 1.2 for v in s["o1d_v"]],
                 "x2_fs": [v / 1.2 for v in s["o2d_v"]]}
 
-    def fixture_corner_path(self, tmp):
+    def fixture_corner_path(self, tmp, params=None):
         doc = {
             "schema": "fixture",
             "corner_id": "tt/1.800V/27C",
             "sample_slug": "zz-fixture-no-such-samples",
-            "params": dict(model.PARAM_DEFAULTS),
+            "params": dict(model.PARAM_DEFAULTS) if params is None
+            else dict(params),
             "sources": {},
             "no_t_source": {k: {"why": "fixture"} for k in
                             ("dc_gain", "settling_error", "ci_offset",
@@ -541,7 +543,10 @@ class CrossCheckLong(unittest.TestCase):
         return p
 
     def compare(self, tmp, b_params, t_params):
-        corner = self.fixture_corner_path(tmp)
+        # The corner file carries the B side's parameters, as the real
+        # pipeline does (run.py --xcheck loads them from the corner file),
+        # so the seed ensemble re-derives the committed B side exactly.
+        corner = self.fixture_corner_path(tmp, params=b_params)
         t_path = tmp / "t.json"
         t_path.write_text(json.dumps(self.side(t_params)))
         b_path = tmp / "b.json"
@@ -614,6 +619,58 @@ class CrossCheckLong(unittest.TestCase):
             with self.assertRaises(ValueError):
                 xcheck.compare_corner(corner, b_path, t_path, long=True)
 
+    def test_seed_ensemble_verdict_branches(self):
+        """The ensemble rule itself (issue #290 review round 3): the gate
+        returns a verdict only where its outcome is invariant across the
+        model's noise seeds -- all-out is a robust fail, all-in a robust
+        pass, a straddling ensemble is indeterminate."""
+        self.assertEqual(xcheck.ensemble_verdict([-8.0, -6.1, -9.4], 3.0),
+                         ("robust_fail", 0))
+        self.assertEqual(xcheck.ensemble_verdict([0.5, -2.9, 1.0], 3.0),
+                         ("robust_pass", 3))
+        self.assertEqual(xcheck.ensemble_verdict([2.0, 5.0, -4.0], 3.0),
+                         ("indeterminate", 1))
+        self.assertEqual(xcheck.ensemble_verdict([3.0], 3.0),
+                         ("robust_pass", 1))
+
+    def test_noise_free_ensemble_is_degenerate(self):
+        """Without seeded noise terms every seed reproduces the same
+        bitstream: zero spread, the verdict is the committed draw's, and
+        seed 1 re-derives the committed side exactly."""
+        with tempfile.TemporaryDirectory() as td:
+            p = dict(model.PARAM_DEFAULTS)
+            q = dict(p, comparator_offset=p["comparator_offset"] + 1e-4)
+            entry = xcheck.finalise_entry(self.compare(pathlib.Path(td), q, p),
+                                          long=True)
+            leg = entry["legs"]["sndr_inband_3db"]
+            ens = leg["seed_ensemble"]
+            self.assertEqual(ens["n_seeds"], xcheck.SEED_ENSEMBLE_N)
+            self.assertEqual(ens["spread_db"], 0.0)
+            self.assertEqual(leg["verdict"], "robust_pass")
+            self.assertEqual(ens["seed1_delta_vs_committed_db"], 0.0)
+            self.assertTrue(ens["seed1_matches_committed_side"])
+            self.assertTrue(entry["cross_check_status"].startswith("passed"))
+
+    def test_noisy_b_side_records_its_spread(self):
+        """With seeded noise the ensemble spreads and is recorded beside the
+        gate; the verdict is one of the three ensemble outcomes, never the
+        committed draw alone."""
+        with tempfile.TemporaryDirectory() as td:
+            p = dict(model.PARAM_DEFAULTS, ktc_noise_var=1e-5)
+            entry = xcheck.finalise_entry(self.compare(pathlib.Path(td), p, p),
+                                          long=True)
+            leg = entry["legs"]["sndr_inband_3db"]
+            ens = leg["seed_ensemble"]
+            self.assertEqual(ens["n_seeds"], xcheck.SEED_ENSEMBLE_N)
+            self.assertGreater(ens["spread_db"], 0.0)
+            self.assertIn(leg["verdict"],
+                          ("robust_fail", "robust_pass", "indeterminate"))
+            self.assertTrue(ens["seed1_matches_committed_side"])
+            lo, hi = (ens["delta_signed_db"]["min"],
+                      ens["delta_signed_db"]["max"])
+            self.assertLessEqual(lo, hi)
+            self.assertLessEqual(ens["spread_db"], hi - lo + 1e-9)
+
     def test_missing_t_bitstream_reported_uncrosschecked(self):
         with tempfile.TemporaryDirectory() as td:
             entry = xcheck.finalise_entry(
@@ -627,6 +684,9 @@ class CrossCheckLong(unittest.TestCase):
         self.assertIn("DR-001-corrigendum-01", rec["method_basis"])
         self.assertIn("4096", rec["corrigendum_length_evidence"])
         self.assertIn("sndr_inband_3db", rec["acceptance_gates"])
+        self.assertIn("seed", rec["acceptance_gates"]["sndr_inband_3db"])
+        self.assertIn("indeterminate", rec["acceptance_gates"]["sndr_inband_3db"])
+        self.assertIn("indeterminate", rec["dr001_acceptance"])
         self.assertIn("declined", rec["acceptance_gates"]["reported_not_gating"])
 
 

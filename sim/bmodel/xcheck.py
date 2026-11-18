@@ -41,11 +41,31 @@ Two record lengths, one comparison
   ENBW (sum(w^2) cancels in the ratio); the gate is |SNDR_B - SNDR_T| <=
   3 dB, verbatim. The first derivation of this record (committed as
   xcheck-record-long.json) summed bins 1..7, i.e. without the DC-leakage
-  exclusion, and is superseded by the operative record; the fail-at-all-7
-  verdict is identical under both conventions. The first record's proxy
+  exclusion, and is superseded by the operative record; the committed
+  per-corner deltas differ by at most ~3.6 dB between the two conventions
+  (fs largest), above the gate itself, which is why the convention is
+  stated rather than left implicit. The first record's proxy
   gates (in-band power, span, duty) stay reported, not gating, per the
   operator ruling (options b/c declined). A failing leg is a model
   finding, not a relaxation.
+
+  The long record's B side is one draw of the model's seeded noise (kT/C
+  plus jitter, corner-file params.seed; the committed sides are seed 1 from
+  zero initial state). Over that seed ensemble -- 20 seeds, every other
+  parameter held at the corner file -- the leg's in-band SNDR spans ~11-13
+  dB at the anchors, wider than the 3 dB gate itself, so a single-seed
+  verdict would be a property of the draw, not of the model-vs-T comparison
+  (issue #290 review round 3). The gate is therefore decided over the
+  ensemble: each corner's leg is recomputed at every seed (the same
+  committed input sequence, the same estimator; an in-process model run
+  measured in seconds, no ngspice, no fleet) and returns robust fail (every
+  seed beyond 3 dB), robust pass (every seed within), or indeterminate at
+  this record length (the ensemble straddles the gate: neither agreement
+  nor disagreement is established). An indeterminate corner is not a
+  cross-checked corner either: B numbers stay uncross-checked and out of
+  row 2. Per-corner ensemble numbers live in each entry
+  (legs.sndr_inband_3db's seed_ensemble, with the seed-1 re-derivation of
+  the committed side recorded rather than assumed).
 
 Both routes also report, NOT gated: sample-wise waveform difference and
 bit-by-bit agreement. A single-bit loop is chaotic
@@ -77,6 +97,7 @@ sys.path.insert(0, str(HERE))
 
 import numpy as np  # noqa: E402
 
+import model as bmodel  # noqa: E402
 import run as brun  # noqa: E402
 import sndr  # noqa: E402
 
@@ -84,6 +105,7 @@ REPO = HERE.parents[1]
 FS_VOLTS = brun.FS_VOLTS
 BAND_HZ = sndr.BW_HZ
 TOLERANCE_SNDR_DB = 3.0     # DR-001 item 3, verbatim (both record lengths)
+SEED_ENSEMBLE_N = 20        # the long-record leg's noise-seed ensemble (module doc)
 SPAN_REL_LIMIT = 0.10
 DUTY_LIMIT = 0.05
 WINDOW_TRIM = 0             # both sides are compared over the full committed window
@@ -196,6 +218,74 @@ def inband_sndr(p, edge, tone_bin):
     return sig, noi, 10.0 * np.log10(sig / noi), int(len(noise_bins))
 
 
+def ensemble_verdict(deltas, limit_db):
+    """(verdict, within-count) over the B side's noise-seed ensemble.
+
+    The gate returns a verdict only where its outcome is invariant across
+    the ensemble: every |delta| beyond the limit is a robust fail, every
+    delta within it a robust pass, and a straddling ensemble is
+    indeterminate at this record length -- the committed seed's delta is
+    then one draw from a distribution wider than the gate, so neither
+    agreement nor disagreement is established (issue #290 review round 3)."""
+    within = [abs(d) <= limit_db for d in deltas]
+    n_within = int(sum(within))
+    if n_within == len(within):
+        return "robust_pass", n_within
+    if n_within == 0:
+        return "robust_fail", n_within
+    return "indeterminate", n_within
+
+
+def seed_ensemble(t_samples, params, sndr_t, edge, tone_bin, sndr_committed):
+    """The B side's in-band SNDR over the model's noise-seed ensemble.
+
+    The committed B side is one draw of the model's seeded noise
+    (params.seed: kT/C plus jitter). This re-runs model B on the same
+    committed input sequence (u_diff_v from the T samples file, the same
+    zero initial state) at seeds 1..SEED_ENSEMBLE_N with every other corner
+    parameter held, applies the record's own estimator to each bitstream,
+    and records the spread, the signed delta range against T and the gate
+    outcome per seed, so the leg's verdict is decided over the ensemble
+    instead of over the draw. Seed 1 re-derives the committed side; that
+    re-derivation is recorded (seed1_matches_committed_side), not assumed.
+    An in-process model run, seconds per corner: no ngspice, no fleet."""
+    u = np.asarray(t_samples["u_diff_v"], dtype=np.float64) / FS_VOLTS
+    vals = []
+    for seed in range(1, SEED_ENSEMBLE_N + 1):
+        y, _, _ = bmodel.modulate_with_states(u, dict(params, seed=seed))
+        *_, v, _ = inband_sndr(spectrum(y), edge, tone_bin)
+        if v is None:  # unreachable where the SNDR leg is computable
+            raise ValueError("seed ensemble hit a spectrum with no in-band "
+                             "noise bins; the leg should not be computable")
+        vals.append(float(v))
+    arr = np.asarray(vals)
+    deltas = arr - float(sndr_t)
+    verdict, n_within = ensemble_verdict(deltas.tolist(), TOLERANCE_SNDR_DB)
+    return {
+        "n_seeds": SEED_ENSEMBLE_N,
+        "seeds": list(range(1, SEED_ENSEMBLE_N + 1)),
+        "convention": ("only params.seed varies; the committed input sequence "
+                       "(u_diff_v), every other corner parameter, the zero "
+                       "initial state, the window and the estimator are the "
+                       "record's own"),
+        "b_sndr_db": {"min": float(arr.min()), "mean": float(arr.mean()),
+                      "max": float(arr.max())},
+        "spread_db": float(arr.max() - arr.min()),
+        "delta_signed_db": {"min": float(deltas.min()),
+                            "max": float(deltas.max())},
+        "within_3db": n_within,
+        "verdict": verdict,
+        "seed1_delta_vs_committed_db": float(arr[0] - sndr_committed),
+        "seed1_matches_committed_side": bool(
+            abs(arr[0] - sndr_committed) <= 1e-6),
+        "numpy": np.__version__,
+        "why": ("the committed B side is one draw of the model's seeded "
+                "noise (kT/C + jitter, params.seed); the ensemble states "
+                "the draw-to-draw spread so a single-seed verdict is never "
+                "a property of the draw (issue #290 review round 3)"),
+    }
+
+
 def waveform_stats(a):
     a = np.asarray(a, dtype=np.float64)
     return {
@@ -286,6 +376,9 @@ def compare_corner(corner_path, b_side_path, t_samples_path, long=False):
                          n, tone_bin - sndr.LOBE, tone_bin + sndr.LOBE,
                          n_noise_bins, sndr.DC_EXCL_BINS)),
         }
+        sndr_leg["seed_ensemble"] = seed_ensemble(
+            t, corner["params"], sndr_t, edge, tone_bin, sndr_b)
+        sndr_leg["verdict"] = sndr_leg["seed_ensemble"]["verdict"]
         legs = {
             "sndr_inband_3db": sndr_leg,
             "span_10pct": {
@@ -402,18 +495,68 @@ def finalise_entry(entry, long=False):
         return entry
     failed = entry["legs_failed"]
     failedtxt = ("; FAILED legs: " + ", ".join(failed)) if failed else ""
-    if failed:
+    sndr_leg = entry["legs"].get("sndr_inband_3db") or {}
+    verdict, ens = sndr_leg.get("verdict"), sndr_leg.get("seed_ensemble")
+    if verdict == "indeterminate":
         entry["cross_check_status"] = (
-            "failed at this corner: the in-band SNDR leg of DR-001 item 3 is "
-            "computable at the corrigendum's 4096-clock record and disagrees "
-            f"beyond 3 dB{failedtxt}. A failing leg is a model finding, not a "
-            "relaxation (DR-001 item 3); model B numbers at this corner stay "
-            "uncross-checked and are not used for row 2.")
+            "indeterminate at this corner: the in-band SNDR leg of DR-001 "
+            "item 3 is computable at the corrigendum's 4096-clock record, "
+            "but the B side is one draw of the model's seeded noise and the "
+            "leg's realisation spread over that seed is "
+            f"{ens['spread_db']:.2f} dB across {ens['n_seeds']} seeds "
+            f"(delta {ens['delta_signed_db']['min']:+.2f} to "
+            f"{ens['delta_signed_db']['max']:+.2f} dB against T, "
+            f"{ens['within_3db']} of {ens['n_seeds']} seeds within the "
+            "3 dB gate), wider than the gate: the committed seed-1 delta of "
+            f"{sndr_leg['delta_db']:.2f} dB is a draw from that "
+            "distribution, so neither agreement nor disagreement is "
+            "established at this record length"
+            + ("; FAILED legs at the committed seed: " + ", ".join(failed)
+               if failed else "")
+            + ". An indeterminate corner is not a cross-checked corner: "
+              "model B numbers at this corner stay uncross-checked and are "
+              "not used for row 2.")
+        return entry
+    if failed:
+        if ens is not None and verdict == "robust_fail":
+            entry["cross_check_status"] = (
+                "failed at this corner (robust over the model's seed): the "
+                "in-band SNDR leg of DR-001 item 3 is computable at the "
+                "corrigendum's 4096-clock record and disagrees beyond 3 dB "
+                "at every seed of the B-side noise ensemble (delta "
+                f"{ens['delta_signed_db']['min']:+.2f} to "
+                f"{ens['delta_signed_db']['max']:+.2f} dB over "
+                f"{ens['n_seeds']} seeds; the committed sides are seed 1)"
+                f"{failedtxt}. A failing leg is a model finding, not a "
+                "relaxation (DR-001 item 3); model B numbers at this corner "
+                "stay uncross-checked and are not used for row 2.")
+        elif ens is not None:
+            other = [k for k in failed if k != "sndr_inband_3db"]
+            entry["cross_check_status"] = (
+                "failed at this corner: the in-band SNDR leg of DR-001 "
+                "item 3 is computable at the corrigendum's 4096-clock "
+                "record and agrees within 3 dB at every seed of the B-side "
+                f"noise ensemble ({ens['n_seeds']} seeds; the committed "
+                f"sides are seed 1), but FAILED legs: {', '.join(other)}. "
+                "A failing leg is a model finding, not a relaxation "
+                "(DR-001 item 3); model B numbers at this corner stay "
+                "uncross-checked and are not used for row 2.")
+        else:
+            entry["cross_check_status"] = (
+                "failed at this corner: a gating leg failed at the "
+                f"corrigendum's 4096-clock record{failedtxt}. A failing leg "
+                "is a model finding, not a relaxation (DR-001 item 3); "
+                "model B numbers at this corner stay uncross-checked and "
+                "are not used for row 2.")
     else:
+        robust = (" at every seed of the B-side noise ensemble "
+                  f"({ens['n_seeds']} seeds; the committed sides are "
+                  "seed 1)") if verdict == "robust_pass" else ""
         entry["cross_check_status"] = (
             "passed: DR-001 item 3's in-band SNDR leg is computable at the "
             "corrigendum's 4096-clock record (in-band noise bins beside the "
-            "tone lobe) and agrees within 3 dB, with span and duty agreed. "
+            f"tone lobe) and agrees within 3 dB{robust}, with span and duty "
+            "agreed. "
             "Model B numbers at this corner are cross-checked "
             "under DR-001 corrigendum 01 (proposed; ratification is two "
             "reviews and then the operator) and may carry a row 2 claim once "
@@ -461,7 +604,21 @@ def build_record(entries, long=False):
                     "noise estimator of spec sec 1.2 (noise band verbatim "
                     "sndr.sndr_db's: bins above the DC-leakage exclusion "
                     "0..4, minus the tone lobe), both sides over the "
-                    "same 4096-clock window"),
+                    "same 4096-clock window. The B side is one draw of the "
+                    "model's seeded noise (kT/C + jitter, corner-file "
+                    "params.seed; the committed sides are seed 1 from zero "
+                    "initial state), and over the model's noise-seed "
+                    f"ensemble (seeds 1..{SEED_ENSEMBLE_N}, every other "
+                    "parameter held) that quantity spans ~11-13 dB at the "
+                    "anchors -- wider than the gate itself -- so the gate "
+                    "is decided over the ensemble, not over the draw: "
+                    "every seed beyond 3 dB is a robust fail, every seed "
+                    "within is a robust pass, and a straddling ensemble is "
+                    "indeterminate at this record length, which is not a "
+                    "cross-checked corner (per-corner ensemble, spread, "
+                    "delta range and the seed-1 re-derivation of the "
+                    "committed side: each entry's "
+                    "legs.sndr_inband_3db.seed_ensemble)"),
                 "span_10pct": "integrator span agreement, both integrators",
                 "duty_0p05": "loop duty agreement",
                 "reported_not_gating": (
@@ -473,10 +630,16 @@ def build_record(entries, long=False):
             "dr001_acceptance": (
                 "computed per corner: the corrigendum's 4096-clock record "
                 "leaves in-band noise bins beside the tone lobe, so item 3's "
-                "SNDR-vs-SNDR gate is applied as written (3 dB, unchanged). "
-                "A corner that passes is cross-checked under the corrigendum "
-                "(proposed until ratified: two reviews, then the operator); "
-                "a corner that fails is a model finding, not a relaxation. "
+                "SNDR-vs-SNDR gate is applied as written (3 dB, unchanged), "
+                "decided over the model's noise-seed ensemble per "
+                "acceptance_gates. A corner whose ensemble agrees at every "
+                "seed is cross-checked under the corrigendum (proposed until "
+                "ratified: two reviews, then the operator); a corner that "
+                "fails robustly at every seed is a model finding, not a "
+                "relaxation; a corner whose ensemble straddles the gate is "
+                "indeterminate at this record length -- neither agreement "
+                "nor disagreement is established, and an indeterminate "
+                "corner is not a cross-checked corner either. "
                 "The committed 1024-clock record (xcheck-record.json) and "
                 "its incomplete-at-every-corner statement are untouched "
                 "append-only evidence."),
@@ -577,7 +740,10 @@ def main(argv=None):
     rec = build_record(entries, long=args.long)
     write_record(args.record, rec)
     for e in entries:
-        line = f"{e['corner_id']}: {e['cross_check_status'].split('.')[0]}"
+        line = f"{e['corner_id']}: {e['cross_check_status'].split('. ')[0]}"
+        leg = e.get("legs", {}).get("sndr_inband_3db") or {}
+        if leg.get("verdict"):
+            line += f" [sndr leg: {leg['verdict']}]"
         if e.get("error") is None:
             line += (f" | inband {e['inband_power_fs_norm']['delta_db']:+.2f} dB, "
                      f"span o1 {e['waveforms']['o1_fs']['span_rel_diff']:.3f} "

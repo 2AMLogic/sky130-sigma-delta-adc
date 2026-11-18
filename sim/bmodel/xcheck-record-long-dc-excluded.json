@@ -3,12 +3,12 @@
   "result_kind": "simulated (behavioural model B with T-extracted corner parameters compared against the 4096-clock transistor-level transient; DR-001 item 3 as amended by DR-001 corrigendum 01)",
   "method_basis": "spec/decisions/DR-001-evidence-split.md item 3, as amended by spec/decisions/DR-001-corrigendum-01.md (issue #290); T side sim/modulator-tran record-long.json + samples-long/",
   "acceptance_gates": {
-    "sndr_inband_3db": "|SNDR_inband_B - SNDR_inband_T| <= 3.0 dB -- DR-001's tolerance verbatim, on the lobe-summed signal / in-band noise estimator of spec sec 1.2 (noise band verbatim sndr.sndr_db's: bins above the DC-leakage exclusion 0..4, minus the tone lobe), both sides over the same 4096-clock window",
+    "sndr_inband_3db": "|SNDR_inband_B - SNDR_inband_T| <= 3.0 dB -- DR-001's tolerance verbatim, on the lobe-summed signal / in-band noise estimator of spec sec 1.2 (noise band verbatim sndr.sndr_db's: bins above the DC-leakage exclusion 0..4, minus the tone lobe), both sides over the same 4096-clock window. The B side is one draw of the model's seeded noise (kT/C + jitter, corner-file params.seed; the committed sides are seed 1 from zero initial state), and over the model's noise-seed ensemble (seeds 1..20, every other parameter held) that quantity spans ~11-13 dB at the anchors -- wider than the gate itself -- so the gate is decided over the ensemble, not over the draw: every seed beyond 3 dB is a robust fail, every seed within is a robust pass, and a straddling ensemble is indeterminate at this record length, which is not a cross-checked corner (per-corner ensemble, spread, delta range and the seed-1 re-derivation of the committed side: each entry's legs.sndr_inband_3db.seed_ensemble)",
     "span_10pct": "integrator span agreement, both integrators",
     "duty_0p05": "loop duty agreement",
     "reported_not_gating": "in-band power agreement (the first record's computable ancestor of this leg) and out-of-band noise power stay reported as auxiliary diagnostics; the operator ruling declined them as the closing leg (options b/c)"
   },
-  "dr001_acceptance": "computed per corner: the corrigendum's 4096-clock record leaves in-band noise bins beside the tone lobe, so item 3's SNDR-vs-SNDR gate is applied as written (3 dB, unchanged). A corner that passes is cross-checked under the corrigendum (proposed until ratified: two reviews, then the operator); a corner that fails is a model finding, not a relaxation. The committed 1024-clock record (xcheck-record.json) and its incomplete-at-every-corner statement are untouched append-only evidence.",
+  "dr001_acceptance": "computed per corner: the corrigendum's 4096-clock record leaves in-band noise bins beside the tone lobe, so item 3's SNDR-vs-SNDR gate is applied as written (3 dB, unchanged), decided over the model's noise-seed ensemble per acceptance_gates. A corner whose ensemble agrees at every seed is cross-checked under the corrigendum (proposed until ratified: two reviews, then the operator); a corner that fails robustly at every seed is a model finding, not a relaxation; a corner whose ensemble straddles the gate is indeterminate at this record length -- neither agreement nor disagreement is established, and an indeterminate corner is not a cross-checked corner either. The committed 1024-clock record (xcheck-record.json) and its incomplete-at-every-corner statement are untouched append-only evidence.",
   "corrigendum_length_evidence": "N_T = 4096 recorded clocks: probe run 1104.6 s (one corner, tt/27 C/1.80 V, fleet job klt-sim-56a43a043984) against the fleet's 3600 s whole-job ceiling; 8192 clocks extrapolate past it at every measured per-clock rate. spec/decisions/DR-001-corrigendum-01.md holds the full arithmetic.",
   "corners": [
     {
@@ -119,7 +119,50 @@
           "delta_db": 20.475287186203232,
           "b": 75.33961709089712,
           "t": 95.81490427710035,
-          "what": "DR-001 item 3 (corrigendum 01): in-band SNDR of B over T, same 4096-clock window, same 4-term Blackman-Harris window; signal = tone-lobe sum bins 8..16, noise = the 3 in-band noise bins beside it (sec 1.2's DC-leakage bins 0..4 excluded); 3 dB, unchanged"
+          "what": "DR-001 item 3 (corrigendum 01): in-band SNDR of B over T, same 4096-clock window, same 4-term Blackman-Harris window; signal = tone-lobe sum bins 8..16, noise = the 3 in-band noise bins beside it (sec 1.2's DC-leakage bins 0..4 excluded); 3 dB, unchanged",
+          "seed_ensemble": {
+            "n_seeds": 20,
+            "seeds": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20
+            ],
+            "convention": "only params.seed varies; the committed input sequence (u_diff_v), every other corner parameter, the zero initial state, the window and the estimator are the record's own",
+            "b_sndr_db": {
+              "min": 75.17825346451502,
+              "mean": 79.85372655054864,
+              "max": 86.10690077994433
+            },
+            "spread_db": 10.928647315429302,
+            "delta_signed_db": {
+              "min": -20.63665081258533,
+              "max": -9.708003497156028
+            },
+            "within_3db": 0,
+            "verdict": "robust_fail",
+            "seed1_delta_vs_committed_db": 0.0,
+            "seed1_matches_committed_side": true,
+            "numpy": "1.26.4",
+            "why": "the committed B side is one draw of the model's seeded noise (kT/C + jitter, params.seed); the ensemble states the draw-to-draw spread so a single-seed verdict is never a property of the draw (issue #290 review round 3)"
+          },
+          "verdict": "robust_fail"
         },
         "span_10pct": {
           "pass": false,
@@ -141,7 +184,7 @@
         "sndr_inband_3db",
         "span_10pct"
       ],
-      "cross_check_status": "failed at this corner: the in-band SNDR leg of DR-001 item 3 is computable at the corrigendum's 4096-clock record and disagrees beyond 3 dB; FAILED legs: sndr_inband_3db, span_10pct. A failing leg is a model finding, not a relaxation (DR-001 item 3); model B numbers at this corner stay uncross-checked and are not used for row 2."
+      "cross_check_status": "failed at this corner (robust over the model's seed): the in-band SNDR leg of DR-001 item 3 is computable at the corrigendum's 4096-clock record and disagrees beyond 3 dB at every seed of the B-side noise ensemble (delta -20.64 to -9.71 dB over 20 seeds; the committed sides are seed 1); FAILED legs: sndr_inband_3db, span_10pct. A failing leg is a model finding, not a relaxation (DR-001 item 3); model B numbers at this corner stay uncross-checked and are not used for row 2."
     },
     {
       "corner_id": "ff/1.980V/-40C",
@@ -251,7 +294,50 @@
           "delta_db": 20.45262308332326,
           "b": 76.72552175803017,
           "t": 97.17814484135343,
-          "what": "DR-001 item 3 (corrigendum 01): in-band SNDR of B over T, same 4096-clock window, same 4-term Blackman-Harris window; signal = tone-lobe sum bins 8..16, noise = the 3 in-band noise bins beside it (sec 1.2's DC-leakage bins 0..4 excluded); 3 dB, unchanged"
+          "what": "DR-001 item 3 (corrigendum 01): in-band SNDR of B over T, same 4096-clock window, same 4-term Blackman-Harris window; signal = tone-lobe sum bins 8..16, noise = the 3 in-band noise bins beside it (sec 1.2's DC-leakage bins 0..4 excluded); 3 dB, unchanged",
+          "seed_ensemble": {
+            "n_seeds": 20,
+            "seeds": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20
+            ],
+            "convention": "only params.seed varies; the committed input sequence (u_diff_v), every other corner parameter, the zero initial state, the window and the estimator are the record's own",
+            "b_sndr_db": {
+              "min": 76.4094587735788,
+              "mean": 80.90745495520532,
+              "max": 88.10113320658002
+            },
+            "spread_db": 11.69167443300121,
+            "delta_signed_db": {
+              "min": -20.768686067774624,
+              "max": -9.077011634773413
+            },
+            "within_3db": 0,
+            "verdict": "robust_fail",
+            "seed1_delta_vs_committed_db": 0.0,
+            "seed1_matches_committed_side": true,
+            "numpy": "1.26.4",
+            "why": "the committed B side is one draw of the model's seeded noise (kT/C + jitter, params.seed); the ensemble states the draw-to-draw spread so a single-seed verdict is never a property of the draw (issue #290 review round 3)"
+          },
+          "verdict": "robust_fail"
         },
         "span_10pct": {
           "pass": true,
@@ -273,7 +359,7 @@
       "legs_failed": [
         "sndr_inband_3db"
       ],
-      "cross_check_status": "failed at this corner: the in-band SNDR leg of DR-001 item 3 is computable at the corrigendum's 4096-clock record and disagrees beyond 3 dB; FAILED legs: sndr_inband_3db. A failing leg is a model finding, not a relaxation (DR-001 item 3); model B numbers at this corner stay uncross-checked and are not used for row 2."
+      "cross_check_status": "failed at this corner (robust over the model's seed): the in-band SNDR leg of DR-001 item 3 is computable at the corrigendum's 4096-clock record and disagrees beyond 3 dB at every seed of the B-side noise ensemble (delta -20.77 to -9.08 dB over 20 seeds; the committed sides are seed 1); FAILED legs: sndr_inband_3db. A failing leg is a model finding, not a relaxation (DR-001 item 3); model B numbers at this corner stay uncross-checked and are not used for row 2."
     },
     {
       "corner_id": "fs/1.800V/27C",
@@ -383,7 +469,50 @@
           "delta_db": 18.106114504119716,
           "b": 75.1161173723647,
           "t": 93.22223187648441,
-          "what": "DR-001 item 3 (corrigendum 01): in-band SNDR of B over T, same 4096-clock window, same 4-term Blackman-Harris window; signal = tone-lobe sum bins 8..16, noise = the 3 in-band noise bins beside it (sec 1.2's DC-leakage bins 0..4 excluded); 3 dB, unchanged"
+          "what": "DR-001 item 3 (corrigendum 01): in-band SNDR of B over T, same 4096-clock window, same 4-term Blackman-Harris window; signal = tone-lobe sum bins 8..16, noise = the 3 in-band noise bins beside it (sec 1.2's DC-leakage bins 0..4 excluded); 3 dB, unchanged",
+          "seed_ensemble": {
+            "n_seeds": 20,
+            "seeds": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20
+            ],
+            "convention": "only params.seed varies; the committed input sequence (u_diff_v), every other corner parameter, the zero initial state, the window and the estimator are the record's own",
+            "b_sndr_db": {
+              "min": 74.32714183196887,
+              "mean": 79.04268040159222,
+              "max": 85.20120141493052
+            },
+            "spread_db": 10.87405958296165,
+            "delta_signed_db": {
+              "min": -18.89509004451554,
+              "max": -8.021030461553892
+            },
+            "within_3db": 0,
+            "verdict": "robust_fail",
+            "seed1_delta_vs_committed_db": 0.0,
+            "seed1_matches_committed_side": true,
+            "numpy": "1.26.4",
+            "why": "the committed B side is one draw of the model's seeded noise (kT/C + jitter, params.seed); the ensemble states the draw-to-draw spread so a single-seed verdict is never a property of the draw (issue #290 review round 3)"
+          },
+          "verdict": "robust_fail"
         },
         "span_10pct": {
           "pass": true,
@@ -405,7 +534,7 @@
       "legs_failed": [
         "sndr_inband_3db"
       ],
-      "cross_check_status": "failed at this corner: the in-band SNDR leg of DR-001 item 3 is computable at the corrigendum's 4096-clock record and disagrees beyond 3 dB; FAILED legs: sndr_inband_3db. A failing leg is a model finding, not a relaxation (DR-001 item 3); model B numbers at this corner stay uncross-checked and are not used for row 2."
+      "cross_check_status": "failed at this corner (robust over the model's seed): the in-band SNDR leg of DR-001 item 3 is computable at the corrigendum's 4096-clock record and disagrees beyond 3 dB at every seed of the B-side noise ensemble (delta -18.90 to -8.02 dB over 20 seeds; the committed sides are seed 1); FAILED legs: sndr_inband_3db. A failing leg is a model finding, not a relaxation (DR-001 item 3); model B numbers at this corner stay uncross-checked and are not used for row 2."
     },
     {
       "corner_id": "sf/1.800V/27C",
@@ -515,7 +644,50 @@
           "delta_db": 7.970878366769583,
           "b": 76.99682042216901,
           "t": 84.96769878893859,
-          "what": "DR-001 item 3 (corrigendum 01): in-band SNDR of B over T, same 4096-clock window, same 4-term Blackman-Harris window; signal = tone-lobe sum bins 8..16, noise = the 3 in-band noise bins beside it (sec 1.2's DC-leakage bins 0..4 excluded); 3 dB, unchanged"
+          "what": "DR-001 item 3 (corrigendum 01): in-band SNDR of B over T, same 4096-clock window, same 4-term Blackman-Harris window; signal = tone-lobe sum bins 8..16, noise = the 3 in-band noise bins beside it (sec 1.2's DC-leakage bins 0..4 excluded); 3 dB, unchanged",
+          "seed_ensemble": {
+            "n_seeds": 20,
+            "seeds": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20
+            ],
+            "convention": "only params.seed varies; the committed input sequence (u_diff_v), every other corner parameter, the zero initial state, the window and the estimator are the record's own",
+            "b_sndr_db": {
+              "min": 75.95077113785497,
+              "mean": 80.87453401104878,
+              "max": 88.51701131751783
+            },
+            "spread_db": 12.566240179662856,
+            "delta_signed_db": {
+              "min": -9.01692765108362,
+              "max": 3.549312528579236
+            },
+            "within_3db": 6,
+            "verdict": "indeterminate",
+            "seed1_delta_vs_committed_db": 0.0,
+            "seed1_matches_committed_side": true,
+            "numpy": "1.26.4",
+            "why": "the committed B side is one draw of the model's seeded noise (kT/C + jitter, params.seed); the ensemble states the draw-to-draw spread so a single-seed verdict is never a property of the draw (issue #290 review round 3)"
+          },
+          "verdict": "indeterminate"
         },
         "span_10pct": {
           "pass": true,
@@ -537,7 +709,7 @@
       "legs_failed": [
         "sndr_inband_3db"
       ],
-      "cross_check_status": "failed at this corner: the in-band SNDR leg of DR-001 item 3 is computable at the corrigendum's 4096-clock record and disagrees beyond 3 dB; FAILED legs: sndr_inband_3db. A failing leg is a model finding, not a relaxation (DR-001 item 3); model B numbers at this corner stay uncross-checked and are not used for row 2."
+      "cross_check_status": "indeterminate at this corner: the in-band SNDR leg of DR-001 item 3 is computable at the corrigendum's 4096-clock record, but the B side is one draw of the model's seeded noise and the leg's realisation spread over that seed is 12.57 dB across 20 seeds (delta -9.02 to +3.55 dB against T, 6 of 20 seeds within the 3 dB gate), wider than the gate: the committed seed-1 delta of 7.97 dB is a draw from that distribution, so neither agreement nor disagreement is established at this record length; FAILED legs at the committed seed: sndr_inband_3db. An indeterminate corner is not a cross-checked corner: model B numbers at this corner stay uncross-checked and are not used for row 2."
     },
     {
       "corner_id": "ss/1.620V/125C",
@@ -647,7 +819,50 @@
           "delta_db": 9.501246491083535,
           "b": 75.25843076554733,
           "t": 65.7571842744638,
-          "what": "DR-001 item 3 (corrigendum 01): in-band SNDR of B over T, same 4096-clock window, same 4-term Blackman-Harris window; signal = tone-lobe sum bins 8..16, noise = the 3 in-band noise bins beside it (sec 1.2's DC-leakage bins 0..4 excluded); 3 dB, unchanged"
+          "what": "DR-001 item 3 (corrigendum 01): in-band SNDR of B over T, same 4096-clock window, same 4-term Blackman-Harris window; signal = tone-lobe sum bins 8..16, noise = the 3 in-band noise bins beside it (sec 1.2's DC-leakage bins 0..4 excluded); 3 dB, unchanged",
+          "seed_ensemble": {
+            "n_seeds": 20,
+            "seeds": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20
+            ],
+            "convention": "only params.seed varies; the committed input sequence (u_diff_v), every other corner parameter, the zero initial state, the window and the estimator are the record's own",
+            "b_sndr_db": {
+              "min": 74.4998982041321,
+              "mean": 78.86544182308869,
+              "max": 86.0789880502283
+            },
+            "spread_db": 11.57908984609621,
+            "delta_signed_db": {
+              "min": 8.742713929668298,
+              "max": 20.321803775764508
+            },
+            "within_3db": 0,
+            "verdict": "robust_fail",
+            "seed1_delta_vs_committed_db": 0.0,
+            "seed1_matches_committed_side": true,
+            "numpy": "1.26.4",
+            "why": "the committed B side is one draw of the model's seeded noise (kT/C + jitter, params.seed); the ensemble states the draw-to-draw spread so a single-seed verdict is never a property of the draw (issue #290 review round 3)"
+          },
+          "verdict": "robust_fail"
         },
         "span_10pct": {
           "pass": false,
@@ -669,7 +884,7 @@
         "sndr_inband_3db",
         "span_10pct"
       ],
-      "cross_check_status": "failed at this corner: the in-band SNDR leg of DR-001 item 3 is computable at the corrigendum's 4096-clock record and disagrees beyond 3 dB; FAILED legs: sndr_inband_3db, span_10pct. A failing leg is a model finding, not a relaxation (DR-001 item 3); model B numbers at this corner stay uncross-checked and are not used for row 2."
+      "cross_check_status": "failed at this corner (robust over the model's seed): the in-band SNDR leg of DR-001 item 3 is computable at the corrigendum's 4096-clock record and disagrees beyond 3 dB at every seed of the B-side noise ensemble (delta +8.74 to +20.32 dB over 20 seeds; the committed sides are seed 1); FAILED legs: sndr_inband_3db, span_10pct. A failing leg is a model finding, not a relaxation (DR-001 item 3); model B numbers at this corner stay uncross-checked and are not used for row 2."
     },
     {
       "corner_id": "ss/1.620V/-40C",
@@ -779,7 +994,50 @@
           "delta_db": 14.905306877292688,
           "b": 75.85400515096599,
           "t": 60.9486982736733,
-          "what": "DR-001 item 3 (corrigendum 01): in-band SNDR of B over T, same 4096-clock window, same 4-term Blackman-Harris window; signal = tone-lobe sum bins 8..16, noise = the 3 in-band noise bins beside it (sec 1.2's DC-leakage bins 0..4 excluded); 3 dB, unchanged"
+          "what": "DR-001 item 3 (corrigendum 01): in-band SNDR of B over T, same 4096-clock window, same 4-term Blackman-Harris window; signal = tone-lobe sum bins 8..16, noise = the 3 in-band noise bins beside it (sec 1.2's DC-leakage bins 0..4 excluded); 3 dB, unchanged",
+          "seed_ensemble": {
+            "n_seeds": 20,
+            "seeds": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20
+            ],
+            "convention": "only params.seed varies; the committed input sequence (u_diff_v), every other corner parameter, the zero initial state, the window and the estimator are the record's own",
+            "b_sndr_db": {
+              "min": 75.43246030901629,
+              "mean": 79.95618462073881,
+              "max": 87.01229271427411
+            },
+            "spread_db": 11.579832405257818,
+            "delta_signed_db": {
+              "min": 14.483762035342991,
+              "max": 26.06359444060081
+            },
+            "within_3db": 0,
+            "verdict": "robust_fail",
+            "seed1_delta_vs_committed_db": 0.0,
+            "seed1_matches_committed_side": true,
+            "numpy": "1.26.4",
+            "why": "the committed B side is one draw of the model's seeded noise (kT/C + jitter, params.seed); the ensemble states the draw-to-draw spread so a single-seed verdict is never a property of the draw (issue #290 review round 3)"
+          },
+          "verdict": "robust_fail"
         },
         "span_10pct": {
           "pass": false,
@@ -801,7 +1059,7 @@
         "sndr_inband_3db",
         "span_10pct"
       ],
-      "cross_check_status": "failed at this corner: the in-band SNDR leg of DR-001 item 3 is computable at the corrigendum's 4096-clock record and disagrees beyond 3 dB; FAILED legs: sndr_inband_3db, span_10pct. A failing leg is a model finding, not a relaxation (DR-001 item 3); model B numbers at this corner stay uncross-checked and are not used for row 2."
+      "cross_check_status": "failed at this corner (robust over the model's seed): the in-band SNDR leg of DR-001 item 3 is computable at the corrigendum's 4096-clock record and disagrees beyond 3 dB at every seed of the B-side noise ensemble (delta +14.48 to +26.06 dB over 20 seeds; the committed sides are seed 1); FAILED legs: sndr_inband_3db, span_10pct. A failing leg is a model finding, not a relaxation (DR-001 item 3); model B numbers at this corner stay uncross-checked and are not used for row 2."
     },
     {
       "corner_id": "tt/1.800V/27C",
@@ -911,7 +1169,50 @@
           "delta_db": 7.082580209980861,
           "b": 75.688748780139,
           "t": 82.77132899011986,
-          "what": "DR-001 item 3 (corrigendum 01): in-band SNDR of B over T, same 4096-clock window, same 4-term Blackman-Harris window; signal = tone-lobe sum bins 8..16, noise = the 3 in-band noise bins beside it (sec 1.2's DC-leakage bins 0..4 excluded); 3 dB, unchanged"
+          "what": "DR-001 item 3 (corrigendum 01): in-band SNDR of B over T, same 4096-clock window, same 4-term Blackman-Harris window; signal = tone-lobe sum bins 8..16, noise = the 3 in-band noise bins beside it (sec 1.2's DC-leakage bins 0..4 excluded); 3 dB, unchanged",
+          "seed_ensemble": {
+            "n_seeds": 20,
+            "seeds": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20
+            ],
+            "convention": "only params.seed varies; the committed input sequence (u_diff_v), every other corner parameter, the zero initial state, the window and the estimator are the record's own",
+            "b_sndr_db": {
+              "min": 75.03372349737691,
+              "mean": 80.04004036941818,
+              "max": 87.87112433545468
+            },
+            "spread_db": 12.83740083807777,
+            "delta_signed_db": {
+              "min": -7.737605492742944,
+              "max": 5.099795345334826
+            },
+            "within_3db": 11,
+            "verdict": "indeterminate",
+            "seed1_delta_vs_committed_db": 0.0,
+            "seed1_matches_committed_side": true,
+            "numpy": "1.26.4",
+            "why": "the committed B side is one draw of the model's seeded noise (kT/C + jitter, params.seed); the ensemble states the draw-to-draw spread so a single-seed verdict is never a property of the draw (issue #290 review round 3)"
+          },
+          "verdict": "indeterminate"
         },
         "span_10pct": {
           "pass": false,
@@ -933,16 +1234,16 @@
         "sndr_inband_3db",
         "span_10pct"
       ],
-      "cross_check_status": "failed at this corner: the in-band SNDR leg of DR-001 item 3 is computable at the corrigendum's 4096-clock record and disagrees beyond 3 dB; FAILED legs: sndr_inband_3db, span_10pct. A failing leg is a model finding, not a relaxation (DR-001 item 3); model B numbers at this corner stay uncross-checked and are not used for row 2."
+      "cross_check_status": "indeterminate at this corner: the in-band SNDR leg of DR-001 item 3 is computable at the corrigendum's 4096-clock record, but the B side is one draw of the model's seeded noise and the leg's realisation spread over that seed is 12.84 dB across 20 seeds (delta -7.74 to +5.10 dB against T, 11 of 20 seeds within the 3 dB gate), wider than the gate: the committed seed-1 delta of 7.08 dB is a draw from that distribution, so neither agreement nor disagreement is established at this record length; FAILED legs at the committed seed: sndr_inband_3db, span_10pct. An indeterminate corner is not a cross-checked corner: model B numbers at this corner stay uncross-checked and are not used for row 2."
     }
   ],
   "record_len_note": "per DR-001 item 5 each comparison states record length, window, bin bandwidth and amplitude; every number here is simulated, nothing measured",
-  "git_commit": "97c9f981981025884d6e2f2498baa5b61c990429",
+  "git_commit": "f623c0828035a8bb488bfc1f8aa67912aa347da2",
   "git_dirty": true,
   "code_sha256": {
     "sim/bmodel/model.py": "470a03379c7676890f65122a29496faf4ba6701389012ba555b5e85d7f10a839",
     "sim/bmodel/sndr.py": "afc75b3a312443aee5a1f819fcf8f2bcf31429f74cbba34f75cc97d47b7e33ef",
     "sim/bmodel/run.py": "6f51b30618fc610c3b3ed2c0ce7d97b5955f1c88eec23f1e72cfbc0e5869e58a",
-    "sim/bmodel/xcheck.py": "adbd031dc880b4a0ca24cf106fd352def7313b215c8827a40e1599baeee8669c"
+    "sim/bmodel/xcheck.py": "47f6a3365fb971d8ce3d2a996ccd57f9c8e7d584c0b26b9aee859fad40df8501"
   }
 }

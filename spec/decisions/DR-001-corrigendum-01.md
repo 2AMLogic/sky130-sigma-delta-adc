@@ -47,6 +47,16 @@ record; the operator ruling picks the revisit and binds its shape.
      sides of the lobe: the leg is computable. It is thin (3 bins), and
      this record says so; widening it further is revisited with the
      post-layout re-run (DR-001 item 4), not here.
+   - It is also thin in a second sense, measured at the derivation and
+     stated rather than left implicit: the B side of the leg is one draw
+     of the model's seeded noise (kT/C + jitter, the corner file's
+     `params.seed`), and over that seed ensemble — 20 seeds, every other
+     parameter held at the corner file — the leg's in-band SNDR spans
+     10.9–12.8 dB across the anchors (widest at tt: 12.84 dB), wider than
+     the 3 dB gate itself. Decision ¶3 states what the gate therefore
+     returns, and the operative record carries the per-corner ensemble
+     (`legs.sndr_inband_3db.seed_ensemble` in
+     `sim/bmodel/xcheck-record-long-dc-excluded.json`).
    - **Why 4096 and not more** — measured cost, not preference. The probe
      run of issue #290 (one corner, tt/27 °C/1.80 V, 4160 clocks including
      settling, fleet job `klt-sim-56a43a043984`, posted on the issue before
@@ -91,6 +101,22 @@ record; the operator ruling picks the revisit and binds its shape.
    verbatim `sndr.py` `sndr_db`'s noise band, the estimator that produced
    the row-2 B numbers this leg validates), both lobe-summed per §1.2's
    estimator; the gate is |SNDR_B − SNDR_T| ≤ **3 dB, unchanged verbatim**.
+   The B side's noise convention is part of the comparison, stated here
+   rather than left implicit: model B runs from its own zero initial state
+   with the corner file's seeded noise at `params.seed` — the committed
+   sides are seed 1 — exactly as `run.py --xcheck` does. One seed is one
+   draw of that noise, and the compared quantity spans ~11–13 dB over the
+   seed ensemble at fixed corner parameters, wider than the gate. The gate
+   is therefore decided over the ensemble, not over the draw: the leg is
+   recomputed at seeds 1..20 (only the seed varies; the same committed
+   input sequence, window and estimator) and a corner's leg returns
+   **robust fail** (every seed beyond 3 dB), **robust pass** (every seed
+   within), or **indeterminate at this record length** (the ensemble
+   straddles the gate — neither agreement nor disagreement is established
+   at that corner). An indeterminate corner is not a cross-checked corner:
+   its B numbers stay uncross-checked and row 2 keeps its gap. At this
+   record length the gate fails robustly at fs, at both ss and at both ff
+   anchors, and is indeterminate at tt and sf.
    The DC exclusion is §1.2's convention carried to the bitstream route so
    the leg compares like with like; it is not a claim that bins 1..4 are
    empty at this record length — at 4096 clocks they carry genuine
@@ -107,7 +133,13 @@ record; the operator ruling picks the revisit and binds its shape.
    duty agreement remain in the record as auxiliary diagnostics (the
    operator declined making any of them the closing leg). With the SNDR leg
    computable, the DR-001 legs are: the in-band SNDR gate (this
-   corrigendum), integrator span, loop duty.
+   corrigendum), integrator span, loop duty. The seed-ensemble rule of ¶3
+   applies to the in-band SNDR leg, the leg this corrigendum adds; the
+   span and duty diagnostics stay computed at the committed seed. The span
+   gate's own near-threshold seed sensitivity (the o2 span spread exceeds
+   the 10 % gate at some anchors) predates this corrigendum — the
+   committed 1024-clock record carries the same property — and is tracked
+   as issue #311, not folded in here.
 5. **Corner set: the DR-002 anchor set (7 corners), as the committed
    cross-check record uses.** The operator ruling says "per DR-002 corner";
    this amendment reads that as the anchor set, because DR-002 itself names
@@ -164,6 +196,14 @@ corrigendum.
 
 - Operator ruling: rjwalters, 2026-11-17, issue #290 comment (option `a`;
   options `b`/`c` declined; the "measure one corner first" note).
+- Seed ensemble (2026-11-18, this revision): model B re-run on the
+  committed long input sequence at seeds 1..20 per corner, only
+  `params.seed` varying (`model.modulate_with_states`, in-process, seconds
+  per corner, no ngspice and no fleet), the record's own §1.2 estimator on
+  each bitstream; per-corner spread, signed delta range, within-gate count
+  and the seed-1 re-derivation of the committed side are recorded in the
+  operative record. Seed 1 re-derives the committed sides exactly at every
+  anchor.
 - Probe: issue #290 builder comment, 2026-11-17 — 1104.6 s wall, unit
   runtime, 1 unit / 1 job (`klt-sim-56a43a043984`), tt/27 °C/1.80 V,
   `phi1_edges` 4096/4096, ~0.86 GB peak RSS; fleet per-clock rates from
