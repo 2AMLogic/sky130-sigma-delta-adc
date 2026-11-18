@@ -2,12 +2,13 @@
   "schema_version": 1,
   "kind": "t1-attestation-inventory",
   "t1_item": 10,
-  "description": "Repo hygiene: README, license, CI workflow, and the pure-Python checks CI runs.",
+  "description": "Repo hygiene: README, license, CI workflow, the gate script holding CI's command list, and the pure-Python checks CI runs.",
   "hygiene": [
     "README.md",
     "LICENSE",
     ".github/klt-version",
-    ".github/workflows/signoff.yml"
+    ".github/workflows/signoff.yml",
+    "scripts/check-ci.sh"
   ],
   "checks": [
     {
