@@ -33,6 +33,10 @@ rule above does not apply to it.
 
 ## Notes for the full form
 
+- The pre-push check is `scripts/check-ci.sh`: it runs the item-9 and
+  item-10 `--check` re-hash steps under the pin (no bench), so an inventory
+  or bench-file edit without a regenerated envelope fails locally instead of
+  in CI.
 - Without `--check`, item 9 runs the cold_start bench
   (`cold_start_item9.sh`): ngspice, iverilog, yosys, uv and the pinned PDK
   (`sim/pdk.json`) must be on the host. `--check` — what CI runs — skips the
