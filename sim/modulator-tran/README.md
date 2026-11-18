@@ -178,7 +178,10 @@ request sha256, engine and klt versions, per-corner runtime and peak RSS.
 
 The long bench still claims **no standalone SNDR**: the in-band SNDR
 figures live in the cross-check (`sim/bmodel/xcheck.py --all --long`,
-`sim/bmodel/xcheck-record-long.json`), which computes BOTH sides — B
+operative record `sim/bmodel/xcheck-record-long-dc-excluded.json`; the
+first derivation, `xcheck-record-long.json`, summed bins 1..edge without
+spec §1.2's DC-leakage exclusion and is superseded by it), which computes
+BOTH sides — B
 re-run on the T input sequence over the same 4096 clocks — identically and
 compares them at DR-001's unchanged 3 dB gate. The bench supplies the
 transistor-level side: bitstreams, integrator waveforms, admission gates.

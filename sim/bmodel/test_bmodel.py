@@ -497,7 +497,9 @@ class CrossCheckLong(unittest.TestCase):
     demoted to a reported diagnostic. Both fixture sides still come from
     model B itself -- these tests exercise the comparison arithmetic and its
     gates, not model quality; the real evidence is the committed
-    xcheck-record-long.json built from the long transistor-level samples.
+    xcheck-record-long-dc-excluded.json built from the long transistor-level
+    samples (the first derivation, xcheck-record-long.json, summed bins
+    1..edge without sec 1.2's DC-leakage exclusion and is superseded).
 
     The tone bin (12) is read from the long bench's committed record
     (record-long.json, input_sequence.tone_cycles_in_record), exactly as the
@@ -549,7 +551,9 @@ class CrossCheckLong(unittest.TestCase):
     def test_band_resolves_with_noise_bins_beside_the_lobe(self):
         """The BH-lobe-vs-band edge case at N_T: 1250 Hz bins put the 20 kHz
         band at bins 1..16, the coherent tone at exact bin 12, its lobe at
-        8..16, and 7 in-band noise bins beside it (issue #290)."""
+        8..16, and -- after sec 1.2's DC-leakage exclusion (bins 0..4,
+        sndr.DC_EXCL_BINS) -- 3 in-band noise bins (5..7) beside it
+        (issue #290)."""
         fs = run.model.FS_HZ
         _, edge = xcheck.band_bins(self.N, fs, sndr.BW_HZ)
         self.assertEqual(edge, 16)
@@ -558,7 +562,7 @@ class CrossCheckLong(unittest.TestCase):
         self.assertEqual(int(lobe[0]), 8)
         self.assertEqual(int(lobe[-1]), 16)
         noise = xcheck.inband_noise_bin_indices(edge, 12)
-        self.assertEqual([int(b) for b in noise], list(range(1, 8)))
+        self.assertEqual([int(b) for b in noise], list(range(5, 8)))
 
     def test_band_does_not_resolve_at_1024(self):
         """The short record stays honestly incomputable: 5 kHz bins, band

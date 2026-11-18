@@ -39,11 +39,14 @@ record; the operator ruling picks the revisit and binds its shape.
    - At N_T the bitstream bins are fs/N_T = **1250 Hz** wide, so the 20 kHz
      band is bins 1..16; the coherent tone at 15 kHz is exactly **bin 12**;
      the 4-term Blackman-Harris main lobe (± 4 bins) covers bins 8..16; and
-     **in-band noise bins 1..7 remain**. The lobe-summed signal / in-band
-     noise split of spec §1.2 has bins to sum on both sides of the lobe: the
-     leg is computable. It is thin (7 bins), and this record says so;
-     widening it further is revisited with the post-layout re-run (DR-001
-     item 4), not here.
+     **in-band noise bins 5..7 remain** — bins 1..4 are §1.2's DC-leakage
+     exclusion (sndr.py `DC_EXCL_BINS = 4`, "bins 0..4 excluded as DC
+     leakage"), which the estimator applies identically on both sides and
+     which produced the row-2 B numbers this leg checks. The lobe-summed
+     signal / in-band noise split of spec §1.2 has bins to sum on both
+     sides of the lobe: the leg is computable. It is thin (3 bins), and
+     this record says so; widening it further is revisited with the
+     post-layout re-run (DR-001 item 4), not here.
    - **Why 4096 and not more** — measured cost, not preference. The probe
      run of issue #290 (one corner, tt/27 °C/1.80 V, 4160 clocks including
      settling, fleet job `klt-sim-56a43a043984`, posted on the issue before
@@ -59,9 +62,11 @@ record; the operator ruling picks the revisit and binds its shape.
      with the slowest anchor extrapolating to ~2.3 ks at the committed
      run's per-clock rates.
    - 4096 is also not the *smallest* useful length: 2^13 = 8192 clocks
-     would leave ~23 in-band noise bins but does not fit the ceiling, and
-     the next smaller power of two that fits (2048) leaves a single
-     in-band noise bin (band bins 1..8, tone bin 6, lobe 2..10). 4096 is
+     would leave 19 in-band noise bins (32 band bins, lobe 20..28, DC
+     exclusion 1..4) but does not fit the ceiling, while the next smaller
+     power of two (2048) leaves none at all — its band is bins 1..8, the
+     tone sits at bin 6, the lobe covers 2..10, and §1.2's DC exclusion
+     takes the rest — so the leg is not computable at 2048 at all. 4096 is
      the longest band-resolving record the fleet can run per corner in one
      job.
 2. **Window, tone, amplitude: unchanged from the committed bench.**
@@ -82,12 +87,21 @@ record; the operator ruling picks the revisit and binds its shape.
    unmodified), and both sides are put through the same window and the same
    bin bandwidth. The compared quantity is **in-band SNDR against in-band
    SNDR**: for each side, signal = the tone-lobe sum (bins 8..16), noise =
-   the in-band noise bins (1..7), both lobe-summed per §1.2's estimator;
-   the gate is |SNDR_B − SNDR_T| ≤ **3 dB, unchanged verbatim**. The
-   existing N = 2^16 B records (`sim/bmodel/records/`) are **not**
-   re-windowed: they cite this cross-check by corner, and a corner's B
-   numbers are reported *cross-checked* only where this leg passes. A leg
-   that fails is a model finding, not a relaxation of anything.
+   the in-band noise bins (5..7 — §1.2's DC-leakage bins 0..4 excluded,
+   verbatim `sndr.py` `sndr_db`'s noise band, the estimator that produced
+   the row-2 B numbers this leg validates), both lobe-summed per §1.2's
+   estimator; the gate is |SNDR_B − SNDR_T| ≤ **3 dB, unchanged verbatim**.
+   The DC exclusion is §1.2's convention carried to the bitstream route so
+   the leg compares like with like; it is not a claim that bins 1..4 are
+   empty at this record length — at 4096 clocks they carry genuine
+   low-frequency loop noise (the bitstream means are ≈ 0 on both sides at
+   every anchor, so this is not offset leakage of a nonzero duty), and
+   excluding them is part of what the ratified estimator defines as
+   in-band. The existing N = 2^16 B records (`sim/bmodel/records/`) are
+   **not** re-windowed: they cite this cross-check by corner, and a
+   corner's B numbers are reported *cross-checked* only where this leg
+   passes. A leg that fails is a model finding, not a relaxation of
+   anything.
 4. **The first cross-check record's proxy gates stay reported, not
    gating.** In-band *power* agreement, integrator span agreement and loop
    duty agreement remain in the record as auxiliary diagnostics (the
@@ -111,7 +125,7 @@ record; the operator ruling picks the revisit and binds its shape.
 
 ## Alternatives considered
 
-- **16384 recorded clocks** (the scoping proposal): ~55 in-band noise bins
+- **16384 recorded clocks** (the scoping proposal): ~51 in-band noise bins
   and a 3.2 ms window, but ~1.9–2.6× the fleet's whole-job ceiling per
   corner at measured per-clock rates — the whole set would report
   `batch_job_timeout` with no data. Not chosen; revisitable if the fleet
@@ -157,4 +171,18 @@ corrigendum.
 - Bin arithmetic re-derived from the bench constants as of this record:
   fs = 5.12 MHz; fs/4096 = 1250 Hz; band edge = 20000/1250 = 16; tone bin =
   15000/1250 = 12; Blackman-Harris 4-term lobe half-width ± 4 (sndr.py
-  `LOBE`); in-band noise bins = 16 − 9 = 7.
+  `LOBE`); §1.2's DC-leakage exclusion bins 0..4 (sndr.py
+  `DC_EXCL_BINS = 4`); in-band noise bins = 16 − 9 − 4 = 3 (bins 5..7).
+- Superseded first derivation, recorded for the ratifiers: the long
+  cross-check record was first derived as
+  `sim/bmodel/xcheck-record-long.json` with the noise band summed as bins
+  1..7 — §1.2's estimator *without* its DC-leakage exclusion, though its
+  `estimator` strings claimed §1.2, which is the defect this revision
+  fixes. That file stays committed (append-only evidence of what was
+  first derived) and is superseded by
+  `sim/bmodel/xcheck-record-long-dc-excluded.json`, derived from the same
+  committed side samples under the corrected band. The fail-at-all-7
+  verdict is identical under both conventions; the largest per-corner
+  delta shift is ~3.6 dB (fs/1.800V/27C: 14.5 → 18.1 dB), above the 3 dB
+  gate itself, which is why the convention is stated here rather than
+  left implicit.

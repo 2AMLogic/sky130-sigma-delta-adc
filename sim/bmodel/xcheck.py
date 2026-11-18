@@ -7,7 +7,7 @@
         --record sim/bmodel/xcheck-record.json
     python3 -I sim/bmodel/xcheck.py --all --b-dir /tmp/bx --record out.json
     python3 -I sim/bmodel/xcheck.py --all --long --b-dir /tmp/bx-long \
-        --record sim/bmodel/xcheck-record-long.json
+        --record sim/bmodel/xcheck-record-long-dc-excluded.json
 
 Compares, per DR-002 anchor, the B-side per-clock samples (run.py --xcheck)
 against the committed transistor-level samples (sim/modulator-tran/samples/
@@ -31,14 +31,21 @@ Two record lengths, one comparison
 - **--long: the corrigendum record (DR-001 corrigendum 01, issue #290).**
   4096 recorded clocks give 1250 Hz bins: the band is bins 1..16, the tone
   sits at bin 12 (15 kHz coherent, -6 dBFS), its lobe covers 8..16, and
-  **in-band noise bins 1..7 remain** -- DR-001 item 3's leg is computable,
-  thin, on both sides. The compared quantity is in-band SNDR against
-  in-band SNDR: for each side, signal = the tone-lobe sum, noise = the
-  in-band noise bins, lobe-summed per spec sec 1.2's estimator (no ENBW:
-  sum(w^2) cancels in the ratio); the gate is |SNDR_B - SNDR_T| <= 3 dB,
-  verbatim. The first record's proxy gates (in-band power, span, duty)
-  stay reported, not gating, per the operator ruling (options b/c
-  declined). A failing leg is a model finding, not a relaxation.
+  **in-band noise bins 5..7 remain** -- bins 1..4 are spec sec 1.2's
+  DC-leakage exclusion (sndr.py DC_EXCL_BINS = 4, "bins 0..4 excluded as DC
+  leakage"), the same convention sndr_db applies to the row-2 B numbers
+  this leg checks. DR-001 item 3's leg is computable, thin, on both sides.
+  The compared quantity is in-band SNDR against in-band SNDR: for each
+  side, signal = the tone-lobe sum, noise = the in-band noise bins,
+  lobe-summed per spec sec 1.2's estimator -- verbatim sndr_db's band, no
+  ENBW (sum(w^2) cancels in the ratio); the gate is |SNDR_B - SNDR_T| <=
+  3 dB, verbatim. The first derivation of this record (committed as
+  xcheck-record-long.json) summed bins 1..7, i.e. without the DC-leakage
+  exclusion, and is superseded by the operative record; the fail-at-all-7
+  verdict is identical under both conventions. The first record's proxy
+  gates (in-band power, span, duty) stay reported, not gating, per the
+  operator ruling (options b/c declined). A failing leg is a model
+  finding, not a relaxation.
 
 Both routes also report, NOT gated: sample-wise waveform difference and
 bit-by-bit agreement. A single-bit loop is chaotic
@@ -164,19 +171,23 @@ def inband_and_noise(p, n, fs, band_hz, tone_bin):
 
 
 def inband_noise_bin_indices(edge, tone_bin):
-    """In-band bins (1..edge, DC 0 excluded) minus the tone lobe: the bins
-    DR-001's in-band SNDR leg sums as noise. Empty at the 1024-clock record
-    (the whole band is lobe), 7 bins at the 4096-clock record."""
-    band = np.arange(1, edge + 1)
+    """The in-band noise bins of spec sec 1.2's estimator: bins above the
+    DC-leakage exclusion (sndr.DC_EXCL_BINS, bins 0..4) up to the band edge,
+    minus the tone lobe -- exactly sndr.sndr_db's band, so the leg is the
+    same estimator that produced the row-2 B numbers it checks. Empty at the
+    1024-clock record (the DC-leakage exclusion plus the lobe leave nothing),
+    3 bins (5..7) at the 4096-clock record."""
+    band = np.arange(sndr.DC_EXCL_BINS + 1, edge + 1)
     return np.setdiff1d(band, lobe_bins(tone_bin), assume_unique=False)
 
 
 def inband_sndr(p, edge, tone_bin):
     """(signal, noise, SNDR dB, noise-bin count) for one spectrum: signal =
-    the tone-lobe sum, noise = the in-band noise bins, lobe-summed per spec
-    sec 1.2's estimator. No ENBW: the window's sum(w^2) appears in numerator
-    and denominator and cancels (issue #107). None when there are no
-    in-band noise bins."""
+    the tone-lobe sum, noise = the in-band noise bins above the DC-leakage
+    exclusion, lobe-summed per spec sec 1.2's estimator -- the noise band is
+    sndr.sndr_db's verbatim (DC_EXCL_BINS+1..edge minus the lobe). No ENBW:
+    the window's sum(w^2) appears in numerator and denominator and cancels
+    (issue #107). None when there are no in-band noise bins."""
     noise_bins = inband_noise_bin_indices(edge, tone_bin)
     sig = float(p[lobe_bins(tone_bin)].sum())
     if len(noise_bins) == 0:
@@ -250,9 +261,12 @@ def compare_corner(corner_path, b_side_path, t_samples_path, long=False):
             "computable": True,
             "estimator": ("lobe-summed signal / in-band noise, no ENBW "
                           "(sum(w^2) cancels in the ratio; issue #107), "
-                          "spec sec 1.2's estimator"),
+                          "spec sec 1.2's estimator (noise band verbatim "
+                          "sndr.sndr_db's: bins above the DC-leakage "
+                          "exclusion 0..4, minus the tone lobe)"),
             "bins": {
-                "band": "1..%d" % edge,
+                "band": "%d..%d" % (sndr.DC_EXCL_BINS + 1, edge),
+                "dc_excluded": [0, sndr.DC_EXCL_BINS],
                 "signal": "tone lobe %d..%d" % (tone_bin - sndr.LOBE,
                                                 tone_bin + sndr.LOBE),
                 "noise": "%d in-band bins beside the lobe" % n_noise_bins,
@@ -267,9 +281,10 @@ def compare_corner(corner_path, b_side_path, t_samples_path, long=False):
                      "over T, same %d-clock window, same 4-term "
                      "Blackman-Harris window; signal = tone-lobe sum "
                      "bins %d..%d, noise = the %d in-band noise bins "
-                     "beside it; 3 dB, unchanged" % (
+                     "beside it (sec 1.2's DC-leakage bins 0..%d "
+                     "excluded); 3 dB, unchanged" % (
                          n, tone_bin - sndr.LOBE, tone_bin + sndr.LOBE,
-                         n_noise_bins)),
+                         n_noise_bins, sndr.DC_EXCL_BINS)),
         }
         legs = {
             "sndr_inband_3db": sndr_leg,
@@ -443,7 +458,9 @@ def build_record(entries, long=False):
                 "sndr_inband_3db": (
                     "|SNDR_inband_B - SNDR_inband_T| <= 3.0 dB -- DR-001's "
                     "tolerance verbatim, on the lobe-summed signal / in-band "
-                    "noise estimator of spec sec 1.2, both sides over the "
+                    "noise estimator of spec sec 1.2 (noise band verbatim "
+                    "sndr.sndr_db's: bins above the DC-leakage exclusion "
+                    "0..4, minus the tone lobe), both sides over the "
                     "same 4096-clock window"),
                 "span_10pct": "integrator span agreement, both integrators",
                 "duty_0p05": "loop duty agreement",
