@@ -4,6 +4,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-18
 
+- **PR #323**: attest: hash the gate's command list - add scripts/check-ci.sh to item 10 hygiene
+- **Issue #321** (closed): item-10 attestation no longer hashes the file holding the gate's command list (scripts/check-ci.sh)
 - **PR #320**: bmodel: sweep the span seed spread over the landed long-record inputs
 - **PR #317**: ci: single-source the tool-free gate in check-ci.sh; signoff.yml calls it
 - **PR #316**: docs: cite the span-leg seed-spread record beside the span verdict
