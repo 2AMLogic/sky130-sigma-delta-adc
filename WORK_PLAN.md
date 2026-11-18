@@ -50,7 +50,7 @@ Issues currently being built (`loom:building`).
 
 PRs waiting on Judge (`loom:review-requested`).
 
-_None._
+- **#306**: feat(cross-check): DR-001 corrigendum 01 — 4096-clock long-record T transient, in-band SNDR leg computed and failing at all 7 anchors
 
 ## Approved (Awaiting Merge)
 
@@ -95,7 +95,7 @@ _None._
 | Important | 6 |
 | Ready (`loom:issue`) | 0 |
 | In Progress (`loom:building`) | 5 |
-| PRs awaiting review | 0 |
+| PRs awaiting review | 1 |
 | Approved PRs awaiting merge | 5 |
 | Curated | 8 |
 | Architect / Hermit proposals | 4 |
