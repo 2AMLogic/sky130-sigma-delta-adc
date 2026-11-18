@@ -2,6 +2,11 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-18
+
+- **PR #310**: gate: run the klt signoff --check re-hash steps locally in check-ci.sh
+- **Issue #308** (closed): No local gate catches a commit that touches an item-9 inventory file without regenerating the envelope
+
 ### 2026-11-17
 
 - **Issue #169** (closed): Confirm klayout-tools#1962 actually describes the #121 blocker that parks analog items 2, 3, 4, 7, 11
