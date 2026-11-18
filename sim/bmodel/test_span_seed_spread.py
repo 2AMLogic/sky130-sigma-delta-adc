@@ -182,16 +182,29 @@ class RecordContract(unittest.TestCase):
                 self.assertTrue(a["bin_bw_hz"] > 0)
 
     def test_long_record_leg_inputs_landed_306(self):
-        # PR #306 landed sim/bmodel/xcheck-sides-long/ (the pending-gate
-        # form of this test flipped per its own instruction); sweeping the
-        # span seed spread over the long inputs stays #311's follow-up, so
-        # the committed record still carries its pre-landing statement --
-        # append-only until #311's own successor supersedes it, not here.
+        # PR #306 landed sim/bmodel/xcheck-sides-long/, so #319's sweep
+        # repeated the driver verbatim on the long set and landed the
+        # append-only record naming it: the status this asserts is the
+        # committed record's, not a synthetic in-process one.
         self.assertTrue(sss.LONG_INPUTS_DIR.is_dir(),
                         "long inputs removed again: restore this test")
-        rec = record()
-        self.assertEqual(rec["long_record_leg"]["status"], "pending #306")
-        self.assertIn("#306", rec["long_record_leg"]["why"])
+        rec_path = (HERE / "records"
+                    / "20261118T071215Z-f45c2c29.json")
+        self.assertTrue(rec_path.is_file(),
+                        f"swept record missing: {rec_path.name}")
+        with open(rec_path) as f:
+            rec = json.load(f)
+        self.assertEqual(rec["long_record_leg"]["status"],
+                         "swept (long-record inputs present on main)")
+        self.assertIn("xcheck-sides-long", rec["long_record_leg"]["why"])
+        # the swept record covers both input sets with the contract fields
+        # (record length, bin bandwidth), the long set at 4096 clocks
+        sets = {st["name"]: st for st in rec["input_sets"]}
+        self.assertEqual(sorted(sets),
+                         ["committed-1024-clock", "long-record"])
+        self.assertEqual(sets["long-record"]["n_clocks"], [4096])
+        self.assertEqual(sets["long-record"]["bin_bw_hz"], [1250.0])
+        self.assertEqual(len(rec["seeds"]), 20)
 
 
 if __name__ == "__main__":
