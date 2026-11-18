@@ -89,7 +89,22 @@ corner in the cited record, or the only one it has.
   0.05; integrator span within 10 % at five anchors, failing at
   ss/1.620V/125C (o1 16.9 %, o2 29.9 %) and ss/1.620V/-40C (o1 11.2 %) — the
   span failures are consistent with #106 (input sampling ~46 % incomplete at
-  ss/-40C) and #148, recorded not fixed. Every corner is reported
+  ss/-40C) and #148, recorded not fixed. That verdict carries an error bar:
+  the leg's own seed-realisation spread is recorded in
+  `sim/bmodel/records/20261118T052554Z-abf448d4.json` — simulated, model B
+  with T-extracted corner parameters, only the model's seed parameter varied
+  (20 seeds), on the committed 1024-clock T input — with the peak-to-peak
+  integrator-state spread across the seed draw given per anchor against the
+  same 10 % gate: o2 exceeds it at all seven anchors (ff/125C 16.8 %,
+  ff/-40C 24.2 %, fs 18.3 %, sf 19.8 %, ss/125C 18.4 %, ss/-40C 22.3 %,
+  tt 18.0 %), o1 at three of seven (fs 10.8 %, ss/125C 10.5 %, tt 10.3 %;
+  the other four 7.6-9.9 %). The committed span verdict at the
+  near-threshold anchors is therefore partly a property of the seed draw,
+  not only of the model: at ss/1.620V/125C the implied verdict range lies
+  entirely above the gate for both integrators (o1 11.0-23.3 %, o2
+  15.4-38.7 %, 0 of 20 seeds within), and at ss/1.620V/-40C it straddles it
+  (o1 7.7-18.9 %, 2/20 seeds within; o2 0.8-24.1 %, 8/20). Every corner
+  is reported
   `incomplete` (never passed): DR-001's in-band SNDR leg is not computable at
   this record length. Sample-wise bitstream agreement is recorded but not
   gated (a single-bit loop is chaotic;
