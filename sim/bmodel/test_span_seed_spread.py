@@ -181,11 +181,14 @@ class RecordContract(unittest.TestCase):
                 self.assertEqual(a["n_clocks"], 1024)
                 self.assertTrue(a["bin_bw_hz"] > 0)
 
-    def test_long_record_leg_pending_306(self):
-        # while sim/bmodel/xcheck-sides-long/ is off main (PR #306 open),
-        # the record says pending instead of sweeping it (#311 AC)
-        self.assertFalse(sss.LONG_INPUTS_DIR.is_dir(),
-                         "long inputs landed: update this test")
+    def test_long_record_leg_inputs_landed_306(self):
+        # PR #306 landed sim/bmodel/xcheck-sides-long/ (the pending-gate
+        # form of this test flipped per its own instruction); sweeping the
+        # span seed spread over the long inputs stays #311's follow-up, so
+        # the committed record still carries its pre-landing statement --
+        # append-only until #311's own successor supersedes it, not here.
+        self.assertTrue(sss.LONG_INPUTS_DIR.is_dir(),
+                        "long inputs removed again: restore this test")
         rec = record()
         self.assertEqual(rec["long_record_leg"]["status"], "pending #306")
         self.assertIn("#306", rec["long_record_leg"]["why"])
