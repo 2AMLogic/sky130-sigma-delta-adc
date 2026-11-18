@@ -45,7 +45,8 @@ Issues currently being built (`loom:building`).
 - **#150**: comparator-decision: the trip staircase does not bracket the comparator's trip point at sf/1.620V/-40C
 - **#187**: CI never runs item8_envelope.py --verify-issues, so characterization.md can cite a closed issue indefinitely
 - **#290**: DR-001 decision-record change: ratify the long-record cross-check leg that row 2's remaining evidence waits on
-- **#308**: No local gate catches a commit that touches an item-9 inventory file without regenerating the envelope
+- **#311**: DR-001 span_10pct leg: the B-side span's own seed-realisation spread (~13% on o2) exceeds its 10% gate
+- **#312**: Single-source the local gate: signoff.yml calls scripts/check-ci.sh
 
 ## PRs Awaiting Review
 
@@ -75,7 +76,8 @@ Issues carrying `loom:curated`.
 - **#162**: T1 item 7, digital only: SDF-annotated klt functional-verification of the routed decimator, cited for 7.digital *(curated)* *(held)*
 - **#187**: CI never runs item8_envelope.py --verify-issues, so characterization.md can cite a closed issue indefinitely *(curated)*
 - **#290**: DR-001 decision-record change: ratify the long-record cross-check leg that row 2's remaining evidence waits on *(curated)*
-- **#308**: No local gate catches a commit that touches an item-9 inventory file without regenerating the envelope *(curated)*
+- **#311**: DR-001 span_10pct leg: the B-side span's own seed-realisation spread (~13% on o2) exceeds its 10% gate *(curated)*
+- **#312**: Single-source the local gate: signoff.yml calls scripts/check-ci.sh *(curated)*
 
 ## Proposed (Architect / Hermit)
 
@@ -96,10 +98,10 @@ _None._
 | Very important | 1 |
 | Important | 6 |
 | Ready (`loom:issue`) | 0 |
-| In Progress (`loom:building`) | 6 |
+| In Progress (`loom:building`) | 7 |
 | PRs awaiting review | 0 |
 | Approved PRs awaiting merge | 5 |
-| Curated | 9 |
+| Curated | 10 |
 | Architect / Hermit proposals | 4 |
 | Active epics | 0 |
 <!-- guide:plan-body:end -->
