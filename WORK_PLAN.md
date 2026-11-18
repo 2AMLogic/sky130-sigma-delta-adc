@@ -44,9 +44,7 @@ Issues currently being built (`loom:building`).
 - **#142**: Decision record: add an amplifier 1/f line to the spec 5.3 noise budget without changing the 80 dB total
 - **#150**: comparator-decision: the trip staircase does not bracket the comparator's trip point at sf/1.620V/-40C
 - **#187**: CI never runs item8_envelope.py --verify-issues, so characterization.md can cite a closed issue indefinitely
-- **#290**: DR-001 decision-record change: ratify the long-record cross-check leg that row 2's remaining evidence waits on
-- **#311**: DR-001 span_10pct leg: the B-side span's own seed-realisation spread (~13% on o2) exceeds its 10% gate
-- **#312**: Single-source the local gate: signoff.yml calls scripts/check-ci.sh
+- **#321**: item-10 attestation no longer hashes the file holding the gate's command list (scripts/check-ci.sh)
 
 ## PRs Awaiting Review
 
@@ -58,10 +56,10 @@ _None._
 
 PRs that passed review and are queued for Champion auto-merge (`loom:pr`).
 
-- **#115**: fix(spec): correct the section 5.1 ideal ceiling for the single-bit full-scale convention
-- **#175**: docs(spec): add DR-009 amplifier 1/f line to the 5.3 noise budget, total unchanged
-- **#199**: comparator-decision: settle the sf/1.620V/-40C trip corner by measurement (DR-007, grounds reporting)
-- **#213**: ci: run the item-8 cited-issue check on every push and pull request
+- **#115**: fix(spec): correct the section 5.1 ideal ceiling for the single-bit full-scale convention — closes #108
+- **#175**: docs(spec): add DR-009 amplifier 1/f line to the 5.3 noise budget, total unchanged — closes #142
+- **#199**: comparator-decision: settle the sf/1.620V/-40C trip corner by measurement (DR-007, grounds reporting) — closes #150
+- **#213**: ci: run the item-8 cited-issue check on every push and pull request — closes #187
 - **#257**: feat(design): rescale integrators to C1=C2=0.3 and record DR-007
 
 ## Proposed
@@ -76,8 +74,7 @@ Issues carrying `loom:curated`.
 - **#162**: T1 item 7, digital only: SDF-annotated klt functional-verification of the routed decimator, cited for 7.digital *(curated)* *(held)*
 - **#187**: CI never runs item8_envelope.py --verify-issues, so characterization.md can cite a closed issue indefinitely *(curated)*
 - **#290**: DR-001 decision-record change: ratify the long-record cross-check leg that row 2's remaining evidence waits on *(curated)*
-- **#311**: DR-001 span_10pct leg: the B-side span's own seed-realisation spread (~13% on o2) exceeds its 10% gate *(curated)*
-- **#312**: Single-source the local gate: signoff.yml calls scripts/check-ci.sh *(curated)*
+- **#321**: item-10 attestation no longer hashes the file holding the gate's command list (scripts/check-ci.sh) *(curated)*
 
 ## Proposed (Architect / Hermit)
 
@@ -98,10 +95,10 @@ _None._
 | Very important | 1 |
 | Important | 6 |
 | Ready (`loom:issue`) | 0 |
-| In Progress (`loom:building`) | 7 |
+| In Progress (`loom:building`) | 5 |
 | PRs awaiting review | 0 |
 | Approved PRs awaiting merge | 5 |
-| Curated | 10 |
+| Curated | 9 |
 | Architect / Hermit proposals | 4 |
 | Active epics | 0 |
 <!-- guide:plan-body:end -->
