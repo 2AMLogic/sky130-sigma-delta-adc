@@ -2,7 +2,7 @@
 
 PDK and tool pins (`pdk.json`, `toolchain.json`) and the analog smoke fixture in
 `smoke/`. The transistor-level benches are `ota-settling/`, `integrator-settling/`,
-`integrator-ci/`, `comparator-decision/`, `ota-gain/` and `integrator-noise/`;
+`integrator-ci/`, `comparator-decision/`, `ota-gain/`, `ota-swing/` and `integrator-noise/`;
 each has its own README with the run command (`python3 -I sim/<bench>/run_*.py
 --probe` for one corner, `--record` for the DR-002 full grid; on some benches
 `--probe` takes a variant argument — see each bench's README), and the shared
@@ -34,6 +34,27 @@ magnitude and common-mode rejection are gated per corner, which is what makes
 the reading a dc gain rather than a band value; there is no ratified spec row
 for dc gain, so the record makes no pass/fail against the spec. See
 `ota-gain/README.md`.
+
+`ota-swing/` is the OTA output-swing / gain-compression extraction (issue #331,
+step 1 of the operator ruling on #148): `design/ota/ota_fd` in the closed-loop
+integrate-phase configuration with the summing-node load the cell presents
+(driven Cs + parked Cs + Cp, `beta = Ci/(Ci+2Cs+Cp)`), swept over the
+differential output swing at the DR-002 **anchor set** with both loads in one
+deck (`main`, Ci = 2 pF, and the #257 c0p3 rescale, Ci = 3.334 pF,
+parameterised — the bench does not depend on that PR merging). The gain at each
+settled swing is the inversion of the finite-gain error of the closed-loop
+charge transfer; 1 dB / 3 dB compression points, the single-ended range and the
+output common-mode shift follow, and the record interpolates the gain at the
+integrator swings PR #257's c0p3 modulator record actually visited (cited by
+sha256). The 0.2 Vpp small-signal reference is gated against `ota-gain`'s
+record at every anchor, which is what makes the curve a gain. The committed
+record's plain statement: **the OTA compresses** — more than 3 dB inside the
+recorded integrator-1 swing range at 5 of 7 anchors (worst ss/1.620 V/125 C,
+cp3 = 1.26 Vpp), so the #148 ruling's step 3 applies and no section 5.4
+clarification is backed. See `ota-swing/README.md`. Fixture tests for the
+derivations and the record-admission gates, no EDA tools needed:
+`python3 -I -m unittest discover -s sim/ota-swing -p 'test_*.py'`.
+
 
 `integrator-noise/` is the first integrator's thermal-noise extraction (issues
 #126 and #140, DR-001 item 2): three `.noise` requests over the DR-002 full
@@ -88,7 +109,7 @@ covered by fixture tests, no EDA tools needed:
 
 `settling_common.py` holds the shared `klt sim` plumbing for the transistor-level
 benches (`ota-settling`, `integrator-settling`, `integrator-ci`, `ota-gain`,
-`integrator-noise`, `comparator-decision`, `modulator-tran`), plus the two toolchain helpers every
+`ota-swing`, `integrator-noise`, `comparator-decision`, `modulator-tran`), plus the two toolchain helpers every
 local single-corner probe runner needs as well — `join_continuations()` (fold a
 netlist's `+` continuation lines back into the instance line that declares them)
 and `ngspice_version()` (match the `ngspice-\d+` token anywhere in `ngspice -v`
