@@ -147,6 +147,13 @@ CHECKS=(
   "verification/decimator|python3 response.py"
 )
 
+# Not here, by design: the item-8 cited-issue check (#187). It shells out to
+# `gh issue view` once per issue a partial/pending row cites, so it needs a
+# GH_TOKEN and network; signoff.yml runs it as its own step
+# (permissions: issues: read). Run it by hand against an authenticated gh when
+# editing the report:
+#   python3 -I attestation/item8_envelope.py --check --verify-issues
+
 # The klt attestation re-hash steps, as bare commands. Each is run through
 # the pinned klt resolved below, so a pass uses exactly the klayout-tools
 # version CI installs (.github/klt-version). Nothing else here may call klt:
