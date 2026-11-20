@@ -110,7 +110,8 @@ the ~1.39 Vpp `sky130-opamp` figure §5.4 compares against, but it is headroom
 read from one bias point. **The measured record disagrees with it away from
 nominal corners**: `sim/ota-swing/record.json` (issue #331, DR-002 anchor set,
 closed-loop integrate-phase configuration, both integrator loads) puts the 3 dB
-gain-compression point at 2.3-2.6 Vpp differential at the ff/fs/tt/sf anchors
+gain-compression point at 2.3-2.6 Vpp differential at the ff/125 C, fs, tt and sf
+anchors (ff/-40 C has none: the gain has not fallen 3 dB by 2.8 Vpp)
 but at only 1.75 Vpp (`ss`/1.62 V/-40 C) and 1.26 Vpp (`ss`/1.62 V/125 C),
 where the gain at the swings the c0p3 modulator actually records (2.27-2.53
 Vpp) has collapsed by 15-20 dB. The ~2.3 Vpp hand figure holds only near

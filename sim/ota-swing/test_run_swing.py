@@ -69,7 +69,7 @@ def settled_segments(beta_scale=1.0, gain_db=56.6, rail_from=None):
                 vod = math.copysign(target - 0.05, seg["direction"])   # railed short
             else:
                 a = 10 ** (gain_db / 20.0)
-                vod = math.copysign(target * (1 - 1 / (beta * a)), seg["direction"])
+                vod = math.copysign(target * beta * a / (1 + beta * a), seg["direction"])
             segs[f"{i:02d}{pol}"] = segment(vod, amp=seg["amp_vpp"],
                                             direction=seg["direction"])
         cells[cell] = segs
@@ -98,14 +98,14 @@ class SegGain(unittest.TestCase):
         beta = MK.beta(2.0)
         a = 10 ** (56.6 / 20.0)
         target = 0.1
-        vod = target * (1 - 1 / (beta * a))
+        vod = target * beta * a / (1 + beta * a)
         got, _ = RUNNER.seg_gain(segment(vod, amp=0.2, direction=1), beta)
         self.assertAlmostEqual(20 * math.log10(got), 56.6, places=6)
 
     def test_negative_polarity_uses_absolute_values(self):
         beta = MK.beta(3.334)
         a = 500.0
-        seg = segment(-0.1 * (1 - 1 / (beta * a)), amp=0.2, direction=-1)
+        seg = segment(-0.1 * beta * a / (1 + beta * a), amp=0.2, direction=-1)
         got, _ = RUNNER.seg_gain(seg, beta)
         self.assertAlmostEqual(got, a, places=3)
 

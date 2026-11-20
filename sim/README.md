@@ -49,12 +49,12 @@ integrator swings PR #257's c0p3 modulator record actually visited (cited by
 sha256). The 0.2 Vpp small-signal reference is gated against `ota-gain`'s
 record at every anchor, which is what makes the curve a gain. The committed
 record's plain statement: **the OTA compresses** — more than 3 dB inside the
-recorded integrator-1 swing range at 5 of 7 anchors (worst ss/1.620 V/125 C,
-cp3 = 1.26 Vpp), so the #148 ruling's step 3 applies and no section 5.4
+recorded integrator-1 swing range (cp3 at or below the top of the range,
+2.53 Vpp, at 5 of 7 anchors; the drop exceeds 3 dB at each anchor's own recorded
+swing at 4 of 7; worst ss/1.620 V/125 C, cp3 = 1.26 Vpp), so the #148 ruling's step 3 applies and no section 5.4
 clarification is backed. See `ota-swing/README.md`. Fixture tests for the
 derivations and the record-admission gates, no EDA tools needed:
 `python3 -I -m unittest discover -s sim/ota-swing -p 'test_*.py'`.
-
 
 `integrator-noise/` is the first integrator's thermal-noise extraction (issues
 #126 and #140, DR-001 item 2): three `.noise` requests over the DR-002 full

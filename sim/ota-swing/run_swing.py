@@ -118,8 +118,9 @@ def extract(rep):
 def seg_gain(seg, beta):
     """(A_eff V/V, settled vod) for one segment, or (None, vod).
 
-    The settled closed-loop transfer misses the ideal step by 1/(beta*A):
-    A_eff = |vod| / (beta * (|target| - |vod|)), target = amp/2.
+    Exact inversion of the settled closed-loop relation
+    vod = target * beta*A / (1 + beta*A), target = amp/2:
+    A_eff = |vod| / (beta * (|target| - |vod|)).
     """
     vod = seg["vod"]
     target = seg["amp_vpp"] / 2.0
@@ -128,7 +129,7 @@ def seg_gain(seg, beta):
     err = target - abs(vod)
     if err <= 0 or err / target < ERR_MIN_REL:
         return None, vod        # railed past the target, or unresolvable
-    return target / (beta * err), vod
+    return abs(vod) / (beta * err), vod
 
 
 def interp(x, xs, ys):
@@ -442,8 +443,8 @@ def build_record(results, stamp, pin, rep_env, provenance=None):
                          "linear capacitors, and it does not touch the settled "
                          "operating point the gain is extracted from"),
             "extraction": ("A_eff = |vod| / (beta * (|target| - |vod|)), the "
-                           "inversion of the finite-gain error 1/(beta*A) of the "
-                           "settled closed-loop charge transfer; beta is computed "
+                           "exact inversion of the settled closed-loop relation "
+                           "vod = target*beta*A/(1+beta*A); beta is computed "
                            "from the bench capacitor values (Cp = 35 fF per side, "
                            "the hand-calc value the settling benches also keep; "
                            "the OTA's own input capacitance is not in it, which "
