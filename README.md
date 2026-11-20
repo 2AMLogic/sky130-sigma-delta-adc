@@ -8,14 +8,18 @@ AI agents driving [klayout-tools](https://github.com/2AMLogic/klayout-tools),
 xschem + ngspice on the analog side and cocotb + Icarus, Yosys/OpenROAD on
 the digital side.
 
-**Status: spec ratified; behavioural model, decimation filter and
-transistor-level sub-blocks committed.** The behavioural modulator model (B)
+**Status: spec ratified, full modulator simulated at seven corners.**
+The behavioural modulator model (B)
 and the decimation filter RTL are verified and recorded. The transistor-level
 schematics and netlists of the OTA, integrator, clock generator and modulator
 top are in `design/`; two analog layout cells and the routed decimator GDS are
 committed under `layout/`; and the sub-blocks carry 45-corner transistor-level
-records under `sim/`. The full transistor-level modulator has not yet been
-simulated for SNDR. Every figure here is simulated, none is measured.
+records under `sim/`. The 4096-clock full-modulator simulation gives an
+in-band SNDR at each of the seven DR-002 anchor corners. The behavioural
+and transistor-level results differ by more than the 3 dB tolerance at
+five anchors across all 20 noise seeds. At the typical (tt) and slow-fast
+(sf) anchors, agreement depends on the seed. The 80 dB target remains
+unverified. [Simulated cross-check results](sim/bmodel/xcheck-record-long-dc-excluded.json).
 
 **Built agent-native.** Every specification, decision record, testbench, and
 line of documentation here is produced by AI agents working from a ratified
@@ -91,8 +95,8 @@ DRC/LVS-clean → post-layout re-verification → shuttle seat → measured
 silicon. **Current position: spec ratified; behavioural modulator model and
 decimation filter verified; transistor-level sub-blocks designed and recorded
 across the DR-002 grid, with two analog layout cells and the routed decimator
-committed; the full transistor-level modulator is not yet simulated for SNDR,
-the analog layout is not yet DRC/LVS-graded, and there is no silicon yet.**
+committed. The full-modulator SNDR cross-check is recorded at seven anchors.
+Analog layout DRC/LVS signoff and silicon measurements are still pending.**
 
 ## T1 evidence
 
