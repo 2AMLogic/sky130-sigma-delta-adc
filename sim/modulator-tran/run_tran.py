@@ -29,6 +29,17 @@ from settling_common import pdk_stamp, run_klt, sha256  # noqa: E402
 sys.path.insert(0, str(HERE))
 import make_request as mk  # noqa: E402
 
+# The bench in use: the committed 1024-clock bench (the module itself) or the
+# long-record bench (mk.LONG, DR-001 corrigendum 01 / issue #290). Both expose
+# the same attribute names; every bench-dependent reference below goes through
+# B so the two never drift. The committed record.json / request.json /
+# modulator_tran.cir / report.json / samples/ belong to the default bench and
+# are never overwritten: the long bench writes its own files (issue #290,
+# append-only evidence -- record.json binds its deck/request by sha256 and
+# sim/bmodel/item5-model-run.json pins xcheck-record.json, so regenerating any
+# of them would break a live evidence chain).
+B = mk
+
 PARTIALS = HERE / ".partials"     # gitignored
 ARTIFACTS = HERE / ".artifacts"   # raw klt report / batch receipt, gitignored
 # klt's own scratch (shard map, per-job receipts), gitignored under .partials.
@@ -61,7 +72,7 @@ NETLISTS = {
 
 
 def shas():
-    return sc.shas(HERE / "request.json", HERE / mk.DECK)
+    return sc.shas(HERE / B.REQUEST, HERE / B.DECK)
 
 
 def corner_slug(c):
@@ -199,8 +210,8 @@ def per_clock(m, cid, corner, rec_clocks):
         s2 = m.get(f"s2_{k:05d}", {}).get("value")
         if sb is None or s1 is None or s2 is None:
             continue
-        t.append(mk.sample_time(k))
-        u.append(mk.u_diff(mk.sample_time(k)))
+        t.append(B.sample_time(k))
+        u.append(B.u_diff(B.sample_time(k)))
         bs_v.append(sb)
         o1.append(s1)
         o2.append(s2)
@@ -225,12 +236,12 @@ def per_clock(m, cid, corner, rec_clocks):
 def input_sequence_block():
     """Everything a sibling needs to rebuild the discrete input u[n]."""
     return {
-        "tone_hz": mk.FIN_HZ,
-        "tone_cycles_in_record": mk.CYCLES,
-        "amplitude_dbfs": mk.AMP_DBFS,
-        "amplitude_peak_per_side_V": mk.AMP_SE_V,
-        "amplitude_peak_differential_V": 2 * mk.AMP_SE_V,
-        "full_scale_differential_V": mk.VREF_DIFF_V,
+        "tone_hz": B.FIN_HZ,
+        "tone_cycles_in_record": B.CYCLES,
+        "amplitude_dbfs": B.AMP_DBFS,
+        "amplitude_peak_per_side_V": B.AMP_SE_V,
+        "amplitude_peak_differential_V": 2 * B.AMP_SE_V,
+        "full_scale_differential_V": B.VREF_DIFF_V,
         "full_scale_note": (
             "Model B's full scale is the 1.2 V differential reference "
             "(sim/bmodel/model.py); -6 dBFS is 0.6 V peak differential, which "
@@ -241,9 +252,9 @@ def input_sequence_block():
                      "sin(2*pi*tone_hz*t), differential, t in seconds from the "
                      "start of the transient; vinp = 0.9 + A*sin, "
                      "vinn = 0.9 - A*sin"),
-        "fs_hz": mk.FS_HZ,
+        "fs_hz": B.FS_HZ,
         "clock_source": (f"Vclk PULSE, first rising 50 % crossing at "
-                         f"{mk.TRISE0:.12g} s, period {mk.TPER:.12g} s, 50 % "
+                         f"{B.TRISE0:.12g} s, period {B.TPER:.12g} s, 50 % "
                          f"duty, 0.2 ns edges, rescaled per corner to that "
                          f"corner's Vdda (corners.supply_waveforms)"),
         "input_sampling_edge": (
@@ -270,7 +281,7 @@ def input_sequence_block():
     }
 
 
-def staged_request_hashes():
+def staged_request_hashes(tag):
     """klt's own sha256 of the request document it staged, per batch job.
 
     The record names these because they are what binds it to the bytes the
@@ -289,7 +300,7 @@ def staged_request_hashes():
     a single value is the expected result and more than one is a signal.
     """
     out = []
-    for f in sorted((SCRATCH / "out-anchors").glob("batch-receipt-*.json")):
+    for f in sorted((SCRATCH / f"out-{tag}").glob("batch-receipt-*.json")):
         try:
             h = json.loads(f.read_text()).get("request_sha256")
         except (OSError, ValueError):
@@ -320,61 +331,40 @@ def build_record(results, stamp, pin, rep_env, window_s, provenance=None):
     worst_p = max((c["p_ana"], cid) for cid, c in corners.items())
     worst_o1 = max((c["o1_swing_pp"], cid) for cid, c in corners.items())
     worst_o2 = max((c["o2_swing_pp"], cid) for cid, c in corners.items())
+    bin_bw = B.FS_HZ / B.N_REC
     return {
-        "fixture": (
-            "Short full-modulator transistor-level transient (issue #125, "
-            "DR-001 item 2): design/modulator/modulator.spice with "
-            "design/ota/ota_fd.spice and "
-            "design/modulator/comparator/comparator.spice, ideal DR-005 "
-            "boundary sources, a coherent single tone at -6 dBFS and the "
-            "5.12 MHz clock."),
+        "fixture": B.RECORD_FIXTURE,
         "result_kind": (
             "simulated (ngspice, transistor-level netlists of the assembled "
             "modulator; not the behavioural model, not measured silicon)"),
-        "evidence_source": "T (DR-001 item 2)",
+        "evidence_source": B.RECORD_EVIDENCE_SOURCE,
         "record_length": {
-            "modulator_clocks": mk.N_REC,
-            "settling_clocks_discarded": mk.N_SETTLE,
-            "output_samples_at_osr_128": mk.N_REC / 128,
+            "modulator_clocks": B.N_REC,
+            "settling_clocks_discarded": B.N_SETTLE,
+            "output_samples_at_osr_128": B.N_REC / 128,
             "window_s": window_s,
-            "transient_end_s": mk.T_END,
-            "max_timestep_s": mk.T_MAX_STEP,
-            "chosen_because": (
-                "Cost. Measured on the dispatch host before any corner ran: "
-                "about 3.1 s of ngspice per microsecond of transient at "
-                "tt/27 C/1.80 V with a 1 ns maximum timestep, i.e. about "
-                "0.61 s per modulator clock. 1088 clocks is ~11 min at tt and "
-                "~22 min at a corner twice as slow, inside the batch fleet's "
-                "3600 s whole-job ceiling with margin. DR-001 item 2 requires "
-                "the length to be stated; this is that statement, written "
-                "into make_request.py before the first result."),
+            "transient_end_s": mk.window(B.N_REC)[3],
+            "max_timestep_s": B.T_MAX_STEP,
+            "chosen_because": B.RECORD_LENGTH_NOTE,
         },
         "sndr": {
             "computed": False,
-            "why_not": (
-                "No SNDR is claimed from this record. An in-band figure needs "
-                f"bins inside the 20 kHz band of spec row 1; {mk.N_REC} "
-                f"modulator clocks give a bin bandwidth of "
-                f"{mk.FS_HZ / mk.N_REC:.0f} Hz on the bitstream and only "
-                f"{mk.N_REC / 128:g} output samples after decimation by the "
-                "OSR, so neither route resolves the band. Spec sec 1.2's row 2 "
-                "claim is a B-model result with the DR-001 cross-check; this "
-                "bench supplies the cross-check's transistor-level side as "
-                "bitstreams and integrator waveforms, not as an SNDR."),
+            "why_not": B.RECORD_SONDR_NOTE.format(
+                n_rec=B.N_REC, bin_bw=bin_bw, n_out=B.N_REC / 128),
         },
         "corner_set": {
             "name": "DR-002 anchor set",
-            "points": len(mk.ANCHOR_POINTS),
+            "points": len(B.ANCHOR_POINTS),
             "subset_statement": (
                 "A declared subset of the DR-002 full 45-point grid: DR-002 "
                 "names the anchor set for the expensive runs and lists the "
-                "short full-modulator transient as one of them. This record "
+                "full-modulator transient as one of them. This record "
                 "is an anchor-subset result and is not a full-grid result."),
             "anchors": [{"process": p, "vdda_v": v, "temperature_c": t}
-                        for p, v, t in mk.ANCHOR_POINTS],
+                        for p, v, t in B.ANCHOR_POINTS],
         },
         "limits": {
-            "p_ana_max_W": mk.P_ANA_MAX_W,
+            "p_ana_max_W": B.P_ANA_MAX_W,
             "p_ana_source": "spec/modulator-adc.md row 13 (P_ana <= 1 mW)",
             "p_ana_definition": (
                 "Time-weighted mean over the recorded clocks of the power "
@@ -382,7 +372,7 @@ def build_record(results, stamp, pin, rep_env, window_s, provenance=None):
                 "The 5 uA bias current is drawn from vdda, so it is inside the "
                 "VDDA term. The vcm source is reported as p_vcm and is NOT in "
                 "this sum."),
-            "swing_max_Vpp": mk.SWING_MAX_VPP,
+            "swing_max_Vpp": B.SWING_MAX_VPP,
             "swing_source": (
                 "spec/modulator-adc.md sec 5.4: the integrator outputs 'stay "
                 "well inside the ~1.39 Vpp output swing sky130-opamp reports "
@@ -468,7 +458,10 @@ def write_samples(samples, outdir):
         name = f"{corner_slug(s_corner(s))}.json"
         path = outdir / name
         path.write_text(dump_samples(s))
-        index[cid] = {"file": f"samples/{name}", "sha256": sha256(path),
+        # the index is repo-relative and names the bench's own samples
+        # directory (samples/ for the short bench, samples-long/ for the
+        # long bench -- record-long.json must never point into samples/)
+        index[cid] = {"file": f"{outdir.name}/{name}", "sha256": sha256(path),
                       "n_clocks": s["n_clocks"]}
     return index
 
@@ -479,20 +472,29 @@ def s_corner(s):
 
 
 def main():
+    global B
     ap = argparse.ArgumentParser()
     ap.add_argument("--pdk-root")
     ap.add_argument("--probe", action="store_true",
                     help="one tt/27C/1.8V corner, run locally, no record")
+    ap.add_argument("--long", action="store_true",
+                    help="the long-record bench (DR-001 corrigendum 01, issue "
+                         "#290): request_long.json, %d recorded clocks, "
+                         "samples-long/, record-long.json -- the committed "
+                         "1024-clock bench files are not touched" % mk.N_REC_LONG)
     ap.add_argument("--resume", action="store_true",
                     help="re-launch only the anchors a previous run left "
                          "unfinished (a shard the fleet refused for capacity "
                          "comes back `lost_shard`), instead of re-simulating "
                          "the whole anchor set")
     ap.add_argument("--record", action="store_true",
-                    help="write record.json (refuses to overwrite: records are append-only)")
-    ap.add_argument("--record-name", default="record.json",
-                    help="record file name, for a re-run after a netlist change (new file)")
+                    help="write the record (refuses to overwrite: records are append-only)")
+    ap.add_argument("--record-name", default=None,
+                    help="record file name override (default: the bench's "
+                         "own -- record.json, or record-long.json with --long)")
     a = ap.parse_args()
+    B = mk.LONG if a.long else mk
+    record_name = a.record_name or B.RECORD_NAME
 
     pin = json.load(open(REPO / "sim/pdk.json"))
     root, stamp = pdk_stamp(pin["variant"], a.pdk_root)
@@ -500,7 +502,7 @@ def main():
         print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'",
               file=sys.stderr)
         return 2
-    out = HERE / a.record_name
+    out = HERE / record_name
     if a.record and out.exists():
         print(f"REFUSE: {out.name} exists; records are append-only "
               "(use --record-name)", file=sys.stderr)
@@ -508,7 +510,7 @@ def main():
 
     saved = None
     if a.record:
-        saved = sc.load_partial(PARTIALS / "anchors.json", shas())
+        saved = sc.load_partial(PARTIALS / f"{B.TAG}.json", shas())
 
     if saved is None:
         if a.probe:
@@ -516,17 +518,17 @@ def main():
         else:
             tmp = SCRATCH
             tmp.mkdir(parents=True, exist_ok=True)
-        res = run_klt(HERE / "request.json", a.probe, tmp, "anchors",
-                      HERE / "probe_request.json", keys=KEYS,
+        res = run_klt(HERE / B.REQUEST, a.probe, tmp, B.TAG,
+                      HERE / f"probe_{B.REQUEST}", keys=KEYS,
                       artifacts_dir=None if a.probe else ARTIFACTS,
                       resume=a.resume and not a.probe)
         if res is None:
-            print("REFUSE: no usable report (see .artifacts/klt-anchors.stderr.txt); "
+            print(f"REFUSE: no usable report (see .artifacts/klt-{B.TAG}.stderr.txt); "
                   "not falling back to a local grid or to .partials/",
                   file=sys.stderr)
             return 1
         rep, _ = res
-        corners, samples = extract(rep)
+        corners, samples = extract(rep, rec_clocks=B.REC_CLOCKS)
         if a.probe:
             cid = next(iter(corners))
             print(json.dumps({"corner": corners[cid],
@@ -540,16 +542,18 @@ def main():
         saved = {"corners": corners, "samples": samples,
                  "environment": rep.get("environment", {}),
                  "provenance": rep.get("provenance", {}),
-                 "staged_request_sha256": staged_request_hashes(),
+                 "staged_request_sha256": staged_request_hashes(B.TAG),
                  "measurement_rollup": [m for m in rep.get("measurements", [])
                                         if m["name"] in KEYS],
                  **shas()}
-        sc.save_partial(PARTIALS / "anchors.json", saved)
+        sc.save_partial(PARTIALS / f"{B.TAG}.json", saved)
 
     corners, samples = saved["corners"], saved["samples"]
-    window_s = mk.N_REC * mk.TPER
-    gates = (anchors_complete(corners) and scalars_present(corners)
-             and samples_present(samples) and clock_ran_at_fs(corners)
+    window_s = B.N_REC * B.TPER
+    gates = (anchors_complete(corners)
+             and scalars_present(corners)
+             and samples_present(samples, n_rec=B.N_REC)
+             and clock_ran_at_fs(corners, n_rec=B.N_REC)
              and power_routes_agree(corners, window_s))
     if not gates:
         return 1
@@ -560,14 +564,15 @@ def main():
                             "bs_edges": c["bs_edges"]}
                       for cid, c in sorted(corners.items())}, indent=2))
     if not a.record:
-        print("all 7 anchors complete; re-run with --record to write the record")
+        print(f"all {len(B.ANCHOR_POINTS)} anchors complete; "
+              "re-run with --record to write the record")
         return 0
 
-    index = write_samples(samples, SAMPLES)
+    index = write_samples(samples, HERE / B.SAMPLES_DIR)
     rec = build_record({"corners": corners, "samples_index": index,
                         "staged_request_sha256":
                             saved.get("staged_request_sha256")
-                            or staged_request_hashes()},
+                            or staged_request_hashes(B.TAG)},
                        stamp, pin, saved["environment"], window_s,
                        saved.get("provenance"))
     rec["measurement_rollup"] = saved.get("measurement_rollup", [])

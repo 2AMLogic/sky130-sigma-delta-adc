@@ -33,10 +33,15 @@ rule above does not apply to it.
 
 ## Notes for the full form
 
-- The pre-push check is `scripts/check-ci.sh`: it runs the item-9 and
-  item-10 `--check` re-hash steps under the pin (no bench), so an inventory
-  or bench-file edit without a regenerated envelope fails locally instead of
-  in CI.
+- The pre-push check is `scripts/check-ci.sh`: it is the same gate
+  `.github/workflows/signoff.yml` runs (the workflow calls the script for
+  its no-EDA steps, so the commands exist in exactly one place). Its item-9
+  and item-10 `--check` re-hash steps run the pinned klayout-tools — the
+  PATH `klt` when it reports exactly the `.github/klt-version` version, else
+  `uvx --from` the pin (no bench) — so an inventory or bench-file edit
+  without a regenerated envelope fails locally instead of in CI. The gate
+  script itself is in item 10's attested `hygiene` set, so editing its
+  command list stales `item10-envelope.json` the same way.
 - Without `--check`, item 9 runs the cold_start bench
   (`cold_start_item9.sh`): ngspice, iverilog, yosys, uv and the pinned PDK
   (`sim/pdk.json`) must be on the host. `--check` — what CI runs — skips the
