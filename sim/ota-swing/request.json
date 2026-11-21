@@ -1,0 +1,1231 @@
+{
+  "netlist": "ota_swing.cir",
+  "engine": "ngspice",
+  "backend": "batch",
+  "models": {
+    "pdk": "sky130A",
+    "lib": "libs.tech/ngspice/sky130.lib.spice"
+  },
+  "corners": {
+    "units": [
+      {
+        "process": "tt",
+        "supply_v": {
+          "vdda": 1.8
+        },
+        "temperature_c": 27
+      },
+      {
+        "process": "ss",
+        "supply_v": {
+          "vdda": 1.62
+        },
+        "temperature_c": 125
+      },
+      {
+        "process": "ss",
+        "supply_v": {
+          "vdda": 1.62
+        },
+        "temperature_c": -40
+      },
+      {
+        "process": "ff",
+        "supply_v": {
+          "vdda": 1.98
+        },
+        "temperature_c": -40
+      },
+      {
+        "process": "ff",
+        "supply_v": {
+          "vdda": 1.98
+        },
+        "temperature_c": 125
+      },
+      {
+        "process": "sf",
+        "supply_v": {
+          "vdda": 1.8
+        },
+        "temperature_c": 27
+      },
+      {
+        "process": "fs",
+        "supply_v": {
+          "vdda": 1.8
+        },
+        "temperature_c": 27
+      }
+    ]
+  },
+  "analysis": {
+    "kind": "tran",
+    "args": "1e-09 3.55e-05 0 1e-09"
+  },
+  "measurements": [
+    {
+      "name": "vdda_v",
+      "expr": "v(vdda)[0]",
+      "unit": "V"
+    },
+    {
+      "name": "sa00u_vod",
+      "unit": "V",
+      "spice": ".meas tran sa00u_vod FIND v(voda) AT=1.580000000e-06",
+      "limits": {
+        "min": 0.09000000000000001
+      }
+    },
+    {
+      "name": "sa00u_outp",
+      "unit": "V",
+      "spice": ".meas tran sa00u_outp FIND v(outpa) AT=1.580000000e-06"
+    },
+    {
+      "name": "sa00u_outn",
+      "unit": "V",
+      "spice": ".meas tran sa00u_outn FIND v(outna) AT=1.580000000e-06"
+    },
+    {
+      "name": "sa00u_rip",
+      "unit": "V",
+      "spice": ".meas tran sa00u_rip FIND v(voda) AT=1.430000000e-06"
+    },
+    {
+      "name": "sb00u_vod",
+      "unit": "V",
+      "spice": ".meas tran sb00u_vod FIND v(vodb) AT=1.580000000e-06",
+      "limits": {
+        "min": 0.09000000000000001
+      }
+    },
+    {
+      "name": "sb00u_outp",
+      "unit": "V",
+      "spice": ".meas tran sb00u_outp FIND v(outpb) AT=1.580000000e-06"
+    },
+    {
+      "name": "sb00u_outn",
+      "unit": "V",
+      "spice": ".meas tran sb00u_outn FIND v(outnb) AT=1.580000000e-06"
+    },
+    {
+      "name": "sb00u_rip",
+      "unit": "V",
+      "spice": ".meas tran sb00u_rip FIND v(vodb) AT=1.430000000e-06"
+    },
+    {
+      "name": "sa01d_vod",
+      "unit": "V",
+      "spice": ".meas tran sa01d_vod FIND v(voda) AT=2.830000000e-06",
+      "limits": {
+        "max": -0.09000000000000001
+      }
+    },
+    {
+      "name": "sa01d_outp",
+      "unit": "V",
+      "spice": ".meas tran sa01d_outp FIND v(outpa) AT=2.830000000e-06"
+    },
+    {
+      "name": "sa01d_outn",
+      "unit": "V",
+      "spice": ".meas tran sa01d_outn FIND v(outna) AT=2.830000000e-06"
+    },
+    {
+      "name": "sa01d_rip",
+      "unit": "V",
+      "spice": ".meas tran sa01d_rip FIND v(voda) AT=2.680000000e-06"
+    },
+    {
+      "name": "sb01d_vod",
+      "unit": "V",
+      "spice": ".meas tran sb01d_vod FIND v(vodb) AT=2.830000000e-06",
+      "limits": {
+        "max": -0.09000000000000001
+      }
+    },
+    {
+      "name": "sb01d_outp",
+      "unit": "V",
+      "spice": ".meas tran sb01d_outp FIND v(outpb) AT=2.830000000e-06"
+    },
+    {
+      "name": "sb01d_outn",
+      "unit": "V",
+      "spice": ".meas tran sb01d_outn FIND v(outnb) AT=2.830000000e-06"
+    },
+    {
+      "name": "sb01d_rip",
+      "unit": "V",
+      "spice": ".meas tran sb01d_rip FIND v(vodb) AT=2.680000000e-06"
+    },
+    {
+      "name": "sa02u_vod",
+      "unit": "V",
+      "spice": ".meas tran sa02u_vod FIND v(voda) AT=4.080000000e-06"
+    },
+    {
+      "name": "sa02u_outp",
+      "unit": "V",
+      "spice": ".meas tran sa02u_outp FIND v(outpa) AT=4.080000000e-06"
+    },
+    {
+      "name": "sa02u_outn",
+      "unit": "V",
+      "spice": ".meas tran sa02u_outn FIND v(outna) AT=4.080000000e-06"
+    },
+    {
+      "name": "sa02u_rip",
+      "unit": "V",
+      "spice": ".meas tran sa02u_rip FIND v(voda) AT=3.930000000e-06"
+    },
+    {
+      "name": "sb02u_vod",
+      "unit": "V",
+      "spice": ".meas tran sb02u_vod FIND v(vodb) AT=4.080000000e-06"
+    },
+    {
+      "name": "sb02u_outp",
+      "unit": "V",
+      "spice": ".meas tran sb02u_outp FIND v(outpb) AT=4.080000000e-06"
+    },
+    {
+      "name": "sb02u_outn",
+      "unit": "V",
+      "spice": ".meas tran sb02u_outn FIND v(outnb) AT=4.080000000e-06"
+    },
+    {
+      "name": "sb02u_rip",
+      "unit": "V",
+      "spice": ".meas tran sb02u_rip FIND v(vodb) AT=3.930000000e-06"
+    },
+    {
+      "name": "sa03d_vod",
+      "unit": "V",
+      "spice": ".meas tran sa03d_vod FIND v(voda) AT=5.330000000e-06"
+    },
+    {
+      "name": "sa03d_outp",
+      "unit": "V",
+      "spice": ".meas tran sa03d_outp FIND v(outpa) AT=5.330000000e-06"
+    },
+    {
+      "name": "sa03d_outn",
+      "unit": "V",
+      "spice": ".meas tran sa03d_outn FIND v(outna) AT=5.330000000e-06"
+    },
+    {
+      "name": "sa03d_rip",
+      "unit": "V",
+      "spice": ".meas tran sa03d_rip FIND v(voda) AT=5.180000000e-06"
+    },
+    {
+      "name": "sb03d_vod",
+      "unit": "V",
+      "spice": ".meas tran sb03d_vod FIND v(vodb) AT=5.330000000e-06"
+    },
+    {
+      "name": "sb03d_outp",
+      "unit": "V",
+      "spice": ".meas tran sb03d_outp FIND v(outpb) AT=5.330000000e-06"
+    },
+    {
+      "name": "sb03d_outn",
+      "unit": "V",
+      "spice": ".meas tran sb03d_outn FIND v(outnb) AT=5.330000000e-06"
+    },
+    {
+      "name": "sb03d_rip",
+      "unit": "V",
+      "spice": ".meas tran sb03d_rip FIND v(vodb) AT=5.180000000e-06"
+    },
+    {
+      "name": "sa04u_vod",
+      "unit": "V",
+      "spice": ".meas tran sa04u_vod FIND v(voda) AT=6.580000000e-06"
+    },
+    {
+      "name": "sa04u_outp",
+      "unit": "V",
+      "spice": ".meas tran sa04u_outp FIND v(outpa) AT=6.580000000e-06"
+    },
+    {
+      "name": "sa04u_outn",
+      "unit": "V",
+      "spice": ".meas tran sa04u_outn FIND v(outna) AT=6.580000000e-06"
+    },
+    {
+      "name": "sa04u_rip",
+      "unit": "V",
+      "spice": ".meas tran sa04u_rip FIND v(voda) AT=6.430000000e-06"
+    },
+    {
+      "name": "sb04u_vod",
+      "unit": "V",
+      "spice": ".meas tran sb04u_vod FIND v(vodb) AT=6.580000000e-06"
+    },
+    {
+      "name": "sb04u_outp",
+      "unit": "V",
+      "spice": ".meas tran sb04u_outp FIND v(outpb) AT=6.580000000e-06"
+    },
+    {
+      "name": "sb04u_outn",
+      "unit": "V",
+      "spice": ".meas tran sb04u_outn FIND v(outnb) AT=6.580000000e-06"
+    },
+    {
+      "name": "sb04u_rip",
+      "unit": "V",
+      "spice": ".meas tran sb04u_rip FIND v(vodb) AT=6.430000000e-06"
+    },
+    {
+      "name": "sa05d_vod",
+      "unit": "V",
+      "spice": ".meas tran sa05d_vod FIND v(voda) AT=7.830000000e-06"
+    },
+    {
+      "name": "sa05d_outp",
+      "unit": "V",
+      "spice": ".meas tran sa05d_outp FIND v(outpa) AT=7.830000000e-06"
+    },
+    {
+      "name": "sa05d_outn",
+      "unit": "V",
+      "spice": ".meas tran sa05d_outn FIND v(outna) AT=7.830000000e-06"
+    },
+    {
+      "name": "sa05d_rip",
+      "unit": "V",
+      "spice": ".meas tran sa05d_rip FIND v(voda) AT=7.680000000e-06"
+    },
+    {
+      "name": "sb05d_vod",
+      "unit": "V",
+      "spice": ".meas tran sb05d_vod FIND v(vodb) AT=7.830000000e-06"
+    },
+    {
+      "name": "sb05d_outp",
+      "unit": "V",
+      "spice": ".meas tran sb05d_outp FIND v(outpb) AT=7.830000000e-06"
+    },
+    {
+      "name": "sb05d_outn",
+      "unit": "V",
+      "spice": ".meas tran sb05d_outn FIND v(outnb) AT=7.830000000e-06"
+    },
+    {
+      "name": "sb05d_rip",
+      "unit": "V",
+      "spice": ".meas tran sb05d_rip FIND v(vodb) AT=7.680000000e-06"
+    },
+    {
+      "name": "sa06u_vod",
+      "unit": "V",
+      "spice": ".meas tran sa06u_vod FIND v(voda) AT=9.080000000e-06"
+    },
+    {
+      "name": "sa06u_outp",
+      "unit": "V",
+      "spice": ".meas tran sa06u_outp FIND v(outpa) AT=9.080000000e-06"
+    },
+    {
+      "name": "sa06u_outn",
+      "unit": "V",
+      "spice": ".meas tran sa06u_outn FIND v(outna) AT=9.080000000e-06"
+    },
+    {
+      "name": "sa06u_rip",
+      "unit": "V",
+      "spice": ".meas tran sa06u_rip FIND v(voda) AT=8.930000000e-06"
+    },
+    {
+      "name": "sb06u_vod",
+      "unit": "V",
+      "spice": ".meas tran sb06u_vod FIND v(vodb) AT=9.080000000e-06"
+    },
+    {
+      "name": "sb06u_outp",
+      "unit": "V",
+      "spice": ".meas tran sb06u_outp FIND v(outpb) AT=9.080000000e-06"
+    },
+    {
+      "name": "sb06u_outn",
+      "unit": "V",
+      "spice": ".meas tran sb06u_outn FIND v(outnb) AT=9.080000000e-06"
+    },
+    {
+      "name": "sb06u_rip",
+      "unit": "V",
+      "spice": ".meas tran sb06u_rip FIND v(vodb) AT=8.930000000e-06"
+    },
+    {
+      "name": "sa07d_vod",
+      "unit": "V",
+      "spice": ".meas tran sa07d_vod FIND v(voda) AT=1.033000000e-05"
+    },
+    {
+      "name": "sa07d_outp",
+      "unit": "V",
+      "spice": ".meas tran sa07d_outp FIND v(outpa) AT=1.033000000e-05"
+    },
+    {
+      "name": "sa07d_outn",
+      "unit": "V",
+      "spice": ".meas tran sa07d_outn FIND v(outna) AT=1.033000000e-05"
+    },
+    {
+      "name": "sa07d_rip",
+      "unit": "V",
+      "spice": ".meas tran sa07d_rip FIND v(voda) AT=1.018000000e-05"
+    },
+    {
+      "name": "sb07d_vod",
+      "unit": "V",
+      "spice": ".meas tran sb07d_vod FIND v(vodb) AT=1.033000000e-05"
+    },
+    {
+      "name": "sb07d_outp",
+      "unit": "V",
+      "spice": ".meas tran sb07d_outp FIND v(outpb) AT=1.033000000e-05"
+    },
+    {
+      "name": "sb07d_outn",
+      "unit": "V",
+      "spice": ".meas tran sb07d_outn FIND v(outnb) AT=1.033000000e-05"
+    },
+    {
+      "name": "sb07d_rip",
+      "unit": "V",
+      "spice": ".meas tran sb07d_rip FIND v(vodb) AT=1.018000000e-05"
+    },
+    {
+      "name": "sa08u_vod",
+      "unit": "V",
+      "spice": ".meas tran sa08u_vod FIND v(voda) AT=1.158000000e-05"
+    },
+    {
+      "name": "sa08u_outp",
+      "unit": "V",
+      "spice": ".meas tran sa08u_outp FIND v(outpa) AT=1.158000000e-05"
+    },
+    {
+      "name": "sa08u_outn",
+      "unit": "V",
+      "spice": ".meas tran sa08u_outn FIND v(outna) AT=1.158000000e-05"
+    },
+    {
+      "name": "sa08u_rip",
+      "unit": "V",
+      "spice": ".meas tran sa08u_rip FIND v(voda) AT=1.143000000e-05"
+    },
+    {
+      "name": "sb08u_vod",
+      "unit": "V",
+      "spice": ".meas tran sb08u_vod FIND v(vodb) AT=1.158000000e-05"
+    },
+    {
+      "name": "sb08u_outp",
+      "unit": "V",
+      "spice": ".meas tran sb08u_outp FIND v(outpb) AT=1.158000000e-05"
+    },
+    {
+      "name": "sb08u_outn",
+      "unit": "V",
+      "spice": ".meas tran sb08u_outn FIND v(outnb) AT=1.158000000e-05"
+    },
+    {
+      "name": "sb08u_rip",
+      "unit": "V",
+      "spice": ".meas tran sb08u_rip FIND v(vodb) AT=1.143000000e-05"
+    },
+    {
+      "name": "sa09d_vod",
+      "unit": "V",
+      "spice": ".meas tran sa09d_vod FIND v(voda) AT=1.283000000e-05"
+    },
+    {
+      "name": "sa09d_outp",
+      "unit": "V",
+      "spice": ".meas tran sa09d_outp FIND v(outpa) AT=1.283000000e-05"
+    },
+    {
+      "name": "sa09d_outn",
+      "unit": "V",
+      "spice": ".meas tran sa09d_outn FIND v(outna) AT=1.283000000e-05"
+    },
+    {
+      "name": "sa09d_rip",
+      "unit": "V",
+      "spice": ".meas tran sa09d_rip FIND v(voda) AT=1.268000000e-05"
+    },
+    {
+      "name": "sb09d_vod",
+      "unit": "V",
+      "spice": ".meas tran sb09d_vod FIND v(vodb) AT=1.283000000e-05"
+    },
+    {
+      "name": "sb09d_outp",
+      "unit": "V",
+      "spice": ".meas tran sb09d_outp FIND v(outpb) AT=1.283000000e-05"
+    },
+    {
+      "name": "sb09d_outn",
+      "unit": "V",
+      "spice": ".meas tran sb09d_outn FIND v(outnb) AT=1.283000000e-05"
+    },
+    {
+      "name": "sb09d_rip",
+      "unit": "V",
+      "spice": ".meas tran sb09d_rip FIND v(vodb) AT=1.268000000e-05"
+    },
+    {
+      "name": "sa10u_vod",
+      "unit": "V",
+      "spice": ".meas tran sa10u_vod FIND v(voda) AT=1.408000000e-05"
+    },
+    {
+      "name": "sa10u_outp",
+      "unit": "V",
+      "spice": ".meas tran sa10u_outp FIND v(outpa) AT=1.408000000e-05"
+    },
+    {
+      "name": "sa10u_outn",
+      "unit": "V",
+      "spice": ".meas tran sa10u_outn FIND v(outna) AT=1.408000000e-05"
+    },
+    {
+      "name": "sa10u_rip",
+      "unit": "V",
+      "spice": ".meas tran sa10u_rip FIND v(voda) AT=1.393000000e-05"
+    },
+    {
+      "name": "sb10u_vod",
+      "unit": "V",
+      "spice": ".meas tran sb10u_vod FIND v(vodb) AT=1.408000000e-05"
+    },
+    {
+      "name": "sb10u_outp",
+      "unit": "V",
+      "spice": ".meas tran sb10u_outp FIND v(outpb) AT=1.408000000e-05"
+    },
+    {
+      "name": "sb10u_outn",
+      "unit": "V",
+      "spice": ".meas tran sb10u_outn FIND v(outnb) AT=1.408000000e-05"
+    },
+    {
+      "name": "sb10u_rip",
+      "unit": "V",
+      "spice": ".meas tran sb10u_rip FIND v(vodb) AT=1.393000000e-05"
+    },
+    {
+      "name": "sa11d_vod",
+      "unit": "V",
+      "spice": ".meas tran sa11d_vod FIND v(voda) AT=1.533000000e-05"
+    },
+    {
+      "name": "sa11d_outp",
+      "unit": "V",
+      "spice": ".meas tran sa11d_outp FIND v(outpa) AT=1.533000000e-05"
+    },
+    {
+      "name": "sa11d_outn",
+      "unit": "V",
+      "spice": ".meas tran sa11d_outn FIND v(outna) AT=1.533000000e-05"
+    },
+    {
+      "name": "sa11d_rip",
+      "unit": "V",
+      "spice": ".meas tran sa11d_rip FIND v(voda) AT=1.518000000e-05"
+    },
+    {
+      "name": "sb11d_vod",
+      "unit": "V",
+      "spice": ".meas tran sb11d_vod FIND v(vodb) AT=1.533000000e-05"
+    },
+    {
+      "name": "sb11d_outp",
+      "unit": "V",
+      "spice": ".meas tran sb11d_outp FIND v(outpb) AT=1.533000000e-05"
+    },
+    {
+      "name": "sb11d_outn",
+      "unit": "V",
+      "spice": ".meas tran sb11d_outn FIND v(outnb) AT=1.533000000e-05"
+    },
+    {
+      "name": "sb11d_rip",
+      "unit": "V",
+      "spice": ".meas tran sb11d_rip FIND v(vodb) AT=1.518000000e-05"
+    },
+    {
+      "name": "sa12u_vod",
+      "unit": "V",
+      "spice": ".meas tran sa12u_vod FIND v(voda) AT=1.658000000e-05"
+    },
+    {
+      "name": "sa12u_outp",
+      "unit": "V",
+      "spice": ".meas tran sa12u_outp FIND v(outpa) AT=1.658000000e-05"
+    },
+    {
+      "name": "sa12u_outn",
+      "unit": "V",
+      "spice": ".meas tran sa12u_outn FIND v(outna) AT=1.658000000e-05"
+    },
+    {
+      "name": "sa12u_rip",
+      "unit": "V",
+      "spice": ".meas tran sa12u_rip FIND v(voda) AT=1.643000000e-05"
+    },
+    {
+      "name": "sb12u_vod",
+      "unit": "V",
+      "spice": ".meas tran sb12u_vod FIND v(vodb) AT=1.658000000e-05"
+    },
+    {
+      "name": "sb12u_outp",
+      "unit": "V",
+      "spice": ".meas tran sb12u_outp FIND v(outpb) AT=1.658000000e-05"
+    },
+    {
+      "name": "sb12u_outn",
+      "unit": "V",
+      "spice": ".meas tran sb12u_outn FIND v(outnb) AT=1.658000000e-05"
+    },
+    {
+      "name": "sb12u_rip",
+      "unit": "V",
+      "spice": ".meas tran sb12u_rip FIND v(vodb) AT=1.643000000e-05"
+    },
+    {
+      "name": "sa13d_vod",
+      "unit": "V",
+      "spice": ".meas tran sa13d_vod FIND v(voda) AT=1.783000000e-05"
+    },
+    {
+      "name": "sa13d_outp",
+      "unit": "V",
+      "spice": ".meas tran sa13d_outp FIND v(outpa) AT=1.783000000e-05"
+    },
+    {
+      "name": "sa13d_outn",
+      "unit": "V",
+      "spice": ".meas tran sa13d_outn FIND v(outna) AT=1.783000000e-05"
+    },
+    {
+      "name": "sa13d_rip",
+      "unit": "V",
+      "spice": ".meas tran sa13d_rip FIND v(voda) AT=1.768000000e-05"
+    },
+    {
+      "name": "sb13d_vod",
+      "unit": "V",
+      "spice": ".meas tran sb13d_vod FIND v(vodb) AT=1.783000000e-05"
+    },
+    {
+      "name": "sb13d_outp",
+      "unit": "V",
+      "spice": ".meas tran sb13d_outp FIND v(outpb) AT=1.783000000e-05"
+    },
+    {
+      "name": "sb13d_outn",
+      "unit": "V",
+      "spice": ".meas tran sb13d_outn FIND v(outnb) AT=1.783000000e-05"
+    },
+    {
+      "name": "sb13d_rip",
+      "unit": "V",
+      "spice": ".meas tran sb13d_rip FIND v(vodb) AT=1.768000000e-05"
+    },
+    {
+      "name": "sa14u_vod",
+      "unit": "V",
+      "spice": ".meas tran sa14u_vod FIND v(voda) AT=1.908000000e-05"
+    },
+    {
+      "name": "sa14u_outp",
+      "unit": "V",
+      "spice": ".meas tran sa14u_outp FIND v(outpa) AT=1.908000000e-05"
+    },
+    {
+      "name": "sa14u_outn",
+      "unit": "V",
+      "spice": ".meas tran sa14u_outn FIND v(outna) AT=1.908000000e-05"
+    },
+    {
+      "name": "sa14u_rip",
+      "unit": "V",
+      "spice": ".meas tran sa14u_rip FIND v(voda) AT=1.893000000e-05"
+    },
+    {
+      "name": "sb14u_vod",
+      "unit": "V",
+      "spice": ".meas tran sb14u_vod FIND v(vodb) AT=1.908000000e-05"
+    },
+    {
+      "name": "sb14u_outp",
+      "unit": "V",
+      "spice": ".meas tran sb14u_outp FIND v(outpb) AT=1.908000000e-05"
+    },
+    {
+      "name": "sb14u_outn",
+      "unit": "V",
+      "spice": ".meas tran sb14u_outn FIND v(outnb) AT=1.908000000e-05"
+    },
+    {
+      "name": "sb14u_rip",
+      "unit": "V",
+      "spice": ".meas tran sb14u_rip FIND v(vodb) AT=1.893000000e-05"
+    },
+    {
+      "name": "sa15d_vod",
+      "unit": "V",
+      "spice": ".meas tran sa15d_vod FIND v(voda) AT=2.033000000e-05"
+    },
+    {
+      "name": "sa15d_outp",
+      "unit": "V",
+      "spice": ".meas tran sa15d_outp FIND v(outpa) AT=2.033000000e-05"
+    },
+    {
+      "name": "sa15d_outn",
+      "unit": "V",
+      "spice": ".meas tran sa15d_outn FIND v(outna) AT=2.033000000e-05"
+    },
+    {
+      "name": "sa15d_rip",
+      "unit": "V",
+      "spice": ".meas tran sa15d_rip FIND v(voda) AT=2.018000000e-05"
+    },
+    {
+      "name": "sb15d_vod",
+      "unit": "V",
+      "spice": ".meas tran sb15d_vod FIND v(vodb) AT=2.033000000e-05"
+    },
+    {
+      "name": "sb15d_outp",
+      "unit": "V",
+      "spice": ".meas tran sb15d_outp FIND v(outpb) AT=2.033000000e-05"
+    },
+    {
+      "name": "sb15d_outn",
+      "unit": "V",
+      "spice": ".meas tran sb15d_outn FIND v(outnb) AT=2.033000000e-05"
+    },
+    {
+      "name": "sb15d_rip",
+      "unit": "V",
+      "spice": ".meas tran sb15d_rip FIND v(vodb) AT=2.018000000e-05"
+    },
+    {
+      "name": "sa16u_vod",
+      "unit": "V",
+      "spice": ".meas tran sa16u_vod FIND v(voda) AT=2.158000000e-05"
+    },
+    {
+      "name": "sa16u_outp",
+      "unit": "V",
+      "spice": ".meas tran sa16u_outp FIND v(outpa) AT=2.158000000e-05"
+    },
+    {
+      "name": "sa16u_outn",
+      "unit": "V",
+      "spice": ".meas tran sa16u_outn FIND v(outna) AT=2.158000000e-05"
+    },
+    {
+      "name": "sa16u_rip",
+      "unit": "V",
+      "spice": ".meas tran sa16u_rip FIND v(voda) AT=2.143000000e-05"
+    },
+    {
+      "name": "sb16u_vod",
+      "unit": "V",
+      "spice": ".meas tran sb16u_vod FIND v(vodb) AT=2.158000000e-05"
+    },
+    {
+      "name": "sb16u_outp",
+      "unit": "V",
+      "spice": ".meas tran sb16u_outp FIND v(outpb) AT=2.158000000e-05"
+    },
+    {
+      "name": "sb16u_outn",
+      "unit": "V",
+      "spice": ".meas tran sb16u_outn FIND v(outnb) AT=2.158000000e-05"
+    },
+    {
+      "name": "sb16u_rip",
+      "unit": "V",
+      "spice": ".meas tran sb16u_rip FIND v(vodb) AT=2.143000000e-05"
+    },
+    {
+      "name": "sa17d_vod",
+      "unit": "V",
+      "spice": ".meas tran sa17d_vod FIND v(voda) AT=2.283000000e-05"
+    },
+    {
+      "name": "sa17d_outp",
+      "unit": "V",
+      "spice": ".meas tran sa17d_outp FIND v(outpa) AT=2.283000000e-05"
+    },
+    {
+      "name": "sa17d_outn",
+      "unit": "V",
+      "spice": ".meas tran sa17d_outn FIND v(outna) AT=2.283000000e-05"
+    },
+    {
+      "name": "sa17d_rip",
+      "unit": "V",
+      "spice": ".meas tran sa17d_rip FIND v(voda) AT=2.268000000e-05"
+    },
+    {
+      "name": "sb17d_vod",
+      "unit": "V",
+      "spice": ".meas tran sb17d_vod FIND v(vodb) AT=2.283000000e-05"
+    },
+    {
+      "name": "sb17d_outp",
+      "unit": "V",
+      "spice": ".meas tran sb17d_outp FIND v(outpb) AT=2.283000000e-05"
+    },
+    {
+      "name": "sb17d_outn",
+      "unit": "V",
+      "spice": ".meas tran sb17d_outn FIND v(outnb) AT=2.283000000e-05"
+    },
+    {
+      "name": "sb17d_rip",
+      "unit": "V",
+      "spice": ".meas tran sb17d_rip FIND v(vodb) AT=2.268000000e-05"
+    },
+    {
+      "name": "sa18u_vod",
+      "unit": "V",
+      "spice": ".meas tran sa18u_vod FIND v(voda) AT=2.408000000e-05"
+    },
+    {
+      "name": "sa18u_outp",
+      "unit": "V",
+      "spice": ".meas tran sa18u_outp FIND v(outpa) AT=2.408000000e-05"
+    },
+    {
+      "name": "sa18u_outn",
+      "unit": "V",
+      "spice": ".meas tran sa18u_outn FIND v(outna) AT=2.408000000e-05"
+    },
+    {
+      "name": "sa18u_rip",
+      "unit": "V",
+      "spice": ".meas tran sa18u_rip FIND v(voda) AT=2.393000000e-05"
+    },
+    {
+      "name": "sb18u_vod",
+      "unit": "V",
+      "spice": ".meas tran sb18u_vod FIND v(vodb) AT=2.408000000e-05"
+    },
+    {
+      "name": "sb18u_outp",
+      "unit": "V",
+      "spice": ".meas tran sb18u_outp FIND v(outpb) AT=2.408000000e-05"
+    },
+    {
+      "name": "sb18u_outn",
+      "unit": "V",
+      "spice": ".meas tran sb18u_outn FIND v(outnb) AT=2.408000000e-05"
+    },
+    {
+      "name": "sb18u_rip",
+      "unit": "V",
+      "spice": ".meas tran sb18u_rip FIND v(vodb) AT=2.393000000e-05"
+    },
+    {
+      "name": "sa19d_vod",
+      "unit": "V",
+      "spice": ".meas tran sa19d_vod FIND v(voda) AT=2.533000000e-05"
+    },
+    {
+      "name": "sa19d_outp",
+      "unit": "V",
+      "spice": ".meas tran sa19d_outp FIND v(outpa) AT=2.533000000e-05"
+    },
+    {
+      "name": "sa19d_outn",
+      "unit": "V",
+      "spice": ".meas tran sa19d_outn FIND v(outna) AT=2.533000000e-05"
+    },
+    {
+      "name": "sa19d_rip",
+      "unit": "V",
+      "spice": ".meas tran sa19d_rip FIND v(voda) AT=2.518000000e-05"
+    },
+    {
+      "name": "sb19d_vod",
+      "unit": "V",
+      "spice": ".meas tran sb19d_vod FIND v(vodb) AT=2.533000000e-05"
+    },
+    {
+      "name": "sb19d_outp",
+      "unit": "V",
+      "spice": ".meas tran sb19d_outp FIND v(outpb) AT=2.533000000e-05"
+    },
+    {
+      "name": "sb19d_outn",
+      "unit": "V",
+      "spice": ".meas tran sb19d_outn FIND v(outnb) AT=2.533000000e-05"
+    },
+    {
+      "name": "sb19d_rip",
+      "unit": "V",
+      "spice": ".meas tran sb19d_rip FIND v(vodb) AT=2.518000000e-05"
+    },
+    {
+      "name": "sa20u_vod",
+      "unit": "V",
+      "spice": ".meas tran sa20u_vod FIND v(voda) AT=2.658000000e-05"
+    },
+    {
+      "name": "sa20u_outp",
+      "unit": "V",
+      "spice": ".meas tran sa20u_outp FIND v(outpa) AT=2.658000000e-05"
+    },
+    {
+      "name": "sa20u_outn",
+      "unit": "V",
+      "spice": ".meas tran sa20u_outn FIND v(outna) AT=2.658000000e-05"
+    },
+    {
+      "name": "sa20u_rip",
+      "unit": "V",
+      "spice": ".meas tran sa20u_rip FIND v(voda) AT=2.643000000e-05"
+    },
+    {
+      "name": "sb20u_vod",
+      "unit": "V",
+      "spice": ".meas tran sb20u_vod FIND v(vodb) AT=2.658000000e-05"
+    },
+    {
+      "name": "sb20u_outp",
+      "unit": "V",
+      "spice": ".meas tran sb20u_outp FIND v(outpb) AT=2.658000000e-05"
+    },
+    {
+      "name": "sb20u_outn",
+      "unit": "V",
+      "spice": ".meas tran sb20u_outn FIND v(outnb) AT=2.658000000e-05"
+    },
+    {
+      "name": "sb20u_rip",
+      "unit": "V",
+      "spice": ".meas tran sb20u_rip FIND v(vodb) AT=2.643000000e-05"
+    },
+    {
+      "name": "sa21d_vod",
+      "unit": "V",
+      "spice": ".meas tran sa21d_vod FIND v(voda) AT=2.783000000e-05"
+    },
+    {
+      "name": "sa21d_outp",
+      "unit": "V",
+      "spice": ".meas tran sa21d_outp FIND v(outpa) AT=2.783000000e-05"
+    },
+    {
+      "name": "sa21d_outn",
+      "unit": "V",
+      "spice": ".meas tran sa21d_outn FIND v(outna) AT=2.783000000e-05"
+    },
+    {
+      "name": "sa21d_rip",
+      "unit": "V",
+      "spice": ".meas tran sa21d_rip FIND v(voda) AT=2.768000000e-05"
+    },
+    {
+      "name": "sb21d_vod",
+      "unit": "V",
+      "spice": ".meas tran sb21d_vod FIND v(vodb) AT=2.783000000e-05"
+    },
+    {
+      "name": "sb21d_outp",
+      "unit": "V",
+      "spice": ".meas tran sb21d_outp FIND v(outpb) AT=2.783000000e-05"
+    },
+    {
+      "name": "sb21d_outn",
+      "unit": "V",
+      "spice": ".meas tran sb21d_outn FIND v(outnb) AT=2.783000000e-05"
+    },
+    {
+      "name": "sb21d_rip",
+      "unit": "V",
+      "spice": ".meas tran sb21d_rip FIND v(vodb) AT=2.768000000e-05"
+    },
+    {
+      "name": "sa22u_vod",
+      "unit": "V",
+      "spice": ".meas tran sa22u_vod FIND v(voda) AT=2.908000000e-05"
+    },
+    {
+      "name": "sa22u_outp",
+      "unit": "V",
+      "spice": ".meas tran sa22u_outp FIND v(outpa) AT=2.908000000e-05"
+    },
+    {
+      "name": "sa22u_outn",
+      "unit": "V",
+      "spice": ".meas tran sa22u_outn FIND v(outna) AT=2.908000000e-05"
+    },
+    {
+      "name": "sa22u_rip",
+      "unit": "V",
+      "spice": ".meas tran sa22u_rip FIND v(voda) AT=2.893000000e-05"
+    },
+    {
+      "name": "sb22u_vod",
+      "unit": "V",
+      "spice": ".meas tran sb22u_vod FIND v(vodb) AT=2.908000000e-05"
+    },
+    {
+      "name": "sb22u_outp",
+      "unit": "V",
+      "spice": ".meas tran sb22u_outp FIND v(outpb) AT=2.908000000e-05"
+    },
+    {
+      "name": "sb22u_outn",
+      "unit": "V",
+      "spice": ".meas tran sb22u_outn FIND v(outnb) AT=2.908000000e-05"
+    },
+    {
+      "name": "sb22u_rip",
+      "unit": "V",
+      "spice": ".meas tran sb22u_rip FIND v(vodb) AT=2.893000000e-05"
+    },
+    {
+      "name": "sa23d_vod",
+      "unit": "V",
+      "spice": ".meas tran sa23d_vod FIND v(voda) AT=3.033000000e-05"
+    },
+    {
+      "name": "sa23d_outp",
+      "unit": "V",
+      "spice": ".meas tran sa23d_outp FIND v(outpa) AT=3.033000000e-05"
+    },
+    {
+      "name": "sa23d_outn",
+      "unit": "V",
+      "spice": ".meas tran sa23d_outn FIND v(outna) AT=3.033000000e-05"
+    },
+    {
+      "name": "sa23d_rip",
+      "unit": "V",
+      "spice": ".meas tran sa23d_rip FIND v(voda) AT=3.018000000e-05"
+    },
+    {
+      "name": "sb23d_vod",
+      "unit": "V",
+      "spice": ".meas tran sb23d_vod FIND v(vodb) AT=3.033000000e-05"
+    },
+    {
+      "name": "sb23d_outp",
+      "unit": "V",
+      "spice": ".meas tran sb23d_outp FIND v(outpb) AT=3.033000000e-05"
+    },
+    {
+      "name": "sb23d_outn",
+      "unit": "V",
+      "spice": ".meas tran sb23d_outn FIND v(outnb) AT=3.033000000e-05"
+    },
+    {
+      "name": "sb23d_rip",
+      "unit": "V",
+      "spice": ".meas tran sb23d_rip FIND v(vodb) AT=3.018000000e-05"
+    },
+    {
+      "name": "sa24u_vod",
+      "unit": "V",
+      "spice": ".meas tran sa24u_vod FIND v(voda) AT=3.158000000e-05"
+    },
+    {
+      "name": "sa24u_outp",
+      "unit": "V",
+      "spice": ".meas tran sa24u_outp FIND v(outpa) AT=3.158000000e-05"
+    },
+    {
+      "name": "sa24u_outn",
+      "unit": "V",
+      "spice": ".meas tran sa24u_outn FIND v(outna) AT=3.158000000e-05"
+    },
+    {
+      "name": "sa24u_rip",
+      "unit": "V",
+      "spice": ".meas tran sa24u_rip FIND v(voda) AT=3.143000000e-05"
+    },
+    {
+      "name": "sb24u_vod",
+      "unit": "V",
+      "spice": ".meas tran sb24u_vod FIND v(vodb) AT=3.158000000e-05"
+    },
+    {
+      "name": "sb24u_outp",
+      "unit": "V",
+      "spice": ".meas tran sb24u_outp FIND v(outpb) AT=3.158000000e-05"
+    },
+    {
+      "name": "sb24u_outn",
+      "unit": "V",
+      "spice": ".meas tran sb24u_outn FIND v(outnb) AT=3.158000000e-05"
+    },
+    {
+      "name": "sb24u_rip",
+      "unit": "V",
+      "spice": ".meas tran sb24u_rip FIND v(vodb) AT=3.143000000e-05"
+    },
+    {
+      "name": "sa25d_vod",
+      "unit": "V",
+      "spice": ".meas tran sa25d_vod FIND v(voda) AT=3.283000000e-05"
+    },
+    {
+      "name": "sa25d_outp",
+      "unit": "V",
+      "spice": ".meas tran sa25d_outp FIND v(outpa) AT=3.283000000e-05"
+    },
+    {
+      "name": "sa25d_outn",
+      "unit": "V",
+      "spice": ".meas tran sa25d_outn FIND v(outna) AT=3.283000000e-05"
+    },
+    {
+      "name": "sa25d_rip",
+      "unit": "V",
+      "spice": ".meas tran sa25d_rip FIND v(voda) AT=3.268000000e-05"
+    },
+    {
+      "name": "sb25d_vod",
+      "unit": "V",
+      "spice": ".meas tran sb25d_vod FIND v(vodb) AT=3.283000000e-05"
+    },
+    {
+      "name": "sb25d_outp",
+      "unit": "V",
+      "spice": ".meas tran sb25d_outp FIND v(outpb) AT=3.283000000e-05"
+    },
+    {
+      "name": "sb25d_outn",
+      "unit": "V",
+      "spice": ".meas tran sb25d_outn FIND v(outnb) AT=3.283000000e-05"
+    },
+    {
+      "name": "sb25d_rip",
+      "unit": "V",
+      "spice": ".meas tran sb25d_rip FIND v(vodb) AT=3.268000000e-05"
+    },
+    {
+      "name": "sa26u_vod",
+      "unit": "V",
+      "spice": ".meas tran sa26u_vod FIND v(voda) AT=3.408000000e-05"
+    },
+    {
+      "name": "sa26u_outp",
+      "unit": "V",
+      "spice": ".meas tran sa26u_outp FIND v(outpa) AT=3.408000000e-05"
+    },
+    {
+      "name": "sa26u_outn",
+      "unit": "V",
+      "spice": ".meas tran sa26u_outn FIND v(outna) AT=3.408000000e-05"
+    },
+    {
+      "name": "sa26u_rip",
+      "unit": "V",
+      "spice": ".meas tran sa26u_rip FIND v(voda) AT=3.393000000e-05"
+    },
+    {
+      "name": "sb26u_vod",
+      "unit": "V",
+      "spice": ".meas tran sb26u_vod FIND v(vodb) AT=3.408000000e-05"
+    },
+    {
+      "name": "sb26u_outp",
+      "unit": "V",
+      "spice": ".meas tran sb26u_outp FIND v(outpb) AT=3.408000000e-05"
+    },
+    {
+      "name": "sb26u_outn",
+      "unit": "V",
+      "spice": ".meas tran sb26u_outn FIND v(outnb) AT=3.408000000e-05"
+    },
+    {
+      "name": "sb26u_rip",
+      "unit": "V",
+      "spice": ".meas tran sb26u_rip FIND v(vodb) AT=3.393000000e-05"
+    },
+    {
+      "name": "sa27d_vod",
+      "unit": "V",
+      "spice": ".meas tran sa27d_vod FIND v(voda) AT=3.533000000e-05"
+    },
+    {
+      "name": "sa27d_outp",
+      "unit": "V",
+      "spice": ".meas tran sa27d_outp FIND v(outpa) AT=3.533000000e-05"
+    },
+    {
+      "name": "sa27d_outn",
+      "unit": "V",
+      "spice": ".meas tran sa27d_outn FIND v(outna) AT=3.533000000e-05"
+    },
+    {
+      "name": "sa27d_rip",
+      "unit": "V",
+      "spice": ".meas tran sa27d_rip FIND v(voda) AT=3.518000000e-05"
+    },
+    {
+      "name": "sb27d_vod",
+      "unit": "V",
+      "spice": ".meas tran sb27d_vod FIND v(vodb) AT=3.533000000e-05"
+    },
+    {
+      "name": "sb27d_outp",
+      "unit": "V",
+      "spice": ".meas tran sb27d_outp FIND v(outpb) AT=3.533000000e-05"
+    },
+    {
+      "name": "sb27d_outn",
+      "unit": "V",
+      "spice": ".meas tran sb27d_outn FIND v(outnb) AT=3.533000000e-05"
+    },
+    {
+      "name": "sb27d_rip",
+      "unit": "V",
+      "spice": ".meas tran sb27d_rip FIND v(vodb) AT=3.518000000e-05"
+    }
+  ],
+  "options": {
+    "timeout_s": 900,
+    "keep_artifacts": false,
+    "save_vectors": [
+      "v(vdda)",
+      "v(rst)",
+      "v(voda)",
+      "v(ocma)",
+      "v(outpa)",
+      "v(outna)",
+      "v(vodb)",
+      "v(ocmb)",
+      "v(outpb)",
+      "v(outnb)"
+    ],
+    "ngspice_init": [
+      "set numdgt=12",
+      "set measureprec=12"
+    ]
+  },
+  "batch": {
+    "poll_timeout_s": 14400,
+    "capacity_wait_s": 600,
+    "max_units_per_job": 3,
+    "max_concurrent_jobs": 3
+  }
+}

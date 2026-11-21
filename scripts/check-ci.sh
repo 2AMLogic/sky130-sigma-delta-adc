@@ -101,6 +101,13 @@ CHECKS=(
   # ngspice, no klt.
   ".|python3 -I -m unittest discover -s sim/ota-gain -p 'test_*.py'"
   ".|python3 -I -m unittest discover -s sim/integrator-noise -p 'test_*.py'"
+  # The OTA swing/compression bench's derivations and record-admission gates
+  # (issue #331, step 1 of the #148 ruling): the finite-gain inversion, the
+  # compression-point interpolation (crossed and never-crossed), the
+  # settled-ness and small-signal-reference gates, and the checks that the
+  # committed deck/request still match their generator and the request is the
+  # DR-002 anchor set. Fixtures only: no fleet, no ngspice, no klt.
+  ".|python3 -I -m unittest discover -s sim/ota-swing -p 'test_*.py'"
   # The comparator bench's derivations (model-B unit conversion, the
   # offset/hysteresis inversion, the decision-time limit), the staircase
   # geometry, and the gates that decide whether its record is written at
