@@ -23,6 +23,7 @@ import json
 import math
 import pathlib
 import sys
+import tempfile
 import unittest
 from contextlib import redirect_stderr
 
@@ -263,6 +264,71 @@ class GainReferenceGate(unittest.TestCase):
         ok, err = refuses(RUNNER.gain_reference_matches, None, {})
         self.assertFalse(ok)
         self.assertIn("REFUSE", err)
+
+    def test_full_reference_compares_every_anchor_for_both_cells(self):
+        corners = full_corners()
+        derived = {cid: {c: RUNNER.derive_cell(settled_segments(), c)
+                         for c in sorted(MK.CELLS)}
+                   for cid in corners}
+        xc = RUNNER.gain_xcheck(corners, derived)
+        self.assertEqual(sorted(xc), ["a", "b"])
+        for per in xc.values():
+            self.assertEqual(len(per), len(ANCHOR_KEYS))
+            for row in per.values():
+                self.assertNotIn("missing_reference", row)
+                self.assertIsNotNone(row["ota_gain_record_db"])
+
+    def test_committed_comparison_column_reproduces(self):
+        # the committed swing record's comparison column is exactly what
+        # gain_xcheck yields from the record's own corners against the
+        # committed ota-gain reference: the single computed-once comparison
+        # changes no recorded value (issue #338)
+        rec = json.loads((HERE / "record.json").read_text())
+        corners = {cid: {"corner_key": tuple(c["corner_key"])}
+                   for cid, c in rec["corners"].items()}
+        derived = {cid: {cell: {"small_signal_gain_db":
+                                c[cell]["small_signal_gain_db"]}
+                         for cell in ("a", "b")}
+                   for cid, c in rec["corners"].items()}
+        self.assertEqual(RUNNER.gain_xcheck(corners, derived),
+                         rec["comparison_column"]["per_anchor"])
+
+    def test_reference_missing_one_corner_refuses_and_names_it(self):
+        # issue #338's reproduction: the swing run keeps all seven corners,
+        # the ota-gain reference loses exactly one -- admission must refuse
+        # naming it, not silently compare the other six
+        corners = full_corners()
+        derived = {cid: {c: RUNNER.derive_cell(settled_segments(), c)
+                         for c in sorted(MK.CELLS)}
+                   for cid in corners}
+        full = RUNNER.gain_xcheck(corners, derived)
+        key = ANCHOR_KEYS[0]
+        gid = f"{key[0]}/{key[1]:.3f}V/{key[2]:g}C"
+        dropped_cid = next(cid for cid in corners
+                           if corners[cid]["corner_key"] == key)
+        rec = json.loads(RUNNER.GAIN_RECORD.read_text())
+        self.assertIn(gid, rec["corners"])
+        del rec["corners"][gid]
+        with tempfile.TemporaryDirectory() as td:
+            ref = pathlib.Path(td) / "gain_record.json"
+            ref.write_text(json.dumps(rec))
+            saved_record = RUNNER.GAIN_RECORD
+            RUNNER.GAIN_RECORD = ref
+            try:
+                xc = RUNNER.gain_xcheck(corners, derived)
+            finally:
+                RUNNER.GAIN_RECORD = saved_record
+        for cell, per in xc.items():
+            self.assertEqual(len(per), len(ANCHOR_KEYS))
+            self.assertIn("missing_reference", per[dropped_cid])
+            self.assertEqual(per[dropped_cid]["missing_reference"], gid)
+            for cid, row in per.items():
+                if cid != dropped_cid:
+                    self.assertEqual(row, full[cell][cid])
+        ok, err = refuses(RUNNER.gain_reference_matches, None, xc)
+        self.assertFalse(ok)
+        self.assertIn("REFUSE", err)
+        self.assertIn(gid, err)
 
 
 class SwingReference(unittest.TestCase):

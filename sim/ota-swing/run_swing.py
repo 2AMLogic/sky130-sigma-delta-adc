@@ -227,7 +227,14 @@ def _nearest(amps, x):
 
 
 def gain_xcheck(corners, derived):
-    """Comparison against sim/ota-gain's 45-corner record, per anchor."""
+    """Comparison against sim/ota-gain's 45-corner record, per anchor.
+
+    One row per expected (cell, corner): a swing corner the reference record
+    does not carry gets an explicit missing-reference row (no record value,
+    delta None) that gain_reference_matches refuses -- a missing comparison
+    must never pass as a verified one (issue #338). An empty return means
+    the reference record itself could not be read.
+    """
     try:
         rec = json.loads(GAIN_RECORD.read_text())
     except (OSError, ValueError):
@@ -237,10 +244,16 @@ def gain_xcheck(corners, derived):
         key = corners[cid]["corner_key"]
         gid = f"{key[0]}/{key[1]:.3f}V/{key[2]:g}C"
         row = rec.get("corners", {}).get(gid)
-        if row is None:
-            continue
         for cell in ("a", "b"):
             small = d[cell]["small_signal_gain_db"]
+            if row is None:
+                out.setdefault(cell, {})[cid] = {
+                    "ota_gain_record_db": None,
+                    "this_bench_small_signal_db": small,
+                    "delta_db": None,
+                    "missing_reference": gid,
+                }
+                continue
             out.setdefault(cell, {})[cid] = {
                 "ota_gain_record_db": row["dc_gain_db"],
                 "this_bench_small_signal_db": small,
@@ -305,14 +318,25 @@ def gain_reference_matches(derived, xcheck, tol=GAIN_XCHECK_TOL_DB):
     This is the bench's own validity gate: the whole compression curve is
     normalized to the small-signal value, so if that value disagrees with the
     independent 45-corner record by more than `tol`, the curve is not the
-    OTA's gain and the record refuses. An empty comparison means the record
-    could not be read or no anchor mapped onto it: nothing was verified,
-    which refuses too.
+    OTA's gain and the record refuses. A comparison row whose reference
+    corner is missing from that record refuses too. An empty comparison
+    means the record could not be read: nothing was verified, which refuses
+    too.
     """
     if not xcheck:
         print("REFUSE: no anchor could be compared against sim/ota-gain's "
               "record (unreadable record, or no corner mapped onto it); the "
               "small-signal reference is unverified, so no record is written",
+              file=sys.stderr)
+        return False
+    missing = sorted({(row["missing_reference"], cell, cid)
+                      for cell, per in xcheck.items()
+                      for cid, row in per.items()
+                      if "missing_reference" in row})
+    if missing:
+        print(f"REFUSE: sim/ota-gain's record has no entry for {missing[:4]}"
+              f"{', ...' if len(missing) > 4 else ''}; the small-signal "
+              "reference is unverified there, so no record is written",
               file=sys.stderr)
         return False
     bad = []
@@ -349,12 +373,12 @@ def swing_reference_block():
     }
 
 
-def build_record(results, stamp, pin, rep_env, provenance=None):
+def build_record(results, derived, xcheck, stamp, pin, rep_env,
+                 provenance=None):
+    """`derived` and `xcheck` are the very ones the admission gate ran on
+    (issue #338): the record serialises the comparison that passed, not a
+    second one computed again at write time."""
     corners = results["corners"]
-    derived = {cid: {cell: derive_cell(c["segments"], cell)
-                    for cell in sorted(mk.CELLS)}
-               for cid, c in corners.items()}
-    xcheck = gain_xcheck(corners, derived)
 
     summary_cells = {}
     for cell in sorted(mk.CELLS):
@@ -587,15 +611,16 @@ def main():
              and segments_settled(corners))
     if not gates:
         return 1
-    derived_probe = {cid: {cell: derive_cell(c["segments"], cell)
-                           for cell in sorted(mk.CELLS)}
-                     for cid, c in corners.items()}
-    if not gain_reference_matches(derived_probe, gain_xcheck(corners, derived_probe)):
+    derived = {cid: {cell: derive_cell(c["segments"], cell)
+                     for cell in sorted(mk.CELLS)}
+               for cid, c in corners.items()}
+    xcheck = gain_xcheck(corners, derived)
+    if not gain_reference_matches(derived, xcheck):
         return 1
     print(json.dumps({cid: {mk.CELLS[cell]["label"]: {
-        "small_signal_gain_db": derived_probe[cid][cell]["small_signal_gain_db"],
-        "cp1_vpp": derived_probe[cid][cell]["compression"]["cp1_vpp"],
-        "cp3_vpp": derived_probe[cid][cell]["compression"]["cp3_vpp"]}
+        "small_signal_gain_db": derived[cid][cell]["small_signal_gain_db"],
+        "cp1_vpp": derived[cid][cell]["compression"]["cp1_vpp"],
+        "cp3_vpp": derived[cid][cell]["compression"]["cp3_vpp"]}
         for cell in sorted(mk.CELLS)} for cid in sorted(corners)}, indent=2))
     if not a.record:
         print(f"all {len(sc.ANCHOR_POINTS)} anchors complete; "
@@ -604,7 +629,8 @@ def main():
 
     rec = build_record({"corners": corners,
                         "batch_receipt": saved.get("batch_receipt")},
-                       stamp, pin, saved["environment"], saved.get("provenance"))
+                       derived, xcheck, stamp, pin,
+                       saved["environment"], saved.get("provenance"))
     out.write_text(json.dumps(rec, indent=2) + "\n")
     print(f"wrote {out.name}: pass={rec['pass']} "
           f"({rec['summary']['pass']}/{rec['summary']['corner_count']} anchors)")
