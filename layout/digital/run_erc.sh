@@ -29,6 +29,11 @@ case "${1:-}" in
     klt erc "$GDS" "$SPEC" --top decimator --deck sky130 \
       --omit-antenna-tables --format json > "$REPORT.tmp" || rc=$?
     # exit 4 = antenna "not_checked" (no --pdk) with findings still reported.
+    if [ "$rc" -eq 0 ]; then
+      rm -f "$REPORT.tmp"
+      echo "klt erc exited 0, expected 4 (antenna not_checked) -- the klt exit-code contract changed; the committed report was NOT regenerated" >&2
+      exit 1
+    fi
     if [ "$rc" -ne 4 ]; then
       echo "klt erc failed (exit $rc):" >&2
       cat "$REPORT.tmp" >&2 || true; rm -f "$REPORT.tmp"
