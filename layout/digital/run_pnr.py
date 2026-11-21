@@ -5,7 +5,10 @@
 
 Runs `klt place-and-route` on layout/digital/pnr_request.json against the pinned PDK
 (sim/pdk.json) and copies the routed GDS, DEF, as-built netlist and post-route SDF next
-to the request.
+to the request. The response itself is saved verbatim beside them as
+pnr-decimator.report.json (T1 item 11 digital, #39, reads power.pdn/tapcell_master/
+straps from it); a run that refuses on the PDK pin or runs --check leaves the
+committed copy alone.
 --check leaves the committed files alone and exits 3 if the fresh GDS differs from the
 committed one (raw bytes), else 0. The flow takes tens of minutes (detailed routing).
 Exit 2 = the PDK klt recorded in the report (provenance.pdk.version) is absent or
@@ -17,6 +20,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 OUT = {"gds_path": "decimator.gds", "def_path": "decimator.def", "verilog_path": "decimator_pnr.v",
        "sdf_path": "decimator.sdf"}
+REPORT_NAME = "pnr-decimator.report.json"
 
 
 def out_source(rep, key):
@@ -65,6 +69,8 @@ def main():
     if stamp != pin["sources_stamp"]:
         print(f"REFUSE: report PDK is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
         return 2
+    if not a.check:
+        (HERE / REPORT_NAME).write_text(o.stdout if o.stdout.endswith("\n") else o.stdout + "\n")
     drift = False
     for key, name in OUT.items():
         v = out_source(rep, key)

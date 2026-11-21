@@ -16,6 +16,9 @@ What is pinned here:
   default it supplied to `.get()` *was* the value it compared against.
 - A matching stamp admits the copy path (artifacts land next to the request)
   and `--check` reports GDS drift as exit 3 without overwriting anything.
+- A matching stamp also saves klt's response verbatim as
+  pnr-decimator.report.json (#332), while `--check` and a PDK refusal leave
+  a committed copy untouched.
 - The reason the old gate was inert, replayed against the three committed JSON
   documents in this directory: none of them carries a top-level `pdk.version`,
   so a top-level read can only ever fall through to its default. Each now takes
@@ -173,6 +176,38 @@ class PdkPinRefusal(unittest.TestCase):
         with fake_flow(report(WRONG), returncode=1) as (_, _here, _err):
             rc = RUNNER.main()
             self.assertEqual(rc, 1)
+
+
+class SavedResponse(unittest.TestCase):
+    """The runner saves klt's response next to the request (#332 step 5).
+
+    The committed pnr-decimator.report.json is item 11 digital's (#39) source
+    for power.pdn / power.tapcell_master / power.straps, so it must be the
+    response verbatim -- not a re-serialization -- and every path that would
+    not regenerate it (a PDK-pin refusal, --check) must leave a committed
+    copy untouched.
+    """
+
+    def test_matching_stamp_saves_the_response_verbatim(self):
+        rep = report()
+        with fake_flow(rep) as (_, here, _err):
+            rc = RUNNER.main()
+            self.assertEqual(rc, 0)
+            self.assertEqual((here / RUNNER.REPORT_NAME).read_text(),
+                             json.dumps(rep) + "\n")
+
+    def test_check_mode_leaves_the_committed_report_alone(self):
+        with fake_flow(report(), argv=("run_pnr.py", "--check"),
+                       committed={RUNNER.REPORT_NAME: b"OLD", "decimator.gds": b"GDS"}) as (_, here, _err):
+            rc = RUNNER.main()
+            self.assertEqual(rc, 0)
+            self.assertEqual((here / RUNNER.REPORT_NAME).read_bytes(), b"OLD")
+
+    def test_pdk_refusal_does_not_overwrite_the_committed_report(self):
+        with fake_flow(report(WRONG), committed={RUNNER.REPORT_NAME: b"OLD"}) as (_, here, _err):
+            rc = RUNNER.main()
+            self.assertEqual(rc, 2)
+            self.assertEqual((here / RUNNER.REPORT_NAME).read_bytes(), b"OLD")
 
 
 class CommittedReportShapes(unittest.TestCase):
