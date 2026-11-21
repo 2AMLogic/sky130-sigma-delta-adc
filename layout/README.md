@@ -14,6 +14,9 @@ gate-level netlist `rtl/netlist/decimator_synth.v`. Not hand-edited.
 | `decimator.def`, `decimator_pnr.v` | routed DEF and as-built netlist (CTS buffers included): the LVS reference for the digital partition (item 4, below); analog-partition and assembled-top LVS stay with #32 |
 | `sta_request.json` | the multi-corner `klt sta` request on the routed DEF |
 | `sta-decimator.report.json` | the committed STA report (T1 item 5, digital, with `verification/decimator/fv-decimator.report.json`) |
+| `erc_request.json` | the `klt erc` supply spec (T1 item 11, digital: `VDDD`/`VSSD` islands, ties, strap ownership) |
+| `run_erc.sh` | driver; `layout/digital/run_erc.sh` regenerates the ERC report, `--check` re-hashes |
+| `erc-decimator.report.json` | the committed ERC supply report (T1 item 11, digital; see the ERC section) |
 
 Recorded choices (`pnr_request.json`):
 
@@ -81,7 +84,7 @@ derived from the layout (`VGND`, `VPB`, `VPWR`, declared by every one of the
 declaration and gets the relative-consistency check instead — the verdict says
 every instance's `VPB` reaches the same net, and does not name which. This
 checks per-cell-instance pin-to-net correctness, not the geometric rails:
-power-delivery evidence stays with item 11 (`klt erc`, #39).
+power-delivery evidence stays with item 11 (`klt erc`, #333).
 
 Warnings-only disclosures (all five report entries, none an error; the verdict
 is `match` with these listed, per the item-4 grading rule): three `topology`
@@ -103,6 +106,40 @@ absolute home path, which `klt env-provenance scan` itself flags as a leak
 instead). Not hand-edited out; filed generically as
 `2AMLogic/klayout-tools#5812`. Every other path in the report and the signoff
 record is repo-relative or tilde-rooted.
+
+## ERC supply continuity (T1 item 11, digital — #333)
+
+`klt erc` (pinned klt 0.9.2, klayout 0.30.13, `sky130` device deck) on
+`decimator.gds`, top `decimator`, with the supply spec `digital/erc_request.json`
+(content-pinned by the report) reports `erc_status: clean` — 0 findings — with all
+four declared supplies (`VDDD`, `VSSD`, `VPWR`, `VGND`) resolving to exactly one
+island each. Report `digital/erc-decimator.report.json`; reproduce with
+`digital/run_erc.sh --check` (re-hash of the committed layout/spec, seconds) or
+`digital/run_erc.sh` to regenerate (under a minute; antenna ratios are not graded —
+no `--pdk` — so the run exits 4 with antenna `not_checked` by design and the script
+gates on `erc_status`). What the spec asks, and why it is evidence rather than a
+formality:
+
+- **One node per supply, twice-labelled.** The PDN joins the top-level `VDDD`/`VSSD`
+  met5 strap labels to the per-cell `VPWR`/`VGND` met1 rail labels; each pair is
+  declared `same_net_as`, so the join is a graded assertion (`erc.expected_short_missing`
+  the day it is cut), not a suppressed short.
+- **No orphan straps.** `VDDD`/`VSSD` own the strap layers (`roles: met4, met5`):
+  conductor on those layers reachable from no label counts as `erc.unlabelled_conductor`
+  (0 islands, 0 um2 measured). The few signal segments routed there (86 NEW met4,
+  1 NEW met5 in the DEF) are label-reachable through cell pins, so the measurement
+  stays the severed-strap negative.
+- **Ties, through the 1625 `tapvpwrvgnd` cells.** The n-well (`64/20`) tie to `VPWR`
+  and the substrate tie to `VGND` (sky130 draws no p-well: the substrate half is the
+  stream-derived complement of nwell, `well_complement_of` — disclosed in
+  `erc_coverage.checked_by_well_assertion`, not a literal box list) both graded
+  `checked` via the dedicated tap layer `65/44`; nothing in `erc_coverage.skipped`.
+
+This is the ERC third of item 11's compound citation. The row cannot reach `met`
+until the `klt place-and-route` response (`power.pdn: true`, `tapcell_master`,
+strap layers inside this spec's stackup) is committed and cited beside it — the
+P&R re-run that produces it is #332 (tracked for #162), after which `11.digital`
+is cited in `manifests/sky130-sigma-delta-adc.json` (#333 Part B).
 
 ## Multi-corner STA (T1 item 5, digital)
 
