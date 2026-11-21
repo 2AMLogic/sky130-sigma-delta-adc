@@ -64,8 +64,10 @@ Evidence on `main` that does not yet move a row:
   top-level devices, assemble `modulator.gds` per DR-004. After #119 and #121.
 - **After #29**: DRC of the analog partition and the top (#31), analog LVS (#32),
   the assembled ADC stream (#122), power delivery (#39), post-layout `klt pex` (#35).
-- **Item 11, digital** (part of #39): `klt erc` supply evidence for `VDDD`/`VSSD`,
-  once the digital LVS report carries `power_connectivity.status: match`.
+- **Item 11, digital** (#333, carved out of #39): `klt erc` supply evidence for
+  `VDDD`/`VSSD` is committed clean (`layout/digital/erc-decimator.report.json`);
+  the row turns `met` when the `klt place-and-route` response (#332, for #162)
+  is committed and cited beside it (#333 Part B).
 - **Decimator electrical rules** (no issue yet; file after #136 so the STA report
   is regenerated once): `layout/README.md` records 660 max-transition and 7
   max-capacitance violations at `ss_n40C_1v60`. Done when the committed STA report
