@@ -3,7 +3,8 @@ generators.
 
 `gen_ota_fd.py` and `gen_integrator.py` grew paste-copies of the flow
 scaffolding: `nm`/`snap`/`run`/`emit`, the klt build pin, the extracted
-netlist parsers, and then the geometry vocabulary and router core themselves
+netlist parsers, the `klt gen` block runner (issue #335), and then the
+geometry vocabulary and router core themselves
 (`Rect`/`RouteError`/`Anchor` and eleven `Router` methods, issue #182).  The
 copies had already drifted -- the two extract parsers picked an X-line's model
 token with two different predicates, so the two cells' device-count evidence
@@ -86,6 +87,34 @@ def assert_drc_clean(drc: dict, report_path: str) -> None:
         f"klt drc status={status!r} violations={violations!r} "
         f"(expected 'clean'/0): {rules}. Report written to {report_path} "
         "before this raise; the flow aborts and nothing is emitted.")
+
+
+def gen_blocks(klt_cmd: list[str], pdk_args: list[str], out_dir: Path,
+               blocks: list[tuple[str, str, str, dict]]) -> dict[str, dict]:
+    """Run one `klt gen` call per block and file each JSON report.
+
+    Each block is ``(block_id, generator, cell_name, params)`` in the order
+    the calls must happen.  The caller owns both the order (the OTA lists
+    its floorplan row order, the integrator sorts ids) and the cell name
+    (the OTA names each block explicitly, the integrator uppercases the
+    id) -- the runner sorts nothing and uppercases nothing, so each cell's
+    call sequence is whatever it passes.  Issue #335 moved this in from the
+    OTA generator: the integrator's device-geometry and guard-ring loops
+    were paste-copies of the same run/parse/raise/write sequence, so a
+    change to the `klt gen` command or the report contract needed three
+    edits.
+    """
+    reports: dict[str, dict] = {}
+    for block_id, generator, cell_name, params in blocks:
+        r = run([*klt_cmd, "gen", generator, "--params", json.dumps(params, sort_keys=True)]
+                + pdk_args + ["--cell-name", cell_name, "-o", f"{block_id}.gds",
+                              "--format", "json"], cwd=out_dir)
+        report = json.loads(r.stdout)
+        if report.get("error"):
+            raise RuntimeError(f"klt gen {block_id}: {report['error']}")
+        (out_dir / f"{block_id}.json").write_text(r.stdout)
+        reports[block_id] = report
+    return reports
 
 
 def klt_pin(klt_cmd: list[str]) -> dict:

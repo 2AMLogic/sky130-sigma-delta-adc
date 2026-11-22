@@ -235,19 +235,20 @@ class PerClockReduction(unittest.TestCase):
         import tempfile
         _, samples = RUNNER.extract(report())
         with tempfile.TemporaryDirectory() as td:
-            index = RUNNER.write_samples(samples, pathlib.Path(td))
+            outdir = pathlib.Path(td) / "samples"
+            index = RUNNER.write_samples(samples, outdir)
             self.assertEqual(len(index), len(MK.ANCHOR_POINTS))
             for cid, entry in index.items():
                 self.assertEqual(entry["n_clocks"], MK.N_REC)
                 self.assertEqual(len(entry["sha256"]), 64)
-                self.assertTrue(entry["file"].startswith(pathlib.Path(td).name + "/"))
+                # repo-relative, naming the bench's own samples directory
+                self.assertTrue(entry["file"].startswith("samples/"))
+                self.assertFalse(entry["file"].startswith("samples//"))
 
     def test_later_records_do_not_reuse_the_committed_samples_dir(self):
-        # issue #148: a second record must not overwrite record.json's samples
-        self.assertEqual(RUNNER.samples_dir_for("record.json"), RUNNER.SAMPLES)
-        other = RUNNER.samples_dir_for("record-c0p3.json")
-        self.assertNotEqual(other, RUNNER.SAMPLES)
-        self.assertEqual(other.name, "samples-record-c0p3")
+        self.assertEqual(RUNNER.samples_dir_for(MK.RECORD_NAME), RUNNER.SAMPLES)
+        self.assertEqual(RUNNER.samples_dir_for("record-c0p3.json"),
+                         HERE / "samples-record-c0p3")
 
     def test_corner_slug_is_a_safe_filename(self):
         for c in report()["corners"]:
@@ -395,6 +396,169 @@ class RecordBindings(unittest.TestCase):
         self.assertEqual(
             record["request_sha256"],
             hashlib.sha256((HERE / "request.json").read_bytes()).hexdigest())
+
+
+LONG_WINDOW_S = MK.N_REC_LONG * MK.TPER
+
+
+def long_report(n_anchors=len(ANCHOR_IDS)):
+    """A klt sim report shaped like the long bench's: the same scalars, but
+    per-clock sample cards on the long bench's clock range (64..4159)."""
+    def corner(cid):
+        proc, _, temp = cid.split("/")
+        vdda = float(cid.split("vdda=")[1].split("V")[0])
+        vals = scalars()
+        vals["e_vdda"] = vals["p_vdda"] * LONG_WINDOW_S
+        vals["phi1_edges"] = MK.N_REC_LONG
+        vals["bs_edges"] = 2000
+        ms = [{"name": k, "value": v, "status": "pass"} for k, v in vals.items()]
+        ms.append({"name": "bs_edges", "value": vals["bs_edges"], "status": "pass",
+                   "crossings": {"times": [1e-6, 2e-6], "edges": ["rise", "fall"],
+                                 "truncated": False}})
+        for i, k in enumerate(MK.LONG.REC_CLOCKS):
+            ms.append({"name": f"sb_{k:05d}", "value": vdda if i % 2 else 0.0})
+            ms.append({"name": f"s1_{k:05d}", "value": 0.1 * ((i % 7) - 3)})
+            ms.append({"name": f"s2_{k:05d}", "value": 0.05 * ((i % 5) - 2)})
+        return {"corner_id": cid, "process": proc, "supply_v": {"vdda": vdda},
+                "temperature_c": float(temp.rstrip("C")), "status": "pass",
+                "measurements": ms, "diagnostics": []}
+    return {"corners": [corner(cid) for cid in ANCHOR_IDS[:n_anchors]],
+            "environment": {"engine_version": "46"}, "measurements": []}
+
+
+class LongBenchRequest(unittest.TestCase):
+    """The long-record bench (DR-001 corrigendum 01, issue #290): its own
+    deck/request/samples/record files and its own fleet budget, with the
+    committed 1024-clock bench untouched. What is pinned here:
+
+    - the committed request_long.json / modulator_tran_long.cir are what
+      make_request.py --long generates;
+    - the long deck is electrically identical to the short deck (only the
+      coherence comment line moves), so the length change cannot silently
+      change the circuit;
+    - the tone is coherent and lands on an exact integer bin (12 over 4096
+      clocks = 15 kHz = bin 12 at 1250 Hz);
+    - the fleet budget fits the whole-job ceiling (3300 s x 1 unit + 120
+      <= 3600 s), one corner per job, and the submit waits for capacity;
+    - the admission gates are parameterized: a complete 4096-clock report
+      passes them, and a short one is refused;
+    - the long record carries the corrigendum's identity, not the short
+      bench's."""
+
+    def test_committed_long_request_matches_make_request(self):
+        self.assertEqual(MK.build_request(long=True),
+                         json.loads((HERE / MK.REQUEST_LONG).read_text()))
+
+    def test_committed_long_deck_matches_make_request(self):
+        self.assertEqual(MK.build_deck(long=True),
+                         (HERE / MK.DECK_LONG).read_text())
+
+    def test_long_deck_is_electrically_identical_to_the_short_deck(self):
+        short = (HERE / MK.DECK).read_text().splitlines()
+        long_deck = (HERE / MK.DECK_LONG).read_text().splitlines()
+        self.assertEqual(len(short), len(long_deck))
+        diff = [(a, b) for a, b in zip(short, long_deck) if a != b]
+        self.assertEqual(len(diff), 1, "only the coherence comment may differ")
+        self.assertIn("12 whole cycles over the 4096 recorded", diff[0][1])
+        self.assertTrue(all(b.lstrip().startswith("*") for _, b in diff),
+                        "the differing line must be a comment")
+
+    def test_tone_is_coherent_and_lands_on_an_exact_integer_bin(self):
+        fin = MK.CYCLES_LONG * MK.FS_HZ / MK.N_REC_LONG
+        self.assertEqual(fin, 15000.0)
+        bin_bw = MK.FS_HZ / MK.N_REC_LONG
+        self.assertEqual(bin_bw, 1250.0)
+        self.assertEqual(fin / bin_bw, 12.0)
+        self.assertEqual(MK.CYCLES_LONG, 12)
+
+    def test_one_corner_per_job_inside_the_whole_job_ceiling(self):
+        req = json.loads((HERE / MK.REQUEST_LONG).read_text())
+        batch = req["batch"]
+        timeout = req["options"]["timeout_s"]
+        self.assertEqual(batch["max_units_per_job"], 1)
+        self.assertEqual(timeout, 3300)
+        self.assertLessEqual(timeout * batch["max_units_per_job"] + 120, 3600)
+        self.assertEqual(batch["capacity_wait_s"], 600)
+
+    def test_long_files_are_distinct_from_the_committed_bench(self):
+        # the long bench must never overwrite the committed evidence chain
+        self.assertNotEqual(MK.DECK, MK.DECK_LONG)
+        self.assertNotEqual(MK.REQUEST, MK.REQUEST_LONG)
+        self.assertNotEqual(MK.SAMPLES_DIR, MK.LONG.SAMPLES_DIR)
+        self.assertNotEqual(MK.RECORD_NAME, MK.LONG.RECORD_NAME)
+        self.assertNotEqual(MK.TAG, MK.LONG.TAG)
+
+    def test_complete_4096_clock_run_passes_every_gate(self):
+        corners, samples = RUNNER.extract(long_report(),
+                                          rec_clocks=MK.LONG.REC_CLOCKS)
+        self.assertTrue(RUNNER.anchors_complete(corners))
+        self.assertTrue(RUNNER.scalars_present(corners))
+        self.assertTrue(RUNNER.samples_present(samples, n_rec=MK.N_REC_LONG))
+        self.assertTrue(RUNNER.clock_ran_at_fs(corners, n_rec=MK.N_REC_LONG))
+        self.assertTrue(RUNNER.power_routes_agree(corners, LONG_WINDOW_S))
+
+    def test_short_sample_set_is_refused_at_the_long_length(self):
+        _, samples = RUNNER.extract(long_report(), rec_clocks=MK.LONG.REC_CLOCKS)
+        for cid in samples:
+            for key in ("bs_v", "o1d_v", "o2d_v"):
+                samples[cid][key] = samples[cid][key][:-1]
+        ok, err = refuses(RUNNER.samples_present, samples, n_rec=MK.N_REC_LONG)
+        self.assertFalse(ok)
+        self.assertIn("want 4096", err)
+
+    def test_long_record_carries_the_corrigendum_identity(self):
+        RUNNER.B = MK.LONG
+        self.addCleanup(setattr, RUNNER, "B", MK)
+        self.assertEqual(RUNNER.samples_dir_for(MK.LONG.RECORD_NAME),
+                         HERE / MK.LONG.SAMPLES_DIR)
+        corners, _ = RUNNER.extract(long_report(), rec_clocks=MK.LONG.REC_CLOCKS)
+        rec = RUNNER.build_record(
+            {"corners": corners, "samples_index": {}},
+            "open_pdks test", {"open_pdks_revision": "deadbeef"},
+            {"engine_version": "46"}, LONG_WINDOW_S)
+        self.assertEqual(rec["record_length"]["modulator_clocks"], 4096)
+        self.assertEqual(rec["record_length"]["output_samples_at_osr_128"], 32.0)
+        self.assertIn("corrigendum 01", rec["fixture"])
+        self.assertIn("corrigendum 01", rec["evidence_source"])
+        self.assertIn("4096", rec["record_length"]["chosen_because"])
+        self.assertFalse(rec["sndr"]["computed"])
+        self.assertIn("BOTH sides", rec["sndr"]["why_not"])
+
+
+class LongRecordBindings(unittest.TestCase):
+    """record-long.json binds itself to the long bench's own deck/request and
+    samples, exactly as record.json does for the short bench -- and the
+    committed short record stays the 1024-clock record it has always been."""
+
+    def test_long_record_binds_the_long_deck_and_request(self):
+        import hashlib
+        record = json.loads((HERE / MK.LONG.RECORD_NAME).read_text())
+        self.assertEqual(record["record_length"]["modulator_clocks"],
+                         MK.N_REC_LONG)
+        self.assertEqual(
+            record["deck_sha256"],
+            hashlib.sha256((HERE / MK.DECK_LONG).read_bytes()).hexdigest())
+        self.assertEqual(
+            record["request_sha256"],
+            hashlib.sha256((HERE / MK.REQUEST_LONG).read_bytes()).hexdigest())
+
+    def test_long_samples_are_committed_under_samples_long(self):
+        import hashlib
+        record = json.loads((HERE / MK.LONG.RECORD_NAME).read_text())
+        self.assertEqual(len(record["samples"]), len(MK.ANCHOR_POINTS))
+        for cid, s in record["samples"].items():
+            self.assertTrue(s["file"].startswith(MK.LONG.SAMPLES_DIR + "/"),
+                            s["file"])
+            self.assertEqual(s["n_clocks"], MK.N_REC_LONG)
+            path = HERE / s["file"]
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),
+                             s["sha256"])
+
+    def test_committed_short_record_is_untouched(self):
+        record = json.loads((HERE / "record.json").read_text())
+        self.assertEqual(record["record_length"]["modulator_clocks"], 1024)
+        self.assertIn("samples/", record["samples"][
+            "tt/vclk=1.800_vdda=1.800V/27C"]["file"])
 
 
 if __name__ == "__main__":

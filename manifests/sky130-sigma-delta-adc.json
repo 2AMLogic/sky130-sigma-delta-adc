@@ -72,7 +72,7 @@
     },
     "10": {
       "file": "attestation/item10-envelope.json",
-      "content_hash": "sha256:02c59c092ccf82d8c16fe91d33b430d381d06a2275646b2901ccec8ce2d1eeac"
+      "content_hash": "sha256:5df1872c10391b1ba1b99dd03e2f71bdfbdfd0b623cd2ee2a4afba597597d863"
     }
   },
   "spec_rows": {

@@ -133,6 +133,59 @@ The deck is hash-bound evidence of a past run, so prose *about* the deck
 comments; a deck edit without a re-run breaks the first binding above and
 reads as drift.
 
+## The long bench — `record-long.json` (DR-001 corrigendum 01, issue #290)
+
+The cross-check's in-band SNDR leg needs in-band noise bins beside the tone
+lobe; at 1024 clocks the 4-term Blackman-Harris lobe covers the whole 20 kHz
+band (`sim/bmodel/xcheck-record.json`, `sndr_inband_db.reason`).
+[DR-001 corrigendum 01](../../spec/decisions/DR-001-corrigendum-01.md) —
+written to the operator ruling on issue #290 (option `a`: lengthen the
+record until the leg is computable, 3 dB gate unchanged, cross-check stays
+SNDR against SNDR) — lengthens it to **4096 recorded clocks**: 1250 Hz bins,
+16 band bins, the tone at exact bin 12 (15 kHz coherent, −6 dBFS), and 7
+in-band noise bins beside the 9-bin lobe.
+
+The length is the longest band-resolving power of two that fits the batch
+fleet's 3600 s whole-job ceiling, with the cost measured before the corner
+set launched: the probe run (one corner, tt/27 °C/1.80 V, 4160 clocks,
+fleet job `klt-sim-56a43a043984`) took **1104.6 s of unit runtime** —
+against 441–606 s per 1088 clocks for this bench's committed run — and
+8192 recorded clocks extrapolate past the ceiling at every measured
+per-clock rate. One unit's transient runtime is not reducible by sharding
+(sharding divides units per job, never one unit's runtime), so the long
+bench runs **one corner per job** (`max_units_per_job: 1`,
+`timeout_s: 3300`; serial bound 3300 × 1 + 120 = 3420 s ≤ 3600 s) in seven
+concurrent jobs, `--resume` recovering capacity-refused shards as usual.
+
+    python3 -I sim/modulator-tran/make_request.py --long   # long deck + request
+    python3 -I sim/modulator-tran/run_tran.py --long       # the 7 anchors, batch
+    python3 -I sim/modulator-tran/run_tran.py --long --resume
+    python3 -I sim/modulator-tran/run_tran.py --long --record
+
+The long bench writes its own files — deck `modulator_tran_long.cir`,
+request `request_long.json`, per-anchor samples `samples-long/`, record
+`record-long.json` — and never touches the committed 1024-clock bench
+files. That separation is not style: `record.json` binds its deck/request
+by sha256, the item-5 envelope (`sim/bmodel/item5-model-run.json`) pins
+`sim/bmodel/xcheck-record.json`, and the manifest pins the envelope — the
+short bench's evidence chain stays exactly as committed, and the long bench
+appends to it. `modulator_tran_long.cir` is electrically identical to
+`modulator_tran.cir` (only the coherence comment line moves); the analysis
+end time extends with the record. The long run's raw `klt sim` report stays
+in `.artifacts/` (it is ~4× the short bench's report and nothing cites it
+yet); `record-long.json` carries the provenance: batch job ids, the staged
+request sha256, engine and klt versions, per-corner runtime and peak RSS.
+
+The long bench still claims **no standalone SNDR**: the in-band SNDR
+figures live in the cross-check (`sim/bmodel/xcheck.py --all --long`,
+operative record `sim/bmodel/xcheck-record-long-dc-excluded.json`; the
+first derivation, `xcheck-record-long.json`, summed bins 1..edge without
+spec §1.2's DC-leakage exclusion and is superseded by it), which computes
+BOTH sides — B
+re-run on the T input sequence over the same 4096 clocks — identically and
+compares them at DR-001's unchanged 3 dB gate. The bench supplies the
+transistor-level side: bitstreams, integrator waveforms, admission gates.
+
 ## What it measures, and against what
 
 Every measurement below carries `limits` and a `spec_row` tag in the `klt sim`

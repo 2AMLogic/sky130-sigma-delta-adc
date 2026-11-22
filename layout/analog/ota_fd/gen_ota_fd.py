@@ -66,7 +66,7 @@ from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_MET2,
                            PDK_VARIANT, TRACK_PITCH_UM,
                            TRUNK_PITCH_UM, Anchor, Rect, RouteError,
                            Router as RouterBase, WIRE_UM, assert_drc_clean,
-                           extract_nets, klt_pin, nm,
+                           extract_nets, gen_blocks, klt_pin, nm,
                            parse_extract_devices, run, run_cli, snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
@@ -265,21 +265,6 @@ def expand_ports(block_id: str, generator: str, params: dict) -> dict[str, str]:
             else:
                 out[f"{leg}_{suffix}"] = net
     return out
-
-
-def gen_blocks(klt_cmd: list[str], pdk_args: list[str], out_dir: Path,
-               blocks: list[tuple[str, str, str, dict]]) -> dict[str, dict]:
-    reports: dict[str, dict] = {}
-    for block_id, generator, cell_name, params in blocks:
-        r = run([*klt_cmd, "gen", generator, "--params", json.dumps(params, sort_keys=True)]
-                + pdk_args + ["--cell-name", cell_name, "-o", f"{block_id}.gds",
-                              "--format", "json"], cwd=out_dir)
-        report = json.loads(r.stdout)
-        if report.get("error"):
-            raise RuntimeError(f"klt gen {block_id}: {report['error']}")
-        (out_dir / f"{block_id}.json").write_text(r.stdout)
-        reports[block_id] = report
-    return reports
 
 
 def size_of(report: dict) -> tuple[float, float]:

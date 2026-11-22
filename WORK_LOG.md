@@ -2,8 +2,32 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-18
+
+- **PR #326**: ci: run the signoff check on merge_group events
+- **Issue #325** (closed): Merge queue: add the merge_group trigger to the required-check workflow(s)
+- **PR #323**: attest: hash the gate's command list - add scripts/check-ci.sh to item 10 hygiene
+- **Issue #321** (closed): item-10 attestation no longer hashes the file holding the gate's command list (scripts/check-ci.sh)
+- **PR #320**: bmodel: sweep the span seed spread over the landed long-record inputs
+- **PR #317**: ci: single-source the tool-free gate in check-ci.sh; signoff.yml calls it
+- **PR #316**: docs: cite the span-leg seed-spread record beside the span verdict
+- **PR #314**: bmodel: record the span_10pct leg's seed-realisation spread at every DR-002 anchor
+- **PR #306**: feat(cross-check): DR-001 corrigendum 01 — 4096-clock long-record T transient, in-band SNDR leg failing robustly at 5 of 7 anchors, indeterminate at tt and sf
+- **Issue #319** (closed): Re-run the span_10pct seed-spread sweep over the long-record inputs once #306 lands
+- **Issue #318** (closed): attestation: no regression test pins verify_issues' exit-3 'could not run' path
+- **Issue #315** (closed): Cite the span-leg seed-spread record from measurements/characterization.md's span sentence
+- **Issue #312** (closed): Single-source the local gate: signoff.yml calls scripts/check-ci.sh
+- **Issue #311** (closed): DR-001 span_10pct leg: the B-side span's own seed-realisation spread (~13% on o2) exceeds its 10% gate
+- **PR #310**: gate: run the klt signoff --check re-hash steps locally in check-ci.sh
+- **Issue #308** (closed): No local gate catches a commit that touches an item-9 inventory file without regenerating the envelope
+
 ### 2026-11-17
 
+- **Issue #169** (closed): Confirm klayout-tools#1962 actually describes the #121 blocker that parks analog items 2, 3, 4, 7, 11
+- **PR #298**: docs: sync ROADMAP T1 counts and row states to the verdict of record, gate prose counts in CI
+- **Issue #221** (closed): ROADMAP.md T1 counts and row 4 are stale vs the verdict of record; nothing in CI gates a prose count
+- **PR #300**: docs: prune landed rows and stale klt-pin prose from ROADMAP's Now table
+- **Issue #297** (closed): ROADMAP.md residual prose drift: Now-table rows for landed work and stale klt 0.8.0 pin mentions
 - **PR #295**: docs: add DR-008 corrigendum 03 and re-point the STA-gap citation off closed #131
 - **PR #292**: chore(loom): resync installed Loom to v0.19.1306
 - **PR #289**: fix(integrator-layout): route sump/sumn as a matched pair, gating 3% symmetry
