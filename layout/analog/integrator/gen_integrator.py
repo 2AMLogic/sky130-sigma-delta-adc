@@ -79,7 +79,8 @@ from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_MET2, L_VIA,
                            PDK_VARIANT, TRACK_PITCH_UM,
                            TRUNK_PITCH_UM, VIA_UM, WIRE_UM, Anchor,
                            Rect, RouteError, Router as RouterBase,
-                           assert_drc_clean, extract_nets, klt_pin, nm,
+                           assert_drc_clean, extract_nets, gen_blocks,
+                           klt_pin, nm,
                            parse_extract_devices, run, run_cli, snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
@@ -197,7 +198,7 @@ OTA_AXIS_LABELS = ("inn", "inp")
 #: `blocks[]` entries -- so the device count and the number of `klt gen` calls
 #: differ and drift as the netlist is regenerated.  Do not quote either here:
 #: `extract-device-count.json` records the device count, and the call count is
-#: one per entry in this table (see `gen_geometries`).
+#: one per entry in this table (one `gen_blocks` call each, in `flow`).
 #:
 #: `dummy` is 0 everywhere, as in the sibling OTA cell: klt's dummy elements do
 #: not extract as devices, but they widen every row and nothing here needs
@@ -547,39 +548,6 @@ def port_nets_of(block: Block) -> dict[str, str]:
     generator = GEOMETRIES[block.geometry][0]
     prefix = "C0_" if generator == "cap_array" else "U0_"
     return {prefix + suffix: net for suffix, net in sorted(block.nets.items())}
-
-
-def gen_geometries(klt_cmd: list[str], pdk_args: list[str], out_dir: Path,
-                   wanted: list[str]) -> dict[str, dict]:
-    """One `klt gen` call per distinct geometry, keyed by its id."""
-    reports: dict[str, dict] = {}
-    for key in sorted(wanted):
-        generator, params = GEOMETRIES[key]
-        r = run([*klt_cmd, "gen", generator, "--params", json.dumps(params, sort_keys=True)]
-                + pdk_args + ["--cell-name", key.upper(), "-o", f"{key}.gds",
-                              "--format", "json"], cwd=out_dir)
-        report = json.loads(r.stdout)
-        if report.get("error"):
-            raise RuntimeError(f"klt gen {key}: {report['error']}")
-        (out_dir / f"{key}.json").write_text(r.stdout)
-        reports[key] = report
-    return reports
-
-
-def gen_rings(klt_cmd: list[str], pdk_args: list[str], out_dir: Path,
-              ring_params: dict[str, dict]) -> dict[str, dict]:
-    reports: dict[str, dict] = {}
-    for ring_id in sorted(ring_params):
-        r = run([*klt_cmd, "gen", "guard_ring", "--params",
-                 json.dumps(ring_params[ring_id], sort_keys=True)]
-                + pdk_args + ["--cell-name", ring_id.upper(), "-o", f"{ring_id}.gds",
-                              "--format", "json"], cwd=out_dir)
-        report = json.loads(r.stdout)
-        if report.get("error"):
-            raise RuntimeError(f"klt gen {ring_id}: {report['error']}")
-        (out_dir / f"{ring_id}.json").write_text(r.stdout)
-        reports[ring_id] = report
-    return reports
 
 
 # --- floorplan ----------------------------------------------------------------
@@ -1658,7 +1626,9 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path, cell_dir: Path,
     # -- 1. devices ------------------------------------------------------------
     say("[1/7] klt gen device geometries")
     wanted = sorted({g for g, _n in DEVICES.values()})
-    reports = gen_geometries(klt_cmd, pdk_args, out_dir, wanted)
+    reports = gen_blocks(klt_cmd, pdk_args, out_dir,
+                         [(key, GEOMETRIES[key][0], key.upper(),
+                           GEOMETRIES[key][1]) for key in wanted])
     check_orientation_agrees(klt_cmd, pdk_args, out_dir, reports)
 
     # -- 2. floorplan ----------------------------------------------------------
@@ -1670,7 +1640,10 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path, cell_dir: Path,
         params, origin = ring_request(extents, ring_id)
         params_by_ring[ring_id] = params
         origins_by_ring[ring_id] = origin
-    ring_reports = gen_rings(klt_cmd, pdk_args, out_dir, params_by_ring)
+    ring_reports = gen_blocks(
+        klt_cmd, pdk_args, out_dir,
+        [(ring_id, "guard_ring", ring_id.upper(), params_by_ring[ring_id])
+         for ring_id in sorted(params_by_ring)])
     for ring_id in sorted(RINGS):
         block = Block(ring_id, ring_id, "none", {"TAP": RINGS[ring_id][1]},
                       is_ring=True)

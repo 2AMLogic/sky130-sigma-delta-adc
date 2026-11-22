@@ -13,9 +13,12 @@ gate-level netlist `rtl/netlist/decimator_synth.v`. Not hand-edited.
 | `decimator.gds` | routed layout (T1 item 2, digital); hash-pinned by `design/attest/item2-digital-envelope.json` |
 | `decimator.def`, `decimator_pnr.v` | routed DEF and as-built netlist (CTS buffers included): the LVS reference for the digital partition (item 4, below); analog-partition and assembled-top LVS stay with #32 |
 | `decimator.sdf` | post-route SDF (SDF 3.0, written at the request's `tt_025C_1v80` corner) for the SDF-annotated functional-verification run (#162); regenerated, not hand-edited |
-| `pnr-decimator.report.json` | the `klt place-and-route` response, saved verbatim by the driver (T1 item 11 digital, #39, reads `power.pdn`/`power.tapcell_master`/`power.straps` from it) |
+| `pnr-decimator.response.json` | the `klt place-and-route` response envelope, written by the driver with the producing checkout's absolute paths rewritten to repo-relative (`scrub_paths`, #333); T1 item 11 digital (#39) reads `power.pdn`/`power.tapcell_master`/`power.straps` from it |
 | `sta_request.json` | the multi-corner `klt sta` request on the routed DEF |
 | `sta-decimator.report.json` | the committed STA report (T1 item 5, digital, with `verification/decimator/fv-decimator.report.json`) |
+| `erc_request.json` | the `klt erc` supply spec (T1 item 11, digital: `VDDD`/`VSSD` islands, ties, strap ownership) |
+| `run_erc.sh` | driver; `layout/digital/run_erc.sh` regenerates the ERC report, `--check` re-hashes |
+| `erc-decimator.report.json` | the committed ERC supply report (T1 item 11, digital; see the ERC section) |
 
 Recorded choices (`pnr_request.json`):
 
@@ -31,7 +34,7 @@ Recorded choices (`pnr_request.json`):
 Reproducibility: three independent runs of the driver (same pinned PDK, OpenROAD
 `26Q3-1510-g6cb3f2b704` container, seed 1) gave a byte-identical GDS, DEF and netlist — two
 at klt 0.8.0, and one at the 0.9.2 pin (2026-11-21) that also wrote the `decimator.sdf` and
-`pnr-decimator.report.json` committed here. The flow is not in CI; CI checks the envelope
+`pnr-decimator.response.json` committed here. The flow is not in CI; CI checks the envelope
 and the graded verdict. The driver runs `klt` from the repo root because the containerised
 `openroad` mounts only the working directory.
 
@@ -53,12 +56,14 @@ the SDF is the only file the follow-on fv run consumes). The report's `spef_sta`
 carries klt's annotation warning, quoted for the #162 fv run: the SPEF names 5238 of the
 5256 nets in the linked design, so 18 nets take no interconnect annotation.
 
-Provenance blemish, recorded as the tool wrote it: `pnr-decimator.report.json` embeds its
-work-dir artifact paths (`gds_path`, `def_path`, `verilog_path`, `spef_sta.spef_path`,
-`spef_sta.sdf_path`) and the PDK layer map as absolute paths of the producing checkout —
-klt gives no option to emit them relative. Not hand-edited out; filed generically as
-`2AMLogic/klayout-tools#5784`. Every path those keys names is re-created by the
-regeneration command above, so they resolve only inside a fresh run's checkout.
+Provenance note: `pnr-decimator.response.json` was derived from the 2026-11-21 klt 0.9.2
+run's saved response by the driver's own `scrub_paths` (no new P&R run), so the producing
+checkout's root is rewritten to repo-relative; the artifact paths it names (`gds_path`,
+`def_path`, `verilog_path`, `spef_sta.spef_path`, `spef_sta.sdf_path`) resolve only inside a
+fresh run's checkout, and every one is re-created by the regeneration command above. The one
+absolute path that survives is the PDK layer map (`/home/ubuntu/.ciel/sky130A/…/sky130A.map`),
+which lies outside the repo root and which klt gives no option to emit relative — filed
+generically as `2AMLogic/klayout-tools#5784`.
 
 DRC: `klt drc` (klt 0.8.0, `sky130` deck, content hash
 `sha256:ba0f97887e3d231aec8b54f1f52f2941ded0228f0234b6759712bcaca0e942e6`) on
@@ -109,7 +114,7 @@ derived from the layout (`VGND`, `VPB`, `VPWR`, declared by every one of the
 declaration and gets the relative-consistency check instead — the verdict says
 every instance's `VPB` reaches the same net, and does not name which. This
 checks per-cell-instance pin-to-net correctness, not the geometric rails:
-power-delivery evidence stays with item 11 (`klt erc`, #39).
+power-delivery evidence stays with item 11 (`klt erc`, #333).
 
 Warnings-only disclosures (all five report entries, none an error; the verdict
 is `match` with these listed, per the item-4 grading rule): three `topology`
@@ -131,6 +136,39 @@ absolute home path, which `klt env-provenance scan` itself flags as a leak
 instead). Not hand-edited out; filed generically as
 `2AMLogic/klayout-tools#5812`. Every other path in the report and the signoff
 record is repo-relative or tilde-rooted.
+
+## ERC supply continuity (T1 item 11, digital — #333)
+
+`klt erc` (pinned klt 0.9.2, klayout 0.30.13, `sky130` device deck) on
+`decimator.gds`, top `decimator`, with the supply spec `digital/erc_request.json`
+(content-pinned by the report) reports `erc_status: clean` — 0 findings — with all
+four declared supplies (`VDDD`, `VSSD`, `VPWR`, `VGND`) resolving to exactly one
+island each. Report `digital/erc-decimator.report.json`; reproduce with
+`digital/run_erc.sh --check` (re-hash of the committed layout/spec, seconds) or
+`digital/run_erc.sh` to regenerate (under a minute; antenna ratios are not graded —
+no `--pdk` — so the run exits 4 with antenna `not_checked` by design and the script
+gates on `erc_status`). What the spec asks, and why it is evidence rather than a
+formality:
+
+- **One node per supply, twice-labelled.** The PDN joins the top-level `VDDD`/`VSSD`
+  met5 strap labels to the per-cell `VPWR`/`VGND` met1 rail labels; each pair is
+  declared `same_net_as`, so the join is a graded assertion (`erc.expected_short_missing`
+  the day it is cut), not a suppressed short.
+- **No orphan straps.** `VDDD`/`VSSD` own the strap layers (`roles: met4, met5`):
+  conductor on those layers reachable from no label counts as `erc.unlabelled_conductor`
+  (0 islands, 0 um2 measured). The few signal segments routed there (86 NEW met4,
+  1 NEW met5 in the DEF) are label-reachable through cell pins, so the measurement
+  stays the severed-strap negative.
+- **Ties, through the 1625 `tapvpwrvgnd` cells.** The n-well (`64/20`) tie to `VPWR`
+  and the substrate tie to `VGND` (sky130 draws no p-well: the substrate half is the
+  stream-derived complement of nwell, `well_complement_of` — disclosed in
+  `erc_coverage.checked_by_well_assertion`, not a literal box list) both graded
+  `checked` via the dedicated tap layer `65/44`; nothing in `erc_coverage.skipped`.
+
+This is the ERC third of item 11's compound citation. The P&R third is
+`digital/pnr-decimator.response.json` (committed by #332): `power.pdn: true`,
+`tapcell_master: sky130_fd_sc_hd__tapvpwrvgnd_1`, and straps on `met1`, `met4` and `met5`.
+Citing `11.digital` in `manifests/sky130-sigma-delta-adc.json` is #333 Part B.
 
 ## Multi-corner STA (T1 item 5, digital)
 

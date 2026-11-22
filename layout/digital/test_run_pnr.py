@@ -16,9 +16,11 @@ What is pinned here:
   default it supplied to `.get()` *was* the value it compared against.
 - A matching stamp admits the copy path (artifacts land next to the request)
   and `--check` reports GDS drift as exit 3 without overwriting anything.
-- A matching stamp also saves klt's response verbatim as
-  pnr-decimator.report.json (#332), while `--check` and a PDK refusal leave
-  a committed copy untouched.
+- The copy path additionally commits the response envelope itself
+  (pnr-decimator.response.json, issue #333): the producing checkout's
+  absolute paths are rewritten to repo-relative, and `--check` never writes
+  it -- the GDS is the byte-for-byte receipt, the response is not
+  reproducible (timing fields), so it is recorded on copy runs only.
 - The reason the old gate was inert, replayed against the three committed JSON
   documents in this directory: none of them carries a top-level `pdk.version`,
   so a top-level read can only ever fall through to its default. Each now takes
@@ -178,36 +180,45 @@ class PdkPinRefusal(unittest.TestCase):
             self.assertEqual(rc, 1)
 
 
-class SavedResponse(unittest.TestCase):
-    """The runner saves klt's response next to the request (#332 step 5).
+class ResponseEnvelope(unittest.TestCase):
+    """The response envelope the copy path commits beside the artifacts (#333)."""
 
-    The committed pnr-decimator.report.json is item 11 digital's (#39) source
-    for power.pdn / power.tapcell_master / power.straps, so it must be the
-    response verbatim -- not a re-serialization -- and every path that would
-    not regenerate it (a PDK-pin refusal, --check) must leave a committed
-    copy untouched.
-    """
-
-    def test_matching_stamp_saves_the_response_verbatim(self):
+    def test_copy_mode_writes_a_scrubbed_response(self):
         rep = report()
-        with fake_flow(rep) as (_, here, _err):
-            rc = RUNNER.main()
+        rep["engine"] = {"argv": ["openroad", "-pdk-root", "/opt/pdk"]}
+        with fake_flow(rep) as (repo, here, _err):
+            # Absolute paths from the producing checkout, in the shapes klt
+            # emits: an artifact path under the repo root, and a bare root.
+            rep["layout_path"] = str(repo / "build" / "decimator.gds")
+            rep["provenance"]["cwd"] = str(repo)
+            out = mock.Mock(returncode=0, stdout=json.dumps(rep), stderr="")
+            # fake_flow already installed its patched subprocess.run; re-patch
+            # to serve the absolute-path-bearing report.
+            with mock.patch.object(RUNNER.subprocess, "run", return_value=out):
+                rc = RUNNER.main()
             self.assertEqual(rc, 0)
-            self.assertEqual((here / RUNNER.REPORT_NAME).read_text(),
-                             json.dumps(rep) + "\n")
+            text = (here / RUNNER.RESPONSE).read_text()
+            self.assertNotIn(str(repo), text)          # free of the producer's paths
+            saved = json.loads(text)
+            self.assertEqual(saved["layout_path"], "build/decimator.gds")
+            self.assertEqual(saved["provenance"]["cwd"], ".")
+            self.assertEqual(saved["engine"]["argv"], ["openroad", "-pdk-root", "/opt/pdk"])
+            self.assertEqual(saved["provenance"]["pdk"]["version"], STAMP)  # stamp survives
 
-    def test_check_mode_leaves_the_committed_report_alone(self):
+    def test_check_mode_never_writes_the_response(self):
         with fake_flow(report(), argv=("run_pnr.py", "--check"),
-                       committed={RUNNER.REPORT_NAME: b"OLD", "decimator.gds": b"GDS"}) as (_, here, _err):
+                       committed={"decimator.gds": b"GDS"}) as (_repo, here, _err):
             rc = RUNNER.main()
             self.assertEqual(rc, 0)
-            self.assertEqual((here / RUNNER.REPORT_NAME).read_bytes(), b"OLD")
+            self.assertFalse((here / RUNNER.RESPONSE).exists())
 
-    def test_pdk_refusal_does_not_overwrite_the_committed_report(self):
-        with fake_flow(report(WRONG), committed={RUNNER.REPORT_NAME: b"OLD"}) as (_, here, _err):
-            rc = RUNNER.main()
-            self.assertEqual(rc, 2)
-            self.assertEqual((here / RUNNER.REPORT_NAME).read_bytes(), b"OLD")
+    def test_scrub_paths_descends_and_passes_scalars_through(self):
+        scrub = RUNNER.scrub_paths
+        root = "/x/issue-1"
+        self.assertEqual(scrub({"a": [root + "/l/d.gds", 3, None, True], "b": root}, root),
+                         {"a": ["l/d.gds", 3, None, True], "b": "."})
+        self.assertEqual(scrub("no path here", root), "no path here")
+        self.assertEqual(scrub("/other/root/f.gds", "/other/root"), "f.gds")  # root arg honoured
 
 
 class CommittedReportShapes(unittest.TestCase):

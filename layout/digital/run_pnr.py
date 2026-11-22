@@ -5,12 +5,14 @@
 
 Runs `klt place-and-route` on layout/digital/pnr_request.json against the pinned PDK
 (sim/pdk.json) and copies the routed GDS, DEF, as-built netlist and post-route SDF next
-to the request. The response itself is saved verbatim beside them as
-pnr-decimator.report.json (T1 item 11 digital, #39, reads power.pdn/tapcell_master/
-straps from it); a run that refuses on the PDK pin or runs --check leaves the
-committed copy alone.
+to the request.
 --check leaves the committed files alone and exits 3 if the fresh GDS differs from the
 committed one (raw bytes), else 0. The flow takes tens of minutes (detailed routing).
+A non-check run also commits the klt response envelope itself as
+pnr-decimator.response.json (issue #333): the power block item 11 cites, with the
+producing checkout's absolute paths rewritten to repo-relative. --check never writes
+the response (timing fields make it non-reproducible; the GDS is the byte-for-byte
+receipt).
 Exit 2 = the PDK klt recorded in the report (provenance.pdk.version) is absent or
 differs from the sim/pdk.json pin; 1 = flow failed.
 """
@@ -20,7 +22,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 OUT = {"gds_path": "decimator.gds", "def_path": "decimator.def", "verilog_path": "decimator_pnr.v",
        "sdf_path": "decimator.sdf"}
-REPORT_NAME = "pnr-decimator.report.json"
+RESPONSE = "pnr-decimator.response.json"
 
 
 def out_source(rep, key):
@@ -33,6 +35,25 @@ def out_source(rep, key):
     if key == "sdf_path":
         return (rep.get("spef_sta") or {}).get(key)
     return rep[key]
+
+
+def scrub_paths(value, root):
+    """Rewrite the producing checkout's absolute paths out of a JSON value.
+
+    `klt` names its artifacts relative to the request's repo, but other
+    fields (an engine command line, a --pdk-root) can carry the producing
+    checkout's absolute path. The committed response must be free of them
+    (issue #333 step 5): `<root>/` becomes repo-relative and a bare
+    `<root>` becomes `.`, recursively; every other value passes through
+    unchanged.
+    """
+    if isinstance(value, str):
+        return value.replace(root + "/", "").replace(root, ".")
+    if isinstance(value, list):
+        return [scrub_paths(v, root) for v in value]
+    if isinstance(value, dict):
+        return {k: scrub_paths(v, root) for k, v in value.items()}
+    return value
 
 
 def report_pdk_stamp(rep):
@@ -69,8 +90,6 @@ def main():
     if stamp != pin["sources_stamp"]:
         print(f"REFUSE: report PDK is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
         return 2
-    if not a.check:
-        (HERE / REPORT_NAME).write_text(o.stdout if o.stdout.endswith("\n") else o.stdout + "\n")
     drift = False
     for key, name in OUT.items():
         v = out_source(rep, key)
@@ -88,6 +107,9 @@ def main():
             drift |= key == "gds_path" and have != h
         else:
             shutil.copyfile(src, dst)
+    if not a.check:
+        (HERE / RESPONSE).write_text(json.dumps(scrub_paths(rep, str(REPO)), indent=1) + "\n")
+        print(f"{RESPONSE}: written (producing checkout's absolute paths removed)")
     return 3 if drift else 0
 
 
