@@ -38,14 +38,14 @@
         "role": "hygiene",
         "path": "README.md",
         "passed": true,
-        "content_hash": "sha256:e019b229f7ed0a76669130280fac5a3369b9b3bb043d1eefe659214b9cd8f008"
+        "content_hash": "sha256:b9adf4dfca8a5941678a08080b382bae4978d16f3c4914356765bf71cc695a83"
       },
       {
         "check": "present",
         "role": "hygiene",
         "path": "scripts/check-ci.sh",
         "passed": true,
-        "content_hash": "sha256:7dc9b98ddb9695d40c44697f9ba006d1a829e2fcea46828e683e0844b0d2c620"
+        "content_hash": "sha256:a9d45fc9a29c1de3c46524893ec61be3f2d4f8af9e399b64af9a1a658f31756c"
       },
       {
         "check": "command",

@@ -1,0 +1,69 @@
+{
+  "_comment": [
+    "Supply spec for the routed decimator (issue #333): the klt erc half of T1",
+    "item 11 digital. Spec shape reused from the fleet's sky130 standard-cell",
+    "blocks (sky130-fpga flow/erc_supply_spec.json, sky130-trng",
+    "layout/trng_digital/erc-supply-spec.json) and extended per #333:",
+    "- Supplies are labelled twice on one conductor: VDDD/VSSD are the top-level",
+    "  met5 strap labels (72/5), VPWR/VGND the per-cell met1 rail labels (68/5).",
+    "  nets[].same_net_as declares each pair one node, so the PDN join is a",
+    "  graded assertion (erc.expected_short_missing if it is ever cut), not a",
+    "  suppressed erc.supply_short.",
+    "- roles: met4/met5 are the strap layers (sky130hd preset: met1 follow pins,",
+    "  met4/met5 straps). Signal nets route a few segments there too (86 NEW",
+    "  met4, 1 NEW met5 in decimator.def); every such cluster is reachable from",
+    "  cell-pin labels, so the unlabelled-remainder measurement stays the",
+    "  severed-orphan-strap negative it exists for. met1/met2/met3 carry signal",
+    "  routing and are deliberately not owned.",
+    "- Ties: the 1625 sky130_fd_sc_hd__tapvpwrvgnd_1 cells tie the n-well",
+    "  (64/20, nwell.drawing per the curated sky130 deck) to VPWR and the p-type",
+    "  substrate to VGND through the dedicated tap layer (65/44, tap.drawing),",
+    "  contacted up to li1. sky130 draws no p-well layer, so the substrate half",
+    "  is the stream-derived complement of nwell (well_complement_of), never a",
+    "  literal box list. No dnwell (64/18) is drawn on this stream.",
+    "- Antenna: not graded here (no --pdk); this spec is the supply evidence.",
+    "  active_layer (diff 65/20) keeps gate areas physical for any future run."
+  ],
+  "stackup": [
+    {"name": "poly", "layer": "66/20", "role": "gate", "active_layer": "65/20"},
+    {"name": "li1", "layer": "67/20", "label_layer": "67/5"},
+    {"name": "met1", "layer": "68/20", "label_layer": "68/5"},
+    {"name": "met2", "layer": "69/20"},
+    {"name": "met3", "layer": "70/20", "label_layer": "70/5"},
+    {"name": "met4", "layer": "71/20"},
+    {"name": "met5", "layer": "72/20", "label_layer": "72/5"}
+  ],
+  "vias": [
+    {"name": "licon1", "layer": "66/44", "between": ["poly", "li1"]},
+    {"name": "mcon", "layer": "67/44", "between": ["li1", "met1"]},
+    {"name": "via1", "layer": "68/44", "between": ["met1", "met2"]},
+    {"name": "via2", "layer": "69/44", "between": ["met2", "met3"]},
+    {"name": "via3", "layer": "70/44", "between": ["met3", "met4"]},
+    {"name": "via4", "layer": "71/44", "between": ["met4", "met5"]}
+  ],
+  "nets": [
+    {"name": "VDDD", "kind": "supply", "same_net_as": "VPWR", "roles": ["met4", "met5"]},
+    {"name": "VSSD", "kind": "supply", "same_net_as": "VGND", "roles": ["met4", "met5"]},
+    {"name": "VPWR", "kind": "supply"},
+    {"name": "VGND", "kind": "supply"}
+  ],
+  "ties": [
+    {
+      "name": "nwell_vpwr",
+      "well_layer": "64/20",
+      "tap_layer": "65/44",
+      "tap_is_dedicated": true,
+      "connect_to": "li1",
+      "net": "VPWR"
+    },
+    {
+      "name": "substrate_vgnd",
+      "well_layer": null,
+      "well_complement_of": ["64/20"],
+      "tap_layer": "65/44",
+      "tap_is_dedicated": true,
+      "connect_to": "li1",
+      "net": "VGND"
+    }
+  ]
+}
