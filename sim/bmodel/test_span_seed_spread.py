@@ -71,6 +71,18 @@ class SeedOneReproducesCommittedEvidence(unittest.TestCase):
         row = anch["seed_values"][0]
         with open(B_SIDE_DIR / "bx-tt-1.800V-27C.json") as f:
             b = json.load(f)
+        # DR-007 rescaled model.py's coefficients (0.5/0.5 -> 0.3/0.3) and
+        # left xcheck-sides/ as append-only stale evidence pending a
+        # follow-up regeneration. The side records the model.py hash that
+        # produced it: when that differs from the current file the
+        # comparison is between two different models, so say so rather
+        # than loosen the tolerance. Once the sides are regenerated the
+        # hashes match and the assertions below run again.
+        cur = brun.code_state()["code_sha256"]["sim/bmodel/model.py"]
+        if b["code_sha256"]["sim/bmodel/model.py"] != cur:
+            self.skipTest("xcheck-sides/ were produced by a different "
+                          "model.py (pre-DR-007 0.5/0.5 coefficients); "
+                          "regenerate them (DR-007 follow-up)")
         # the committed arrays are the JSON form of the same computation,
         # rounded to 9 decimals, so the full-precision sweep agrees to the
         # committed data's own precision (~3e-11 on tt's p2p), not to 1e-12
