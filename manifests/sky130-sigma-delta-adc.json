@@ -52,7 +52,7 @@
       "not_applicable": {
         "spec": {
           "file": "spec/decimator-rows.json",
-          "content_hash": "sha256:4961c9be68085e9af518f413f0cc6e28d0d7885403cac1ab069b7c233f319cdc"
+          "content_hash": "sha256:5b7a9dace096d5cae827bfb5e8eaea3330b6d9074a5d0a77c882c62fc3bbad33"
         },
         "statement": {
           "file": "spec/decimator-not-statistical.json",
