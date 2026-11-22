@@ -52,12 +52,8 @@ which is what ``--check`` asserts.
 """
 from __future__ import annotations
 
-import argparse
 import json
-import shutil
 import sys
-import tempfile
-import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -66,19 +62,18 @@ from pathlib import Path
 # run from any working directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, PDK_ROOT_DEFAULT,
-                           PDK_VARIANT, TRACK_PITCH_UM, TRUNK_PITCH_UM,
-                           Anchor, PinError, Rect, RouteError,
-                           Router as RouterBase, WIRE_UM, emit, extract_nets,
-                           klt_pin, nm, parse_extract_devices, recorded_pin,
-                           run, snap)
+from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_MET2,
+                           PDK_VARIANT, TRACK_PITCH_UM,
+                           TRUNK_PITCH_UM, Anchor, Rect, RouteError,
+                           Router as RouterBase, WIRE_UM, assert_drc_clean,
+                           extract_nets, gen_blocks, klt_pin, nm,
+                           parse_extract_devices, run, run_cli, snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
-# The router core's layers (L_MCON/L_MET1/L_VIA) come from layout_common,
+# The router core's layers (L_MCON/L_MET1/L_MET2/L_VIA) come from layout_common,
 # alongside the shared geometry constants it routes with.
 L_LI1 = (67, 20)
 L_MET1_PIN = (68, 5)
-L_MET2 = (69, 20)
 L_VIA2 = (69, 44)
 L_MET3 = (70, 20)
 L_VIA3 = (70, 44)
@@ -257,32 +252,6 @@ EXPECTED_DEVICES = {
 }
 
 
-def assert_drc_clean(drc: dict, report_path: str) -> None:
-    """Raise unless `klt drc` reported a clean verdict.
-
-    `klt drc` already exits 3 on violations; the call site passes
-    ``check=False`` to capture stdout, so the verdict has to be re-read here
-    or it is lost.  Only an explicit ``clean`` with zero violations passes:
-    ``coverage_unknown`` (exit 4 -- the deck resolved no marker layer for a
-    family) is an unverified DRC, not a pass, and ``clean_partial`` arises
-    only from ``--rules`` subsetting, which this generator never passes.  A
-    report with no verdict at all (klt wrote nothing to stdout) has neither
-    field and fails the same way.
-    """
-    status = drc.get("status")
-    violations = drc.get("violation_count")
-    if status == "clean" and violations == 0:
-        return
-    rules = ", ".join(f"{rule}={count}"
-                      for rule, count
-                      in sorted((drc.get("rule_counts") or {}).items())) \
-        or "none reported"
-    raise RuntimeError(
-        f"klt drc status={status!r} violations={violations!r} "
-        f"(expected 'clean'/0): {rules}. Report written to {report_path} "
-        "before this raise; the flow aborts and nothing is emitted.")
-
-
 # --- port expansion -----------------------------------------------------------
 def expand_ports(block_id: str, generator: str, params: dict) -> dict[str, str]:
     """{generated port name: net}, from LEG_NETS plus the generator's own
@@ -296,21 +265,6 @@ def expand_ports(block_id: str, generator: str, params: dict) -> dict[str, str]:
             else:
                 out[f"{leg}_{suffix}"] = net
     return out
-
-
-def gen_blocks(klt_cmd: list[str], pdk_args: list[str], out_dir: Path,
-               blocks: list[tuple[str, str, str, dict]]) -> dict[str, dict]:
-    reports: dict[str, dict] = {}
-    for block_id, generator, cell_name, params in blocks:
-        r = run([*klt_cmd, "gen", generator, "--params", json.dumps(params, sort_keys=True)]
-                + pdk_args + ["--cell-name", cell_name, "-o", f"{block_id}.gds",
-                              "--format", "json"], cwd=out_dir)
-        report = json.loads(r.stdout)
-        if report.get("error"):
-            raise RuntimeError(f"klt gen {block_id}: {report['error']}")
-        (out_dir / f"{block_id}.json").write_text(r.stdout)
-        reports[block_id] = report
-    return reports
 
 
 def size_of(report: dict) -> tuple[float, float]:
@@ -486,10 +440,14 @@ class Router(RouterBase):
     search is needed; met1 is the only layer the greedy search has to keep
     clear, and met3/met4 only carry the MiM risers.  The shared core lives in
     layout_common.Router; the overrides below are the parts this generator
-    does differently -- no per-net shape bookkeeping, the unrestricted column
-    proposal, a 24-column search budget per anchor, and trunks drawn
-    unconditionally.
+    does differently -- bare ``add_met1``/``add_met`` that tag no shape with
+    its net, the unrestricted column proposal, and this cell's own MiM
+    risers.  The met2 search budget is the shared ``connect_met1`` reading
+    ``COL_BUDGET`` (24 here), and ``finish_trunks`` is the shared one (this
+    cell measured zero zero-height trunks, so the shared skip never fires).
     """
+
+    COL_BUDGET = 24
 
     # -- geometry bookkeeping -------------------------------------------------
     def add_met1(self, net: str, rects: list[Rect]) -> None:
@@ -516,39 +474,6 @@ class Router(RouterBase):
         return [c for c in cands if nm(c) not in self.used_cols]
 
     # -- the three ways a net reaches a block ---------------------------------
-    def connect_met1(self, a: Anchor, col_budget: int = 24) -> tuple[float, float]:
-        """Drop a met2 trunk onto this anchor.
-
-        Cheapest first: a column that already lies inside the strap, so the
-        via lands on metal that exists.  Failing that the jog climbs off the
-        strap on a free met1 track (``jog_um`` bounds how far) and reaches
-        sideways -- the freedom a 0.42um-wide S/D pad row needs, where every
-        net sits on the strap's own y and only a different y can get past a
-        neighbour's pad.
-        """
-        cols = self.columns(a.x0, a.x1, a.xmid)[:col_budget]
-        for y in self.jog_tracks(a):
-            for col in cols:
-                if nm(col) in self.used_cols:
-                    continue
-                pad_x = min(a.pad_xs, key=lambda px: (abs(px - col), px))
-                extra: list[Rect] = []
-                if abs(y - a.y) > 1e-9:
-                    extra.append(Rect.vwire(pad_x, a.y, y, WIRE_UM))
-                    if abs(col - pad_x) > 1e-9:
-                        extra.append(Rect.hwire(pad_x, col, y, WIRE_UM))
-                elif not (a.x0 - 1e-9 <= col <= a.x1 + 1e-9):
-                    extra.append(Rect.hwire(min(a.x0, col), max(a.x1, col), y,
-                                            WIRE_UM))
-                if extra and not self.met1_free(a.net, extra):
-                    continue
-                self.reserve_column(col)
-                if extra:
-                    self.add_met1(a.net, extra)
-                self.add_trunk_via(a.net, col, y)
-                return col, y
-        raise RouteError(f"no free met2 column for {a.net} at {a.block} y={a.y}")
-
     def connect_cap3(self, a: Anchor) -> tuple[float, float]:
         x_run = snap(a.x0 + (0.3 if a.port_dir == 180 else -0.3))
         y_drop = snap(a.block_y0 - 1.2)
@@ -599,13 +524,9 @@ class Router(RouterBase):
         return self.connect_cap4(a)
 
     # -- trunk-to-trunk spine --------------------------------------------------
-    # route_spine is the shared base's; only the trunk finish differs here.
-    def finish_trunks(self) -> None:
-        for (net, col), ys in sorted(self.trunk_y.items()):
-            lo, hi = min(ys), max(ys)
-            rect = Rect.vwire(col, lo, hi, WIRE_UM)
-            self.add_shape(L_MET2, rect)
-            self.wire_um[net] += (hi - lo)
+    # route_spine and finish_trunks are both the shared base's now: this cell
+    # drew every trunk unconditionally, but measured (issue #201) to hold zero
+    # zero-height trunks, so the shared zero-height skip never fires here.
 
 
 # --- build --------------------------------------------------------------------
@@ -842,145 +763,8 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path,
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Generate and verify layout/analog/ota_fd/ota_fd.gds and "
-                    "its committed evidence; see this directory's README.md.")
-    parser.add_argument("--check", action="store_true",
-                        help="regenerate into a temp dir and byte-compare the "
-                             "GDS against the committed stream, evaluated at "
-                             "the klt build and klayout version recorded in "
-                             "drc.report.json; write nothing. Exit 0 pass, "
-                             "1 geometry regression, 2 cannot verify")
-    parser.add_argument("--klt", default="klt")
-    parser.add_argument("--pdk-root", default=PDK_ROOT_DEFAULT)
-    parser.add_argument("--keep-scratch", action="store_true",
-                        help="with --check, leave the scratch directory in place")
-    args = parser.parse_args()
-
-    cell_dir = Path(__file__).resolve().parent
-    pdk_root = Path(args.pdk_root).expanduser()
-
-    if args.check:
-        committed = cell_dir / f"{TOP_CELL}.gds"
-        if not committed.exists():
-            print(f"--check: CANNOT VERIFY -- {committed} does not exist yet",
-                  file=sys.stderr)
-            return 2
-        try:
-            pin = recorded_pin(cell_dir)
-        except PinError as exc:
-            print(f"gen_ota_fd.py --check: CANNOT VERIFY -- {exc}",
-                  file=sys.stderr)
-            return 2
-        try:
-            running = klt_pin([args.klt])
-        except OSError:
-            running = {"klt": "unknown"}
-        if running.get("git_commit") == pin["git_commit"]:
-            got_layout = running.get("klayout")
-            if got_layout != pin["klayout"]:
-                saw = (f"runs klayout {got_layout}, not the recorded "
-                       f"{pin['klayout']}" if got_layout else
-                       "does not report a klayout version, so the recorded "
-                       f"one ({pin['klayout']}) cannot be checked")
-                print("gen_ota_fd.py --check: CANNOT VERIFY -- host klt "
-                      f"matches the recorded build {pin['klt']} but {saw} "
-                      "(drc.report.json provenance); the committed bytes "
-                      "were written by the recorded klayout, so a byte "
-                      "difference could not be attributed. Run under the "
-                      "recorded environment: "
-                      f'uvx --from "{pin["reinstall_spec"]}" '
-                      f'--with "klayout=={pin["klayout"]}" klt ...',
-                      file=sys.stderr)
-                return 2
-            klt_cmd = [args.klt]
-            print("gen_ota_fd.py --check: host klt matches the recorded "
-                  f"build {pin['klt']} and klayout {got_layout} "
-                  "(drc.report.json provenance); byte-comparing directly",
-                  flush=True)
-        else:
-            uvx = shutil.which("uvx")
-            if uvx is None:
-                print("gen_ota_fd.py --check: CANNOT VERIFY -- host klt "
-                      f"{running.get('klt', 'unknown')} is not the recorded "
-                      f"build {pin['klt']} and uvx is not on PATH to resolve "
-                      "it. Run under the recorded build: "
-                      f'uvx --from "{pin["reinstall_spec"]}" '
-                      f'--with "klayout=={pin["klayout"]}" klt ...',
-                      file=sys.stderr)
-                return 2
-            klt_cmd = [uvx, "--from", pin["reinstall_spec"],
-                       "--with", f"klayout=={pin['klayout']}", "klt"]
-            print("gen_ota_fd.py --check: host klt "
-                  f"{running.get('klt', 'unknown')} is not the recorded build "
-                  f"{pin['klt']} (drc.report.json provenance); evaluating the "
-                  "recorded build via uvx", flush=True)
-            for attempt in range(3):
-                probe = run([*klt_cmd, "version", "--format", "json"],
-                            check=False)
-                if probe.returncode == 0:
-                    break
-                if attempt < 2:
-                    time.sleep(2)
-            if probe.returncode != 0:
-                print("gen_ota_fd.py --check: CANNOT VERIFY -- the recorded "
-                      f"build did not resolve ({' '.join(klt_cmd)}): "
-                      f"{probe.stderr.strip()[-300:]}", file=sys.stderr)
-                return 2
-            try:
-                resolved = json.loads(probe.stdout)
-            except Exception:
-                resolved = {}
-            if resolved.get("git_commit") != pin["git_commit"]:
-                print("gen_ota_fd.py --check: CANNOT VERIFY -- uvx-resolved "
-                      f"klt commit {resolved.get('git_commit')} is not the "
-                      f"recorded pin {pin['git_commit']}", file=sys.stderr)
-                return 2
-            got_layout = resolved.get("klayout_version")
-            if got_layout != pin["klayout"]:
-                print("gen_ota_fd.py --check: CANNOT VERIFY -- the pinned "
-                      f"resolution resolved with klayout {got_layout}, not "
-                      f"the recorded {pin['klayout']}: the uvx invocation "
-                      f'already carries --with "klayout=={pin["klayout"]}", '
-                      "so the pin was not honoured (a stale cached "
-                      "environment, or the recorded release being yanked or "
-                      "unavailable for this platform). The committed bytes "
-                      "were written by the recorded klayout, so a byte "
-                      "difference could not be attributed. Diagnose the "
-                      "resolution: "
-                      f'uvx --from "{pin["reinstall_spec"]}" '
-                      f'--with "klayout=={pin["klayout"]}" --refresh '
-                      "klt version --format json",
-                      file=sys.stderr)
-                return 2
-        tmp = Path(tempfile.mkdtemp(prefix="ota-fd-check-"))
-        try:
-            flow(klt_cmd, pdk_root, tmp, verbose=False)
-            a, b = committed.read_bytes(), (tmp / f"{TOP_CELL}.gds").read_bytes()
-            if a == b:
-                print("gen_ota_fd.py --check: PASS -- regenerated GDS is "
-                      f"byte-identical to {committed.name} ({len(a)} bytes; "
-                      f"evaluated against recorded klt {pin['klt']})")
-                return 0
-            print("gen_ota_fd.py --check: FAIL -- regenerated GDS differs "
-                  f"from {committed.name} under the recorded build "
-                  f"{pin['klt']} (committed {len(a)} bytes, fresh {len(b)} "
-                  "bytes) -- a generator or geometry regression, not a "
-                  "toolchain mismatch", file=sys.stderr)
-            return 1
-        finally:
-            if args.keep_scratch:
-                print(f"scratch kept at {tmp}", file=sys.stderr)
-            else:
-                shutil.rmtree(tmp, ignore_errors=True)
-
-    result = flow([args.klt], pdk_root, cell_dir / "_gen")
-    emit(cell_dir / "_gen", cell_dir, TOP_CELL)
-    drc = result["drc"]
-    print(f"gen_ota_fd.py: wrote {TOP_CELL}.gds + evidence to {cell_dir} "
-          f"(drc status={drc.get('status')!r}, "
-          f"violations={drc.get('violation_count')})")
-    return 0
+    return run_cli("gen_ota_fd.py", Path(__file__).resolve().parent,
+                   TOP_CELL, flow)
 
 
 if __name__ == "__main__":

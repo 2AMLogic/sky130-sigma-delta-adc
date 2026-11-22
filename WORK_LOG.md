@@ -2,6 +2,131 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-18
+
+- **PR #326**: ci: run the signoff check on merge_group events
+- **Issue #325** (closed): Merge queue: add the merge_group trigger to the required-check workflow(s)
+- **PR #323**: attest: hash the gate's command list - add scripts/check-ci.sh to item 10 hygiene
+- **Issue #321** (closed): item-10 attestation no longer hashes the file holding the gate's command list (scripts/check-ci.sh)
+- **PR #320**: bmodel: sweep the span seed spread over the landed long-record inputs
+- **PR #317**: ci: single-source the tool-free gate in check-ci.sh; signoff.yml calls it
+- **PR #316**: docs: cite the span-leg seed-spread record beside the span verdict
+- **PR #314**: bmodel: record the span_10pct leg's seed-realisation spread at every DR-002 anchor
+- **PR #306**: feat(cross-check): DR-001 corrigendum 01 — 4096-clock long-record T transient, in-band SNDR leg failing robustly at 5 of 7 anchors, indeterminate at tt and sf
+- **Issue #319** (closed): Re-run the span_10pct seed-spread sweep over the long-record inputs once #306 lands
+- **Issue #318** (closed): attestation: no regression test pins verify_issues' exit-3 'could not run' path
+- **Issue #315** (closed): Cite the span-leg seed-spread record from measurements/characterization.md's span sentence
+- **Issue #312** (closed): Single-source the local gate: signoff.yml calls scripts/check-ci.sh
+- **Issue #311** (closed): DR-001 span_10pct leg: the B-side span's own seed-realisation spread (~13% on o2) exceeds its 10% gate
+- **PR #310**: gate: run the klt signoff --check re-hash steps locally in check-ci.sh
+- **Issue #308** (closed): No local gate catches a commit that touches an item-9 inventory file without regenerating the envelope
+
+### 2026-11-17
+
+- **Issue #169** (closed): Confirm klayout-tools#1962 actually describes the #121 blocker that parks analog items 2, 3, 4, 7, 11
+- **PR #298**: docs: sync ROADMAP T1 counts and row states to the verdict of record, gate prose counts in CI
+- **Issue #221** (closed): ROADMAP.md T1 counts and row 4 are stale vs the verdict of record; nothing in CI gates a prose count
+- **PR #300**: docs: prune landed rows and stale klt-pin prose from ROADMAP's Now table
+- **Issue #297** (closed): ROADMAP.md residual prose drift: Now-table rows for landed work and stale klt 0.8.0 pin mentions
+- **PR #295**: docs: add DR-008 corrigendum 03 and re-point the STA-gap citation off closed #131
+- **PR #292**: chore(loom): resync installed Loom to v0.19.1306
+- **PR #289**: fix(integrator-layout): route sump/sumn as a matched pair, gating 3% symmetry
+- **PR #291**: docs: re-point characterization's closed-#33 citations at open owners
+- **PR #287**: docs: point GEOMETRIES comment at extract-device-count.json instead of stale counts
+- **PR #285**: docs: refresh integrator section of layout/README.md from committed post-#274 artifacts
+- **PR #283**: Regenerate the integrator layout for the #147 50-device netlist
+- **PR #281**: test: re-derive the tg half-current sum on every committed probe row
+- **PR #280**: fix: fail signoff gate when a tracked Python file cannot parse
+- **PR #278**: fix: set the tg half-current sum bound to 1e-4 relative, clear of the print floor
+- **PR #273**: ci: fail signoff on undefined names via pinned pyflakes
+- **Issue #293** (closed): Closed-issue citations outside characterization.md: DR-008 consequence prose, item9-inventory, ROADMAP, and the #131 line-17 citation
+- **Issue #284** (closed): The integrator's summing-node routing symmetry dropped from 3% to 9.3% when the #147 field widened, and nothing tracks recovering it
+- **Issue #288** (closed): Re-grade characterization rows after #33's closure (curator verdict of record) — unblocks PR #213's cited-issue CI
+- **Issue #286** (closed): gen_integrator.py's GEOMETRIES comment still says "44 devices cost 9 klt gen calls" (now 50 / 11)
+- **Issue #282** (closed): layout/README.md's integrator section has been stale since #129 and nothing tracks it
+- **Issue #279** (closed): switch-probe README overstates what the half-current sum check's tests pin
+- **Issue #277** (closed): CI: the signoff pyflakes gate passes green on a Python file that cannot be parsed
+- **Issue #275** (closed): switch-probe: the half-current sum refusal aborts a whole sweep at a tolerance that sits on the print-rounding floor
+- **Issue #274** (closed): The committed integrator layout is stale against the #147 cell (50 devices vs the 44 it pins) and nothing tracks it
+- **Issue #272** (closed): CI: add a pyflakes step — a NameError in a fleet-only runner path reached main and cost a completed batch run
+- **Issue #33** (closed): T1 item 5 (corner verification): transistor-level PVT SNDR/power sweep of the modulator, plus decimator STA and klt functional-verification
+- **PR #270**: feat(sim): retain the raw modulator-tran klt sim report and cite it for row 11
+- **PR #269**: sim: probe the Sci top-plate hold, give Sci/Scr the PMOS half the sweep says they need
+- **PR #268**: fix(design): make the Sin input gate a low-Vth pair, sized and graded per DR-010
+- **Issue #263** (closed): T1 item 5 analog: retain a citable klt sim report for the modulator transient and cite rows 5, 11, 12, 13
+- **Issue #147** (closed): Sci top-plate hold: 98% of the fs/1.620 V/-40 C sampling error at 0.6 V is Sci, not Sin, and Sci has never been probed
+- **Issue #129** (closed): Sin pass gate: decide the remedy for the input-sampling error now that the grid exists (54.3% unsampled at ss/1.620 V/-40 C, and level-dependent)
+- **PR #267**: docs: record the klt-pin reopen trigger's re-read at the 0.9.2 pin
+- **PR #262**: refactor: share the --check CLI driver between the cell generators via layout_common.run_cli
+- **PR #261**: docs: correct Router by_net comment; shared finish_trunks tags every cell's met2 trunks
+- **PR #259**: fix: register manifests and sim/modulator-tran tool-free steps in check-ci.sh CHECKS
+- **PR #255**: refactor: delegate runners' shas/load_partial/save_partial to settling_common
+- **PR #247**: ci: collapse signoff.yml's two overlapping layout/analog test steps into one
+- **Issue #258** (closed): Share the --check CLI driver between gen_integrator.py and gen_ota_fd.py: two ~145-line main() copies
+- **Issue #253** (closed): Finish settling_common consolidation: drop hand-rolled shas/partial/sha256 copies in 4 runners
+- **Issue #250** (closed): Record the DR-008 klt-pin re-read at the 0.9.2 pin (corrigendum 01's reopen trigger, fired by #244)
+- **Issue #246** (closed): check-ci drift guard fails on main: manifests and sim/modulator-tran tool-free steps are not registered in CHECKS
+- **Issue #239** (closed): layout_common.Router: by_net comment says the OTA cell's dict stays empty, but the shared finish_trunks tags every trunk
+- **Issue #211** (closed): signoff.yml's two layout/analog unittest steps overlap: the DRC-guard step's test_*.py pattern already runs test_layout_common.py
+
+### 2026-11-16
+
+- **PR #256**: fix: fold SPICE continuation lines before parsing extracted X-devices
+- **PR #244**: feat: per-corner model-B evidence and DR-001 cross-check for item 5 analog
+- **PR #220**: chore(loom): resync installed Loom to v0.19.1302
+- **Issue #204** (closed): parse_extract_devices silently drops an X-line whose model token sits on a SPICE continuation line
+- **Issue #203** (closed): check-ci drift guard fails on main: the analog-generator test step (44e8cee) is not registered in CHECKS
+- **Issue #128** (closed): T1 item 5 (analog 4/4): per-corner model B parameters, DR-001 cross-check on the anchors, and the item-5 analog citation
+- **PR #249**: docs: add DR-008 corrigendum 01 — klt-pin scope of the characterize ground
+- **PR #245**: fix(test): pin ota_fd merge counts to parser-independent check.expected
+- **PR #130**: sim: extract Sin input-sampling completeness over PVT and its Ron-vs-input curve
+- **Issue #227** (closed): DR-008's `klt characterize` rejection ground is pinned to klt 0.8.0 and goes stale at the next klt pin bump
+- **Issue #210** (closed): test_layout_common.py mis-attributes check.found as a parser-independent source (it is parse_extract_devices' own output)
+- **Issue #106** (closed): Input sampling switch Sin is ~46% incomplete near vcm at ss/1.620 V/-40 C
+- **PR #242**: fix: regenerate item9 attest under the klt pin and document the rule
+- **PR #156**: spec: record the digital-timing corner set and declare the 35-corner gap
+- **Issue #223** (closed): item9-envelope provenance.klt_version now names an unpinned klt dev build; .github/klt-version pins 0.8.0
+- **Issue #131** (closed): Decimator STA: 35 of the 45 DR-002 corners have no liberty file, and the block-boundary I/O timing budget is undeclared
+- **PR #240**: fix: report a non-object manifest as a violation, not a traceback
+- **PR #238**: refactor: unify connect_met1, finish_trunks and add_shape into the shared Router base
+- **PR #235**: fix: treat a non-object cited JSON file as provenance-less in content-hash check
+- **PR #149**: feat(sim): short full-modulator transient bench on the DR-002 anchor set
+- **Issue #237** (closed): check_content_hashes.py: a non-object manifest top level crashes check_manifest with a traceback
+- **Issue #234** (closed): check_content_hashes.py: a cited JSON file whose top level is not an object crashes provenance_input_hash
+- **Issue #201** (closed): gen_ota_fd/gen_integrator: two of the seven kept Router overrides differ only by a default budget and a one-sided message, and finish_trunks disagrees on a zero-height trunk
+- **Issue #125** (closed): T1 item 5 (analog 1/4): short full-modulator transistor-level transient on the DR-002 anchor set, with power and swing limits
+- **PR #222**: fix: enforce both directions of the manifest content_hash iff invariant
+- **Issue #215** (closed): check_content_hashes.py enforces only half the documented content_hash "if and only if" invariant
+- **Issue #216** (closed): Merge pipeline stalled: strict required-status-checks policy blocks every behind PR and nothing updates them
+- **Issue #224** (closed): ngspice_version() has no committed test for its no-argument path, the one three probe runners use
+- **Issue #225** (closed): Move duplicated assert_drc_clean into layout_common: two byte-identical copies in the analog generators
+- **Issue #146** (closed): ota_fd layout: MiM plate orientation differs from the netlist's terminal order for one cap group; README row table quotes ring extents
+- **Issue #153** (closed): Two more ngspice-version lookups could reach settling_common.ngspice_version() (log-first variant)
+- **Issue #155** (closed): Manifest content_hash for item8-envelope.json is stale, and the field's meaning is undefined for a generic envelope
+- **Issue #163** (closed): README status and maturity position are stale: state what the verdict of record says, and re-attest item 10
+- **Issue #182** (closed): Share the Rect/Anchor/Router classes copy-pasted between gen_ota_fd.py and gen_integrator.py
+- **Issue #186** (closed): Pin klayout in the --check uvx resolution: the gate degrades to CANNOT VERIFY on the next klayout release
+- **Issue #190** (closed): comparator-decision: pass_criterion prose claims a +/-3.5 mV span requirement that bracketed() does not enforce
+- **Issue #191** (closed): layout/analog/layout_common.py has no CI-executed test: the parsers behind both cells' device-count evidence are never run by signoff.yml
+- **Issue #192** (closed): sim/ota-settling/request.json is intentionally stale: record-pinned; regeneration drifts by capacity_wait_s
+- **Issue #198** (closed): DR-006's Consequences bullet is stale: it says record.json predates the gap line, but the committed record carries it
+- **Issue #212** (closed): Share the unmeasured/corner_set/call test helpers: three near-identical copies in sim/ test benches
+- **Issue #226** (closed): layout_common's router/DRC-spacing core has no CI-executed test: #191 closed the gap for the parsers only
+- **PR #231**: test: pin ngspice_version()'s no-argument path in NgspiceVersion
+- **PR #229**: refactor: dedupe assert_drc_clean into layout_common
+- **PR #177**: fix(manifest): drop the unverifiable item-8 content_hash pins and gate the pin invariant
+- **PR #180**: docs: README status matches the verdict of record; item-10 envelope re-attested
+- **PR #195**: comparator-decision: state the trip gate as implemented in pass_criterion
+- **PR #197**: refactor(layout): share the Rect/Anchor/Router core via layout_common
+- **PR #205**: test: CI-execute layout_common's extracted-netlist parsers with captured klt fixtures
+- **PR #206**: docs(spec): corrigendum for DR-006's stale record.json Consequences bullet
+- **PR #207**: ota_fd: emit row extents from place_rows, requote the README table, record the cap-plate LVS probe
+- **PR #208**: refactor(sim): fold the log-first ngspice version lookup into settling_common.ngspice_version()
+- **PR #214**: test(sim): share one unmeasured/corner_set/call fixture harness across the benches
+- **PR #217**: test: guard every committed record's request_sha256 pin from orphaning
+- **PR #219**: fix: pin the klayout axis in the --check gates' uvx resolution
+- **PR #228**: test: pin layout_common's Rect/Router geometry core with 26 unit tests
+
 ### 2026-11-15
 
 - **PR #193**: refactor(sim): share one measurement-dict helper across the six benches

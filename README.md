@@ -8,14 +8,18 @@ AI agents driving [klayout-tools](https://github.com/2AMLogic/klayout-tools),
 xschem + ngspice on the analog side and cocotb + Icarus, Yosys/OpenROAD on
 the digital side.
 
-**Status: spec ratified; behavioural model, decimation filter and
-transistor-level sub-blocks committed.** The behavioural modulator model (B)
+**Status: spec ratified, full modulator simulated at seven corners.**
+The behavioural modulator model (B)
 and the decimation filter RTL are verified and recorded. The transistor-level
 schematics and netlists of the OTA, integrator, clock generator and modulator
 top are in `design/`; two analog layout cells and the routed decimator GDS are
 committed under `layout/`; and the sub-blocks carry 45-corner transistor-level
-records under `sim/`. The full transistor-level modulator has not yet been
-simulated for SNDR. Every figure here is simulated, none is measured.
+records under `sim/`. The 4096-clock full-modulator simulation gives an
+in-band SNDR at each of the seven DR-002 anchor corners. The behavioural
+and transistor-level results differ by more than the 3 dB tolerance at
+five anchors across all 20 noise seeds. At the typical (tt) and slow-fast
+(sf) anchors, agreement depends on the seed. The 80 dB target remains
+unverified. [Simulated cross-check results](sim/bmodel/xcheck-record-long-dc-excluded.json).
 
 **Built agent-native.** Every specification, decision record, testbench, and
 line of documentation here is produced by AI agents working from a ratified
@@ -91,8 +95,8 @@ DRC/LVS-clean → post-layout re-verification → shuttle seat → measured
 silicon. **Current position: spec ratified; behavioural modulator model and
 decimation filter verified; transistor-level sub-blocks designed and recorded
 across the DR-002 grid, with two analog layout cells and the routed decimator
-committed; the full transistor-level modulator is not yet simulated for SNDR,
-the analog layout is not yet DRC/LVS-graded, and there is no silicon yet.**
+committed. The full-modulator SNDR cross-check is recorded at seven anchors.
+Analog layout DRC/LVS signoff and silicon measurements are still pending.**
 
 ## T1 evidence
 
@@ -122,8 +126,10 @@ instead pins the cited file's own sha256. Pins are per-entry claims, not
 unique values — two entries may cite different files that attest the same
 declared input.
 [`manifests/check_content_hashes.py`](manifests/check_content_hashes.py)
-asserts this in CI (issue #155): `klt signoff` grades a pin it cannot
-verify as `unverifiable_provenance` rather than comparing bytes, and while
+asserts this in CI, in both directions (issues #155 and #215): a pin the
+cited file cannot verify, and a missing pin where the file carries one,
+both fail. `klt signoff` grades a pin it cannot verify as
+`unverifiable_provenance` rather than comparing bytes, and while
 an item also fails its own check that refusal never surfaces — so the
 manifest is checked where the files it cites live.
 
@@ -191,6 +197,18 @@ The T1 item 10 (repo hygiene) attestation is derived, not asserted:
 uvx --from "klayout-tools==$(cat .github/klt-version)" klt signoff --attest 10 \
     --inventory attestation/item10-inventory.json \
     --check attestation/item10-envelope.json
+```
+
+`--check` never rewrites the envelope: when a PR edits a file the envelope's
+hygiene hashes pin (e.g. `.github/workflows/signoff.yml` or this README),
+it reports the stale hash and exits 3. Regenerate and commit the envelope in
+the same PR with the write form `-o`, which re-runs the inventory's
+`local_only` audit checks and so needs Python and numpy:
+
+```
+uvx --from "klayout-tools==$(cat .github/klt-version)" klt signoff --attest 10 \
+    --inventory attestation/item10-inventory.json \
+    -o attestation/item10-envelope.json
 ```
 
 ## License

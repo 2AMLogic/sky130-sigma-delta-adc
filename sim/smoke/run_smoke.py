@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """Analog smoke runner (smoke fixture, not design). See README.md."""
-import argparse, hashlib, json, pathlib, re, subprocess, sys, tempfile
+import argparse, json, pathlib, re, subprocess, sys, tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
+sys.path.insert(0, str(HERE.parent))
+from settling_common import ngspice_version, sha256
+
 VIN, TOL = 0.6, 0.020  # hold voltage must be within 20 mV of the 0.6 V input
-
-
-def sha256(p):
-    return hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
 
 
 def resolve_root(variant, pdk_root):
@@ -46,15 +45,14 @@ def main():
     if r.returncode or set(m) != {"vtrack", "vhold"}:
         print(log[-2000:], file=sys.stderr)
         return 1
-    ver = re.search(r"ngspice-\d+", log) or re.search(
-        r"ngspice-\d+", subprocess.run(["ngspice", "-v"], capture_output=True, text=True).stdout)
+    ver = ngspice_version(log)
     err = abs(m["vhold"] - VIN)
     ok = err <= TOL
     rec = {
         "fixture": "smoke fixture, not design",
         "result_kind": "simulated (ngspice, transistor-level, single point)",
         "conditions": {"corner": "tt", "temp_C": 27, "vdd_V": 1.8, "vin_V": VIN},
-        "ngspice": ver.group(0) if ver else "unknown",
+        "ngspice": ver,
         "pdk_sources_stamp": stamp,
         "model_sha256": {str(p.relative_to(root)): sha256(p) for p in [
             lib, ng / "corners/tt.spice", ng / "capacitors/sky130_fd_pr__model__cap_mim.model.spice",

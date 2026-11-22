@@ -12,13 +12,22 @@ Structure enforced:
   * every cited evidence file exists; evidenced and partial rows cite at least
     one; a pending row cites none;
   * a partial or pending row names a blocking issue (#N) in "Remaining";
-  * the decimator table's Fmax and power rows are evidenced or name an issue.
+  * the decimator table's Fmax and power rows are evidenced, name an issue, or
+    are a declared gap citing the ratified record that declares it.
 
-The envelope status is `pass` only if every row and every decimator quantity is
-evidenced; otherwise `fail`, so item 8 grades `check_failed` until the pending
-work lands. Hand-editing a verdict in the report, or changing any cited file,
-changes the bytes this script produces, so `--check` fails until the envelope is
-regenerated in the same change.
+A decimator row whose status starts `declared-gap` is a limit that no further
+run can close (DR-008: the standard-cell library ships no liberty file for 35 of
+the 45 DR-002 points). Such a row names no issue - there is none that could
+close it - and instead cites a `spec/decisions/DR-NNN-*.md` record, which must
+exist and is bound into the envelope by sha256 like any other cited file. A
+declared gap is outside the graded set by that record, so it does not hold the
+envelope at `fail`; what it must never do is read as evidence.
+
+The envelope status is `pass` only if every spec row is evidenced and every
+decimator quantity is evidenced or a declared gap; otherwise `fail`, so item 8
+grades `check_failed` until the pending work lands. Hand-editing a verdict in
+the report, or changing any cited file, changes the bytes this script produces,
+so `--check` fails until the envelope is regenerated in the same change.
 
     python3 -I attestation/item8_envelope.py            # write the envelope
     python3 -I attestation/item8_envelope.py --check    # exit 1 if stale or malformed
@@ -36,8 +45,10 @@ ROOT = Path(__file__).resolve().parent.parent
 REPORT = "measurements/characterization.md"
 ENVELOPE = "attestation/item8-envelope.json"
 VERDICTS = {"evidenced", "partial", "pending"}
+DEC_STATUSES = ("evidenced", "pending", "declared-gap")
 PATH_RE = re.compile(r"`([^`]+)`")
 ISSUE_RE = re.compile(r"#(\d+)")
+RECORD_RE = re.compile(r"spec/decisions/DR-\d+-[^`]+\.md$")
 
 
 def sha256(path: Path) -> str:
@@ -96,19 +107,33 @@ def parse(text: str):
         if len(c) != 5:
             errors.append(f"decimator table: malformed row {c[:1]}")
             continue
-        status = c[4]
-        paths = check_paths(f"decimator '{c[0]}'", c[3])
+        status, label = c[4], f"decimator '{c[0]}'"
+        paths = check_paths(label, c[3])
         refs = ISSUE_RE.findall(status)
         done = status.startswith("evidenced")
-        if not done and not status.startswith("pending"):
-            errors.append(f"decimator '{c[0]}': status must start 'evidenced' or 'pending'")
+        gap = status.startswith("declared-gap")
+        if not done and not gap and not status.startswith("pending"):
+            errors.append(f"{label}: status must start one of {list(DEC_STATUSES)}")
         if done and not paths:
-            errors.append(f"decimator '{c[0]}': evidenced but cites no evidence file")
-        if not done and not refs:
-            errors.append(f"decimator '{c[0]}': pending but names no issue (#N)")
-        if not done:
+            errors.append(f"{label}: evidenced but cites no evidence file")
+        records = []
+        if gap:
+            records = [q for q in check_paths(label, status) if RECORD_RE.search(q)]
+            if not records:
+                errors.append(f"{label}: a declared gap must cite the ratified record "
+                              "that declares it (`spec/decisions/DR-NNN-*.md`)")
+            if paths:
+                errors.append(f"{label}: a declared gap cites no evidence (write 'none')")
+            if refs:
+                errors.append(f"{label}: a declared gap names no issue (#N) - there is "
+                              "none that could close it; cite the record instead")
+        elif status.startswith("pending"):
+            if not refs:
+                errors.append(f"{label}: pending but names no issue (#N)")
             issues.update(refs)
-        dec.append({"quantity": c[0], "evidenced": done, "evidence": paths, "issues": sorted(set(refs), key=int)})
+        dec.append({"quantity": c[0], "evidenced": done, "declared_gap": gap,
+                    "evidence": paths, "records": records,
+                    "issues": sorted(set(refs), key=int)})
     names = " ".join(d["quantity"].lower() for d in dec)
     for need in ("area", "fmax", "power"):
         if need not in names:
@@ -116,10 +141,20 @@ def parse(text: str):
     return rows, dec, cited, issues, errors
 
 
+def is_met(rows: list[dict], dec: list[dict]) -> bool:
+    """The envelope passes only when nothing is still owed.
+
+    A declared gap is outside the graded set by the record that declares it, so
+    it does not hold the envelope at `fail`; a pending row does.
+    """
+    return (all(r["verdict"] == "evidenced" for r in rows)
+            and all(d["evidenced"] or d["declared_gap"] for d in dec))
+
+
 def build() -> tuple[dict, list[str], set[str]]:
     report = ROOT / REPORT
     rows, dec, cited, issues, errors = parse(report.read_text())
-    met = all(r["verdict"] == "evidenced" for r in rows) and all(d["evidenced"] for d in dec)
+    met = is_met(rows, dec)
     counts = {v: sum(r["verdict"] == v for r in rows) for v in sorted(VERDICTS)}
     envelope = {
         "schema_version": 1,
@@ -130,7 +165,8 @@ def build() -> tuple[dict, list[str], set[str]]:
             "T1 item 8 (Characterization report): spec rows "
             + ", ".join(f"{n} {k}" for k, n in counts.items())
             + "; decimator Fmax/area/power "
-            + f"{sum(d['evidenced'] for d in dec)}/{len(dec)} evidenced"
+            + f"{sum(d['evidenced'] for d in dec)}/{len(dec)} evidenced, "
+            + f"{sum(d['declared_gap'] for d in dec)} declared gap"
         ),
         "source": REPORT,
         "metrics": {

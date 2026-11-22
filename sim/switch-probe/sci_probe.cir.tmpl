@@ -1,0 +1,70 @@
+* Top-plate hold switch DC probe (issue #147) -- ONE operating point, local.
+* NOT a performance claim and NOT a record. This deck measures the on-state
+* resistance of the `Sci_*` / `Scr_*` top-plate hold switch against the
+* top-plate voltage it must hold to vcm, at one corner. Simulated (ngspice,
+* sky130 device models); nothing here is measured.
+*
+* The as-built switch is a LONE nfet_01v8_lvt (W 12, L 0.15 -- read off
+* design/integrator/integrator.spice; the same NMOS that builds Sbi/Sti's
+* halves, which DID get PMOS halves in issue #92). Unlike the `Sin` input gate
+* (tg_probe.cir.tmpl) it does not pass a voltage from somewhere: during phi1e
+* it must SINK the bottom-plate-coupled charge to vcm, so on the side driven
+* up the top plate sits ABOVE vcm -- where the NMOS gate sees Vgs = Vdda - Vin
+* and the device falls into subthreshold at 1.620 V / -40 C. That makes the
+* informative half of this sweep the half ABOVE vcm = 0.9 V, the opposite half
+* from the `Sin` gate's; the whole range is swept anyway, so both gates read
+* on one grid. The 10 mV probe bias is direction-agnostic -- the physical hold
+* current flows top plate -> vcm.
+*
+* The PMOS half is a {{PMOS_LINE}} placeholder: run_probe.py substitutes
+* either a candidate half (the two precedents already in the cell -- XSti_*_p
+* pfet_01v8_lvt W 4 / XSbi_*_p W 24, both L 0.35, n-well at vdda) or a comment,
+* for the as-built NMOS-only rows. Its ammeter `Vap` and the `i_pmos`
+* measurement stay in the deck either way: with no half substituted, `dp`
+* hangs only off the 0 V source, i_pmos reads 0, and the current-share fields
+* stay well-defined.
+*
+* Van/Vap are 0 V ammeters, not circuit elements: each half still sits
+* directly between the probe's drain node `d` and its source node `s`, so the
+* operating point is identical to wiring the drains to `d` directly. They make
+* each half's share of the current readable, which is what says whether a
+* remedy should add a PMOS half and at what width.
+*
+* The deck prints the three branch currents only. Ron = bias / I is derived by
+* run_probe.py from the printed current, NOT here: on the as-built NMOS-only
+* rows at the top of the sweep the current underflows to the 1e-15 gmin floor
+* and an in-deck `0.01/i_dev` would abort the point on a divide by zero
+* (both first attempts hit exactly that, at tt/-40 C/1.620 V/1.5 V). The
+* runner reports such a row as ron_ohm = null with current_at_gmin_floor =
+* true -- effectively open, not a floored fake number.
+*
+* run_probe.py substitutes the doubled-brace placeholders: PDK library and
+* corner, temperature, supply, the NMOS model and geometry (and the PMOS line,
+* whole), and the two gate and terminal voltages.
+.lib {{PDK_LIB}} {{CORNER}}
+.temp {{TEMP}}
+Vdda vdda 0 {{VDDA}}
+* Source sits at the top-plate voltage being held; drain is offset by the probe
+* bias, so the current through Vd is the whole switch current and
+* Ron = bias / I(Vd), derived by the runner from the printed currents.
+* NMOS half: bulk in the p-substrate at vssa, gate at phi1e's high rail (Vdda).
+* A PMOS half, when substituted: bulk in its n-well at vdda, gate at the low
+* rail (0) a local phi1eb inverter would deliver -- the static rails the
+* committed netlist ties its PMOS halves to.
+Vs s 0 {{VS}}
+Vd d 0 {{VD}}
+Vgn gn 0 {{VGN}}
+Vgp gp 0 {{VGP}}
+Van dn d 0
+Vap dp d 0
+X1 dn gn s 0 {{NMODEL}} {{NGEOM}}
+{{PMOS_LINE}}
+.control
+option gmin=1e-15
+op
+let i_dev = abs(i(vd))
+let i_nmos = abs(i(van))
+let i_pmos = abs(i(vap))
+print i_dev i_nmos i_pmos
+.endc
+.end

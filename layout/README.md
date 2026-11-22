@@ -14,6 +14,9 @@ gate-level netlist `rtl/netlist/decimator_synth.v`. Not hand-edited.
 | `decimator.def`, `decimator_pnr.v` | routed DEF and as-built netlist (CTS buffers included): the LVS reference for the digital partition (item 4, below); analog-partition and assembled-top LVS stay with #32 |
 | `sta_request.json` | the multi-corner `klt sta` request on the routed DEF |
 | `sta-decimator.report.json` | the committed STA report (T1 item 5, digital, with `verification/decimator/fv-decimator.report.json`) |
+| `erc_request.json` | the `klt erc` supply spec (T1 item 11, digital: `VDDD`/`VSSD` islands, ties, strap ownership) |
+| `run_erc.sh` | driver; `layout/digital/run_erc.sh` regenerates the ERC report, `--check` re-hashes |
+| `erc-decimator.report.json` | the committed ERC supply report (T1 item 11, digital; see the ERC section) |
 
 Recorded choices (`pnr_request.json`):
 
@@ -81,7 +84,7 @@ derived from the layout (`VGND`, `VPB`, `VPWR`, declared by every one of the
 declaration and gets the relative-consistency check instead — the verdict says
 every instance's `VPB` reaches the same net, and does not name which. This
 checks per-cell-instance pin-to-net correctness, not the geometric rails:
-power-delivery evidence stays with item 11 (`klt erc`, #39).
+power-delivery evidence stays with item 11 (`klt erc`, #333).
 
 Warnings-only disclosures (all five report entries, none an error; the verdict
 is `match` with these listed, per the item-4 grading rule): three `topology`
@@ -103,6 +106,40 @@ absolute home path, which `klt env-provenance scan` itself flags as a leak
 instead). Not hand-edited out; filed generically as
 `2AMLogic/klayout-tools#5812`. Every other path in the report and the signoff
 record is repo-relative or tilde-rooted.
+
+## ERC supply continuity (T1 item 11, digital — #333)
+
+`klt erc` (pinned klt 0.9.2, klayout 0.30.13, `sky130` device deck) on
+`decimator.gds`, top `decimator`, with the supply spec `digital/erc_request.json`
+(content-pinned by the report) reports `erc_status: clean` — 0 findings — with all
+four declared supplies (`VDDD`, `VSSD`, `VPWR`, `VGND`) resolving to exactly one
+island each. Report `digital/erc-decimator.report.json`; reproduce with
+`digital/run_erc.sh --check` (re-hash of the committed layout/spec, seconds) or
+`digital/run_erc.sh` to regenerate (under a minute; antenna ratios are not graded —
+no `--pdk` — so the run exits 4 with antenna `not_checked` by design and the script
+gates on `erc_status`). What the spec asks, and why it is evidence rather than a
+formality:
+
+- **One node per supply, twice-labelled.** The PDN joins the top-level `VDDD`/`VSSD`
+  met5 strap labels to the per-cell `VPWR`/`VGND` met1 rail labels; each pair is
+  declared `same_net_as`, so the join is a graded assertion (`erc.expected_short_missing`
+  the day it is cut), not a suppressed short.
+- **No orphan straps.** `VDDD`/`VSSD` own the strap layers (`roles: met4, met5`):
+  conductor on those layers reachable from no label counts as `erc.unlabelled_conductor`
+  (0 islands, 0 um2 measured). The few signal segments routed there (86 NEW met4,
+  1 NEW met5 in the DEF) are label-reachable through cell pins, so the measurement
+  stays the severed-strap negative.
+- **Ties, through the 1625 `tapvpwrvgnd` cells.** The n-well (`64/20`) tie to `VPWR`
+  and the substrate tie to `VGND` (sky130 draws no p-well: the substrate half is the
+  stream-derived complement of nwell, `well_complement_of` — disclosed in
+  `erc_coverage.checked_by_well_assertion`, not a literal box list) both graded
+  `checked` via the dedicated tap layer `65/44`; nothing in `erc_coverage.skipped`.
+
+This is the ERC third of item 11's compound citation. The row cannot reach `met`
+until the `klt place-and-route` response (`power.pdn: true`, `tapcell_master`,
+strap layers inside this spec's stackup) is committed and cited beside it — the
+P&R re-run that produces it is #332 (tracked for #162), after which `11.digital`
+is cited in `manifests/sky130-sigma-delta-adc.json` (#333 Part B).
 
 ## Multi-corner STA (T1 item 5, digital)
 
@@ -168,8 +205,12 @@ library ships no file above 100 C (against the 125 C bound), none at 27 C, none 
 1.60 V (`ss_100C_1v40`, `ss_n40C_1v{28,35,40,44}`, `ff_n40C_1v56`) are
 outside the spec's 1.62-1.98 V supply range and are deliberately **not** declared. `klt
 signoff` grades exactly the corners a run declares, so **item 5 / digital is met on these
-ten corners only — this is not 45-corner coverage.** The 35 uncovered DR-002 points are
-tracked in #131.
+ten corners only — this is not 45-corner coverage.** The ten declared corners *are* the
+digital partition's corner set, and the 35 uncovered DR-002 points are a **declared,
+unclosable gap** under
+[DR-008](../spec/decisions/DR-008-digital-timing-corners.md), which also records the
+residual risk each missing axis leaves. The table above is the normative stand-in map that
+record cites.
 
 **Other limits of this report, stated rather than implied.**
 
@@ -190,7 +231,11 @@ tracked in #131.
   `constraint_completeness.status: "incomplete"` with 17 unconstrained endpoints
   (`dout[15:0]`, `dout_valid`) and 0 unclocked registers. No block-boundary input/output
   delay budget is declared, because no ratified document states one; inventing one would be
-  a timing contract no spec backs. Tracked in #131.
+  a timing contract no spec backs.
+  [DR-008](../spec/decisions/DR-008-digital-timing-corners.md) assigns that budget to the
+  assembled top (#122 / #29 / #35), so `incomplete` is the expected value here, not a
+  defect; the first run that may report `complete` is the one made under the top's declared
+  budget.
 - **`fmax_mhz` is extrapolated**, `1/(T - WNS)`, not a bisected search.
 - **Electrical rules.** `ss_n40C_1v60` reports 660 max-transition and 7 max-capacitance
   violations against the liberty limits (every other declared corner reports 0). These are
@@ -278,10 +323,10 @@ gaps hit along the way: `analog/ota_fd/README.md`.
 
 ### `integrator` (#119)
 
-`analog/integrator/integrator.gds`, top cell `integrator`, **493.67 x 313.32 um**
-(154,677 um^2, 3183 flattened polygons). Produced by
+`analog/integrator/integrator.gds`, top cell `integrator`, **494.57 x 313.32 um**
+(154,959 um^2, 4259 flattened polygons). Produced by
 `analog/integrator/gen_integrator.py` from `design/integrator/integrator.spice`:
-one `klt gen` call per distinct device geometry (9 of them cover all 44 netlist
+one `klt gen` call per distinct device geometry (11 of them cover all 50 netlist
 devices, one block per device — nothing folded into a shared array), ten
 `guard_ring` body-tie rings, the script's own floorplan and met1/met2 router,
 merged by `klt gen-compose` used as a placer only. **The OTA is instantiated,
@@ -290,15 +335,15 @@ not redrawn**: a `blocks[].cell` entry naming the committed
 
 - **Reproducing**: `python3 layout/analog/integrator/gen_integrator.py --check`
   regenerates into a temp dir and **byte-compares** against the committed stream
-  (it passes; consecutive runs reproduce the 269,580-byte stream exactly).
+  (it passes; consecutive runs reproduce the 289,704-byte stream exactly).
   Local-only, for the same reason as `ota_fd` — CI installs the pinned klt but
   no PDK.
 - **Pinned inputs**: the generator asserts the sha256 of **both**
   `analog/ota_fd/ota_fd.gds` (`27ace056…eeefe976`) and
-  `design/integrator/integrator.spice` (`18fc5147…4074d53`) before generating,
+  `design/integrator/integrator.spice` (`6857c4ca…66e1c9d`) before generating,
   and aborts if either moved. That is what makes the stream detectably stale if
   #143 resizes the OTA or #129/#147 resize a switch drawn here.
-- **Build that produced it**: klt `0.9.2.dev1022+g2a9c52b27ce7`, klayout
+- **Build that produced it**: klt `0.9.3.dev256+g59096013d161`, klayout
   `0.30.13`, `sky130A` / open_pdks `f6eeac7`. A **later** build than the one that
   produced `ota_fd.gds` (`dev964`); `blocks[].cell` does not regenerate the OTA,
   so the OTA half of the stream is build-independent.
@@ -306,20 +351,20 @@ not redrawn**: a `blocks[].cell` entry naming the committed
   violations**, covering the OTA instance too; report
   `analog/integrator/drc.report.json`. `layers_in_stream_without_rules`: `66/13`
   (resistor-ID marker, from the OTA), `68/5` (`met1.pin`); `rules_skipped`: 51.
-  The 20 `lvtn` markers are checked (`lvtn.angle.1`, `lvtn.ongrid.1`). **Not** a
+  The 28 `lvtn` markers are checked (`lvtn.angle.1`, `lvtn.ongrid.1`). **Not** a
   DRC-clean signoff claim — that stays with #31.
 - **Device count**: `klt extract` over the stream, minus `klt extract` over
-  `ota_fd.gds` alone in the same run, gives this cell's own **44 devices by
-  netlist model**: 9 `nfet_01v8`, 12 `nfet_01v8_lvt`, 9 `pfet_01v8`, 8
+  `ota_fd.gds` alone in the same run, gives this cell's own **50 devices by
+  netlist model**: 8 `nfet_01v8`, 14 `nfet_01v8_lvt`, 8 `pfet_01v8`, 14
   `pfet_01v8_lvt`, 6 `cap_mim_m3_1`, plus the OTA's 29 through its instance.
   **The low-Vth split is confirmed by extraction**, contrary to the premise
   #119's acceptance criterion was weakened on; `extract-device-count.json`
-  records both that result and the flavour-blind 21/17/6 the criterion asked
+  records both that result and the flavour-blind 22/22/6 the criterion asks
   for, and explains the difference from the earlier probe.
 - **Pins and body ties**: the sixteen `.subckt` ports are labelled on `met1.pin`
   and come back out of `klt extract`; `outp`/`outn` share a pin with the OTA's
   own `outp`/`outn` labels, which is how the OTA's outputs are shown to be the
-  nets `Ci_p`/`Ci_n` sit on. 42 distinct device-terminal nets, the 29 this cell
+  nets `Ci_p`/`Ci_n` sit on. 43 distinct device-terminal nets, the 30 this cell
   declares plus the OTA's 21 less the 8 they share. Every nFET bulk extracts to
   `vssa` and every pFET bulk to `vdda` through the ten tap rings.
 - **Mirror symmetry**: the cell has a horizontal axis at y = 143.43 um and each
@@ -328,11 +373,14 @@ not redrawn**: a `blocks[].cell` entry naming the committed
   bound to the MiM top plate, which is `design/integrator/SIZING.md:72-74`'s "to
   be confirmed in layout" step — though extraction cannot read a plate binding
   back, and whether `c0` is physically the top plate stays #146's question.
-- **Summing nodes**: `sump` 130.5 um, `sumn` 134.5 um of drawn wire, the
+- **Summing nodes**: `sump` 121.465 um, `sumn` 122.505 um of drawn wire, the
   shortest nets in the cell that connect more than three anchors, symmetric to
-  3 %. Nothing is shielded, so all four met1 clock adjacencies (0.18–0.32 um,
-  all against `phi2`) and all fifteen met1/met2 clock crossings are listed in
-  `analog/integrator/route-summary.json` and in the cell's README.
+  0.85 % (routed as a matched pair, and gated at 3 % by the generator — the
+  first-come routing this pair replaced had drifted the pair to 9.3 %). Nothing
+  is shielded, so all eighteen met1/met2 clock crossings are listed
+  in `analog/integrator/route-summary.json` and in the cell's README; the
+  matched-pair columns left no clock run within 1.0 um of a summing-node run
+  on the same layer.
 - LVS (#32), parasitic extraction (#35) and power-delivery checks (#39) are not
   claimed.
 

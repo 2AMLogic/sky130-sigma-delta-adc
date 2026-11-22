@@ -1,0 +1,351 @@
+# sim/modulator-tran — short full-modulator transistor-level transient
+
+**Simulated, transistor-level, on an anchor subset. Not an SNDR result and not
+a row 2 claim.** This is the short full-modulator transient
+[DR-001](../../spec/decisions/DR-001-evidence-split.md) item 2 names as the
+cross-check vehicle, run on the seven
+[DR-002](../../spec/decisions/DR-002-pvt-corners.md) anchor corners.
+
+It runs `design/modulator/modulator.spice` with `design/ota/ota_fd.spice` and
+`design/modulator/comparator/comparator.spice` — exactly the include list
+`design/modulator/README.md` "Consuming the netlists" prescribes, and
+deliberately *not* the standalone `integrator.spice` / `clkgen.spice`, which
+the top-level netlist already defines — against ideal DR-005 boundary sources
+(VCM 0.9 V, VREFP/VREFN 1.5/0.3 V, ibias 5 µA), a coherent single tone at
+−6 dBFS, and the 5.12 MHz clock.
+
+    python3 -I sim/modulator-tran/make_request.py     # regenerate deck + request
+    python3 -I sim/modulator-tran/run_tran.py --probe # 1 local corner, no record
+    python3 -I sim/modulator-tran/run_tran.py         # the 7 anchors, batch fleet
+    python3 -I sim/modulator-tran/run_tran.py --record  # write record.json + samples/
+    python3 -I -m unittest discover -s sim/modulator-tran -p 'test_*.py'
+
+The runner refuses a PDK whose `SOURCES` stamp differs from `sim/pdk.json`
+(exit 2) and refuses to overwrite an existing record (records are append-only;
+use `--record-name`).
+
+## `report.json` — the retained raw `klt sim` report
+
+The raw `klt sim` report of the anchor run is committed here as `report.json`
+(~10.7 MB: per-corner measurements including the 3 × 1024 per-clock `.meas`
+cards, the top-level limits-bearing `measurements[]` with their `spec_row`
+tags, the coverage block and full provenance). The runner still lands its
+working copy in the gitignored `.artifacts/`; on a successful seven-anchor
+run, copy it here:
+
+    cp .artifacts/report-anchors.json report.json
+
+`report.json` is the citable envelope: `klt signoff` verifies a citation's
+pin against its `provenance.input.content_hash`, which binds the committed
+deck (`modulator_tran.cir`, `role: netlist`) — the same sha256 `record.json`
+carries as `deck_sha256`. The manifest cites it for row 11
+(`manifests/sky130-sigma-delta-adc.json`, `evidence.5.analog`). Its overall
+status is `fail`: row 11's integrator swing exceeds the §5.4 bound at every
+anchor (#148). klt 0.9.2 credits no per-row coverage from a failing envelope
+(2AMLogic/klayout-tools#6027), so rows 5 and 13 — tagged, limited and passing
+at all seven anchors in this report — stay declared gaps in the manifest
+until the envelope passes (#148) or klt credits row-scoped citation evidence.
+
+Regenerated 2026-11-17 with the pinned klt 0.9.2 (`uvx --from
+"klayout-tools==0.9.2"` driving `run_tran.py`), batch fleet, ngspice-47,
+three 3-unit jobs. The values reproduce the committed record (`record.json`,
+the same ngspice-47 engine) bit-for-bit at all seven anchors: worst `p_ana`
+0.5804 mW, worst `o1_swing_pp` 3.500 V, `phi1_edges` 1024/1024 at every
+anchor. The committed `record.json` and
+`samples/` are deliberately untouched: they are the original run's reduction,
+still bound to the unchanged `request.json`/deck, and the T-extraction chain
+(`sim/bmodel/`) is built on them.
+
+## Record length, and why it is this one
+
+**1024 recorded modulator clocks** (200.0 µs) after **64 discarded start-up
+clocks**, chosen and written into `make_request.py` *before the first corner
+ran*, as DR-001 item 2 requires.
+
+The choice is set by cost, measured on the dispatch host first: about **3.1 s
+of ngspice per microsecond of transient** at tt/27 °C/1.80 V with a 1 ns
+maximum timestep, i.e. about **0.61 s per modulator clock**. 1088 clocks is
+~11 min at tt (the local `--probe` run took 11 min 30 s) and perhaps twice
+that at a slow corner, which fits inside the batch fleet's 3600 s whole-job
+ceiling with margin. One corner per batch job (`batch.max_units_per_job: 1`)
+so each corner gets that budget to itself.
+
+A 1 ns maximum timestep was checked against 0.2 ns on a 2 µs run: the
+integrator outputs agreed to five significant figures, for ~30 % less wall
+clock and a quarter of the stored timepoints.
+
+### Fleet sharding
+
+A batch job is killed at the fleet's whole-job ceiling (3600 s) with every
+unit reported `batch_job_timeout`, and klt's pre-submit check uses the
+fully-serial bound `options.timeout_s x units + 120`. Too *many* jobs is the
+other failure: each one is an instance the shared Spot quota has to find.
+
+The settings are sized from measured runtime, not guessed:
+`max_units_per_job: 3` and `options.timeout_s: 1100` give a 3 420 s bound per
+job, inside the ceiling, in **three** jobs for seven anchors.
+
+The first run of this bench used one unit per job, sized before any fleet
+runtime was known from this host's ~680 s per corner. Two things came out of
+it:
+
+- **The fleet is faster than this host, and varies between instances.** That
+  run saw 270–324 s per corner; the run behind the committed record saw
+  **441–606 s** (`record.json` carries each corner's `runtime_s`, and
+  `summary.slowest_corner_runtime_s` the worst). The 1 100 s budget above is
+  still ~1.8x the slowest corner recorded, and the spread is the reason not
+  to cut it closer.
+- **Seven single-unit jobs is seven instances, and the fleet refused them**
+  with `batch_no_capacity` until a shard exhausted its 600 s capacity-wait
+  budget and came back `lost_shard`. Three instances is a smaller ask for the
+  same work — though it is not a cure: the three-job run lost a shard too,
+  and `--resume` recovered it. On a busy fleet, expect to resume.
+
+`run_tran.py` refuses to write a record while a `lost_shard` is outstanding —
+a capacity refusal is not a result.
+
+    python3 -I sim/modulator-tran/run_tran.py --resume   # only the lost anchors
+
+`--resume` re-launches only the unfinished units, using the shard map a
+previous run left under `.partials/klt-run/` (gitignored).
+
+**Do not regenerate the deck or the request while a run is in flight.** klt
+stages the request once at submission and the shard map carries a fingerprint
+of what it staged — units, seed, netlist and settings. Re-running
+`make_request.py` mid-flight (even for a comment) changes that fingerprint,
+and `--resume` then refuses with `resume_fingerprint_mismatch` rather than
+resuming against different bytes. That refusal is the right behaviour and it
+is the only thing standing between a changed deck and a record that describes
+something other than what ran, because **`environment.netlist_sha256` in a klt
+report is computed client-side when the report is assembled**: a netlist
+edited after submission is hashed there as though it had been simulated.
+
+So the record binds itself three ways rather than trusting that field:
+
+- `deck_sha256` / `request_sha256` over the committed files;
+- `batch_request_fingerprint`, the staged request's own fingerprint;
+- `klt` and `klt_git_commit` taken **from the report's provenance**, not from
+  `klt --version` at record time — this is a shared host that re-provisions
+  its tools under running work, so the two genuinely can differ.
+
+The deck is hash-bound evidence of a past run, so prose *about* the deck
+(why `gmin` is what it is, for example) lives here rather than in deck
+comments; a deck edit without a re-run breaks the first binding above and
+reads as drift.
+
+## The long bench — `record-long.json` (DR-001 corrigendum 01, issue #290)
+
+The cross-check's in-band SNDR leg needs in-band noise bins beside the tone
+lobe; at 1024 clocks the 4-term Blackman-Harris lobe covers the whole 20 kHz
+band (`sim/bmodel/xcheck-record.json`, `sndr_inband_db.reason`).
+[DR-001 corrigendum 01](../../spec/decisions/DR-001-corrigendum-01.md) —
+written to the operator ruling on issue #290 (option `a`: lengthen the
+record until the leg is computable, 3 dB gate unchanged, cross-check stays
+SNDR against SNDR) — lengthens it to **4096 recorded clocks**: 1250 Hz bins,
+16 band bins, the tone at exact bin 12 (15 kHz coherent, −6 dBFS), and 7
+in-band noise bins beside the 9-bin lobe.
+
+The length is the longest band-resolving power of two that fits the batch
+fleet's 3600 s whole-job ceiling, with the cost measured before the corner
+set launched: the probe run (one corner, tt/27 °C/1.80 V, 4160 clocks,
+fleet job `klt-sim-56a43a043984`) took **1104.6 s of unit runtime** —
+against 441–606 s per 1088 clocks for this bench's committed run — and
+8192 recorded clocks extrapolate past the ceiling at every measured
+per-clock rate. One unit's transient runtime is not reducible by sharding
+(sharding divides units per job, never one unit's runtime), so the long
+bench runs **one corner per job** (`max_units_per_job: 1`,
+`timeout_s: 3300`; serial bound 3300 × 1 + 120 = 3420 s ≤ 3600 s) in seven
+concurrent jobs, `--resume` recovering capacity-refused shards as usual.
+
+    python3 -I sim/modulator-tran/make_request.py --long   # long deck + request
+    python3 -I sim/modulator-tran/run_tran.py --long       # the 7 anchors, batch
+    python3 -I sim/modulator-tran/run_tran.py --long --resume
+    python3 -I sim/modulator-tran/run_tran.py --long --record
+
+The long bench writes its own files — deck `modulator_tran_long.cir`,
+request `request_long.json`, per-anchor samples `samples-long/`, record
+`record-long.json` — and never touches the committed 1024-clock bench
+files. That separation is not style: `record.json` binds its deck/request
+by sha256, the item-5 envelope (`sim/bmodel/item5-model-run.json`) pins
+`sim/bmodel/xcheck-record.json`, and the manifest pins the envelope — the
+short bench's evidence chain stays exactly as committed, and the long bench
+appends to it. `modulator_tran_long.cir` is electrically identical to
+`modulator_tran.cir` (only the coherence comment line moves); the analysis
+end time extends with the record. The long run's raw `klt sim` report stays
+in `.artifacts/` (it is ~4× the short bench's report and nothing cites it
+yet); `record-long.json` carries the provenance: batch job ids, the staged
+request sha256, engine and klt versions, per-corner runtime and peak RSS.
+
+The long bench still claims **no standalone SNDR**: the in-band SNDR
+figures live in the cross-check (`sim/bmodel/xcheck.py --all --long`,
+operative record `sim/bmodel/xcheck-record-long-dc-excluded.json`; the
+first derivation, `xcheck-record-long.json`, summed bins 1..edge without
+spec §1.2's DC-leakage exclusion and is superseded by it), which computes
+BOTH sides — B
+re-run on the T input sequence over the same 4096 clocks — identically and
+compares them at DR-001's unchanged 3 dB gate. The bench supplies the
+transistor-level side: bitstreams, integrator waveforms, admission gates.
+
+## What it measures, and against what
+
+Every measurement below carries `limits` and a `spec_row` tag in the `klt sim`
+report, so the report itself says which spec row it grades.
+
+| Measurement | Row | Limit | Where the limit comes from |
+|---|---|---|---|
+| `p_ana` | 13 | ≤ 1 mW | `spec/modulator-adc.md` row 13 |
+| `o1_swing_pp`, `o2_swing_pp` | 11 | ≤ 1.39 V<sub>pp</sub> | `spec/modulator-adc.md` §5.4 |
+| `phi1_edges` | 5 | exactly 1024 | the record length itself |
+| `bs_edges` | 5 | ≥ 1 and ≤ 1024 | one decision per clock, at most |
+
+**`p_ana`** is the time-weighted mean, over a whole number of clock periods,
+of the power delivered by the VDDA source plus the two reference sources. The
+5 µA bias current is drawn from `vdda`, so it is already inside the VDDA term.
+The `vcm` source is reported as `p_vcm` and is **not** in the row 13 sum.
+A second, independent route to the same quantity — `klt sim`'s own integration
+of each source's energy over the same window — is recorded beside it, and
+`run_tran.py` refuses a record whose two routes disagree by more than 0.1 %.
+
+**Swing and the §5.4 reading.** §5.4 is the only swing figure the ratified
+spec gives: the integrator outputs "stay well inside the ≈ 1.39 V<sub>pp</sub>
+output swing `sky130-opamp` reports at its worst corner". That sentence does
+not say whether 1.39 V<sub>pp</sub> is a differential or a per-node figure. It
+is applied here to the **differential** integrator output, which is how
+`design/ota/SIZING.md` "Swing vs spec §5.4" reads it (it compares ~2.3
+V<sub>pp</sub> *differential* of static headroom against it). No new number is
+introduced. The single-ended extremes (`o1p_max`/`o1p_min`, `o2p_max`/`o2p_min`)
+are recorded beside the differential swing, **ungraded**, so the other reading
+of the sentence and the headroom to the rails both stay visible. If the
+differential reading is the wrong one, that is a spec clarification through
+`spec/` with a decision record — not something this bench may decide by
+loosening its own limit.
+
+The graded swing is the **continuous-time** extreme over the window — what the
+amplifier actually has to deliver. The per-clock values in `samples/` are the
+*held* states and have a smaller peak-to-peak, because they skip the switching
+transients between sample instants. Both are recorded; neither replaces the
+other.
+
+**Row 12** (supply 1.62–1.98 V) is covered by the anchor set spanning 1.620,
+1.800 and 1.980 V, not by a limit of its own. The request carries no
+supply-row limit tag, and adding one would change `request.json`, whose
+sha256 the committed `record.json` and `samples/` are bound to — a rebind
+that would invalidate the T-extraction chain built on this bench
+(`sim/bmodel/`). The tag waits for the next bench re-run justified on its
+own (e.g. after #148).
+
+**`phi1_edges`** is also a record-admission gate, not just a limit: `phi1`
+rises exactly once per modulator clock, so a window that does not contain
+exactly 1024 of them is not a record of 1024 modulator clocks, whatever else
+it measured.
+
+## What it does **not** claim
+
+- **No SNDR, and no row 2 claim.** An in-band figure needs bins inside the
+  20 kHz band of row 1. 1024 modulator clocks give a bin bandwidth of 5 kHz on
+  the bitstream and only 8 output samples after decimation by the OSR, so
+  neither route resolves the band. Spec §1.2's row 2 claim is a B-model result
+  with the DR-001 cross-check; this bench supplies the cross-check's
+  transistor-level side as bitstreams and integrator waveforms, not as an
+  SNDR. Whether DR-001's "short record" and 3 dB tolerance survive that is the
+  cross-check sub-issue's finding, not this one's.
+- **No settling, noise, charge-injection or comparator-offset extraction.**
+  Those are the single-mechanism benches, on the DR-002 full grid.
+- **Nothing post-layout and no Monte Carlo.**
+- **It is a subset result.** Seven anchors, stated as a subset of the
+  45-point grid everywhere it is reported.
+
+## `samples/` — what the cross-check consumes
+
+One file per anchor, committed, with its sha256 in `record.json`. Each holds,
+for every one of the 1024 recorded clocks: the sample instant, the analytic
+differential input `u[n]`, the bitstream (`bs_v` in volts and `y` as ±1), and
+both integrators' differential outputs `o1d_v`, `o2d_v`. DR-001 item 3 accepts
+the model only if "the integrator output waveforms agree", so a bitstream
+alone would not be enough.
+
+- **Sample instant**: clock *k*'s falling 50 % crossing of the `clk` source,
+  `t = TRISE0 + (k + 0.5)/fs`. That is the end of the phi2 integrate phase and
+  a few hundred ps *before* clkgen lowers phi2, so both integrator outputs
+  carry the charge that clock transferred and are still driven.
+- **Rebuilding `u[n]`**: the input is two `SIN` sources with zero delay and
+  zero phase offset from `t = 0`, so
+  `u(t) = 0.6014 · sin(2π · 15000 · t)` volts differential, exactly. Divide by
+  the 1.2 V differential reference for model B's FS units. The record's
+  `input_sequence` block states the tone, amplitude, phase, clock start delay
+  and which edge samples the input.
+- **Bitstream polarity**: `bs` high means the comparator decided `y = +1`
+  (`bs` and `dp` are both buffered from the latch node `q`).
+- `record.json` also carries the full bitstream **edge times** per anchor,
+  from the `crossings` measurement, as an independent reconstruction path.
+
+**A note for whoever writes the cross-check.** Do not expect sample-by-sample
+bit equality between this bitstream and model B's. A single-bit delta-sigma
+loop is chaotic: two loops fed the same `u[n]` but differing in initial state
+or in any non-ideality diverge within a few clocks and then agree at about
+chance. Feeding model B the committed `u_diff_v` from a zero initial state
+agrees with the recorded `y` on 52 % of clocks — which says nothing about the
+model, because the recorded window starts 64 clocks in. DR-001 item 3 asks
+for in-band SNDR agreement and for the integrator output waveforms to agree,
+not for matching bits; and the SNDR half of that is not reachable at this
+record length (see "What it does not claim"). That tension is the
+cross-check's finding to report, and may well be what revisits DR-001's
+"short record" and its 3 dB tolerance.
+
+These come back as `.meas` cards inline in the report, not as waveform
+artifacts: a 200 µs transient's rawfile is far too large to retrieve for seven
+corners, and the batch fleet then needs no artifact retrieval at all.
+
+## Record validity gates
+
+`run_tran.py` writes no record unless **all** of these hold (fixture tests in
+`test_run_tran.py` pin each one; no EDA tools needed):
+
+1. all seven anchors returned;
+2. every anchor produced every scalar measurement — a fleet job that dies
+   still returns one entry per point, so a count gate alone would let an empty
+   grid become a "record";
+3. every anchor returned a full 1024-clock sample set;
+4. `phi1` rose exactly 1024 times in the window at every anchor;
+5. the two independent routes to the VDDA power agree.
+
+A corner that **fails a limit** is not one of these: it was simulated, so it is
+recorded, and recorded as failing. No limit is loosened to make a corner pass.
+
+## What this bench found
+
+Written here so the bench's own README does not read as if it passed.
+
+- **Row 13 (`P_ana`) passes at every anchor.** Worst 0.580 mW of the 1 mW
+  limit, at `ff`/1.980 V/125 °C.
+- **Row 5 passes at every anchor.** `phi1` rose exactly 1024 times in every
+  record window, and the bitstream toggled 596–624 times.
+- **Row 11 fails at every anchor.** Integrator 1's differential swing is
+  2.95–3.50 V<sub>pp</sub> against §5.4's ≈ 1.39 V<sub>pp</sub>, and its
+  single-ended output reaches within 67 mV of VDDA and 43 mV of ground at
+  `tt` — it is railing, not merely swinging wide. The ideal behavioural model
+  on the same input sequence predicts 3.06 V<sub>pp</sub>, so the demand is
+  the loop's 0.5/0.5 coefficient scaling, not the amplifier. Filed as
+  **#148**; fixing it is out of scope for this bench, which records the
+  failing corners rather than loosening its limit.
+
+Every corner therefore reports `status: "fail"` and `record.json` has
+`"pass": false`. That is the recorded result, not a bench error.
+
+## Known risks
+
+- `#106` reports the input sampling switch about 46 % incomplete at
+  ss/1.620 V/−40 °C, which is an anchor. If the modulator misbehaves there,
+  that is this bench's finding to record.
+- `#106` may regenerate `design/modulator/modulator.spice`. The record names
+  the sha256 of every netlist it simulated; a record whose hashes do not match
+  the tree is a record of a different netlist.
+- The operating point of the assembled modulator is hard (a cross-coupled
+  latch is bistable). `.options gmin=1e-9` is in the deck — 1000x ngspice's
+  1e-12 default — chosen so that operating point converges; it is also the
+  source of the expected gmin/source stepping warnings, and any corner that
+  actually fails to converge is reported `error` and refused by gate 2 above.
+  Its cost is **estimated, not measured**: nA-scale leakage per node, orders
+  of magnitude below the row 13 power record, and a ~ms droop time constant
+  against a 195 ns clock. The direction is what matters: leakage only reduces
+  integrator swing, so it cannot manufacture the row 11 railing.

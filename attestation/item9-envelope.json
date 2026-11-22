@@ -17,21 +17,21 @@
         "role": "testbench",
         "path": "sim/bmodel/run.py",
         "passed": true,
-        "content_hash": "sha256:e77fc261e6f6fe366ca4a83dccd9d3af8eb599d87504f4dce0c15d1c86c87f60"
+        "content_hash": "sha256:6f51b30618fc610c3b3ed2c0ce7d97b5955f1c88eec23f1e72cfbc0e5869e58a"
       },
       {
         "check": "present",
         "role": "testbench",
         "path": "sim/bmodel/test_bmodel.py",
         "passed": true,
-        "content_hash": "sha256:1745c94212de110ce9a02627a078822d640104c46be741808db19f5ca9a5b8aa"
+        "content_hash": "sha256:f593cd552f5cd79f421f0325159c46bfbb0f69844ab8b8cb5d4f7e2b74ec4851"
       },
       {
         "check": "present",
         "role": "testbench",
         "path": "sim/smoke/run_smoke.py",
         "passed": true,
-        "content_hash": "sha256:67c186fbd29289adaba45cea70432981f47d9930e4e885a9db097450d46a0d82"
+        "content_hash": "sha256:bdbf0f437e639361f42d677f29c4bc2bc0e441f130ed3e066a75eeea34b37569"
       },
       {
         "check": "present",
@@ -110,7 +110,7 @@
         "value": {
           "cocotb": "2.1.0",
           "icarus_verilog": "13.0",
-          "klayout-tools": "0.8.0",
+          "klayout-tools": "0.9.2",
           "ngspice": "46",
           "numpy": "1.26.4",
           "xschem": "3.4.7",
@@ -120,7 +120,7 @@
     ]
   },
   "provenance": {
-    "klt_version": "0.8.0",
+    "klt_version": "0.9.2",
     "klayout_version": null,
     "pdk": null,
     "deck": null,
@@ -129,7 +129,7 @@
         "path": "attestation/item9-inventory.json",
         "scope": "repo"
       },
-      "content_hash": "sha256:b8d3bb89fc360daeb8a34750603f42f01c3e5695b70e3b2424064ac38f985774"
+      "content_hash": "sha256:e319615f8ce711413ebbb185ed0e86c61e2950c8aed5cfb1597bd8022523f7b7"
     }
   }
 }

@@ -5,11 +5,22 @@ name: klt signoff
 # committed verdict of record. Drift fails the check; regenerate the record
 # in the same PR so the change lands in the diff for a reviewer to see.
 # The klayout-tools pin lives in .github/klt-version, and nowhere else.
+#
+# The tool-free checks (the attestation re-hash steps included) are not
+# listed here: scripts/check-ci.sh is the one command list, and the
+# "Tool-free checks (the local gate)" step below runs it. Only CI-only
+# steps stay in this workflow: the hosted setup (checkout, python, the
+# pinned-klt and numpy installs), the pyflakes + compile gate over tracked
+# Python, the wider committed-JSON walk, and the signoff byte-compare.
 
 on:
   push:
     branches: [main]
   pull_request:
+  # The merge queue runs this repo's required check (`signoff`) on
+  # merge_group events; without this trigger the queue never sees a
+  # result and repo-ruleset-policy.py refuses to enable the queue.
+  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -36,6 +47,82 @@ jobs:
       - name: Install numpy for the pure-Python checks
         run: pip install -r sim/bmodel/requirements.txt
 
+      # Two gates over every tracked Python file, in one listing pass. Gate
+      # 1 is pyflakes, failing on one finding class only: a name that is
+      # never bound ("undefined name" / "undefined local variable"). None of
+      # the fleet-only runner paths (the run_tran.py main() bodies and their
+      # kin) execute in CI, and issue #272 watched a NameError in exactly
+      # such a path reach main and crash a completed fleet run at its
+      # partial-cache save -- after the batch was already paid for. pyflakes
+      # has no rule-select flag, so the gate greps its output. The other
+      # finding kinds (unused imports, unused locals, placeholder-less
+      # f-strings -- 8 as of Nov 2026) are printed but deliberately not
+      # failed on; gating on them is separate cleanup, not this step's job.
+      # Gate 2 (issue #277) compiles every file in the same listing:
+      # an unparseable file makes pyflakes print a syntax-error line whose
+      # wording varies by shape ("invalid syntax", "'(' was never closed",
+      # IndentationError, ...) and exit 1 -- neither a string the grep
+      # matches nor an rc the rc>1 guard fires on, so such a file used to
+      # pass green. compile() is the parser import itself uses, so the gate
+      # is wording-independent, and it writes no bytecode (python -m
+      # py_compile emits __pycache__ even under PYTHONDONTWRITEBYTECODE=1 --
+      # measured on 3.12). `.loom/` is installer-vendored, so a finding
+      # there is not actionable in this repo and is excluded by path. The
+      # listing is null-delimited so a filename with spaces survives, and an
+      # empty file list exits 0 rather than tripping grep's no-match status.
+      - name: Tracked Python parses and has no undefined names (no EDA tools)
+        run: |
+          set -euo pipefail
+          pip install pyflakes==4.1.0
+          python3 -m pyflakes --version
+          mapfile -d '' files < <(git ls-files -z '*.py' | grep -zv '^\.loom/')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no tracked Python outside .loom/ - nothing to lint"
+            exit 0
+          fi
+          rc=0
+          out="$(python3 -m pyflakes "${files[@]}" 2>&1)" || rc=$?
+          if [ "$rc" -gt 1 ]; then
+            echo "::error::pyflakes exited $rc (usage/interpreter error), see output below"
+            echo "$out"
+            exit 1
+          fi
+          if [ -n "$out" ]; then
+            echo "$out"
+          fi
+          if grep -Eq "undefined name|undefined local variable" <<<"$out"; then
+            echo "::error::pyflakes found a name that is never bound - see the output above"
+            exit 1
+          fi
+          echo "pyflakes: no undefined names in ${#files[@]} tracked Python files"
+          crc=0
+          python3 - "${files[@]}" <<'PYEOF' || crc=$?
+          import sys
+
+          status = 0
+          for path in sys.argv[1:]:
+              try:
+                  with open(path, "rb") as fh:
+                      compile(fh.read(), path, "exec")
+              except OSError as exc:
+                  print(f"::error file={path}::unreadable: {exc.strerror or exc}")
+                  status = 1
+              except (SyntaxError, ValueError) as exc:
+                  line = getattr(exc, "lineno", None) or 1
+                  msg = getattr(exc, "msg", None) or str(exc)
+                  print(f"::error file={path},line={line}::{type(exc).__name__}: {msg}")
+                  status = 1
+          sys.exit(status)
+          PYEOF
+          if [ "$crc" -ne 0 ]; then
+            echo "::error::a tracked Python file does not parse - see the annotations above"
+            exit 1
+          fi
+          echo "compile: all ${#files[@]} tracked Python files parse"
+
+      # Wider than the gate's manifests-only parse: this walk also covers
+      # attestation/ and design/attest. CI-only for the same reason the
+      # pyflakes gate is -- it duplicates no script command list.
       - name: Validate committed JSON parses
         run: |
           set -euo pipefail
@@ -45,47 +132,17 @@ jobs:
               echo "ok: $f"
             done
 
-      - name: Check the item-9 testbench attestation still reproduces
-        run: |
-          # cold_start is local_only (needs ngspice, iverilog, yosys, the PDK):
-          # --check skips it and reports it, but still re-hashes every bench file
-          # and the inventory itself.
-          klt signoff --attest 9 --inventory attestation/item9-inventory.json \
-                      --check attestation/item9-envelope.json
-
-      # Item 8 (characterization report): the pinned klt's --attest takes only
-      # items 1, 9 and 10, so attestation/item8_envelope.py regenerates the
-      # generic envelope from measurements/characterization.md in memory and
-      # fails if the committed one differs (a hand-edited verdict, a cited
-      # record that changed, a missing file, a pending row with no issue).
-      - name: Check the item-8 characterization envelope still reproduces
-        run: python3 -I attestation/item8_envelope.py --check
-
-      # The manifest's content_hash pins are the claim that a citation names
-      # a particular declared input, and klt signoff verifies a citation's
-      # pin only against the cited file's provenance.input.content_hash --
-      # a pin on a file with no provenance block is a latent blocker it
-      # grades unverifiable_provenance (masked while the item also fails its
-      # own check; issue #155). This step asserts the repo invariant
-      # directly: a citation declares a pin iff the cited file carries
-      # provenance.input.content_hash and equals it; a not_applicable
-      # spec/statement binding pins the cited file's own sha256. Runs before
-      # the byte-compare below so a violation names the offending key.
-      - name: Manifest content-hash pins are verifiable (no EDA tools)
-        run: |
-          python3 -I -m unittest discover -s manifests -p 'test_check_content_hashes.py'
-          python3 -I manifests/check_content_hashes.py
-
-      # Item 6 (digital partition) is discharged by a recorded
-      # `not_applicable`, which klt signoff hash-binds to two JSON files under
-      # spec/. klt cannot see that those files are a projection of the ratified
-      # Markdown, so this check binds that last link: it re-derives the row
-      # projection from spec/modulator-adc.md section 1.1 and fails if the
-      # Markdown no longer hashes to the value recorded in the projection.
-      # Editing the ratified spec therefore invalidates the claim loudly.
-      # Runs before the byte-compare below so the failure names the cause.
-      - name: Decimator spec projection is bound to the ratified spec (no EDA tools)
-        run: python3 -I -m unittest discover -s spec -p 'test_*.py'
+      # Every tool-free check -- the item-8 envelope check and its grammar
+      # tests, the manifest content-hash and prose-count gates, the spec
+      # projection tests, the fixture-only sim/layout suites, the decimator
+      # response chain, and the item-9/item-10 attestation re-hash steps --
+      # lives in scripts/check-ci.sh, the one command list this repo's gate
+      # is built from (locally it is `npm run check:ci` / `npm test`). The
+      # pinned klt is pip-installed above, so the script resolves klt from
+      # PATH. Kept before the byte-compare step below so a failure names
+      # its cause.
+      - name: Tool-free checks (the local gate, no EDA tools)
+        run: ./scripts/check-ci.sh
 
       - name: Re-run klt signoff and compare against the committed record
         run: |
@@ -111,67 +168,3 @@ jobs:
             exit 1
           fi
           echo "Committed signoff record is fresh."
-
-      # The item-10 (repo hygiene) attestation is derived, not asserted:
-      # re-run the inventory's checks against the committed envelope.
-      # local_only checks are skipped here and run as explicit steps below.
-      - name: Check the item-10 attestation is current
-        run: |
-          klt signoff --attest 10 --inventory attestation/item10-inventory.json \
-                      --check attestation/item10-envelope.json
-
-      - name: Behavioural model unit tests (no EDA tools)
-        run: python3 -I -m unittest discover -s sim/bmodel -p 'test_*.py'
-
-      # The gates that decide whether a settling record is written at all, and
-      # the runner paths that admit a result into one (issue #94). Fixtures
-      # only: no fleet, no ngspice, no klt.
-      - name: Settling record-admission unit tests (no EDA tools)
-        run: |
-          python3 -I -m unittest discover -s sim -p 'test_settling*.py'
-          python3 -I -m unittest discover -s sim/integrator-settling -p 'test_*.py'
-
-      # The charge-injection bench's record-admission gates and derivations
-      # (issue #102), plus the checks that the committed decks/requests still
-      # match their generator and that the pre-#92 comparison fixture still
-      # matches the commit it names. Fixtures only: no fleet, no ngspice, no klt.
-      - name: Charge-injection record-admission unit tests (no EDA tools)
-        run: python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'
-
-      # The DC-gain and thermal-noise benches' record-admission gates and the
-      # derivations their records depend on (issue #126): V/V -> dB and the
-      # binding corner for the gain bench; the input referral, the V^2 -> FS^2
-      # conversion, the two in-band links and the per-corner budget verdicts
-      # for the noise bench. Plus the checks that the committed decks and
-      # requests still match their generators. Fixtures only: no fleet, no
-      # ngspice, no klt.
-      - name: Gain and noise record-admission unit tests (no EDA tools)
-        run: |
-          python3 -I -m unittest discover -s sim/ota-gain -p 'test_*.py'
-          python3 -I -m unittest discover -s sim/integrator-noise -p 'test_*.py'
-
-      # The comparator bench's derivations (model-B unit conversion, the
-      # offset/hysteresis inversion, the decision-time limit), the staircase
-      # geometry, and the gates that decide whether its record is written at
-      # all (issue #127). Fixtures only: no fleet, no ngspice, no klt.
-      - name: Comparator decision record-admission unit tests (no EDA tools)
-        run: python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'
-
-      # The digital-partition P&R runner's PDK-pin refusal (issue #158): the gate
-      # reads the stamp klt records at provenance.pdk.version, so a report whose
-      # PDK differs from sim/pdk.json -- or that records no PDK at all -- refuses
-      # with exit 2 instead of admitting an unpinned route as pinned evidence.
-      # Fixtures only: subprocess.run is patched, no klt, no openroad, no PDK.
-      - name: Digital P&R PDK-pin refusal unit tests (no EDA tools)
-        run: python3 -I -m unittest discover -s layout/digital -p 'test_*.py'
-
-      # The analog generators' DRC-verdict guard (issue #164): `klt drc` exits 3
-      # on violations but the call site passes check=False to capture the
-      # report, so the verdict is re-asserted in-process and a non-clean report
-      # aborts the flow. Fixtures only: synthetic report dicts, no klt, no PDK.
-      - name: Analog generator DRC-verdict guard unit tests (no EDA tools)
-        run: python3 -I -m unittest discover -s layout/analog -p 'test_*.py'
-
-      - name: Decimator whole-chain response, spec rows 8-9 (no EDA tools)
-        working-directory: verification/decimator
-        run: python3 response.py
