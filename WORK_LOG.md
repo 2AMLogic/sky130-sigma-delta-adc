@@ -2,6 +2,20 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-21
+
+- **PR #344**: fix: ignore loom-daemon Codex account-ranking state via regenerated managed gitignore block
+- **PR #343**: fix(sim): gate OTA swing records on a complete ota-gain reference
+- **PR #341**: fix: fail run_erc.sh regeneration when klt erc exits 0
+- **PR #339**: feat(layout): ERC supply evidence for the digital partition; keep the P&R response envelope
+- **PR #336**: refactor(layout): run both generators' klt gen blocks through one shared runner
+- **PR #334**: feat(sim): OTA swing/gain-compression bench across the DR-002 anchors (sim/ota-swing)
+- **Issue #340** (closed): run_erc.sh exits 0 when klt erc exits 0, silently keeping the stale committed report
+- **Issue #338** (closed): Compute the OTA swing gain comparison once and require all seven reference corners
+- **Issue #337** (closed): Sync Loom's managed gitignore so check-main-clean accepts Codex account-ranking state
+- **Issue #335** (closed): Reuse the OTA block generator for integrator devices and guard rings
+- **Issue #331** (closed): OTA output swing and gain-compression bench across the DR-002 anchors (step 1 of the operator ruling on #148)
+
 ### 2026-11-18
 
 - **PR #326**: ci: run the signoff check on merge_group events
