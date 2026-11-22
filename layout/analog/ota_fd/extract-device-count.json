@@ -1,0 +1,63 @@
+{
+  "tool": {
+    "klt": "0.9.2.dev964+g02db14ecf46b",
+    "git_commit": "02db14ecf46b038bf97cfd4b2a6170cbcfd7bf35",
+    "reinstall_spec": "klayout-tools @ git+https://github.com/2AMLogic/klayout-tools@02db14ecf46b038bf97cfd4b2a6170cbcfd7bf35",
+    "klayout": "0.30.13",
+    "deck": "sky130",
+    "top_cell": "ota_fd",
+    "pdk": "sky130A",
+    "pdk_sources": "open_pdks f6eeac7 (sim/pdk.json)"
+  },
+  "reference_netlist": "design/ota/ota_fd.spice",
+  "method": "klt extract over layout/analog/ota_fd/ota_fd.gds; devices counted by model from the extracted netlist. Two bases are recorded: raw_counts is one entry per drawn unit device (a mult=M netlist device is drawn as M interleaved units, so it appears M times), and merged_counts merges devices sharing a model and all terminals, mirroring an LVS combine-parallel-devices pass. merged_counts is the basis compared against the netlist's 29 instance lines; the mult-expanded unit count is raw_counts.",
+  "comparison_basis": "merged_counts vs the 29 X-lines of the netlist",
+  "extracted_pins": [
+    "ibias",
+    "inn",
+    "inp",
+    "outn",
+    "outp",
+    "vcm",
+    "vdda",
+    "vssa"
+  ],
+  "net_count": {
+    "schematic": 21,
+    "extracted": 21
+  },
+  "raw_counts": {
+    "sky130_fd_pr__cap_mim_m3_1": 3,
+    "sky130_fd_pr__nfet_01v8": 50,
+    "sky130_fd_pr__pfet_01v8": 31,
+    "sky130_fd_pr__res_high_po": 1,
+    "sky130_fd_pr__res_xhigh_po": 2
+  },
+  "merged_counts": {
+    "sky130_fd_pr__cap_mim_m3_1": 3,
+    "sky130_fd_pr__nfet_01v8": 14,
+    "sky130_fd_pr__pfet_01v8": 9,
+    "sky130_fd_pr__res_high_po": 1,
+    "sky130_fd_pr__res_xhigh_po": 2
+  },
+  "check": {
+    "expected": {
+      "nfet_01v8": 14,
+      "pfet_01v8": 9,
+      "cap_mim_m3_1": 3,
+      "res_high_po": 1,
+      "res_xhigh_po": 2,
+      "total": 29
+    },
+    "found": {
+      "nfet_01v8": 14,
+      "pfet_01v8": 9,
+      "cap_mim_m3_1": 3,
+      "res_high_po": 1,
+      "res_xhigh_po": 2,
+      "total": 29
+    },
+    "unexpected_models": {}
+  },
+  "pass": true
+}

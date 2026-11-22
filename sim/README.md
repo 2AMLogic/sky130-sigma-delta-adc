@@ -1,7 +1,12 @@
 # sim
 
 PDK and tool pins (`pdk.json`, `toolchain.json`) and the analog smoke fixture in
-`smoke/`. See the repo README "Reproduce" section.
+`smoke/`. The transistor-level benches are `ota-settling/`, `integrator-settling/`,
+`integrator-ci/`, `comparator-decision/`, `ota-gain/`, `ota-swing/` and `integrator-noise/`;
+each has its own README with the run command (`python3 -I sim/<bench>/run_*.py
+--probe` for one corner, `--record` for the DR-002 full grid; on some benches
+`--probe` takes a variant argument — see each bench's README), and the shared
+45-corner request plumbing is `settling_common.py`.
 
 `bmodel/` is the behavioural modulator model B (DR-001): `python3 -I sim/bmodel/run.py --params sim/bmodel/ideal.json`
 writes an append-only SNDR record to `bmodel/records/`; unit tests: `python3 -I -m unittest discover -s sim/bmodel -p 'test_*.py'` (needs `bmodel/requirements.txt`).
@@ -30,11 +35,117 @@ its own validity evidence (a sensitivity check against a deliberately skewed
 cell, a step-independence check, and a DC-gain cross-check): see
 `integrator-ci/README.md`.
 
+`ota-gain/` is the OTA open-loop DC-gain extraction (issue #126, DR-001 item 2):
+`design/ota/ota_fd` at the bias it has in the integrator's integrate phase, with
+the feedback loop open at ac and closed at dc (1e12 H inductors carry the dc
+feedback, 1 F capacitors the ac drive), read at the bottom of a 1 Hz - 1 kHz
+sweep over the DR-002 full grid. It reports the gain per corner in V/V and dB
+and names the binding (lowest-gain) corner, and carries `integrator-ci`'s
+finite-gain leak figure as a comparison column only. Band flatness, drive
+magnitude and common-mode rejection are gated per corner, which is what makes
+the reading a dc gain rather than a band value; there is no ratified spec row
+for dc gain, so the record makes no pass/fail against the spec. See
+`ota-gain/README.md`.
+
+`ota-swing/` is the OTA output-swing / gain-compression extraction (issue #331,
+step 1 of the operator ruling on #148): `design/ota/ota_fd` in the closed-loop
+integrate-phase configuration with the summing-node load the cell presents
+(driven Cs + parked Cs + Cp, `beta = Ci/(Ci+2Cs+Cp)`), swept over the
+differential output swing at the DR-002 **anchor set** with both loads in one
+deck (`main`, Ci = 2 pF, and the #257 c0p3 rescale, Ci = 3.334 pF,
+parameterised — the bench does not depend on that PR merging). The gain at each
+settled swing is the inversion of the finite-gain error of the closed-loop
+charge transfer; 1 dB / 3 dB compression points, the single-ended range and the
+output common-mode shift follow, and the record interpolates the gain at the
+integrator swings PR #257's c0p3 modulator record actually visited (cited by
+sha256). The 0.2 Vpp small-signal reference is gated against `ota-gain`'s
+record at every anchor, which is what makes the curve a gain. The committed
+record's plain statement: **the OTA compresses** — more than 3 dB inside the
+recorded integrator-1 swing range (cp3 at or below the top of the range,
+2.53 Vpp, at 5 of 7 anchors; the drop exceeds 3 dB at each anchor's own recorded
+swing at 4 of 7; worst ss/1.620 V/125 C, cp3 = 1.26 Vpp), so the #148 ruling's step 3 applies and no section 5.4
+clarification is backed. See `ota-swing/README.md`. Fixture tests for the
+derivations and the record-admission gates, no EDA tools needed:
+`python3 -I -m unittest discover -s sim/ota-swing -p 'test_*.py'`.
+
+`integrator-noise/` is the first integrator's thermal-noise extraction (issues
+#126 and #140, DR-001 item 2): three `.noise` requests over the DR-002 full
+grid, one with the cell held in phi1 (the four sampling capacitors, the
+`4*kT/Cs` quantity spec 5.3 budgets) and two in phi2 (the OTA with its phi2
+switches, read at the differential output and again across `Ci`, which is the
+part that survives the phi1 reset and accumulates -- the per-corner ratio of
+the two is the sampled-data transfer issue #140 measures). It reports
+each part per sampling event and in band, in V^2 and in model B's
+`ktc_noise_var` FS^2 units with both conversions written out, against the
+unchanged 4.5e-10 / 9.0e-10 V^2 budgets of spec 5.3, per corner. Because the
+amplifier's spectrum is flicker-dominated it also carries the aliasing-correct
+in-band link beside the white `1/OSR` one, and derives an effective sampling
+capacitance per corner from the measured variance as a check on the drawn
+capacitor value. Issue #140 adds the accumulating read above and, from one
+local corner, the per-device and flicker/thermal split of the in-band
+amplifier noise. See `integrator-noise/README.md`.
+
+`comparator-decision/` closes the two checks DR-003 still owed on the vendored
+comparator and sources model B's quantizer parameters (issue #127). Both of its
+variants simulate the **whole modulator**, so the comparator sits in exactly the
+loading it has in the block -- real `phi1`, real integrator-2 OTA outputs, real
+NAND SR latch, real `dp`/`dn`/`bs` buffers driving both integrators' reference
+muxes. The `loop` variant runs the modulator closed on the spec reference pair
+and measures the decision time from the `phi1` rise to `dp`/`dn`, graded against
+the `phi1` high time that corner actually delivers (not the bare 97.66 ns
+half-period), plus the kickback onto `o2p`/`o2n` and onto the integrator-2
+summing nodes -- reported as numbers, with no invented limit. The `trip` variant
+nulls the reference pair to open the loop and walks the comparator's input
+across its trip point in 500 uV steps, up and then down, giving the systematic
+offset and the hysteresis width per corner in volts and in model B's FS units.
+Both run the DR-002 full grid; see `comparator-decision/README.md`. Fixture
+tests for the derivations and the record-admission gates, no EDA tools needed:
+`python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'`.
+
+`modulator-tran/` is the short full-modulator transistor-level transient
+(issue #125, DR-001 item 2): the assembled modulator netlist with its OTA and
+comparator, a coherent single tone at -6 dBFS and the 5.12 MHz clock, over the
+DR-002 **anchor set** (7 points, a declared subset of the 45-point grid) through
+the batch fleet. It grades analog power against spec row 13, both integrators'
+differential output swing against the only figure the ratified spec gives
+(sec 5.4), and a clock/bitstream-activity check against row 5; row 12 is covered
+by the anchors spanning 1.62-1.98 V. The record length -- 1024 modulator clocks
+after 64 discarded start-up clocks -- was chosen from measured cost and written
+down before the first corner ran. It commits the per-clock bitstream and both
+integrator outputs per anchor under `modulator-tran/samples/`, which is what the
+DR-001 item 3 cross-check consumes. **It computes no SNDR and makes no row 2
+claim**: 1024 clocks is 8 output samples at OSR 128, which does not resolve the
+20 kHz band. See `modulator-tran/README.md`; its record-admission gates are
+covered by fixture tests, no EDA tools needed:
+`python3 -I -m unittest discover -s sim/modulator-tran -p 'test_*.py'`.
+
 `settling_common.py` holds the shared `klt sim` plumbing for the transistor-level
-benches (`ota-settling`, `integrator-settling`, `integrator-ci`). Its two record-validity gates — `grid_complete()` (all 45 DR-002 grid
-points returned) and `measurements_present()` (every one of them produced an
-`err_phase`, so a dead fleet job cannot become a record) — are covered by
-fixture tests, no EDA tools needed:
-`python3 -I -m unittest discover -s sim -p 'test_settling*.py'`. The
-charge-injection runner's own gates and derivations are covered the same way:
-`python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'`.
+benches (`ota-settling`, `integrator-settling`, `integrator-ci`, `ota-gain`,
+`ota-swing`, `integrator-noise`, `comparator-decision`, `modulator-tran`), plus the two toolchain helpers every
+local single-corner probe runner needs as well — `join_continuations()` (fold a
+netlist's `+` continuation lines back into the instance line that declares them)
+and `ngspice_version()` (match the `ngspice-\d+` token anywhere in `ngspice -v`
+output; given a run log it prefers a token already captured there, which is how
+the two smoke benches — `smoke/`, `ota-op-smoke/` — stamp their records too).
+`request()` builds the common 45-point grid request for
+a transient or, since #126, for any other analysis kind. Its two
+record-validity gates — `grid_complete()` (all 45 DR-002 grid
+points returned) and `measurements_present(key=...)` (every one of them produced
+the bench's own sentinel measurement, so a dead fleet job cannot become a
+record) — are covered by fixture tests, no EDA tools needed:
+`python3 -I -m unittest discover -s sim -p 'test_settling*.py'`. The shared
+`.partials/` sha gate (`shas`/`load_partial`/`save_partial`) is the third
+record-admission gate, exercised through the per-bench suites below. Each
+runner's own gates and derivations are covered the same way:
+
+    python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'
+    python3 -I -m unittest discover -s sim/ota-gain -p 'test_*.py'
+    python3 -I -m unittest discover -s sim/integrator-noise -p 'test_*.py'
+    python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'
+
+`runner_test_common.py` is the test-side counterpart: the harness those
+per-bench runner tests share (loading a runner by path, the DR-002 corner ids,
+a `RunnerCase` base that runs `main()` against a temporary `HERE` with
+`run_klt`/`pdk_stamp` patched, and the issue #94 admission tests as a mixin each
+bench binds to its own variants). It is deliberately not `test_`-prefixed, so no
+`unittest discover` pattern collects it with no runner bound.

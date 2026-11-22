@@ -7,13 +7,53 @@ Runs `klt place-and-route` on layout/digital/pnr_request.json against the pinned
 (sim/pdk.json) and copies the routed GDS, DEF and as-built netlist next to the request.
 --check leaves the committed files alone and exits 3 if the fresh GDS differs from the
 committed one (raw bytes), else 0. The flow takes tens of minutes (detailed routing).
-Exit 2 = PDK tree differs from the pin; 1 = flow failed.
+A non-check run also commits the klt response envelope itself as
+pnr-decimator.response.json (issue #333): the power block item 11 cites, with the
+producing checkout's absolute paths rewritten to repo-relative. --check never writes
+the response (timing fields make it non-reproducible; the GDS is the byte-for-byte
+receipt).
+Exit 2 = the PDK klt recorded in the report (provenance.pdk.version) is absent or
+differs from the sim/pdk.json pin; 1 = flow failed.
 """
 import argparse, hashlib, json, pathlib, shutil, subprocess, sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 OUT = {"gds_path": "decimator.gds", "def_path": "decimator.def", "verilog_path": "decimator_pnr.v"}
+RESPONSE = "pnr-decimator.response.json"
+
+
+def scrub_paths(value, root):
+    """Rewrite the producing checkout's absolute paths out of a JSON value.
+
+    `klt` names its artifacts relative to the request's repo, but other
+    fields (an engine command line, a --pdk-root) can carry the producing
+    checkout's absolute path. The committed response must be free of them
+    (issue #333 step 5): `<root>/` becomes repo-relative and a bare
+    `<root>` becomes `.`, recursively; every other value passes through
+    unchanged.
+    """
+    if isinstance(value, str):
+        return value.replace(root + "/", "").replace(root, ".")
+    if isinstance(value, list):
+        return [scrub_paths(v, root) for v in value]
+    if isinstance(value, dict):
+        return {k: scrub_paths(v, root) for k, v in value.items()}
+    return value
+
+
+def report_pdk_stamp(rep):
+    """The PDK stamp `klt` recorded in a report, or None when it recorded none.
+
+    `klt` writes it at `provenance.pdk.version` -- the variant's SOURCES file
+    verbatim, the same string the thirteen tree-reading runners compare against
+    `sim/pdk.json`'s `sources_stamp` (sim/smoke/run_smoke.py:34). A klt report
+    has no top-level `pdk` key, and `provenance.pdk` is null on a check that
+    resolved no PDK install (layout/digital/drc-decimator.report.json), so both
+    levels are read defensively -- but never defaulted to the pin: an absent
+    stamp is an unverified PDK, not a pass.
+    """
+    return ((rep.get("provenance") or {}).get("pdk") or {}).get("version")
 
 
 def main():
@@ -32,8 +72,9 @@ def main():
         print(o.stdout + o.stderr, file=sys.stderr)
         return 1
     rep = json.loads(o.stdout)
-    if rep.get("pdk", {}).get("version", pin["sources_stamp"]) != pin["sources_stamp"]:
-        print("REFUSE: PDK differs from sim/pdk.json pin", file=sys.stderr)
+    stamp = report_pdk_stamp(rep)
+    if stamp != pin["sources_stamp"]:
+        print(f"REFUSE: report PDK is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
         return 2
     drift = False
     for key, name in OUT.items():
@@ -48,7 +89,11 @@ def main():
             drift |= key == "gds_path" and have != h
         else:
             shutil.copyfile(src, dst)
+    if not a.check:
+        (HERE / RESPONSE).write_text(json.dumps(scrub_paths(rep, str(REPO)), indent=1) + "\n")
+        print(f"{RESPONSE}: written (producing checkout's absolute paths removed)")
     return 3 if drift else 0
 
 
-sys.exit(main())
+if __name__ == "__main__":
+    sys.exit(main())

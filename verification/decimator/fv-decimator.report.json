@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "engine": "icarus",
+  "hdl_toplevel": "decimator",
+  "testbench": "test_decimator",
+  "status": "pass",
+  "test_count": 8,
+  "passed_count": 8,
+  "failed_count": 0,
+  "skipped_count": 0,
+  "tests": [
+    {
+      "name": "random_bits",
+      "status": "passed",
+      "sim_time_ns": 38591.0,
+      "real_time_s": 2.248
+    },
+    {
+      "name": "biased_random_bits",
+      "status": "passed",
+      "sim_time_ns": 48031.00000000001,
+      "real_time_s": 3.63
+    },
+    {
+      "name": "first_output_latency",
+      "status": "passed",
+      "sim_time_ns": 3231.0,
+      "real_time_s": 0.255
+    },
+    {
+      "name": "alternating_input_is_midscale",
+      "status": "passed",
+      "sim_time_ns": 25631.0,
+      "real_time_s": 1.62
+    },
+    {
+      "name": "full_scale_saturates",
+      "status": "passed",
+      "sim_time_ns": 51230.999999999985,
+      "real_time_s": 3.275
+    },
+    {
+      "name": "step_response_overshoot",
+      "status": "passed",
+      "sim_time_ns": 153631.0,
+      "real_time_s": 9.791
+    },
+    {
+      "name": "reset_mid_stream",
+      "status": "passed",
+      "sim_time_ns": 11591.0,
+      "real_time_s": 0.762
+    },
+    {
+      "name": "tone_gain_matches_analytic_response",
+      "status": "passed",
+      "sim_time_ns": 348221.0,
+      "real_time_s": 24.997
+    }
+  ],
+  "coverage": null,
+  "trace": null,
+  "environment": {
+    "engine": "icarus",
+    "engine_version": "13.0",
+    "cocotb_version": "2.1.0",
+    "results_xml": "/tmp/klt-fv-decimator/results_icarus.xml",
+    "test_log": "/tmp/klt-fv-decimator/test_icarus.log",
+    "build_log": "/tmp/klt-fv-decimator/build_icarus.log",
+    "random_seed": 1,
+    "source_defines": {},
+    "initial_state": null,
+    "sdf": null
+  }
+}

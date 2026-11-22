@@ -100,15 +100,24 @@ simulated" below is owed to later T-tier evidence.
   (gm >= 257 uS, `beta` = 0.66) is met with margin: the smoke check reports
   `gm(M1)` ~ 631 uS (bias-point number, not a GBW claim).
 
-## Swing vs spec §5.4 (hand-calc from the smoke-check bias point)
+## Swing vs spec §5.4 (hand-calc from the smoke-check bias point; measured by `sim/ota-swing`, see below)
 
 At the smoke operating point the output cascodes have Vds margins
 (Vds - Vdsat) of about 0.57 V (PMOS) and 0.64 V (NMOS), so each output sits
 inside roughly 0.26 V to 1.47 V: about +/-0.57 V around 0.9 V per side,
 ~2.3 V peak-to-peak differential of static headroom. That comfortably exceeds
 the ~1.39 Vpp `sky130-opamp` figure §5.4 compares against, but it is headroom
-read from one bias point, **not a simulated swing or gain-compression
-result**.
+read from one bias point. **The measured record disagrees with it away from
+nominal corners**: `sim/ota-swing/record.json` (issue #331, DR-002 anchor set,
+closed-loop integrate-phase configuration, both integrator loads) puts the 3 dB
+gain-compression point at 2.3-2.6 Vpp differential at the ff/125 C, fs, tt and sf
+anchors (ff/-40 C has none: the gain has not fallen 3 dB by 2.8 Vpp)
+but at only 1.75 Vpp (`ss`/1.62 V/-40 C) and 1.26 Vpp (`ss`/1.62 V/125 C),
+where the gain at the swings the c0p3 modulator actually records (2.27-2.53
+Vpp) has collapsed by 15-20 dB. The ~2.3 Vpp hand figure holds only near
+nominal; step 3 of the operator ruling on #148 applies (the simulated result
+does not back the per-node section 5.4 clarification, reported there, no
+decision record written).
 
 ## Power (from the smoke check; sanity only)
 
@@ -213,7 +222,8 @@ claim: a sane bias point at one corner.
 Recorded open-loop gain and GBW (the table above is probe-only), phase margin
 of the amplifier, CMFB loop stability and gain as a recorded multi-corner
 result, PSRR, CMRR, input offset, noise (amplifier share of the §5.3 thermal
-budget), output swing and gain compression, corner power, Monte Carlo, layout
+budget; the nominal-grid swing record above leaves Monte Carlo swing
+uncovered), corner power, Monte Carlo, layout
 and parasitics (including the resistor and capacitor parasitics of `Rcm`,
 `Cff`, `Rz`, `Ccm`). The step-settling bench uses ideal switches, ideal
 Cs/Ci and a fixed 35 fF summing-node parasitic; it does not include the

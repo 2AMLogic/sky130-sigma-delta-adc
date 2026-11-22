@@ -1,16 +1,25 @@
 """Shared `klt sim` plumbing for the transistor-level benches.
 
-Used by ota-settling, integrator-settling and integrator-ci. Toolchain only:
+Used by ota-settling, integrator-settling, integrator-ci, ota-gain,
+integrator-noise, comparator-decision and modulator-tran. Toolchain only:
 submits a `klt sim` request, parses the report into per-corner measurements,
-summarizes it, and builds the common DR-002 request. Each bench keeps its own
-fixture, measurements and record metadata.
+summarizes it, and builds the common DR-002 request. The `.partials/` cache
+(`shas`/`load_partial`/`save_partial`) is a record-admission gate like the
+other two (`grid_complete`/`measurements_present`), so it lives here too: a
+partial produced by a different request or deck must never reach a record.
+Each bench keeps its own fixture, measurements and record metadata.
 
 The measurement-key list and the admission sentinel are per bench: the
 settling benches' defaults (`KEYS`, `err_phase`) are the historical ones, and
 `run_klt`/`summarize`/`measurements_present` take `keys=`/`key=` overrides for
 a bench that measures something else (issue #102).
+
+`join_continuations` and `ngspice_version` are here for the same reason: they
+are toolchain, not bench content, and the local single-corner probe runners
+(`integrator-settling/run_diag.py`, `integrator-settling/run_variants.py`,
+`switch-probe/run_probe.py`, `integrator-ci/run_ci.py`) each need them.
 """
-import hashlib, json, pathlib, shutil, subprocess, sys
+import hashlib, json, pathlib, re, shutil, subprocess, sys
 
 GRID_POINTS = 45  # DR-002 full grid: 5 process x 3 T x 3 Vdda
 
@@ -41,6 +50,78 @@ def sha256(p):
     return hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
 
 
+def shas(request_path, deck_path):
+    """The two-key sha dict stamped into a result and re-checked on reload."""
+    return {"request_sha256": sha256(request_path),
+            "deck_sha256": sha256(deck_path)}
+
+
+def load_partial(path, expected_shas):
+    """The cached partial at `path`, if it matches `expected_shas`, else None.
+
+    A record-admission gate beside `grid_complete`/`measurements_present`: a
+    partial produced by a different request or deck is silently stale
+    evidence, so a sha mismatch (or an unparseable file) is dropped with a
+    NOTE on stderr, never returned.
+    """
+    p = pathlib.Path(path)
+    if not p.exists():
+        return None
+    try:
+        d = json.loads(p.read_text())
+    except ValueError:
+        return None
+    if {k: d.get(k) for k in expected_shas} != expected_shas:
+        print(f"NOTE: ignoring stale .partials/{p.name} (request or deck changed since it ran)",
+              file=sys.stderr)
+        return None
+    return d
+
+
+def save_partial(path, result):
+    p = pathlib.Path(path)
+    p.parent.mkdir(exist_ok=True)
+    p.write_text(json.dumps(result, indent=2) + "\n")
+
+
+def join_continuations(text):
+    """Fold SPICE `+` continuation lines into the logical line they continue.
+
+    Returns the logical lines in file order; each folded `+` contributes its
+    text with the `+` stripped and a single space in front. A `+` line with
+    nothing before it has no line to fold into, so it is kept as it stands.
+
+    Shared because every runner that reads a netlist as text needs it before
+    it can match an instance line: `klt netlist` wraps long device lines, so a
+    plain `splitlines()` splits W/L off the instance that declares them.
+    """
+    out, cur = [], None
+    for ln in text.splitlines():
+        if ln.startswith("+") and cur is not None:
+            cur += " " + ln[1:].strip()
+        else:
+            if cur is not None:
+                out.append(cur)
+            cur = ln
+    if cur is not None:
+        out.append(cur)
+    return out
+
+
+def ngspice_version(log=None):
+    """Return e.g. 'ngspice-47', or 'unknown'.
+
+    `ngspice -v` line 1 is the banner's '******' rule, not the version, so
+    match the version token anywhere in the output. With `log`, prefer a
+    version token already captured in a run log over a fresh `ngspice -v`.
+    """
+    m = re.search(r"ngspice-\d+", log) if log else None
+    if m is None:
+        m = re.search(r"ngspice-\d+",
+                      subprocess.run(["ngspice", "-v"], capture_output=True, text=True).stdout)
+    return m.group(0) if m else "unknown"
+
+
 def pdk_stamp(variant, pdk_root):
     if pdk_root:
         root = pathlib.Path(pdk_root).expanduser()
@@ -67,7 +148,38 @@ def anchor_units(process_map=None):
             for p, v, t in ANCHOR_POINTS]
 
 
-def request(deck, measurements, t_end, timeout_s, poll_timeout_s):
+def measurement(name, expr, unit=None, limits=None):
+    """One entry of a request's `measurements` list.
+
+    Hoisted from the six benches' identical local `e()` (issue #185); callers
+    import it aliased as `e` so their measurement lists keep their spelling.
+    """
+    m = {"name": name, "expr": expr}
+    if unit:
+        m["unit"] = unit
+    if limits:
+        m["limits"] = limits
+    return m
+
+
+def request(deck, measurements, t_end=None, timeout_s=None, poll_timeout_s=None, *,
+            analysis=None, options=None):
+    """The common DR-002 full-grid batch request for `deck`.
+
+    Exactly one of `t_end` (a transient, the historical form: the analysis is
+    `tran 10p <t_end> 0 0.1n`) or `analysis` (a ready-made analysis object, for
+    a bench that measures something a transient cannot reach -- the `ac` gain
+    bench and the `noise` bench of issue #126) must be given. With `t_end` the
+    result is byte-identical to the pre-#126 form, so the settling benches'
+    committed requests and their sha256 do not move.
+
+    `options` adds keys to the `options` block (e.g. `ngspice_init`);
+    `timeout_s` and `keep_artifacts` stay under this function's control.
+    """
+    if (t_end is None) == (analysis is None):
+        raise ValueError("request() takes exactly one of t_end (a transient) or analysis")
+    if timeout_s is None or poll_timeout_s is None:
+        raise ValueError("request() needs timeout_s and poll_timeout_s")
     return {
         "netlist": deck,
         "engine": "ngspice",
@@ -78,9 +190,10 @@ def request(deck, measurements, t_end, timeout_s, poll_timeout_s):
             "supply_v": {"vdda": [1.62, 1.80, 1.98]},
             "temperature_c": [-40, 27, 125],
         },
-        "analysis": {"kind": "tran", "args": f"10p {t_end:.6g} 0 0.1n"},
+        "analysis": analysis if analysis is not None
+        else {"kind": "tran", "args": f"10p {t_end:.6g} 0 0.1n"},
         "measurements": measurements,
-        "options": {"timeout_s": timeout_s, "keep_artifacts": False},
+        "options": {**(options or {}), "timeout_s": timeout_s, "keep_artifacts": False},
         "batch": {"poll_timeout_s": poll_timeout_s, "capacity_wait_s": CAPACITY_WAIT_S},
     }
 
@@ -97,7 +210,7 @@ def _find_receipt(outdir):
 
 def run_klt(request_path, probe, tmpdir, tag, probe_path, *,
             capacity_wait_s=CAPACITY_WAIT_S, artifacts_dir=None, keys=KEYS,
-            hosts=None):
+            hosts=None, outdir=None, resume=False):
     """Run `klt sim` on request_path; with probe, on one local tt/27C/1.8V corner.
 
     Batch submits always pass --wait-for-capacity, so a refused launch waits
@@ -107,6 +220,15 @@ def run_klt(request_path, probe, tmpdir, tag, probe_path, *,
 
     `keys` selects which measurements are carried into the per-corner dict
     (default: the settling benches' KEYS).
+
+    `outdir` overrides the per-run scratch directory (default: a fresh one
+    under `tmpdir`). A stable one is what makes `resume` possible: `klt sim`
+    keeps its shard map and checkpoint there. `resume` passes `--resume`, so
+    a re-run launches only the units a previous run left unrun -- the fleet
+    loses shards to capacity refusals and Spot reclaims routinely, and
+    without this the only way to finish such a grid is to pay for all of it
+    again. `resume` without a matching `outdir` from an earlier run is an
+    error `klt sim` reports; this helper does not second-guess it.
 
     `hosts` shards the expanded unit list across that many fleet instances
     (`--hosts`). The fleet kills a job that is still running at its whole-job
@@ -118,7 +240,7 @@ def run_klt(request_path, probe, tmpdir, tag, probe_path, *,
     Returns (report, corners) or None (details on stderr) if no usable report.
     """
     request_path = pathlib.Path(request_path)
-    outdir = pathlib.Path(tmpdir) / f"out-{tag}"
+    outdir = pathlib.Path(outdir) if outdir else pathlib.Path(tmpdir) / f"out-{tag}"
     report_out = pathlib.Path(tmpdir) / f"report-{tag}.json"
     cmd = ["klt", "sim", str(request_path), "--format", "json",
            "-o", str(outdir), "--report-out", str(report_out)]
@@ -133,6 +255,8 @@ def run_klt(request_path, probe, tmpdir, tag, probe_path, *,
         cmd += ["--backend", "local"]
     else:
         cmd += ["--wait-for-capacity", str(capacity_wait_s)]
+        if resume:
+            cmd += ["--resume"]
         if hosts:
             cmd += ["--hosts", str(hosts)]
     r = subprocess.run(cmd, capture_output=True, text=True)

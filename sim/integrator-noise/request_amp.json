@@ -1,0 +1,163 @@
+{
+  "netlist": "integrator_noise_amp.cir",
+  "engine": "ngspice",
+  "backend": "batch",
+  "models": {
+    "pdk": "sky130A",
+    "lib": "libs.tech/ngspice/sky130.lib.spice"
+  },
+  "corners": {
+    "process": [
+      "tt",
+      "ss",
+      "ff",
+      "sf",
+      "fs"
+    ],
+    "supply_v": {
+      "vdda": [
+        1.62,
+        1.8,
+        1.98
+      ]
+    },
+    "temperature_c": [
+      -40,
+      27,
+      125
+    ]
+  },
+  "analysis": {
+    "kind": "noise",
+    "args": "v(vod) Vinp dec 20 1 1e+11"
+  },
+  "measurements": [
+    {
+      "name": "nz_rms_tot",
+      "noise": {
+        "quantity": "onoise",
+        "band_hz": [
+          1.0,
+          100000000000.0
+        ]
+      },
+      "unit": "V"
+    },
+    {
+      "name": "nz_rms_bb",
+      "noise": {
+        "quantity": "onoise",
+        "band_hz": [
+          1.0,
+          20000.0
+        ]
+      },
+      "unit": "V"
+    },
+    {
+      "name": "nz_rms_audio",
+      "noise": {
+        "quantity": "onoise",
+        "band_hz": [
+          20.0,
+          20000.0
+        ]
+      },
+      "unit": "V"
+    },
+    {
+      "name": "nz_dens_20",
+      "noise": {
+        "quantity": "onoise",
+        "at_hz": 20.0
+      }
+    },
+    {
+      "name": "nz_dens_1k",
+      "noise": {
+        "quantity": "onoise",
+        "at_hz": 1000.0
+      }
+    },
+    {
+      "name": "nz_dens_20k",
+      "noise": {
+        "quantity": "onoise",
+        "at_hz": 20000.0
+      }
+    },
+    {
+      "name": "nz_dens_1meg",
+      "noise": {
+        "quantity": "onoise",
+        "at_hz": 1000000.0
+      }
+    },
+    {
+      "name": "nz_dens_100meg",
+      "noise": {
+        "quantity": "onoise",
+        "at_hz": 100000000.0
+      }
+    },
+    {
+      "name": "nz_rms_trunc1",
+      "noise": {
+        "quantity": "onoise",
+        "band_hz": [
+          1.0,
+          1000000000.0
+        ]
+      },
+      "unit": "V"
+    },
+    {
+      "name": "nz_rms_trunc2",
+      "noise": {
+        "quantity": "onoise",
+        "band_hz": [
+          1.0,
+          10000000000.0
+        ]
+      },
+      "unit": "V"
+    },
+    {
+      "name": "trunc_vs_total_rms_rel",
+      "expr": "abs(1 - nz_rms_trunc2/nz_rms_tot)",
+      "limits": {
+        "max": 0.1
+      }
+    },
+    {
+      "name": "nz_dens_top",
+      "noise": {
+        "quantity": "onoise",
+        "at_hz": 10000000000.0
+      }
+    },
+    {
+      "name": "nz_total_native",
+      "expr": "onoise_total",
+      "unit": "V"
+    },
+    {
+      "name": "total_vs_native_rel",
+      "expr": "abs(nz_rms_tot/nz_total_native - 1)",
+      "limits": {
+        "max": 0.01
+      }
+    }
+  ],
+  "options": {
+    "ngspice_init": [
+      "set numdgt=12"
+    ],
+    "timeout_s": 600,
+    "keep_artifacts": false
+  },
+  "batch": {
+    "poll_timeout_s": 7200,
+    "capacity_wait_s": 600
+  }
+}
