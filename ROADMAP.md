@@ -12,7 +12,7 @@ and wins over this file. Tracking issue: #3 (its hand-kept checklist is stale).
 ## Where it stands
 
 `klt signoff` (pinned klt 0.9.2) grades 22 rows, 11 items by two partitions:
-**11 met, 1 not applicable, 10 unmet.**
+**12 met, 1 not applicable, 9 unmet.**
 
 | T1 item | Analog (modulator) | Digital (decimator) |
 |---|---|---|
@@ -22,7 +22,7 @@ and wins over this file. Tracking issue: #3 (its hand-kept checklist is stale).
 | 4 LVS clean | unmet: #32 | met: `layout/digital/lvs-decimator.report.json` (#82) |
 | 5 Corner verification | unmet (`check_failed`): envelope fails row 11 (integrator swing, #148) | met at ten liberty corners (#132); 35 DR-002 points uncovered, #131 |
 | 6 Monte Carlo | unmet: #34 | not applicable, hash-bound statement (#134) |
-| 7 Post-layout | unmet: #35 | unmet: no SDF-annotated run yet |
+| 7 Post-layout | unmet: #35 | met: `verification/decimator/fv-sdf-decimator.report.json` — SDF-annotated gate-level re-simulation (#162) |
 | 8 Characterization report | unmet (`check_failed`): rows still `partial`/`pending` in `measurements/characterization.md` | same envelope |
 | 9 Testbenches shipped | met | met |
 | 10 Repo hygiene | met | met |

@@ -107,7 +107,7 @@ the verdict of record is
 CI re-renders it with the `klayout-tools` version pinned in
 [`.github/klt-version`](.github/klt-version) and fails on any difference.
 The committed verdict grades 22 T1 rows — 11 items across the analog and
-digital partitions — as 11 met, 1 not applicable and 10 unmet; the per-item
+digital partitions — as 12 met, 1 not applicable and 9 unmet; the per-item
 state is in the record.
 Regenerate it with:
 
