@@ -24,8 +24,7 @@ def main():
     ap.add_argument("--record", action="store_true", help="overwrite record.json")
     a = ap.parse_args()
     pin = json.load(open(REPO / "sim/pdk.json"))
-    root = require_pinned_pdk(pin, a.pdk_root)
-    stamp = pin["sources_stamp"]
+    root, stamp = require_pinned_pdk(pin, a.pdk_root)
     ng = root / "libs.tech/ngspice"
     lib = ng / "sky130.lib.spice"
     netlist = REPO / "design/ota/ota_fd.spice"

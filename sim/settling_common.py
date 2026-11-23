@@ -3,8 +3,11 @@
 Used by ota-settling, integrator-settling, integrator-ci, ota-gain,
 integrator-noise, comparator-decision and modulator-tran; the local runners
 ota-op-smoke, integrator-load-check and modulator-load-check import only
-`require_pinned_pdk` (issue #81), the PDK-pin gate every runner owes before
-it may touch the PDK. Toolchain only:
+`require_pinned_pdk` (issue #81), and since issue #376 the analog and digital
+smoke runners, the decimator runner and `resolve_fv_sdf.py` import the PDK-pin
+gate too (`require_pinned_pdk`/`require_pinned_stamp`/`resolve_root`, plus
+`tool_version` for the tool stamps), so every runner owes the pin check
+exactly once, here, before it may touch the PDK. Toolchain only:
 submits a `klt sim` request, parses the report into per-corner measurements,
 summarizes it, and builds the common DR-002 request. The `.partials/` cache
 (`shas`/`load_partial`/`save_partial`) is a record-admission gate like the
@@ -140,17 +143,64 @@ def ngspice_version(log=None):
     return m.group(0) if m else "unknown"
 
 
-def pdk_stamp(variant, pdk_root):
+def tool_version(cmd, pat):
+    """The first `pat` match in `cmd`'s combined output, or 'unknown'.
+
+    The `ver()` the digital smoke and decimator runners each hand-copied
+    before issue #376 (continuing the same consolidation); callers import it
+    aliased as `ver` so their `tools` records keep the spelling they were
+    written with.
+    """
+    o = subprocess.run(cmd, capture_output=True, text=True)
+    m = re.search(pat, o.stdout + o.stderr)
+    return m.group(0) if m else "unknown"
+
+
+def resolve_root(variant, pdk_root):
+    """The PDK-root lookup every runner owes: `--pdk-root` wins, `klt pdk find` else.
+
+    The wrapper the analog and digital smoke runners, the decimator runner
+    and `resolve_fv_sdf.py` each hand-copied before issue #376. On a lookup
+    failure it keeps the historical `REFUSE: klt pdk find failed:` exit.
+    """
     if pdk_root:
-        root = pathlib.Path(pdk_root).expanduser()
-    else:
-        out = subprocess.run(["klt", "pdk", "find", "--pdk", variant, "--format", "json"],
-                             capture_output=True, text=True)
-        if out.returncode:
-            sys.exit(f"REFUSE: klt pdk find failed: {out.stderr.strip()}")
-        root = pathlib.Path(json.loads(out.stdout)["root"])
+        return pathlib.Path(pdk_root).expanduser()
+    out = subprocess.run(["klt", "pdk", "find", "--pdk", variant, "--format", "json"],
+                         capture_output=True, text=True)
+    if out.returncode:
+        sys.exit(f"REFUSE: klt pdk find failed: {out.stderr.strip()}")
+    return pathlib.Path(json.loads(out.stdout)["root"])
+
+
+def pdk_stamp(variant, pdk_root):
+    root = resolve_root(variant, pdk_root)
     src = root / variant / "SOURCES"
     return root, (src.read_text().strip() if src.exists() else "<missing SOURCES>")
+
+
+def require_pinned_stamp(pin, pdk_root):
+    """`pdk_stamp` plus the sim/pdk.json pin check, for a runner that records
+    the stamp but builds its PDK paths off the un-varianted root.
+
+    The gate the twelve klt-submitted runners (comparator-decision, both
+    integrator-ci runners, integrator-noise, the three integrator-settling
+    runners, modulator-tran, ota-gain, ota-settling, ota-swing, switch-probe)
+    each hand-copied before issue #376, continuing #81: resolve the PDK root
+    (`pdk_root`, else `klt pdk find`), read `<root>/<variant>/SOURCES`, and
+    on a mismatch with `pin["sources_stamp"]` print that cohort's historical
+    `REFUSE:` line -- which names the un-varianted root `pdk_stamp` returns
+    -- to stderr and exit 2. Returns `pdk_stamp`'s `(root, stamp)` pair
+    unchanged, so the runners' `root / variant / ...` paths and their
+    records' `pdk_sources_stamp` keep their form. The lookup failure path
+    (exit with `REFUSE: klt pdk find failed: …`) stays in `pdk_stamp`,
+    unchanged.
+    """
+    root, stamp = pdk_stamp(pin["variant"], pdk_root)
+    if stamp != pin["sources_stamp"]:
+        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'",
+              file=sys.stderr)
+        sys.exit(2)
+    return root, stamp
 
 
 def require_pinned_pdk(pin, pdk_root):
@@ -158,12 +208,17 @@ def require_pinned_pdk(pin, pdk_root):
 
     The lookup and the SOURCES-stamp comparison the non-attested local
     runners (ota-op-smoke, integrator-load-check, modulator-load-check) each
-    hand-copied before issue #81: resolve the PDK root (`pdk_root`, else
+    hand-copied before issue #81, and -- with the same refusal wording, which
+    names the `<root>/<variant>` path -- the `resolve_root` blocks the analog
+    and digital smoke runners, the decimator runner and `resolve_fv_sdf.py`
+    each carried before issue #376: resolve the PDK root (`pdk_root`, else
     `klt pdk find` via `pdk_stamp`), read `<root>/<variant>/SOURCES`, and on
     a mismatch with `pin["sources_stamp"]` print the historical `REFUSE:`
-    line to stderr and exit 2. Returns the `<root>/<variant>` path. The
-    lookup failure path (exit with `REFUSE: klt pdk find failed: …`) stays
-    in `pdk_stamp`, unchanged.
+    line to stderr and exit 2. Returns `(<root>/<variant>, stamp)`: the
+    variant path the local runners build their `libs.tech`/`libs.ref` paths
+    against, and the stamp the recording runners write as
+    `pdk_sources_stamp`. The lookup failure path (exit with
+    `REFUSE: klt pdk find failed: …`) stays in `pdk_stamp`, unchanged.
     """
     variant = pin["variant"]
     root, stamp = pdk_stamp(variant, pdk_root)
@@ -172,7 +227,7 @@ def require_pinned_pdk(pin, pdk_root):
         print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'",
               file=sys.stderr)
         sys.exit(2)
-    return root
+    return root, stamp
 
 
 def anchor_units(process_map=None):

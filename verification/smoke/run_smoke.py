@@ -4,22 +4,8 @@ import argparse, json, pathlib, re, shutil, subprocess, sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-
-
-def resolve_root(variant, pdk_root):
-    if pdk_root:
-        return pathlib.Path(pdk_root).expanduser()
-    out = subprocess.run(["klt", "pdk", "find", "--pdk", variant, "--format", "json"],
-                         capture_output=True, text=True)
-    if out.returncode:
-        sys.exit(f"REFUSE: klt pdk find failed: {out.stderr.strip()}")
-    return pathlib.Path(json.loads(out.stdout)["root"])
-
-
-def ver(cmd, pat):
-    o = subprocess.run(cmd, capture_output=True, text=True)
-    m = re.search(pat, o.stdout + o.stderr)
-    return m.group(0) if m else "unknown"
+sys.path.insert(0, str(REPO / "sim"))
+from settling_common import require_pinned_pdk, tool_version as ver
 
 
 def main():
@@ -29,13 +15,7 @@ def main():
     a = ap.parse_args()
     pin = json.load(open(REPO / "sim/pdk.json"))
     assert re.fullmatch(r"[0-9a-f]{40}", pin["open_pdks_revision"]), "pin is not a 40-hex SHA"
-    root_all = resolve_root(pin["variant"], a.pdk_root)
-    src = root_all / pin["variant"] / "SOURCES"
-    stamp = src.read_text().strip() if src.exists() else "<missing SOURCES>"
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root_all / pin['variant']} is '{stamp}', pinned '{pin['sources_stamp']}'",
-              file=sys.stderr)
-        return 2
+    root, stamp = require_pinned_pdk(pin, a.pdk_root)
 
     # 1. cocotb + Icarus
     import cocotb
@@ -52,9 +32,10 @@ def main():
         print("cocotb test FAILED", file=sys.stderr)
         return 1
 
-    # 2. klt synthesize against the pinned PDK
+    # 2. klt synthesize against the pinned PDK (klt's --pdk-root wants the
+    #    install root, the variant dir's parent)
     o = subprocess.run(["klt", "synthesize", str(HERE / "synth_request.json"), "--pdk", pin["variant"],
-                        "--pdk-root", str(root_all), "--format", "json"], capture_output=True, text=True)
+                        "--pdk-root", str(root.parent), "--format", "json"], capture_output=True, text=True)
     if o.returncode:
         print(o.stdout + o.stderr, file=sys.stderr)
         return 1

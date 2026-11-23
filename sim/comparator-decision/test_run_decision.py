@@ -2,7 +2,7 @@
 
 Run: python3 -I -m unittest discover -s sim/comparator-decision -p 'test_*.py'
 
-No fleet, no ngspice, no klt: `run_klt` and `pdk_stamp` are patched and the
+No fleet, no ngspice, no klt: `run_klt` and `require_pinned_stamp` are patched and the
 runner's HERE / .partials / .artifacts are redirected into a temporary
 directory, so the committed record.json is never read or written. `shas()` is
 NOT patched -- the real request and deck files are copied into the temporary
@@ -354,10 +354,10 @@ class RunnerCase(unittest.TestCase):
         # inside this test's own tree so a test run leaves nothing in /tmp.
         self.enterContext(mock.patch.dict(os.environ, {"TMPDIR": str(self.tmp)}))
         self.enterContext(mock.patch.object(
-            RUNNER, "pdk_stamp",
-            lambda variant, root: (pathlib.Path("/pdk"),
-                                   json.loads((RUNNER.REPO / "sim/pdk.json").read_text())
-                                   ["sources_stamp"])))
+            RUNNER, "require_pinned_stamp",
+            lambda pin, root: (pathlib.Path("/pdk"),
+                               json.loads((RUNNER.REPO / "sim/pdk.json").read_text())
+                               ["sources_stamp"])))
 
     def run_main(self, corners, argv=(), status="pass"):
         """main() with run_klt returning `corners[variant]`; returns (rc, out)."""
@@ -368,8 +368,12 @@ class RunnerCase(unittest.TestCase):
         buf = io.StringIO()
         with mock.patch.object(RUNNER, "run_klt", fake), \
                 mock.patch.object(sys, "argv", ["run_decision.py", *argv]), \
-                contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
-            rc = RUNNER.main()
+                contextlib.redirect_stdout(buf), \
+                contextlib.redirect_stderr(buf):
+            try:
+                rc = RUNNER.main()
+            except SystemExit as e:      # the shared pin gate sys.exit(2)s
+                rc = e.code
         return rc, buf.getvalue()
 
     def test_a_full_grid_writes_a_record_with_the_derived_quantities(self):
@@ -633,8 +637,11 @@ class RunnerCase(unittest.TestCase):
             self.assertTrue(seen[v]["resume"])
 
     def test_a_pdk_other_than_the_pin_is_refused_before_anything_runs(self):
-        with mock.patch.object(RUNNER, "pdk_stamp",
-                               lambda variant, root: (pathlib.Path("/pdk"), "open_pdks deadbeef")):
+        # Drive the real shared gate, not the setUp fake: require_pinned_stamp
+        # itself, with only its pdk_stamp lookup patched to a wrong stamp.
+        with mock.patch.object(RUNNER, "require_pinned_stamp", SC.require_pinned_stamp), \
+                mock.patch.object(SC, "pdk_stamp",
+                                  lambda variant, root: (pathlib.Path("/pdk"), "open_pdks deadbeef")):
             rc, out = self.run_main({"loop": grid(loop_corner), "trip": grid(trip_corner)},
                                     ["--record"])
         self.assertEqual(rc, 2)

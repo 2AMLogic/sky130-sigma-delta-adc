@@ -1,7 +1,7 @@
 """Tests for the input-sampling runner's admission gates and derivations. Run:
 python3 -I -m unittest discover -s sim/integrator-ci -p 'test_*.py'
 
-No fleet, no ngspice, no klt: `run_klt` and `pdk_stamp` are patched and the
+No fleet, no ngspice, no klt: `run_klt` and `require_pinned_stamp` are patched and the
 runner's HERE / .partials are redirected into a temporary directory, so the
 committed record-i106.json is never read or written. `shas()` is NOT patched --
 the real request and deck files are copied into the temporary HERE, so the

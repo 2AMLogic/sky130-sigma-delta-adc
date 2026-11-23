@@ -5,19 +5,9 @@ import argparse, json, pathlib, re, subprocess, sys, tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import ngspice_version, sha256
+from settling_common import ngspice_version, require_pinned_pdk, sha256
 
 VIN, TOL = 0.6, 0.020  # hold voltage must be within 20 mV of the 0.6 V input
-
-
-def resolve_root(variant, pdk_root):
-    if pdk_root:
-        return pathlib.Path(pdk_root).expanduser()
-    out = subprocess.run(["klt", "pdk", "find", "--pdk", variant, "--format", "json"],
-                         capture_output=True, text=True)
-    if out.returncode:
-        sys.exit(f"REFUSE: klt pdk find failed: {out.stderr.strip()}")
-    return pathlib.Path(json.loads(out.stdout)["root"])
 
 
 def main():
@@ -27,12 +17,7 @@ def main():
     a = ap.parse_args()
     pin = json.load(open(REPO / "sim/pdk.json"))
     assert re.fullmatch(r"[0-9a-f]{40}", pin["open_pdks_revision"]), "pin is not a 40-hex SHA"
-    root = resolve_root(pin["variant"], a.pdk_root) / pin["variant"]
-    src = root / "SOURCES"
-    stamp = src.read_text().strip() if src.exists() else "<missing SOURCES>"
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
-        return 2
+    root, stamp = require_pinned_pdk(pin, a.pdk_root)
     ng = root / "libs.tech/ngspice"
     lib = ng / "sky130.lib.spice"
     deck = (HERE / "sampler_smoke.cir").read_text().replace("{{PDK_LIB}}", f'"{lib}"')

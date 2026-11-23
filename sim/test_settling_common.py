@@ -671,19 +671,22 @@ class RunVariantSet(unittest.TestCase):
 class RequirePinnedPdk(unittest.TestCase):
     """`require_pinned_pdk`: the PDK-root lookup plus sim/pdk.json pin check
     the three non-attested local runners (ota-op-smoke, both load checks)
-    each hand-copied before issue #81. The refusal line and both exit codes
-    are their historical behaviour, pinned here so the shared copy cannot
-    drift from it.
+    each hand-copied before issue #81, and -- with the same refusal wording
+    -- the smoke and decimator runners' `resolve_root` blocks before issue
+    #376. The refusal line and both exit codes are the local runners'
+    historical behaviour, pinned here so the shared copy cannot drift
+    from it.
     """
 
     def patched_stamp(self, stamp):
         return mock.patch.object(sc, "pdk_stamp",
                                  lambda variant, root: (pathlib.Path("/fake/pdk"), stamp))
 
-    def test_matching_stamp_returns_the_variant_path(self):
+    def test_matching_stamp_returns_the_variant_path_and_the_stamp(self):
         with self.patched_stamp(rtc.PIN["sources_stamp"]):
-            root = sc.require_pinned_pdk(rtc.PIN, None)
+            root, stamp = sc.require_pinned_pdk(rtc.PIN, None)
         self.assertEqual(root, pathlib.Path("/fake/pdk") / rtc.PIN["variant"])
+        self.assertEqual(stamp, rtc.PIN["sources_stamp"])
 
     def test_mismatch_refuses_with_the_historical_line_and_exit_2(self):
         err = io.StringIO()
@@ -707,6 +710,53 @@ class RequirePinnedPdk(unittest.TestCase):
                 or (pathlib.Path("/fake/pdk"), rtc.PIN["sources_stamp"])):
             sc.require_pinned_pdk(rtc.PIN, None)
             sc.require_pinned_pdk(rtc.PIN, "/given/root")
+        self.assertEqual(seen, [(rtc.PIN["variant"], None),
+                                (rtc.PIN["variant"], "/given/root")])
+
+
+class RequirePinnedStamp(unittest.TestCase):
+    """`require_pinned_stamp`: the same lookup and pin check the twelve
+    klt-submitted runners each hand-copied before issue #376, whose refusal
+    line names the un-varianted root `pdk_stamp` returns (their historical
+    wording, distinct from `require_pinned_pdk`'s variant path) and whose
+    return is `pdk_stamp`'s `(root, stamp)` pair unchanged -- the runners
+    record the stamp and build their PDK paths off that root. Pinned here
+    the same way so the shared copy cannot drift from either cohort's
+    behaviour.
+    """
+
+    def patched_stamp(self, stamp):
+        return mock.patch.object(sc, "pdk_stamp",
+                                 lambda variant, root: (pathlib.Path("/fake/pdk"), stamp))
+
+    def test_matching_stamp_returns_pdk_stamp_s_pair_unchanged(self):
+        with self.patched_stamp(rtc.PIN["sources_stamp"]):
+            root, stamp = sc.require_pinned_stamp(rtc.PIN, None)
+        self.assertEqual(root, pathlib.Path("/fake/pdk"))
+        self.assertEqual(stamp, rtc.PIN["sources_stamp"])
+
+    def test_mismatch_refuses_with_the_historical_line_and_exit_2(self):
+        err = io.StringIO()
+        with self.patched_stamp("other-stamp"):
+            with contextlib.redirect_stderr(err):
+                with self.assertRaises(SystemExit) as cm:
+                    sc.require_pinned_stamp(rtc.PIN, None)
+        self.assertEqual(cm.exception.code, 2)
+        self.assertEqual(
+            err.getvalue(),
+            f"REFUSE: PDK at /fake/pdk is "
+            f"'other-stamp', pinned '{rtc.PIN['sources_stamp']}'\n")
+
+    def test_the_stamp_lookup_stays_pdk_stamp_s_job(self):
+        """pdk_root (or None) is passed through, so the `klt pdk find` call
+        and its `REFUSE: klt pdk find failed:` exit stay in `pdk_stamp`."""
+        seen = []
+        with mock.patch.object(
+                sc, "pdk_stamp",
+                lambda variant, root: seen.append((variant, root))
+                or (pathlib.Path("/fake/pdk"), rtc.PIN["sources_stamp"])):
+            sc.require_pinned_stamp(rtc.PIN, None)
+            sc.require_pinned_stamp(rtc.PIN, "/given/root")
         self.assertEqual(seen, [(rtc.PIN["variant"], None),
                                 (rtc.PIN["variant"], "/given/root")])
 

@@ -18,7 +18,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
 from settling_common import (join_continuations, ngspice_version,  # noqa: E402
-                             pdk_stamp, sha256)
+                             require_pinned_stamp, sha256)
 
 BASELINE_REV = "ffbbb3b"   # merge of PR #93: the netlists record.json was taken on
 
@@ -217,10 +217,7 @@ def main():
     a = ap.parse_args()
 
     pin = json.load(open(REPO / "sim/pdk.json"))
-    root, stamp = pdk_stamp(pin["variant"], a.pdk_root)
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
-        return 2
+    root, stamp = require_pinned_stamp(pin, a.pdk_root)
     out = HERE / a.out
     if a.write and out.exists():
         print(f"REFUSE: {out.name} exists; results are append-only (use --out)", file=sys.stderr)
