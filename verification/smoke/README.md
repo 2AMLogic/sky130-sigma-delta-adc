@@ -6,7 +6,7 @@ accumulator. It proves cocotb + Icarus and `klt synthesize` (Yosys against
 decimation filter and chooses no spec parameter. Excluded from any design-source
 inventory by path (`verification/smoke/`).
 
-    python3 -m venv .venv && .venv/bin/pip install cocotb   # version in sim/toolchain.json
+    python3 -m venv .venv && .venv/bin/pip install cocotb   # version: see verification/smoke/record.json
     .venv/bin/python verification/smoke/run_smoke.py [--pdk-root ROOT] [--record]
 
 The runner refuses a PDK tree whose `SOURCES` stamp differs from `sim/pdk.json`
