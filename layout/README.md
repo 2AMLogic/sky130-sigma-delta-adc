@@ -299,6 +299,110 @@ The whole-chain response check (`verification/decimator/response.py`, spec rows 
 `verification/decimator/run_synth.py` and by its own CI step in
 `.github/workflows/signoff.yml`.
 
+## SDF-annotated gate-level re-simulation (T1 item 7, digital)
+
+The item-7 digital evidence is the same cocotb suite re-run against the **as-built
+post-route netlist** `digital/decimator_pnr.v` with the post-route SDF
+`digital/decimator.sdf` back-annotated (`options.sdf`): request
+`../verification/decimator/fv_sdf_request.json`, report
+`../verification/decimator/fv-sdf-decimator.report.json` — `status: "pass"`, 8 tests,
+0 failed, 0 skipped, Icarus 13.0, cocotb 2.1.0, `random_seed` pinned to 1,
+`environment.sdf.annotated: true` (the machine-checkable statement this
+is a post-layout run, not a zero-delay one). `klt signoff` grades item 7 / digital `met`
+on exactly that predicate; the manifest's `7.digital` citation pins no `content_hash`
+because the report carries no `provenance` block (2AMLogic/klayout-tools#5550, same as
+the item-5 fv citation — a pin on a file without one grades `unverifiable_provenance`).
+
+**Two different corners are involved, do not conflate them.** The SDF was *written* at
+the P&R request's single liberty corner `tt_025C_1v80` (SDF header: 1.800 V, 25.0 °C;
+report `interconnect_corner: nom`) during the 2026-11-21 P&R run that also reproduced
+the committed GDS byte-identical (see the reproducibility paragraph above — that
+`run_pnr.py --check` receipt is the AC "routed geometry unchanged" evidence, quoted
+from #342). At simulation time `options.sdf.corner: "typ"` then *selects* the `typ`
+triple of the min/typ/max delays inside that file — a compile-time `iverilog -T` flag,
+not an `$sdf_annotate` argument. The SDF's own coverage limit carries over: the SPEF
+named 5238 of the 5256 linked nets, so 18 nets take no interconnect annotation.
+
+**Entry mode: `interconnect`, after `all` failed as the documented annotation-mechanism
+kill.** The stronger `entries: "all"` was tried first and fails **all 8 tests with one
+shared signature** — the first output strobe never appears (`clock: edge 41: rtl
+valid=0, model valid=1`) — recorded verbatim in
+`../verification/decimator/fv-sdf-decimator-entries-all.report.json`. That is not a
+timing outcome and is not recorded as one: the design is timing-clean by a wide margin
+(worst setup slack +179.58 ns on the 195.3125 ns clock, TNS 0, zero setup/hold
+violations at all ten committed STA corners), and klt's own isolation table
+(klayout-tools issue #2364, quoted in the report's
+`environment.sdf.dropped.iopath_interconnect_only.reason`) documents that on a
+timing-clean sky130A design IOPATH annotation kills the simulation in Icarus "even at a
+10x-relaxed clock period — an annotation-mechanism kill, not a timing outcome", while
+INTERCONNECT-only annotation simulates correctly. The committed request therefore
+selects `entries: "interconnect"`, and the committed report states what that drops:
+`iopath_interconnect_only` 14797 entries (the requested mode itself) and `timingcheck`
+924 entries (Icarus implements SDF delay annotation but no SDF TIMINGCHECK, so
+`$setup`/`$hold`/`$width` run against the cell library's placeholder timing). No
+*selective* failure — some tests passing, some failing — occurred in either run.
+
+**Reproduce** (from the repo root, pinned klt on `PATH` — e.g.
+`uvx --from "klayout-tools==$(cat .github/klt-version)" --with cocotb klt …`;
+Icarus >= 13 is required for `options.sdf`). The committed request's sky130
+cell-model `sources` are written as `../../../../.ciel/…` escapes that resolve only
+from a checkout at the primary clone's depth — a worktree cannot use the file as-is
+(#360; a run-time resolver is in review as #362). The committed reports were therefore
+produced from a materialized request with absolute paths, PDK resolved by
+`klt pdk find --pdk sky130A --format json` (on the producing host: `~/.ciel/sky130A`,
+open_pdks `f6eeac7…`, the `sim/pdk.json` pin) — this is the machine-relative-path
+disclosure: the PDK install path differs per host, `klt pdk find` is the resolver:
+
+```sh
+# 1. materialize the request (request-relative -> absolute; models appended)
+python3 - <<'EOF' > /tmp/fv_sdf_run.json
+import json, os, subprocess, sys
+v = json.loads(subprocess.check_output(
+    ["klt", "pdk", "find", "--pdk", "sky130A", "--format", "json"]))["root"] \
+    + "/sky130A/libs.ref/sky130_fd_sc_hd/verilog"
+req = os.path.abspath("verification/decimator/fv_sdf_request.json")
+d = os.path.dirname(req)
+abs1 = lambda p: p if os.path.isabs(p) else os.path.abspath(os.path.join(d, p))
+r = json.load(open(req))
+r["sources"] = [abs1("../../layout/digital/decimator_pnr.v"),
+                v + "/primitives.v", v + "/sky130_fd_sc_hd.v"]
+r["options"]["sdf"]["file"] = abs1("../../layout/digital/decimator.sdf")
+r["testbench"]["search_path"] = d
+json.dump(r, sys.stdout, indent=2)
+EOF
+# 2. run (one corner, ~8 min measured; entries "all" fails in ~30 s)
+klt functional-verification /tmp/fv_sdf_run.json \
+  -o /tmp/klt-fv-sdf-decimator --format json > /tmp/fv-sdf-report.json
+# 3. scrub: the pinned klt 0.9.2 always absolutizes environment.sdf.file (the
+#    $sdf_annotate shim embeds it verbatim and vvp resolves a relative path
+#    against its own cwd), so rewrite the producing checkout's root prefix to
+#    repo-relative — the same scrub_paths treatment pnr-decimator.response.json
+#    gets (#333); that field is the report's only producing-checkout path.
+#    A post-pin klt retypes the field to a hashed repo-relative envelope
+#    (klayout-tools #5784).
+python3 -c "
+import pathlib
+repo = str(pathlib.Path('.').resolve()) + '/'
+s = open('/tmp/fv-sdf-report.json').read()
+assert s.count(repo) == 1, 'expected exactly one producing-checkout path'
+open('verification/decimator/fv-sdf-decimator.report.json', 'w').write(
+    s.replace(repo, '', 1))"
+```
+
+`-o /tmp/…` is load-bearing as for item 5: `environment.results_xml`/`test_log`/
+`build_log` come out as `{path: null, scope: "external", sha256: …}` envelopes instead
+of the producing host's paths. Both committed reports (`interconnect` and the
+`entries: "all"` refusal record) were scrubbed by exactly step 3, and neither carries
+any other absolute path.
+
+The recipe re-runs the same seeded simulation — a verification re-run produced
+`status: "pass"`, 8/8, with an identical `environment.sdf` block — but it does **not**
+byte-reproduce the committed report: the per-test `real_time_s` fields and the `sha256`
+envelopes of the scratch logs record one specific run's wall times, so the committed
+bytes are that run's record (append-only evidence). This is not `run_pnr.py --check`'s
+byte-exact GDS contract; the geometry half of reproducibility stays with the P&R
+receipt quoted above.
+
 ## Analog partition: `layout/analog/`
 
 Generated GDS of the modulator's analog cells, one directory per cell. #29 assembles

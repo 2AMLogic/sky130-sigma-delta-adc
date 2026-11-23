@@ -15,7 +15,7 @@
     "sdf": {
       "file": "../../layout/digital/decimator.sdf",
       "corner": "typ",
-      "entries": "all"
+      "entries": "interconnect"
     }
   }
 }

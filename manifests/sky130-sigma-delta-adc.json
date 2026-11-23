@@ -60,6 +60,11 @@
         }
       }
     },
+    "7.digital": [
+      {
+        "file": "verification/decimator/fv-sdf-decimator.report.json"
+      }
+    ],
     "8.analog": {
       "file": "attestation/item8-envelope.json"
     },
