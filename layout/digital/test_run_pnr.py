@@ -29,7 +29,6 @@ What is pinned here:
   the advertised contract and the implementation cannot drift apart again.
 """
 import contextlib
-import importlib.util
 import io
 import json
 import pathlib
@@ -41,16 +40,16 @@ from unittest import mock
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 
+# `sim/` is not on sys.path under `python3 -I`: isolated mode drops CWD and
+# PYTHONPATH, and `discover -s layout/digital` puts only this directory
+# there. The shared loader lives in `sim/runner_test_common.py` (issue #355);
+# this module already reads `sim/pdk.json`, so the dependency is not new.
+sys.path.insert(0, str(REPO / "sim"))
 
-def load_runner():
-    """Load run_pnr.py by path: 'layout/digital' is not an importable name."""
-    spec = importlib.util.spec_from_file_location("run_pnr_under_test", HERE / "run_pnr.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+import runner_test_common as rtc                                    # noqa: E402
 
 
-RUNNER = load_runner()
+RUNNER = rtc.load_runner("run_pnr_under_test", HERE / "run_pnr.py")
 PIN = json.loads((REPO / "sim/pdk.json").read_text())
 STAMP = PIN["sources_stamp"]
 WRONG = "open_pdks 0000000000000000000000000000000000000000"
