@@ -4,6 +4,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-23
 
+- **PR #213**: ci: run the item-8 cited-issue check on every push and pull request
+- **Issue #187** (closed): CI never runs item8_envelope.py --verify-issues, so characterization.md can cite a closed issue indefinitely
 - **PR #348**: refactor(analog): consolidate collect_anchors and guard-ring sizing into layout_common
 - **Issue #347** (closed): Consolidate duplicated collect_anchors and ring_params between gen_ota_fd and gen_integrator
 
