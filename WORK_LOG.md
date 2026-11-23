@@ -4,6 +4,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-23
 
+- **PR #366**: refactor: share the settling measurement list in settling_common
+- **Issue #95** (closed): Share the settling measurement list between the OTA and integrator benches: two copies, one already out of step with its request
 - **PR #381**: test: sort the MiM riser ahead of the pad in the pin-label test
 - **PR #379**: refactor(analog): consolidate net finishing, compose/DRC steps and MiM constants into layout_common
 - **Issue #380** (closed): test_net_finishing: the label-plane ordering test does not pin the behaviour it names
