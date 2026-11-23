@@ -37,7 +37,7 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
 import settling_common as sc  # noqa: E402
 from settling_common import (CAPACITY_WAIT_S, grid_complete,  # noqa: E402
-                             measurements_present, pdk_stamp, run_klt, sha256)
+                             measurements_present, require_pinned_stamp, run_klt, sha256)
 sys.path.insert(0, str(HERE))
 import make_request as MR  # noqa: E402
 
@@ -465,10 +465,7 @@ def main():
     a = ap.parse_args()
 
     pin = json.load(open(REPO / "sim/pdk.json"))
-    root, stamp = pdk_stamp(pin["variant"], a.pdk_root)
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
-        return 2
+    root, stamp = require_pinned_stamp(pin, a.pdk_root)
     out = HERE / a.record_name
     if a.record and out.exists():
         print(f"REFUSE: {out.name} exists; records are append-only (use --record-name)",

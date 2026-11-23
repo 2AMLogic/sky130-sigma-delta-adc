@@ -10,7 +10,7 @@ import argparse, json, pathlib, subprocess, sys, tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import (grid_complete, pdk_stamp, run_klt,  # noqa: E402
+from settling_common import (grid_complete, require_pinned_stamp, run_klt,  # noqa: E402
                              sha256, shas, summarize)
 
 
@@ -24,10 +24,7 @@ def main():
                     help="record file name, for a re-run after a sizing change (new file)")
     a = ap.parse_args()
     pin = json.load(open(REPO / "sim/pdk.json"))
-    root, stamp = pdk_stamp(pin["variant"], a.pdk_root)
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
-        return 2
+    root, stamp = require_pinned_stamp(pin, a.pdk_root)
     req = json.load(open(HERE / "request.json"))
     out = HERE / a.record_name
     if a.record and out.exists():

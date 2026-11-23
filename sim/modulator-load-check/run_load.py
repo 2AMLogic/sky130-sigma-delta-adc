@@ -12,7 +12,7 @@ MIN_GAP_S = 0.3e-9  # a non-overlap gap must exceed this at tt; corner margins a
 
 def main():
     pin = json.load(open(REPO / "sim/pdk.json"))
-    root = require_pinned_pdk(pin, None)
+    root, _ = require_pinned_pdk(pin, None)
     ng = root / "libs.tech/ngspice"
     deck = ((HERE / "modulator_load.cir").read_text()
             .replace("{{PDK_LIB}}", f'"{ng / "sky130.lib.spice"}"')

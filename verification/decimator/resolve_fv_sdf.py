@@ -8,10 +8,10 @@ request's `sources` needs a path that climbs out of the repository
 exactly the right depth -- in a `.loom/worktrees/issue-N` worktree it points
 at a path that does not exist (issue #360). The committed request therefore
 keeps its `sources` repo-relative, and this helper injects the two model
-files resolved from the pinned install at run time, the same way the four
-PDK-consuming runners do (`verification/smoke/run_smoke.py`'s
-`resolve_root()`: `klt pdk find --pdk <variant> --format json`, `--pdk-root`
-override):
+files resolved from the pinned install at run time, the same way the other
+PDK-consuming runners do (`settling_common.require_pinned_pdk`, shared with
+the smoke and decimator runners since issue #376: `klt pdk find --pdk
+<variant> --format json`, `--pdk-root` override):
 
     python3 verification/decimator/resolve_fv_sdf.py [--pdk-root ROOT] \
         | klt functional-verification - -o <outdir> --format json
@@ -26,21 +26,13 @@ from the sim/pdk.json pin, the cell models are missing, or a committed
 source or SDF file escapes the checkout or does not exist. stdout is the
 request JSON only; the resolution note goes to stderr.
 """
-import argparse, json, pathlib, re, subprocess, sys
+import argparse, json, pathlib, re, sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 REQUEST = HERE / "fv_sdf_request.json"
-
-
-def resolve_root(variant, pdk_root):
-    if pdk_root:
-        return pathlib.Path(pdk_root).expanduser()
-    out = subprocess.run(["klt", "pdk", "find", "--pdk", variant, "--format", "json"],
-                         capture_output=True, text=True)
-    if out.returncode:
-        sys.exit(f"REFUSE: klt pdk find failed: {out.stderr.strip()}")
-    return pathlib.Path(json.loads(out.stdout)["root"])
+sys.path.insert(0, str(REPO / "sim"))
+from settling_common import require_pinned_pdk  # noqa: E402
 
 
 def refuse(msg):
@@ -60,15 +52,10 @@ def main():
     a = ap.parse_args()
     pin = json.load(open(REPO / "sim/pdk.json"))
     assert re.fullmatch(r"[0-9a-f]{40}", pin["open_pdks_revision"]), "pin is not a 40-hex SHA"
-    root_all = resolve_root(pin["variant"], a.pdk_root)
-    src = root_all / pin["variant"] / "SOURCES"
-    stamp = src.read_text().strip() if src.exists() else "<missing SOURCES>"
-    if stamp != pin["sources_stamp"]:
-        return refuse(f"PDK at {root_all / pin['variant']} is '{stamp}', "
-                      f"pinned '{pin['sources_stamp']}'")
+    root, stamp = require_pinned_pdk(pin, a.pdk_root)
 
     lib = pin["standard_cell_library"]
-    verilog = root_all / pin["variant"] / "libs.ref" / lib / "verilog"
+    verilog = root / "libs.ref" / lib / "verilog"
     models = []
     if (verilog / "primitives.v").is_file():
         models.append(verilog / "primitives.v")

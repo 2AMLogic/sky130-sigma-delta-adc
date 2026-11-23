@@ -56,7 +56,7 @@ import argparse, json, pathlib, re, subprocess, sys, tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import join_continuations, ngspice_version, pdk_stamp, sha256
+from settling_common import join_continuations, ngspice_version, require_pinned_stamp, sha256
 
 VCM = 0.9
 RON_BIAS = 0.010      # 10 mV across the closed switch
@@ -449,10 +449,7 @@ def main():
         return 2
 
     pin = json.load(open(REPO / "sim/pdk.json"))
-    root, stamp = pdk_stamp(pin["variant"], a.pdk_root)
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
-        return 2
+    root, stamp = require_pinned_stamp(pin, a.pdk_root)
     out = HERE / (a.out or f"probe-{a.set}.json")
     if a.write and out.exists():
         print(f"REFUSE: {out.name} exists; results are append-only (use --out)", file=sys.stderr)
