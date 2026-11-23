@@ -12,7 +12,7 @@ and wins over this file. Tracking issue: #3 (its hand-kept checklist is stale).
 ## Where it stands
 
 `klt signoff` (pinned klt 0.9.2) grades 22 rows, 11 items by two partitions:
-**11 met, 1 not applicable, 10 unmet.**
+**12 met, 1 not applicable, 9 unmet.**
 
 | T1 item | Analog (modulator) | Digital (decimator) |
 |---|---|---|
@@ -26,7 +26,7 @@ and wins over this file. Tracking issue: #3 (its hand-kept checklist is stale).
 | 8 Characterization report | unmet (`check_failed`): rows still `partial`/`pending` in `measurements/characterization.md` | same envelope |
 | 9 Testbenches shipped | met | met |
 | 10 Repo hygiene | met | met |
-| 11 Power delivery | unmet: #39 | unmet: #39 |
+| 11 Power delivery | unmet: #39 | met: `layout/digital/erc-decimator.report.json` with the LVS report and P&R response (#333) |
 
 Evidence on `main` that does not yet move a row:
 
@@ -64,10 +64,6 @@ Evidence on `main` that does not yet move a row:
   top-level devices, assemble `modulator.gds` per DR-004. After #119 and #121.
 - **After #29**: DRC of the analog partition and the top (#31), analog LVS (#32),
   the assembled ADC stream (#122), power delivery (#39), post-layout `klt pex` (#35).
-- **Item 11, digital** (#333, carved out of #39): `klt erc` supply evidence for
-  `VDDD`/`VSSD` is committed clean (`layout/digital/erc-decimator.report.json`);
-  the row turns `met` when the `klt place-and-route` response (#332, for #162)
-  is committed and cited beside it (#333 Part B).
 - **Decimator electrical rules** (no issue yet; file after #136 so the STA report
   is regenerated once): `layout/README.md` records 660 max-transition and 7
   max-capacitance violations at `ss_n40C_1v60`. Done when the committed STA report

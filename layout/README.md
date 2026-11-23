@@ -13,7 +13,7 @@ gate-level netlist `rtl/netlist/decimator_synth.v`. Not hand-edited.
 | `decimator.gds` | routed layout (T1 item 2, digital); hash-pinned by `design/attest/item2-digital-envelope.json` |
 | `decimator.def`, `decimator_pnr.v` | routed DEF and as-built netlist (CTS buffers included): the LVS reference for the digital partition (item 4, below); analog-partition and assembled-top LVS stay with #32 |
 | `decimator.sdf` | post-route SDF (SDF 3.0, written at the request's `tt_025C_1v80` corner) for the SDF-annotated functional-verification run (#162); regenerated, not hand-edited |
-| `pnr-decimator.response.json` | the `klt place-and-route` response envelope, written by the driver with the producing checkout's absolute paths rewritten to repo-relative (`scrub_paths`, #333); T1 item 11 digital (#39) reads `power.pdn`/`power.tapcell_master`/`power.straps` from it |
+| `pnr-decimator.response.json` | the `klt place-and-route` response envelope, written by the driver with the producing checkout's absolute paths rewritten to repo-relative (`scrub_paths`, #333); T1 item 11 digital (#333) reads `power.pdn`/`power.tapcell_master`/`power.straps` from it |
 | `sta_request.json` | the multi-corner `klt sta` request on the routed DEF |
 | `sta-decimator.report.json` | the committed STA report (T1 item 5, digital, with `verification/decimator/fv-decimator.report.json`) |
 | `erc_request.json` | the `klt erc` supply spec (T1 item 11, digital: `VDDD`/`VSSD` islands, ties, strap ownership) |
@@ -168,7 +168,9 @@ formality:
 This is the ERC third of item 11's compound citation. The P&R third is
 `digital/pnr-decimator.response.json` (committed by #332): `power.pdn: true`,
 `tapcell_master: sky130_fd_sc_hd__tapvpwrvgnd_1`, and straps on `met1`, `met4` and `met5`.
-Citing `11.digital` in `manifests/sky130-sigma-delta-adc.json` is #333 Part B.
+The three are cited as `11.digital` in
+`manifests/sky130-sigma-delta-adc.json` (#333), and the pinned grader reads the
+row `met`.
 
 ## Multi-corner STA (T1 item 5, digital)
 

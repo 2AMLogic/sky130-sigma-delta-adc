@@ -5,7 +5,7 @@ import argparse, json, pathlib, re, subprocess, sys, tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import ngspice_version, sha256
+from settling_common import ngspice_version, require_pinned_pdk, sha256
 
 VCM = 0.9
 CM_TOL = 0.050    # output common mode within 50 mV of VCM
@@ -18,28 +18,14 @@ NODES = ("outp", "outn", "xota.cr", "xota.vcn", "xota.vcp", "xota.tail",
          "xota.fa", "xota.fb", "xota.sa", "xota.sb")
 
 
-def resolve_root(variant, pdk_root):
-    if pdk_root:
-        return pathlib.Path(pdk_root).expanduser()
-    out = subprocess.run(["klt", "pdk", "find", "--pdk", variant, "--format", "json"],
-                         capture_output=True, text=True)
-    if out.returncode:
-        sys.exit(f"REFUSE: klt pdk find failed: {out.stderr.strip()}")
-    return pathlib.Path(json.loads(out.stdout)["root"])
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pdk-root")
     ap.add_argument("--record", action="store_true", help="overwrite record.json")
     a = ap.parse_args()
     pin = json.load(open(REPO / "sim/pdk.json"))
-    root = resolve_root(pin["variant"], a.pdk_root) / pin["variant"]
-    src = root / "SOURCES"
-    stamp = src.read_text().strip() if src.exists() else "<missing SOURCES>"
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
-        return 2
+    root = require_pinned_pdk(pin, a.pdk_root)
+    stamp = pin["sources_stamp"]
     ng = root / "libs.tech/ngspice"
     lib = ng / "sky130.lib.spice"
     netlist = REPO / "design/ota/ota_fd.spice"
