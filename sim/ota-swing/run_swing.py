@@ -312,7 +312,7 @@ def segments_settled(corners, limit_v=mk.RIPPLE_MAX_V):
     return True
 
 
-def gain_reference_matches(derived, xcheck, tol=GAIN_XCHECK_TOL_DB):
+def gain_reference_matches(xcheck, tol=GAIN_XCHECK_TOL_DB):
     """The 0.2 Vpp reference must reproduce sim/ota-gain at every anchor.
 
     This is the bench's own validity gate: the whole compression curve is
@@ -518,8 +518,7 @@ def build_record(results, derived, xcheck, stamp, pin, rep_env,
         "engine_host": rep_env.get("engine_host"),
         "remote": rep_env.get("remote"),
         "batch_receipt": results.get("batch_receipt"),
-        "request_sha256": sha256(HERE / mk.REQUEST),
-        "deck_sha256": sha256(HERE / mk.DECK),
+        **sc.shas(HERE / mk.REQUEST, HERE / mk.DECK),
         "ota_netlist_sha256": sha256(REPO / "design/ota/ota_fd.spice"),
         "summary": {
             "corner_count": len(corners),
@@ -615,7 +614,7 @@ def main():
                      for cell in sorted(mk.CELLS)}
                for cid, c in corners.items()}
     xcheck = gain_xcheck(corners, derived)
-    if not gain_reference_matches(derived, xcheck):
+    if not gain_reference_matches(xcheck):
         return 1
     print(json.dumps({cid: {mk.CELLS[cell]["label"]: {
         "small_signal_gain_db": derived[cid][cell]["small_signal_gain_db"],

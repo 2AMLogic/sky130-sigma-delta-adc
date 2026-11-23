@@ -237,17 +237,17 @@ class GainReferenceGate(unittest.TestCase):
 
     def test_matching_reference_passes(self):
         _, xc = self.build_xcheck(56.6)
-        self.assertTrue(RUNNER.gain_reference_matches(None, xc))
+        self.assertTrue(RUNNER.gain_reference_matches(xc))
 
     def test_disagreeing_reference_refuses(self):
         _, xc = self.build_xcheck(53.0)   # 3.6 dB off the record
-        ok, err = refuses(RUNNER.gain_reference_matches, None, xc)
+        ok, err = refuses(RUNNER.gain_reference_matches, xc)
         self.assertFalse(ok)
         self.assertIn("sim/ota-gain", err)
 
     def test_missing_record_entry_refuses(self):
         # an empty xcheck means nothing was verified against the record
-        ok, err = refuses(RUNNER.gain_reference_matches, None, {})
+        ok, err = refuses(RUNNER.gain_reference_matches, {})
         self.assertFalse(ok)
         self.assertIn("REFUSE", err)
 
@@ -311,7 +311,7 @@ class GainReferenceGate(unittest.TestCase):
             for cid, row in per.items():
                 if cid != dropped_cid:
                     self.assertEqual(row, full[cell][cid])
-        ok, err = refuses(RUNNER.gain_reference_matches, None, xc)
+        ok, err = refuses(RUNNER.gain_reference_matches, xc)
         self.assertFalse(ok)
         self.assertIn("REFUSE", err)
         self.assertIn(gid, err)

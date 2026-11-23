@@ -51,12 +51,12 @@ Three probe kinds, in three point sets:
     python3 -I sim/switch-probe/run_probe.py --set i147 --write     # probe-i147.json
     python3 -I sim/switch-probe/run_probe.py --set i129 --write     # probe-i129.json
 """
-import argparse, hashlib, json, pathlib, re, subprocess, sys, tempfile
+import argparse, json, pathlib, re, subprocess, sys, tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import join_continuations, ngspice_version, pdk_stamp
+from settling_common import join_continuations, ngspice_version, pdk_stamp, sha256
 
 VCM = 0.9
 RON_BIAS = 0.010      # 10 mV across the closed switch
@@ -548,16 +548,13 @@ def main():
         "ngspice": ngspice_version(),
     }
     if "i92" in sets:
-        res["deck_sha256"] = hashlib.sha256(
-            (HERE / "switch_probe.cir.tmpl").read_bytes()).hexdigest()
+        res["deck_sha256"] = sha256(HERE / "switch_probe.cir.tmpl")
     if "i106" in sets:
-        res["tg_deck_sha256"] = hashlib.sha256(
-            (HERE / "tg_probe.cir.tmpl").read_bytes()).hexdigest()
+        res["tg_deck_sha256"] = sha256(HERE / "tg_probe.cir.tmpl")
     if "i147" in sets:
-        res["sci_deck_sha256"] = hashlib.sha256(
-            (HERE / "sci_probe.cir.tmpl").read_bytes()).hexdigest()
-    res["integrator_netlist_sha256"] = hashlib.sha256(
-        (REPO / "design/integrator/integrator.spice").read_bytes()).hexdigest()
+        res["sci_deck_sha256"] = sha256(HERE / "sci_probe.cir.tmpl")
+    res["integrator_netlist_sha256"] = sha256(
+        REPO / "design/integrator/integrator.spice")
     res["points"] = {}
     if "i92" in sets:
         for key, model, w, l, corner, temp, vdda, kind in POINTS:
