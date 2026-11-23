@@ -63,21 +63,21 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_MET2,
-                           PDK_VARIANT, TRACK_PITCH_UM,
+                           L_MET3, L_MET4, PDK_VARIANT, TRACK_PITCH_UM,
                            TRUNK_PITCH_UM, Anchor, Rect, RouteError,
                            Router as RouterBase, WIRE_UM, assert_drc_clean,
+                           collect_anchors as collect_cell_anchors,
                            extract_nets, gen_blocks, klt_pin, nm,
-                           parse_extract_devices, run, run_cli, snap)
+                           parse_extract_devices, ring_params, run, run_cli,
+                           snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
-# The router core's layers (L_MCON/L_MET1/L_MET2/L_VIA) come from layout_common,
-# alongside the shared geometry constants it routes with.
-L_LI1 = (67, 20)
+# The router core's layers (L_MCON/L_MET1/L_MET2/L_VIA), the anchor
+# collection's port layers and the shared geometry constants it routes with
+# come from layout_common; the MiM risers below use its L_MET3/L_MET4.
 L_MET1_PIN = (68, 5)
 L_VIA2 = (69, 44)
-L_MET3 = (70, 20)
 L_VIA3 = (70, 44)
-L_MET4 = (71, 20)
 
 # --- rule-derived geometry (sky130 deck minimums plus margin) -----------------
 VIA2_UM = 0.20           # via2.1a exact size
@@ -88,8 +88,6 @@ MET34_W_UM = 0.60        # met3/met4 wire width: m3.1/m4.1 want 0.30, but
 MET34_SPACE_UM = 0.30    # m3.2/m4.2
 PAD34_UM = 0.60          # met2/met3/met4 landing pad for a via2/via3
                          # (0.60^2 = 0.36um2 clears met3/met4 min area 0.24)
-PAD_MARGIN_UM = 0.12     # keep an mcon this far inside its li1 pad's own edge
-JOG_REACH_UM = 6.0       # how far a met1 jog may climb off a strap's own y
 
 # --- PDK pin (mirrors sim/pdk.json) -------------------------------------------
 TOP_CELL = "ota_fd"
@@ -291,10 +289,9 @@ ROWS: list[tuple[str, float, float, tuple[str, ...]]] = [
 #: in-block straps.
 ROW_GAP_UM = {"res": 9.0, "caps": 11.0, "nbias": 11.0, "nsig": 11.0}
 
-#: Rows the two body-tie rings enclose, and the padding they leave.
+#: Rows the two body-tie rings enclose (`ring_params` in layout_common sizes
+#: each ring from them).
 RING_ROWS = {"ptapring": ("nbias", "nsig"), "ntapring": ("pfet",)}
-RING_PAD_UM = 2.0
-RING_WIDTH_UM = 0.42
 
 
 def place_rows(reports: dict[str, dict]) -> tuple[dict[str, dict[str, float]],
@@ -318,117 +315,32 @@ def place_rows(reports: dict[str, dict]) -> tuple[dict[str, dict[str, float]],
     return origins, extents
 
 
-def ring_params(extents: dict[str, tuple[float, float, float, float]],
-                ring_id: str) -> tuple[dict, dict[str, float]]:
-    """guard_ring params + origin enclosing this ring's rows."""
-    rows = [extents[r] for r in RING_ROWS[ring_id]]
-    x0 = min(r[0] for r in rows) - RING_PAD_UM
-    y0 = min(r[1] for r in rows) - RING_PAD_UM
-    x1 = max(r[2] for r in rows) + RING_PAD_UM
-    y1 = max(r[3] for r in rows) + RING_PAD_UM
-    params = {
-        "inner_width_um": snap(x1 - x0),
-        "inner_height_um": snap(y1 - y0),
-        "ring_width_um": RING_WIDTH_UM,
-        "contacts_per_side_ns": max(4, int((x1 - x0) / 4.0)),
-        "contacts_per_side_ew": max(4, int((y1 - y0) / 4.0)),
-        "add_well": ring_id == "ntapring",
-    }
-    # guard_ring draws its inner area starting at (ring_width, ring_width).
-    origin = {"x": snap(x0 - RING_WIDTH_UM), "y": snap(y0 - RING_WIDTH_UM)}
-    return params, origin
-
-
 # --- anchors ------------------------------------------------------------------
 def collect_anchors(blocks, reports, origins, port_nets):
     """Turn every block's ports into anchors, one per (block, net, pad row).
 
-    S/D-style li1 pads (``direction`` 0/180) are tall, so several nets share
-    one pad row: each net present in a row gets its own y offset on a 0.5um
-    ladder inside the pads, and every pad of that net in that row is tied by
-    one horizontal met1 strap.  Gate-style pads (``direction`` 90/270) are
-    0.42um square, so their y is pinned: a row holding more than one net there
-    must hold exactly one pad per net, and each becomes its own anchor.
+    Thin adapter over the shared collector (``layout_common.collect_anchors``,
+    issue #347): this cell's blocks are ``klt gen`` reports placed by
+    ``origins``, so each block's ports and bbox are projected into placed
+    cell-frame coordinates here (report ports carry ``layer`` as a
+    ``{"layer": .., "datatype": ..}`` dict; the shared collector wants the
+    tuple form) and the bucketing, pad-row ladders and strapping are the
+    shared code's.  Block order is the floorplan order of ``blocks``.
     """
-    anchors: list[Anchor] = []
-    straps: list[tuple[str, Rect]] = []
-    mcons: list[tuple[float, float]] = []
-    for block_id, generator, _cell, _params in blocks:
+    cells = []
+    for block_id, _generator, _cell, _params in blocks:
         report = reports[block_id]
         dx, dy = origins[block_id]["x"], origins[block_id]["y"]
         bb = report["bbox_um"]
-        nets = port_nets[block_id]
-        # -- bucket the ports -------------------------------------------------
-        flat: dict[tuple, list[tuple[str, float, float, float, int]]] = defaultdict(list)
-        for p in report["ports"]:
-            if p["name"] not in nets:
-                continue
-            layer = (p["layer"]["layer"], p["layer"]["datatype"])
-            key = (layer, round(p["y_um"] + dy, 4), p["direction_deg"] in (0, 180))
-            flat[key].append((p["name"], p["x_um"] + dx, p["y_um"] + dy,
-                              p["width_um"], p["direction_deg"]))
-        for (layer, row_y, is_sd), ports in sorted(flat.items(), key=lambda kv: str(kv[0])):
-            by_net: dict[str, list] = defaultdict(list)
-            for name, px, py, pw, pdir in ports:
-                by_net[nets[name]].append((name, px, py, pw, pdir))
-            ordered = sorted(by_net)
-            if layer == L_MET3:
-                for net in ordered:
-                    for name, px, py, pw, pdir in sorted(by_net[net]):
-                        anchors.append(Anchor(net, block_id, "cap3", py, px, px,
-                                              [name], pdir, bb["y0"] + dy, bb["y1"] + dy))
-                continue
-            if layer == L_MET4:
-                for net in ordered:
-                    for name, px, py, pw, pdir in sorted(by_net[net]):
-                        anchors.append(Anchor(net, block_id, "cap4", py, px, px,
-                                              [name], pdir, bb["y0"] + dy, bb["y1"] + dy))
-                continue
-            if layer != L_LI1:
-                raise RouteError(f"{block_id}: unexpected port layer {layer}")
-            if is_sd:
-                half = min(p[3] for p in ports) / 2 - PAD_MARGIN_UM - WIRE_UM / 2
-                k = len(ordered)
-                # Only a net with several pads in this row needs a horizontal
-                # strap, and only a strap can cross another net's pad -- so a
-                # row where every net has a single pad needs no ladder at all
-                # (that is the only way a 0.42um-wide S/D pad row can work).
-                spread = k > 1 and (k - 1) * TRACK_PITCH_UM / 2 <= half + 1e-9
-                if not spread and any(len(by_net[n]) > 1 for n in ordered) and k > 1:
-                    raise RouteError(
-                        f"{block_id}: {k} nets share a {2 * (half + PAD_MARGIN_UM):.2f}um "
-                        f"pad row at y={row_y} and one of them needs a strap -- "
-                        "no room for a ladder")
-                for i, net in enumerate(ordered):
-                    off = snap((i - (k - 1) / 2) * TRACK_PITCH_UM) if spread else 0.0
-                    y = snap(row_y + off)
-                    xs = sorted(p[1] for p in by_net[net])
-                    rect = Rect.hwire(xs[0], xs[-1], y, WIRE_UM)
-                    straps.append((net, rect))
-                    for x in xs:
-                        mcons.append((x, y))
-                    anchors.append(Anchor(net, block_id, "met1", y, xs[0], xs[-1],
-                                          [p[0] for p in by_net[net]],
-                                          pad_xs=xs, jog_um=JOG_REACH_UM))
-            else:
-                for net in ordered:
-                    members = sorted(by_net[net])
-                    # sorted by x, never by port name: diff_pair numbers its
-                    # top row in the mirrored order, so name order would leave
-                    # the row's outermost gate outside the strap (and float it)
-                    xs = sorted(m[1] for m in members)
-                    if len(ordered) > 1 and len(members) > 1:
-                        raise RouteError(
-                            f"{block_id}: gate row y={row_y} holds {len(ordered)} nets "
-                            f"and net {net} has {len(members)} pads -- cannot strap")
-                    rect = Rect.hwire(xs[0], xs[-1], row_y, WIRE_UM)
-                    straps.append((net, rect))
-                    for x in xs:
-                        mcons.append((x, row_y))
-                    anchors.append(Anchor(net, block_id, "met1", row_y, xs[0], xs[-1],
-                                          [m[0] for m in members],
-                                          pad_xs=xs, jog_um=JOG_REACH_UM))
-    return anchors, straps, mcons
+        placed = [{"name": p["name"],
+                   "layer": (p["layer"]["layer"], p["layer"]["datatype"]),
+                   "x_um": p["x_um"] + dx, "y_um": p["y_um"] + dy,
+                   "width_um": p["width_um"],
+                   "direction_deg": p["direction_deg"]}
+                  for p in report["ports"]]
+        cells.append((block_id, bb["y0"] + dy, bb["y1"] + dy,
+                      placed, port_nets[block_id]))
+    return collect_cell_anchors(cells)
 
 
 # --- router -------------------------------------------------------------------
@@ -651,7 +563,8 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path,
     origins, extents = place_rows(reports)
     ring_blocks = []
     for ring_id in RING_BLOCKS:
-        params, origin = ring_params(extents, ring_id)
+        params, origin = ring_params([extents[r] for r in RING_ROWS[ring_id]],
+                                     ring_id == "ntapring")
         ring_blocks.append((ring_id, "guard_ring", ring_id.upper(), params))
         origins[ring_id] = origin
     reports.update(gen_blocks(klt_cmd, pdk_args, out_dir, ring_blocks))

@@ -740,3 +740,147 @@ class Router:
             rect = Rect.vwire(col, lo, hi, WIRE_UM)
             self.add_shape(L_MET2, rect, net)
             self.wire_um[net] += (hi - lo)
+
+
+# --- shared anchor collection and guard-ring sizing (issue #347) ----------------
+# The last two paste-copies the analog generators carried (verified identical
+# at 53345ed before the move): guard-ring sizing (`ring_params` in the OTA,
+# `ring_request` in the integrator) and port-to-anchor collection (a
+# `collect_anchors` a side, ~160 lines total), plus the constants both
+# depend on.  Each generator keeps what genuinely differs -- which rows a
+# ring encloses and the ring's `add_well` flag, the block iteration order
+# (floorplan order in the OTA, `sorted(blocks)` in the integrator), and the
+# projection of its own port representation into placed cell-frame
+# coordinates -- and passes the result to these two.
+L_LI1 = (67, 20)
+L_MET3 = (70, 20)
+L_MET4 = (71, 20)
+
+PAD_MARGIN_UM = 0.12     # keep an mcon this far inside its li1 pad's own edge
+JOG_REACH_UM = 6.0       # how far a met1 jog may climb off a strap's own y
+RING_PAD_UM = 2.0        # guard_ring clearance from the rows it encloses
+RING_WIDTH_UM = 0.42     # guard_ring tap width (and its origin offset)
+
+
+def ring_params(row_extents, add_well, *, pad_um=RING_PAD_UM,
+                width_um=RING_WIDTH_UM) -> tuple[dict, dict[str, float]]:
+    """guard_ring params + origin enclosing the given row extents.
+
+    ``row_extents`` holds one ``(x0, y0, x1, y1)`` box per enclosed row; the
+    ring's inner area is their bounding box grown by ``pad_um`` on every
+    side.  ``add_well`` picks the n+-tap-in-an-nwell ring (pFET bulk to
+    ``vdda``) over the p+-tap-in-substrate one (nFET bulk to ``vssa``).
+    """
+    x0 = min(r[0] for r in row_extents) - pad_um
+    y0 = min(r[1] for r in row_extents) - pad_um
+    x1 = max(r[2] for r in row_extents) + pad_um
+    y1 = max(r[3] for r in row_extents) + pad_um
+    params = {
+        "inner_width_um": snap(x1 - x0),
+        "inner_height_um": snap(y1 - y0),
+        "ring_width_um": width_um,
+        "contacts_per_side_ns": max(4, int((x1 - x0) / 4.0)),
+        "contacts_per_side_ew": max(4, int((y1 - y0) / 4.0)),
+        "add_well": add_well,
+    }
+    # guard_ring draws its inner area starting at (ring_width, ring_width).
+    origin = {"x": snap(x0 - width_um), "y": snap(y0 - width_um)}
+    return params, origin
+
+
+def collect_anchors(cells):
+    """Turn every cell's placed ports into anchors, one per (cell, net, pad
+    row).
+
+    ``cells`` is an ordered iterable of ``(block_id, bbox_y0, bbox_y1,
+    placed_ports, port_nets)`` tuples.  The caller has already projected its
+    own blocks into placed cell-frame coordinates: each port dict carries
+    ``name``, ``layer`` as a ``(layer, datatype)`` tuple, ``x_um``/``y_um``,
+    ``width_um`` and ``direction_deg``, and ``port_nets`` maps port name to
+    net (a port it does not name is skipped).  The caller also fixes the
+    iteration order -- floorplan order in the OTA, ``sorted(blocks)`` in the
+    integrator -- which fixes the anchor/strap order, and therefore the
+    stream.
+
+    S/D-style li1 pads (``direction`` 0/180) are tall, so several nets share
+    one pad row: each net present in a row gets its own y offset on a 0.5um
+    ladder inside the pads, and every pad of that net in that row is tied by
+    one horizontal met1 strap.  Gate-style pads (``direction`` 90/270) are
+    0.42um square, so their y is pinned: a row holding more than one net
+    there must hold exactly one pad per net, and each becomes its own
+    anchor.  MiM terminals on met3/met4 become one ``cap3``/``cap4`` anchor
+    per pad; a port on any other layer is a ``RouteError``.
+
+    Returns ``(anchors, straps, mcons)``: the anchors the router connects,
+    the ``(net, Rect)`` met1 straps to draw, and the ``(x, y)`` mcon cuts
+    that land each strap on its pads.
+    """
+    anchors: list[Anchor] = []
+    straps: list[tuple[str, Rect]] = []
+    mcons: list[tuple[float, float]] = []
+    for block_id, bb_y0, bb_y1, ports_in, nets in cells:
+        # -- bucket the ports -------------------------------------------------
+        flat: dict[tuple, list[tuple[str, float, float, float, int]]] = defaultdict(list)
+        for p in ports_in:
+            if p["name"] not in nets:
+                continue
+            key = (p["layer"], round(p["y_um"], 4), p["direction_deg"] in (0, 180))
+            flat[key].append((p["name"], p["x_um"], p["y_um"],
+                              p["width_um"], p["direction_deg"]))
+        for (layer, row_y, is_sd), ports in sorted(flat.items(), key=lambda kv: str(kv[0])):
+            by_net: dict[str, list] = defaultdict(list)
+            for name, px, py, pw, pdir in ports:
+                by_net[nets[name]].append((name, px, py, pw, pdir))
+            ordered = sorted(by_net)
+            if layer in (L_MET3, L_MET4):
+                plane = "cap3" if layer == L_MET3 else "cap4"
+                for net in ordered:
+                    for name, px, py, pw, pdir in sorted(by_net[net]):
+                        anchors.append(Anchor(net, block_id, plane, py, px, px,
+                                              [name], pdir, bb_y0, bb_y1))
+                continue
+            if layer != L_LI1:
+                raise RouteError(f"{block_id}: unexpected port layer {layer}")
+            if is_sd:
+                half = min(p[3] for p in ports) / 2 - PAD_MARGIN_UM - WIRE_UM / 2
+                k = len(ordered)
+                # Only a net with several pads in this row needs a horizontal
+                # strap, and only a strap can cross another net's pad -- so a
+                # row where every net has a single pad needs no ladder at all
+                # (that is the only way a 0.42um-wide S/D pad row can work).
+                spread = k > 1 and (k - 1) * TRACK_PITCH_UM / 2 <= half + 1e-9
+                if not spread and any(len(by_net[n]) > 1 for n in ordered) and k > 1:
+                    raise RouteError(
+                        f"{block_id}: {k} nets share a {2 * (half + PAD_MARGIN_UM):.2f}um "
+                        f"pad row at y={row_y} and one of them needs a strap -- "
+                        "no room for a ladder")
+                for i, net in enumerate(ordered):
+                    off = snap((i - (k - 1) / 2) * TRACK_PITCH_UM) if spread else 0.0
+                    y = snap(row_y + off)
+                    xs = sorted(p[1] for p in by_net[net])
+                    rect = Rect.hwire(xs[0], xs[-1], y, WIRE_UM)
+                    straps.append((net, rect))
+                    for x in xs:
+                        mcons.append((x, y))
+                    anchors.append(Anchor(net, block_id, "met1", y, xs[0], xs[-1],
+                                          [p[0] for p in by_net[net]],
+                                          pad_xs=xs, jog_um=JOG_REACH_UM))
+            else:
+                for net in ordered:
+                    members = sorted(by_net[net])
+                    # sorted by x, never by port name: diff_pair numbers its
+                    # top row in the mirrored order, so name order would leave
+                    # the row's outermost gate outside the strap (and float it)
+                    xs = sorted(m[1] for m in members)
+                    if len(ordered) > 1 and len(members) > 1:
+                        raise RouteError(
+                            f"{block_id}: gate row y={row_y} holds {len(ordered)} nets "
+                            f"and net {net} has {len(members)} pads -- cannot strap")
+                    rect = Rect.hwire(xs[0], xs[-1], row_y, WIRE_UM)
+                    straps.append((net, rect))
+                    for x in xs:
+                        mcons.append((x, row_y))
+                    anchors.append(Anchor(net, block_id, "met1", row_y, xs[0], xs[-1],
+                                          [m[0] for m in members],
+                                          pad_xs=xs, jog_um=JOG_REACH_UM))
+    return anchors, straps, mcons
