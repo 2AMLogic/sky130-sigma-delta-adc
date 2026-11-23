@@ -97,8 +97,7 @@ Evidence on `main` that does not yet move a row:
   alternative (draw the intra-gate wiring with `klt draw`, under a decision record)
   needs a maintainer decision. This is the one external blocker on #29, and through
   it on analog items 2, 3, 4, 7 and 11.
-- **Cleanup proposals awaiting a maintainer ruling**: #96 (remove
-  `sim/toolchain.json`), #95, #43; #81 waits on #43, #153 on PR #145.
+- **Cleanup proposals awaiting a maintainer ruling**: #95, #43; #81 waits on #43, #153 on PR #145.
 - **klayout-tools#5550**: the functional-verification report carries no provenance
   block, so the manifest pins no `content_hash` for that citation.
 

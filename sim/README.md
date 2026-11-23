@@ -1,6 +1,6 @@
 # sim
 
-PDK and tool pins (`pdk.json`, `toolchain.json`) and the analog smoke fixture in
+The PDK pin (`pdk.json`; tool versions are in `.github/klt-version`, `attestation/item9-inventory.json` and each run's record) and the analog smoke fixture in
 `smoke/`. The transistor-level benches are `ota-settling/`, `integrator-settling/`,
 `integrator-ci/`, `comparator-decision/`, `ota-gain/`, `ota-swing/` and `integrator-noise/`;
 each has its own README with the run command (`python3 -I sim/<bench>/run_*.py
