@@ -4,6 +4,17 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-23
 
+- **PR #357**: test(attest): pin verify_issues()'s three-way gh classification offline
+- **PR #342**: feat(pnr): commit post-route decimator.sdf, saved P&R response, and klt 0.9.2 GDS reproduction receipt
+- **PR #359**: refactor: fold the four runners' multi-variant klt-sim loop into settling_common
+- **PR #356**: fix(attest): exit 3, not a traceback, when item-8 checker cannot start gh
+- **PR #352**: test: migrate the four unmigrated sim bench tests onto runner_test_common
+- **Issue #43** (closed): Deduplicate PDK-pin helpers copy-pasted across three runners
+- **Issue #218** (closed): Unit-test verify_issues()'s three-way gh classification (open / closed / could-not-run)
+- **Issue #332** (closed): T1 item 7 digital, slice 1 of 2: one P&R re-run that commits decimator.sdf with its GDS reproduction receipt, so #162 fits a Builder step
+- **Issue #354** (closed): Consolidate the multi-variant klt-sim submission and .partials/ loop into settling_common.py
+- **Issue #328** (closed): Report exit 3 when the item-8 citation checker cannot start gh
+- **Issue #350** (closed): Consolidate duplicate test helpers in 4 sim bench tests onto runner_test_common
 - **PR #213**: ci: run the item-8 cited-issue check on every push and pull request
 - **Issue #187** (closed): CI never runs item8_envelope.py --verify-issues, so characterization.md can cite a closed issue indefinitely
 - **PR #348**: refactor(analog): consolidate collect_anchors and guard-ring sizing into layout_common
