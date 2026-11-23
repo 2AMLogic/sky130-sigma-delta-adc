@@ -2,6 +2,11 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-23
+
+- **PR #348**: refactor(analog): consolidate collect_anchors and guard-ring sizing into layout_common
+- **Issue #347** (closed): Consolidate duplicated collect_anchors and ring_params between gen_ota_fd and gen_integrator
+
 ### 2026-11-21
 
 - **PR #344**: fix: ignore loom-daemon Codex account-ranking state via regenerated managed gitignore block
