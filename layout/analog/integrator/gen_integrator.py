@@ -65,7 +65,6 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
-from collections import defaultdict
 from functools import partial
 from pathlib import Path
 
@@ -75,36 +74,33 @@ from pathlib import Path
 # directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_MET2,
-                           L_MET3, L_MET4, L_VIA, PDK_VARIANT,
-                           TRACK_PITCH_UM, TRUNK_PITCH_UM, VIA_UM, WIRE_UM,
-                           Anchor, Rect, RouteError, Router as RouterBase,
-                           assert_drc_clean,
+from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_MET1_PIN,
+                           L_MET2, L_MET3, L_MET4, L_VIA, L_VIA2, L_VIA3,
+                           MET34_SPACE_UM, MET34_W_UM, PAD34_UM, PDK_VARIANT,
+                           TRACK_PITCH_UM, TRUNK_PITCH_UM, VIA2_UM, VIA3_UM,
+                           VIA_UM, WIRE_UM, Anchor, Rect, RouteError,
+                           Router as RouterBase, assert_drc_clean,
                            collect_anchors as collect_cell_anchors,
-                           extract_nets, gen_blocks, klt_pin, nm,
+                           compose_request, draw_compose_and_drc,
+                           extract_nets, finalize_routing, finish_net,
+                           gen_blocks, group_anchors_by_net, klt_pin, nm,
                            parse_extract_devices, ring_params, run, run_cli,
                            snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
 # The router core's layers (L_MCON/L_MET1/L_MET2/L_VIA), the anchor
-# collection's port layers and the shared geometry constants it routes with
-# come from layout_common; the MiM risers below use its L_MET3/L_MET4.
-L_MET1_PIN = (68, 5)
-L_VIA2 = (69, 44)
-L_VIA3 = (70, 44)
+# collection's port layers, the MiM-riser geometry constants
+# (L_MET1_PIN/L_VIA2/L_VIA3, VIA2_UM/VIA3_UM/MET34_*_UM/PAD34_UM -- issue
+# #377, the table this header used to re-paste from the sibling OTA
+# generator) and the net-finishing/compose/DRC helpers all come from
+# layout_common, imported here so the shared-table tests can pin that both
+# generators carry the one definition.
 L_LVTN = (125, 44)
 
 # --- rule-derived geometry (sky130 deck minimums plus margin) -----------------
-# Identical to the sibling OTA generator's table; see
-# layout/analog/ota_fd/gen_ota_fd.py for the per-constant derivation.
-# DBU/GRID_UM and the router core's constants (MCON_UM/VIA_UM/WIRE_UM/
-# MET1_SPACE_UM, the two pitches, BUCKET_NM) come from layout_common,
-# alongside nm/snap which use them.
-VIA2_UM = 0.20           # via2.1a exact size
-VIA3_UM = 0.20           # via3.1a exact size
-MET34_W_UM = 0.60        # met3/met4 wire width
-MET34_SPACE_UM = 0.30    # m3.2/m4.2
-PAD34_UM = 0.60          # met2/met3/met4 landing pad for a via2/via3
+# The MiM-riser table this section used to re-paste from the sibling OTA
+# generator lives in layout_common since issue #377; what remains here is
+# this cell's own landing/marker geometry.
 #: Pad sides of the via1+via2 ladder drawn at an OTA landing point.  The
 #: **minimum legal** side on each layer, deliberately -- not klt's own landing
 #: pad (0.42/0.42/0.49), which is larger:
@@ -1284,34 +1280,8 @@ def build(blocks: dict[str, Block], ota: dict, axis_y: float, ota_x: float):
                    [port["name"]]), col)
         anchors.append(ota_anchors[net][0])
 
-    by_net: dict[str, list[Anchor]] = defaultdict(list)
-    for a in anchors:
-        by_net[a.net].append(a)
-    missing = sorted(set(by_net) - set(NET_ORDER))
-    unrouted = sorted(set(NET_ORDER) - set(by_net))
-    if missing or unrouted:
-        raise RouteError(f"net table mismatch: not in NET_ORDER {missing}, "
-                         f"no anchors {unrouted}")
-
+    by_net = group_anchors_by_net(anchors, NET_ORDER)
     summary: dict[str, dict] = {}
-
-    def finish_net(net: str, placed: list[tuple[float, float, Anchor]]) -> None:
-        placed.sort(key=lambda t: (t[0], t[1]))
-        spines = []
-        for (ca, ya, _a), (cb, yb, _b) in zip(placed, placed[1:]):
-            spines.append(router.route_spine(net, ca, ya, cb, yb))
-        summary[net] = {
-            "anchors": [{"block": a.block, "plane": a.plane, "ports": a.ports,
-                         "column_x_um": col, "y_um": y}
-                        for col, y, a in placed],
-            "spine_y_um": spines,
-        }
-        if net in PIN_NETS:
-            on_met1 = [t for t in placed if t[2].plane in ("met1", "ota")]
-            if not on_met1:
-                raise RouteError(f"port net {net} has no met1 anchor to label")
-            col, y, _a = on_met1[0]
-            router.labels.append((L_MET1_PIN, net, col, y))
 
     i = 0
     while i < len(NET_ORDER):
@@ -1339,20 +1309,16 @@ def build(blocks: dict[str, Block], ota: dict, axis_y: float, ota_x: float):
             placed_by = {net: placed}
             i += 1
         for n, placed in placed_by.items():
-            finish_net(n, placed)
-    router.finish_trunks()
-
-    for net, info in summary.items():
-        info["wire_length_um"] = round(router.wire_um[net], 3)
+            # An OTA landing's label rides on met1 the OTA cell itself drew,
+            # so its plane counts as labelable here (the OTA generator, with
+            # no OTA instance, labels met1 only).
+            finish_net(router, summary, n, placed, PIN_NETS,
+                       label_planes=("met1", "ota"))
 
     markers = lvtn_markers(blocks)
-    draw_params = {
-        "shapes": [{"layer": list(layer), "rect_um": rect.as_um()}
-                   for layer, rect in router.shapes]
-        + [{"layer": list(L_LVTN), "rect_um": rect.as_um()} for rect in markers],
-        "labels": [{"layer": list(layer), "text": text, "at_um": [x, y]}
-                   for layer, text, x, y in router.labels],
-    }
+    draw_params = finalize_routing(
+        router, summary,
+        extra_shapes=[(L_LVTN, rect) for rect in markers])
     route_summary = {
         "capacitors": capacitor_report(blocks, axis_y),
         "summing_nodes": summing_node_report(router, summary),
@@ -1424,7 +1390,7 @@ def translate_ota(probe: dict, origin: dict) -> dict:
     }
 
 
-def ota_port_report(klt_cmd: list[str], pdk_args: list[str], out_dir: Path,
+def ota_port_report(klt_cmd: list[str], out_dir: Path,
                     ota_gds: Path) -> dict:
     """Place the OTA on its own and recover its eight ports' landing points.
 
@@ -1478,7 +1444,7 @@ def ota_port_report(klt_cmd: list[str], pdk_args: list[str], out_dir: Path,
             "source_digest": block["source_digest"]}
 
 
-def check_orientation_agrees(klt_cmd: list[str], pdk_args: list[str],
+def check_orientation_agrees(klt_cmd: list[str],
                              out_dir: Path, reports: dict[str, dict]) -> None:
     """Assert this script's own orientation maths matches `klt gen-compose`'s.
 
@@ -1553,7 +1519,7 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path, cell_dir: Path,
     reports = gen_blocks(klt_cmd, pdk_args, out_dir,
                          [(key, GEOMETRIES[key][0], key.upper(),
                            GEOMETRIES[key][1]) for key in wanted])
-    check_orientation_agrees(klt_cmd, pdk_args, out_dir, reports)
+    check_orientation_agrees(klt_cmd, out_dir, reports)
 
     # -- 2. floorplan ----------------------------------------------------------
     say("[2/7] floorplan + body-tie rings + OTA placement")
@@ -1581,7 +1547,7 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path, cell_dir: Path,
     # composed one, so the probe is run once at the origin and this script
     # translates -- which is also what lets the axis be chosen from the same
     # report that supplies the landing points.
-    probe = ota_port_report(klt_cmd, pdk_args, out_dir, ota_gds)
+    probe = ota_port_report(klt_cmd, out_dir, ota_gds)
     label_ys = {p["name"]: p["label_um"]["y"] for p in probe["ports"]}
     axis_in_ota = sum(label_ys[n] for n in OTA_AXIS_LABELS) / len(OTA_AXIS_LABELS)
     ota_origin = {"x": snap(ota_x), "y": snap(axis_y - axis_in_ota)}
@@ -1598,57 +1564,28 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path, cell_dir: Path,
         "source_digest": ota["source_digest"], "origin_um": ota_origin,
         "ports": ota["ports"],
     }
-    (out_dir / "draw.request.json").write_text(json.dumps(draw_params, indent=1) + "\n")
-    (out_dir / "route.summary.json").write_text(
-        json.dumps(route_summary, indent=2) + "\n")
     say(f"  {len(draw_params['shapes'])} routing shapes, "
         f"{route_summary['met2_columns_reserved']} met2 columns reserved, "
         f"{len(route_summary['lvtn_markers'])} lvtn markers")
 
-    # -- 4. draw + compose -----------------------------------------------------
-    say("[4/7] klt draw (routing + lvtn cell) + klt gen-compose (explicit placement)")
-    r = run([*klt_cmd, "draw", "--params", "draw.request.json", "--cell-name", "ROUTE",
-             "-o", "route.gds", "--format", "json"], cwd=out_dir)
-    (out_dir / "draw.json").write_text(r.stdout)
-    order = sorted(b for b in blocks) + ["ota", "route"]
-    compose_request = {
-        "schema": "klt.gen_compose.request/1",
-        "pdk": {"variant": PDK_VARIANT},
-        "blocks": [{"id": b, "generator_report":
-                    f"{blocks[b].geometry}.json" if not blocks[b].is_ring
-                    else f"{b}.json",
-                    "orientation": blocks[b].orientation}
-                   for b in sorted(blocks)]
+    compose_req = compose_request(
+        TOP_CELL,
+        [{"id": b, "generator_report":
+          f"{blocks[b].geometry}.json" if not blocks[b].is_ring
+          else f"{b}.json",
+          "orientation": blocks[b].orientation}
+         for b in sorted(blocks)]
         + [{"id": "ota", "cell": {"gds_path": str(ota_gds),
-                                  "cell_name": OTA_CELL}},
-           {"id": "route", "generator_report": "draw.json"}],
-        "placement": {
-            "strategy": "explicit",
-            "order": order,
-            "origins_um": {**{b: dict(blocks[b].origin) for b in sorted(blocks)},
-                           "ota": ota_origin,
-                           "route": {"x": 0.0, "y": 0.0}},
-        },
-        # No `routing` block on purpose: gen-compose is a placer here; every
-        # wire is in the `route` block this script drew.
-        "connectivity": [],
-        "options": {"cell_name": TOP_CELL, "output": f"{TOP_CELL}.gds"},
-    }
-    (out_dir / "compose.request.json").write_text(
-        json.dumps(compose_request, indent=2) + "\n")
-    run([*klt_cmd, "gen-compose", "compose.request.json", "--format", "json"], cwd=out_dir)
-    gds = out_dir / f"{TOP_CELL}.gds"
-    if not gds.exists():
-        raise RuntimeError(f"gen-compose did not write {gds}")
-
-    # -- 5. drc ----------------------------------------------------------------
-    say("[5/7] klt drc (sky130 deck)")
-    r = run([*klt_cmd, "drc", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
-            + pdk_args + ["--format", "json"], cwd=out_dir, check=False)
-    drc = json.loads(r.stdout) if r.stdout.strip() else {"error": r.stderr}
-    (out_dir / "drc.report.json").write_text(json.dumps(drc, indent=2) + "\n")
-    assert_drc_clean(drc, str(out_dir / "drc.report.json"))
-    say(f"  drc: status={drc.get('status')!r} violations={drc.get('violation_count')}")
+                                  "cell_name": OTA_CELL}}],
+        sorted(blocks) + ["ota"],
+        {**{b: dict(blocks[b].origin) for b in sorted(blocks)},
+         "ota": ota_origin})
+    drc = draw_compose_and_drc(
+        klt_cmd, pdk_args, out_dir, TOP_CELL, draw_params, compose_req,
+        route_summary, say=say,
+        draw_step="[4/7] klt draw (routing + lvtn cell) + klt gen-compose "
+                  "(explicit placement)",
+        drc_step="[5/7] klt drc (sky130 deck)")
 
     # -- 6. extract: this cell, and the OTA alone to subtract ------------------
     say("[6/7] klt extract (device-count evidence)")

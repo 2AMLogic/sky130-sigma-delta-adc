@@ -54,7 +54,7 @@ from __future__ import annotations
 
 import json
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 # layout_common is the shared plumbing module one directory up (issue #176);
@@ -62,32 +62,26 @@ from pathlib import Path
 # run from any working directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_MET2,
-                           L_MET3, L_MET4, PDK_VARIANT, TRACK_PITCH_UM,
-                           TRUNK_PITCH_UM, Anchor, Rect, RouteError,
+from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_MET1_PIN,
+                           L_MET2, L_MET3, L_MET4, L_VIA2, L_VIA3,
+                           MET34_SPACE_UM, MET34_W_UM, PAD34_UM, PDK_VARIANT,
+                           TRACK_PITCH_UM, TRUNK_PITCH_UM, VIA2_UM, VIA3_UM,
+                           Anchor, Rect, RouteError,
                            Router as RouterBase, WIRE_UM, assert_drc_clean,
                            collect_anchors as collect_cell_anchors,
-                           extract_nets, gen_blocks, klt_pin, nm,
+                           compose_request, draw_compose_and_drc,
+                           extract_nets, finalize_routing, finish_net,
+                           gen_blocks, group_anchors_by_net, klt_pin, nm,
                            parse_extract_devices, ring_params, run, run_cli,
                            snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
 # The router core's layers (L_MCON/L_MET1/L_MET2/L_VIA), the anchor
-# collection's port layers and the shared geometry constants it routes with
-# come from layout_common; the MiM risers below use its L_MET3/L_MET4.
-L_MET1_PIN = (68, 5)
-L_VIA2 = (69, 44)
-L_VIA3 = (70, 44)
-
-# --- rule-derived geometry (sky130 deck minimums plus margin) -----------------
-VIA2_UM = 0.20           # via2.1a exact size
-VIA3_UM = 0.20           # via3.1a exact size
-MET34_W_UM = 0.60        # met3/met4 wire width: m3.1/m4.1 want 0.30, but
-                         # a run narrower than its own via pad leaves a
-                         # notch at the corner that m3.2/m4.2 then flag
-MET34_SPACE_UM = 0.30    # m3.2/m4.2
-PAD34_UM = 0.60          # met2/met3/met4 landing pad for a via2/via3
-                         # (0.60^2 = 0.36um2 clears met3/met4 min area 0.24)
+# collection's port layers, the MiM-riser geometry constants
+# (L_MET1_PIN/L_VIA2/L_VIA3, VIA2_UM/VIA3_UM/MET34_*_UM/PAD34_UM, issue #377)
+# and the net-finishing/compose/DRC helpers all come from layout_common,
+# imported here so the shared-table tests can pin that both generators carry
+# the one definition.
 
 # --- PDK pin (mirrors sim/pdk.json) -------------------------------------------
 TOP_CELL = "ota_fd"
@@ -459,66 +453,19 @@ def build(blocks, reports, origins, port_nets):
     for x, y in mcons:
         router.add_mcon(x, y)
 
-    by_net: dict[str, list[Anchor]] = defaultdict(list)
-    for a in anchors:
-        by_net[a.net].append(a)
-    missing = sorted(set(by_net) - set(NET_ORDER))
-    unrouted = sorted(set(NET_ORDER) - set(by_net))
-    if missing or unrouted:
-        raise RouteError(f"net table mismatch: not in NET_ORDER {missing}, "
-                         f"no anchors {unrouted}")
+    by_net = group_anchors_by_net(anchors, NET_ORDER)
 
     summary: dict[str, dict] = {}
     for net in NET_ORDER:
         group = sorted(by_net[net], key=lambda a: (a.block, a.plane, a.y, a.x0))
         placed = [(*router.connect(a), a) for a in group]
-        placed.sort(key=lambda t: (t[0], t[1]))
-        spines = []
-        for (ca, ya, _a), (cb, yb, _b) in zip(placed, placed[1:]):
-            spines.append(router.route_spine(net, ca, ya, cb, yb))
-        summary[net] = {
-            "anchors": [{"block": a.block, "plane": a.plane, "ports": a.ports,
-                         "column_x_um": col, "y_um": y}
-                        for col, y, a in placed],
-            "spine_y_um": spines,
-        }
-        if net in PIN_NETS:
-            # The label must land on met1 that actually exists, so a net whose
-            # first anchor is a MiM riser (met2/met3/met4) is labelled at its
-            # first met1 anchor instead.
-            on_met1 = [t for t in placed if t[2].plane == "met1"]
-            if not on_met1:
-                raise RouteError(f"port net {net} has no met1 anchor to label")
-            col, y, _a = on_met1[0]
-            router.labels.append((L_MET1_PIN, net, col, y))
-    router.finish_trunks()
-
-    for net, info in summary.items():
-        info["wire_length_um"] = round(router.wire_um[net], 3)
-
-    draw_params = {
-        "shapes": [{"layer": list(layer), "rect_um": rect.as_um()}
-                   for layer, rect in router.shapes],
-        "labels": [{"layer": list(layer), "text": text, "at_um": [x, y]}
-                   for layer, text, x, y in router.labels],
-    }
-    order = [b for b, _g, _c, _p in blocks] + ["route"]
-    compose_request = {
-        "schema": "klt.gen_compose.request/1",
-        "pdk": {"variant": PDK_VARIANT},
-        "blocks": [{"id": b, "generator_report": f"{b}.json"}
-                   for b, _g, _c, _p in blocks]
-        + [{"id": "route", "generator_report": "draw.json"}],
-        "placement": {
-            "strategy": "explicit",
-            "order": order,
-            "origins_um": {**origins, "route": {"x": 0.0, "y": 0.0}},
-        },
-        # No `routing` block on purpose: gen-compose is a placer here; every
-        # wire is in the `route` block this script drew.
-        "connectivity": [],
-        "options": {"cell_name": TOP_CELL, "output": f"{TOP_CELL}.gds"},
-    }
+        finish_net(router, summary, net, placed, PIN_NETS)
+    draw_params = finalize_routing(router, summary)
+    compose_req = compose_request(
+        TOP_CELL,
+        [{"id": b, "generator_report": f"{b}.json"}
+         for b, _g, _c, _p in blocks],
+        [b for b, _g, _c, _p in blocks], origins)
     route_summary = {
         "block_origins_um": origins,
         # used_cols holds trunks plus the MiM risers' ±1-pitch keep-outs, so
@@ -526,7 +473,7 @@ def build(blocks, reports, origins, port_nets):
         "met2_columns_reserved": len(router.used_cols),
         "nets": summary,
     }
-    return draw_params, compose_request, route_summary
+    return draw_params, compose_req, route_summary
 
 
 # --- device-count evidence ----------------------------------------------------
@@ -578,7 +525,7 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path,
                              f"did not emit: {sorted(want - have)}")
 
     say("[3/6] strap + route")
-    draw_params, compose_request, route_summary = build(
+    draw_params, compose_req, route_summary = build(
         blocks, reports, origins, port_nets)
     # Per-row footprints, keyed by the ROWS ids the README's floorplan table
     # quotes: the authoritative row spans, emitted so the README does not have
@@ -588,31 +535,14 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path,
                  "x1": round(e[2], 3), "y1": round(e[3], 3)}
         for row_id, e in extents.items()
     }
-    (out_dir / "draw.request.json").write_text(
-        json.dumps(draw_params, indent=1) + "\n")
-    (out_dir / "compose.request.json").write_text(
-        json.dumps(compose_request, indent=2) + "\n")
-    (out_dir / "route.summary.json").write_text(
-        json.dumps(route_summary, indent=2) + "\n")
     say(f"  {len(draw_params['shapes'])} routing shapes, "
         f"{route_summary['met2_columns_reserved']} met2 columns reserved")
-
-    say("[4/6] klt draw (routing cell) + klt gen-compose (explicit placement)")
-    r = run([*klt_cmd, "draw", "--params", "draw.request.json", "--cell-name", "ROUTE",
-             "-o", "route.gds", "--format", "json"], cwd=out_dir)
-    (out_dir / "draw.json").write_text(r.stdout)
-    run([*klt_cmd, "gen-compose", "compose.request.json", "--format", "json"], cwd=out_dir)
-    gds = out_dir / f"{TOP_CELL}.gds"
-    if not gds.exists():
-        raise RuntimeError(f"gen-compose did not write {gds}")
-
-    say("[5/6] klt drc (sky130 deck)")
-    r = run([*klt_cmd, "drc", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
-            + pdk_args + ["--format", "json"], cwd=out_dir, check=False)
-    drc = json.loads(r.stdout) if r.stdout.strip() else {"error": r.stderr}
-    (out_dir / "drc.report.json").write_text(json.dumps(drc, indent=2) + "\n")
-    assert_drc_clean(drc, str(out_dir / "drc.report.json"))
-    say(f"  drc: status={drc.get('status')!r} violations={drc.get('violation_count')}")
+    drc = draw_compose_and_drc(
+        klt_cmd, pdk_args, out_dir, TOP_CELL, draw_params, compose_req,
+        route_summary, say=say,
+        draw_step="[4/6] klt draw (routing cell) + klt gen-compose "
+                  "(explicit placement)",
+        drc_step="[5/6] klt drc (sky130 deck)")
 
     say("[6/6] klt extract (device-count evidence)")
     run([*klt_cmd, "extract", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
