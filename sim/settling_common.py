@@ -7,7 +7,13 @@ summarizes it, and builds the common DR-002 request. The `.partials/` cache
 (`shas`/`load_partial`/`save_partial`) is a record-admission gate like the
 other two (`grid_complete`/`measurements_present`), so it lives here too: a
 partial produced by a different request or deck must never reach a record.
-Each bench keeps its own fixture, measurements and record metadata.
+The settling benches share their measurement expressions, not just their
+names: `settling_measurements()` builds both benches' 14-entry list from
+per-bench timing and limit constants (the 2026-11-23 operator ruling on
+issue #95, reversing the per-bench choice this paragraph used to record),
+so `err_phase`, `t_1e4` and `t_slew` mean the same thing in both. Everything
+else stays per bench: each keeps its own fixture, constants and limits,
+record metadata, and the non-settling benches their own measurements.
 
 The multi-variant loop over that cache (`submit_variant`, `run_variant_set`,
 `run_probe`, `refuse_missing_variants`, `refuse_from_partials_conflicts`)
@@ -169,6 +175,44 @@ def measurement(name, expr, unit=None, limits=None):
     if limits:
         m["limits"] = limits
     return m
+
+
+def settling_measurements(t_step, t_sample, t_end, t_slew0, ideal_dv,
+                          err_max, ripple_max, ideal_tol):
+    """The settling benches' 14-entry measurement list (issue #95).
+
+    One definition of err_phase / t_1e4 / t_slew for ota-settling and
+    integrator-settling (the 2026-11-23 operator ruling): the integrator
+    result is read against the OTA one (#92), which only holds while the
+    expressions mean the same thing in both benches. The per-bench timing
+    constants, slew-mask start and limits stay arguments.
+
+    The formatting matches the integrator bench's historical f-strings, so
+    `request_int1.json` / `request_int2.json` rebuild byte-identically; the
+    OTA bench's committed request keeps its hand-written `3.3e-9` slew start
+    (`{t_slew0:.6g}` prints `3.3e-09`) and is not regenerated (issue #192).
+    """
+    # `lt`/`gt`: bare < > are shell redirections in ngspice's control language.
+    slewmask = f"(abs(deriv(v(vod))) ge 0.8*slope_pk)*(time gt {t_slew0:.6g})"
+    return [
+        measurement("vod_pre", "v(vod)[0]", "V"),
+        measurement("vod_end", "v(vod)[length(v(vod))-1]", "V"),
+        measurement("step_dv", "vod_end - vod_pre", "V"),
+        measurement("k_phase", f"mean(time lt {t_sample:.6g})*length(time)"),
+        measurement("vod_phase", f"v(vod)[k_phase-1] + ({t_sample:.6g}-time[k_phase-1])/(time[k_phase]-time[k_phase-1])"
+                     "*(v(vod)[k_phase]-v(vod)[k_phase-1])", "V"),
+        measurement("err_phase", "abs(vod_phase - vod_end)/abs(step_dv)", None, {"max": err_max}),
+        measurement("t_1e4", f"vecmax((abs(v(vod)-vod_end) gt 1e-4*abs(step_dv))*time) - {t_step:.6g}", "s"),
+        measurement("t_1e3", f"vecmax((abs(v(vod)-vod_end) gt 1e-3*abs(step_dv))*time) - {t_step:.6g}", "s"),
+        measurement("t_1e2", f"vecmax((abs(v(vod)-vod_end) gt 1e-2*abs(step_dv))*time) - {t_step:.6g}", "s"),
+        measurement("slope_pk", f"vecmax(abs(deriv(v(vod)))*(time gt {t_slew0:.6g}))", "V/s"),
+        measurement("t_slew", f"vecmax({slewmask}*time) - vecmin({slewmask}*time + 1*(1-{slewmask}))", "s"),
+        measurement("slew_frac", "t_slew/t_1e4"),
+        measurement("end_ripple_rel", f"(vecmax(v(vod)*(time gt {t_end - 20e-9:.6g}) - 10*(time le {t_end - 20e-9:.6g}))"
+                     f" - vecmin(v(vod)*(time gt {t_end - 20e-9:.6g}) + 10*(time le {t_end - 20e-9:.6g})))"
+                     "/abs(step_dv)", None, {"max": ripple_max}),
+        measurement("step_err_vs_ideal", f"abs(abs(step_dv) - {ideal_dv})/{ideal_dv}", None, {"max": ideal_tol}),
+    ]
 
 
 def request(deck, measurements, t_end=None, timeout_s=None, poll_timeout_s=None, *,
