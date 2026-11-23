@@ -1,7 +1,10 @@
 """Shared `klt sim` plumbing for the transistor-level benches.
 
 Used by ota-settling, integrator-settling, integrator-ci, ota-gain,
-integrator-noise, comparator-decision and modulator-tran. Toolchain only:
+integrator-noise, comparator-decision and modulator-tran; the local runners
+ota-op-smoke, integrator-load-check and modulator-load-check import only
+`require_pinned_pdk` (issue #81), the PDK-pin gate every runner owes before
+it may touch the PDK. Toolchain only:
 submits a `klt sim` request, parses the report into per-corner measurements,
 summarizes it, and builds the common DR-002 request. The `.partials/` cache
 (`shas`/`load_partial`/`save_partial`) is a record-admission gate like the
@@ -142,6 +145,28 @@ def pdk_stamp(variant, pdk_root):
         root = pathlib.Path(json.loads(out.stdout)["root"])
     src = root / variant / "SOURCES"
     return root, (src.read_text().strip() if src.exists() else "<missing SOURCES>")
+
+
+def require_pinned_pdk(pin, pdk_root):
+    """`pdk_stamp` plus the sim/pdk.json pin check every local runner owes.
+
+    The lookup and the SOURCES-stamp comparison the non-attested local
+    runners (ota-op-smoke, integrator-load-check, modulator-load-check) each
+    hand-copied before issue #81: resolve the PDK root (`pdk_root`, else
+    `klt pdk find` via `pdk_stamp`), read `<root>/<variant>/SOURCES`, and on
+    a mismatch with `pin["sources_stamp"]` print the historical `REFUSE:`
+    line to stderr and exit 2. Returns the `<root>/<variant>` path. The
+    lookup failure path (exit with `REFUSE: klt pdk find failed: …`) stays
+    in `pdk_stamp`, unchanged.
+    """
+    variant = pin["variant"]
+    root, stamp = pdk_stamp(variant, pdk_root)
+    root = root / variant
+    if stamp != pin["sources_stamp"]:
+        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'",
+              file=sys.stderr)
+        sys.exit(2)
+    return root
 
 
 def anchor_units(process_map=None):
