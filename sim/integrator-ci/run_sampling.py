@@ -65,39 +65,11 @@ def partial_path(v):
     return PARTIALS / f"i106-{v}.json"
 
 
-def load_partial(v):
-    """A previously-run variant, if it matches the current request and deck."""
-    return sc.load_partial(partial_path(v), shas(v))
-
-
-def save_partial(v, result):
-    sc.save_partial(partial_path(v), result)
-
-
 def summarize(corners):
     """Corner counts plus the worst sampling error -- never a pass/fail."""
     ok = [k for k, c in corners.items() if c["status"] == "pass"]
     return {"corner_count": len(corners), "pass": len(ok),
             "fail": len(corners) - len(ok)}
-
-
-def submit(v, tmp, probe=False, hosts=None, capacity_wait_s=CAPACITY_WAIT_S):
-    req = HERE / f"request_i106_{v}.json"
-    tag = f"i106-{v}"
-    res = run_klt(req, probe, tmp, tag, HERE / f"probe_request_{tag}.json",
-                  artifacts_dir=None if probe else ARTIFACTS, keys=mk.I106_KEYS,
-                  hosts=None if probe else hosts, capacity_wait_s=capacity_wait_s)
-    if res is None:
-        print(f"{tag}: no usable report (see .artifacts/klt-{tag}.stderr.txt); not "
-              "falling back to a local grid or to .partials/", file=sys.stderr)
-        return None
-    rep, corners = res
-    e = rep.get("environment", {})
-    return {"summary": summarize(corners), "corners": corners,
-            "pass": rep.get("status") == "pass",
-            "ngspice": e.get("engine_version", "unknown"),
-            "engine_host": e.get("engine_host"), "remote": e.get("remote"),
-            **shas(v)}
 
 
 # ---------------------------------------------------------- derivations -----
@@ -437,45 +409,37 @@ def main():
         return 2
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="integrator-sampling-"))
     try:
+        # Checked before the probe dispatch: --from-partials submits nothing,
+        # so --probe must not silently launch a local simulation under it.
+        if a.from_partials and sc.refuse_from_partials_conflicts(
+                probe=bool(a.probe), variant=bool(a.variant)):
+            return 2
         if a.probe:
-            res = submit(a.probe, tmp, probe=True)
+            res = sc.run_probe(
+                a.probe, tmp, run_klt_fn=run_klt, artifacts_dir=ARTIFACTS,
+                request_fn=lambda v: HERE / f"request_i106_{v}.json",
+                probe_request_fn=lambda v: HERE / f"probe_request_i106-{v}.json",
+                tag_fn=lambda v: f"i106-{v}",
+                summarize_fn=lambda v, c: summarize(c), shas_fn=shas,
+                keys=mk.I106_KEYS, hosts=None, capacity_wait_s=a.capacity_wait)
             if res is None:
-                print(f"REFUSE: no result for the {a.probe} probe; nothing printed.",
-                      file=sys.stderr)
                 return 1
             print(json.dumps(res["corners"], indent=2))
             return 0
 
-        if a.from_partials:
-            if a.variant:
-                print("REFUSE: --from-partials submits nothing, so --variant has "
-                      "no meaning with it", file=sys.stderr)
-                return 2
-            run = ()
-        else:
-            run = tuple(dict.fromkeys(a.variant)) if a.variant else VARIANTS
-
-        results = {}
-        for v in VARIANTS:
-            if v not in run:
-                saved = load_partial(v)
-                if saved:
-                    print(f"{v}: reusing {partial_path(v).name} ({saved['summary']})")
-                    results[v] = saved
-                continue
-            res = submit(v, tmp, hosts=a.hosts, capacity_wait_s=a.capacity_wait)
-            if res is None:
-                continue
-            print(v, json.dumps(res["summary"], indent=2))
-            results[v] = res
-            save_partial(v, res)
-
-        missing = [v for v in VARIANTS if v not in results]
-        if missing:
-            how = ("no cached partial for" if a.from_partials else "no result for")
-            print(f"REFUSE: {how} {', '.join(missing)}; no record written. "
-                  f"Re-run with --variant {missing[0]} when the fleet has capacity.",
-                  file=sys.stderr)
+        run = () if a.from_partials else (
+            tuple(dict.fromkeys(a.variant)) if a.variant else VARIANTS)
+        results = sc.run_variant_set(
+            VARIANTS, run, tmp, run_klt_fn=run_klt, artifacts_dir=ARTIFACTS,
+            request_fn=lambda v: HERE / f"request_i106_{v}.json",
+            probe_request_fn=lambda v: HERE / f"probe_request_i106-{v}.json",
+            tag_fn=lambda v: f"i106-{v}",
+            partial_fn=partial_path,
+            shas_fn=shas, summarize_fn=lambda v, c: summarize(c),
+            submit_kwargs_fn=lambda v: {"keys": mk.I106_KEYS, "hosts": a.hosts,
+                                        "capacity_wait_s": a.capacity_wait})
+        if sc.refuse_missing_variants(VARIANTS, results,
+                                      from_partials=a.from_partials):
             return 1
 
         corner_sets = [results[v]["corners"] for v in VARIANTS]

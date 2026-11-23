@@ -9,6 +9,15 @@ other two (`grid_complete`/`measurements_present`), so it lives here too: a
 partial produced by a different request or deck must never reach a record.
 Each bench keeps its own fixture, measurements and record metadata.
 
+The multi-variant loop over that cache (`submit_variant`, `run_variant_set`,
+`run_probe`, `refuse_missing_variants`, `refuse_from_partials_conflicts`)
+is shared the same way (issue #354, continuing #57/#174/#253): the four
+multi-variant runners (integrator-settling, comparator-decision,
+integrator-ci, integrator-sampling) pass their own request/probe/tag/partial
+spellings and their own `run_klt`/`HERE`/`PARTIALS`/`ARTIFACTS` in as hooks,
+so the loop is written once while each bench keeps its filenames, its
+refusal-wording history and its test seams.
+
 The measurement-key list and the admission sentinel are per bench: the
 settling benches' defaults (`KEYS`, `err_phase`) are the historical ones, and
 `run_klt`/`summarize`/`measurements_present` take `keys=`/`key=` overrides for
@@ -323,4 +332,155 @@ def measurements_present(corners_list, key="err_phase"):
         print(f"REFUSE: {len(bad)} corner(s) returned no {key} (diagnostics: {', '.join(codes)}); "
               "nothing was simulated there, so no record is written", file=sys.stderr)
         return False
+    return True
+
+
+# ------------------------------------------------- the variant-set loop ----
+#
+# The multi-variant runners (integrator-settling, comparator-decision,
+# integrator-ci, integrator-sampling) share one loop shape: a `want` set of
+# variants the record needs, a `run` subset asked for this invocation, reuse
+# of a cached partial for the rest, and the issue #94 rule -- a variant whose
+# submit fails is refused, never backfilled from .partials/. It lived as four
+# hand-copied blocks (already drifting: --from-partials vs --probe ordering,
+# missing-partial wording, temp-dir cleanup) until issue #354 folded it here.
+# Everything per-bench stays a hook, so each bench keeps its spelling and the
+# shared test harness keeps patching RUNNER.run_klt / HERE / PARTIALS /
+# ARTIFACTS on the runner module.
+
+
+def submit_variant(run_klt_fn, request_path, tmp, tag, probe_path, *,
+                   variant=None, probe=False, artifacts_dir=None,
+                   summarize_fn, shas, env_fields=None, status_line=False,
+                   **run_klt_kw):
+    """One variant's `klt sim` submission, assembled into its result dict.
+
+    Returns the result dict (`summary`/`corners`/`pass`/`ngspice`/
+    `engine_host`/`remote`, any `env_fields(e)`, then `shas`), or None after
+    the issue #94 refusal line if `run_klt_fn` returned no usable report: a
+    failed submit is never a result, and never a reason to fall back to a
+    local grid or to .partials/.
+
+    `tag` names the run_klt artifacts (`.artifacts/klt-{tag}.stderr.txt`);
+    `variant` (default `tag`) is the label the loop prints and the value
+    `summarize_fn(variant, corners)` sees. `status_line` prints the summary
+    with the report status merged in, the settling benches' shape.
+    `env_fields` derives extra result fields from the report's environment
+    block (the charge-injection bench's `monte_carlo_env`).
+    """
+    v = tag if variant is None else variant
+    res = run_klt_fn(request_path, probe, tmp, tag, probe_path,
+                     artifacts_dir=None if probe else artifacts_dir, **run_klt_kw)
+    if res is None:
+        print(f"{tag}: no usable report (see .artifacts/klt-{tag}.stderr.txt); "
+              "not falling back to a local grid or to .partials/", file=sys.stderr)
+        return None
+    rep, corners = res
+    e = rep.get("environment", {})
+    summary = summarize_fn(v, corners)
+    result = {"summary": summary, "corners": corners,
+              "pass": rep.get("status") == "pass",
+              "ngspice": e.get("engine_version", "unknown"),
+              "engine_host": e.get("engine_host"), "remote": e.get("remote"),
+              **(env_fields(e) if env_fields else {}), **shas}
+    line = {"status": rep.get("status"), **summary} if status_line else summary
+    print(v, json.dumps(line, indent=2))
+    return result
+
+
+def run_probe(variant, tmp, *, run_klt_fn, artifacts_dir, request_fn,
+              probe_request_fn, tag_fn, summarize_fn, shas_fn,
+              env_fields=None, status_line=False, **run_klt_kw):
+    """One local tt/27C/1.8V corner of one variant; None means refuse (exit 1).
+
+    The single-variant `--probe` shape every runner shares: submit locally,
+    refuse with the probe's own exit-1 line if nothing came back, else hand
+    the result dict to the caller (which prints its corners). No partial is
+    written for a probe.
+    """
+    res = submit_variant(run_klt_fn, request_fn(variant), tmp, tag_fn(variant),
+                         probe_request_fn(variant), variant=variant, probe=True,
+                         summarize_fn=summarize_fn, shas=shas_fn(variant),
+                         env_fields=env_fields, status_line=status_line,
+                         **run_klt_kw)
+    if res is None:
+        print(f"REFUSE: no result for the {variant} probe; nothing printed.",
+              file=sys.stderr)
+        return None
+    return res
+
+
+def run_variant_set(want, run, tmp, *, run_klt_fn, artifacts_dir, request_fn,
+                    probe_request_fn, tag_fn, partial_fn, shas_fn, summarize_fn,
+                    reuse_label_fn=None, submit_kwargs_fn=None, usable_fn=None,
+                    env_fields=None, status_line=False):
+    """The want-vs-run loop: reuse a partial, submit fresh, cache. -> results.
+
+    For every variant in `want` that this invocation did not ask for (not in
+    `run`), a sha-matching cached partial is reused. Every variant in `run`
+    is submitted fresh, and its result is cached under `partial_fn(v)` --
+    unless `usable_fn(v, corners)` says it could not stand in a record on its
+    own (a lost-shard grid: legitimate to report, illegitimate to cache over
+    a good partial). A failed submit prints the issue #94 refusal line and
+    leaves the variant missing; `refuse_missing_variants` turns that into
+    the exit-1 refusal.
+
+    The hooks are the per-bench spellings: `request_fn`/`probe_request_fn`/
+    `tag_fn` name the request, probe request and run_klt tag for a variant;
+    `partial_fn` the cache path; `reuse_label_fn` (default: the partial's
+    filename) the reuse line's label; `shas_fn` the hash gate;
+    `summarize_fn(variant, corners)` the summary; and `submit_kwargs_fn(v)`
+    any extra run_klt kwargs (keys, capacity_wait_s, hosts, outdir, resume).
+    """
+    results = {}
+    for v in want:
+        if v not in run:
+            saved = load_partial(partial_fn(v), shas_fn(v))
+            if saved:
+                label = partial_fn(v).name if reuse_label_fn is None else reuse_label_fn(v)
+                print(f"{v}: reusing {label} ({saved['summary']})")
+                results[v] = saved
+            continue
+        res = submit_variant(
+            run_klt_fn, request_fn(v), tmp, tag_fn(v), probe_request_fn(v),
+            variant=v, artifacts_dir=artifacts_dir, summarize_fn=summarize_fn,
+            shas=shas_fn(v), env_fields=env_fields, status_line=status_line,
+            **(submit_kwargs_fn(v) if submit_kwargs_fn else {}))
+        if res is None:
+            continue
+        results[v] = res
+        if usable_fn is None or usable_fn(v, res["corners"]):
+            save_partial(partial_fn(v), res)
+        else:
+            print(f"{v}: not cached in .partials/ -- this result cannot stand "
+                  "in a record on its own; re-run this variant", file=sys.stderr)
+    return results
+
+
+def refuse_missing_variants(want, results, from_partials=False):
+    """The shared missing-variant refusal; True refuses (caller exits 1)."""
+    missing = [v for v in want if v not in results]
+    if not missing:
+        return False
+    how = "no cached partial for" if from_partials else "no result for"
+    print(f"REFUSE: {how} {', '.join(missing)}; no record written. "
+          f"Re-run with --variant {missing[0]} when the fleet has capacity.", file=sys.stderr)
+    return True
+
+
+def refuse_from_partials_conflicts(**flags):
+    """Refuse --from-partials combined with flags that would mean something.
+
+    `flags` maps a flag name (without dashes) to whether it was given; any
+    given flag prints the exit-2 refusal and returns True. --from-partials
+    submits nothing, so --probe/--variant/--resume cannot change what it
+    does -- and a runner that dispatched on --probe first would silently
+    launch a local simulation instead of refusing, the drift issue #354
+    closed.
+    """
+    bad = [f"--{name}" for name, given in flags.items() if given]
+    if not bad:
+        return False
+    print(f"REFUSE: --from-partials submits nothing, so {', '.join(bad)} "
+          "has no meaning with it", file=sys.stderr)
     return True
