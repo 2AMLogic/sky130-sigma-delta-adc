@@ -884,3 +884,179 @@ def collect_anchors(cells):
                                           [m[0] for m in members],
                                           pad_xs=xs, jog_um=JOG_REACH_UM))
     return anchors, straps, mcons
+
+
+# --- shared MiM/via constants, net finishing, compose/DRC steps (issue #377) ----
+# The last three paste-copies the two cell generators carried: the eight
+# sky130 layer and MiM/via geometry constants (the integrator's header
+# comment already noted "Identical to the sibling OTA generator's table"),
+# the post-anchor-placement net finishing (group by net, sort each net's
+# placements, route the spines, label the pin nets, finish the trunks, the
+# `draw.request.json` payload), and the `compose.request.json` construction
+# plus the `klt draw` + `klt gen-compose` + `klt drc` steps around it.  Each
+# cell keeps what genuinely differs -- which anchors a net has and how each
+# is connected (the integrator's matched-pair summing routing and OTA
+# escapes, the OTA's greedy `connect`), its own `route_summary` metadata
+# fields, and its own extraction evidence -- and hands the placements and
+# block entries to these.
+L_MET1_PIN = (68, 5)
+L_VIA2 = (69, 44)
+L_VIA3 = (70, 44)
+
+# --- rule-derived geometry (sky130 deck minimums plus margin) -----------------
+VIA2_UM = 0.20           # via2.1a exact size
+VIA3_UM = 0.20           # via3.1a exact size
+MET34_W_UM = 0.60        # met3/met4 wire width: m3.1/m4.1 want 0.30, but
+                         # a run narrower than its own via pad leaves a
+                         # notch at the corner that m3.2/m4.2 then flag
+MET34_SPACE_UM = 0.30    # m3.2/m4.2
+PAD34_UM = 0.60          # met2/met3/met4 landing pad for a via2/via3
+                         # (0.60^2 = 0.36um2 clears met3/met4 min area 0.24)
+
+
+def group_anchors_by_net(anchors, net_order):
+    """Bucket anchors by net, asserting the net table agrees both ways.
+
+    An anchor whose net is not in ``net_order``, or a table net that
+    collected no anchor at all, is a net-table/netlist disagreement the
+    router must not paper over -- one would be routed under a name nothing
+    else uses, the other silently left dangling -- so both raise the same
+    ``RouteError`` the two generators raised separately.
+    """
+    by_net: dict[str, list[Anchor]] = defaultdict(list)
+    for a in anchors:
+        by_net[a.net].append(a)
+    missing = sorted(set(by_net) - set(net_order))
+    unrouted = sorted(set(net_order) - set(by_net))
+    if missing or unrouted:
+        raise RouteError(f"net table mismatch: not in NET_ORDER {missing}, "
+                         f"no anchors {unrouted}")
+    return by_net
+
+
+def finish_net(router, summary, net, placed, pin_nets,
+               label_planes=("met1",)):
+    """Sort one net's placements, route its spines, record and label it.
+
+    ``placed`` is the caller's ``[(col, y, anchor), ...]`` -- each cell
+    connects its own anchor kinds (met1 pads, MiM risers, OTA escapes)
+    before handing the placements over, so this is where the per-cell
+    strategies converge.  The placements are sorted by column then y and
+    consecutive ones joined by a met1 spine.  A pin net is labelled on
+    ``L_MET1_PIN`` at its first anchor on one of ``label_planes``: the label
+    must land on met1 that actually exists, so a net whose first anchor is
+    a MiM riser (met2/met3/met4) is labelled at its first met1 anchor
+    instead; the integrator also accepts its ``ota`` landings, whose via
+    ladder's met1 the OTA cell itself drew.
+    """
+    placed = sorted(placed, key=lambda t: (t[0], t[1]))
+    spines = []
+    for (ca, ya, _a), (cb, yb, _b) in zip(placed, placed[1:]):
+        spines.append(router.route_spine(net, ca, ya, cb, yb))
+    summary[net] = {
+        "anchors": [{"block": a.block, "plane": a.plane, "ports": a.ports,
+                     "column_x_um": col, "y_um": y}
+                    for col, y, a in placed],
+        "spine_y_um": spines,
+    }
+    if net in pin_nets:
+        on_met1 = [t for t in placed if t[2].plane in label_planes]
+        if not on_met1:
+            raise RouteError(f"port net {net} has no met1 anchor to label")
+        col, y, _a = on_met1[0]
+        router.labels.append((L_MET1_PIN, net, col, y))
+
+
+def finalize_routing(router, summary, extra_shapes=()):
+    """Finish the trunks, round the wire lengths, build the draw payload.
+
+    ``extra_shapes`` are ``(layer, Rect)`` pairs drawn outside the router
+    (the integrator's lvtn markers), appended after the router's own shapes
+    so the payload stays stable.
+    """
+    router.finish_trunks()
+    for net, info in summary.items():
+        info["wire_length_um"] = round(router.wire_um[net], 3)
+    draw_params = {
+        "shapes": [{"layer": list(layer), "rect_um": rect.as_um()}
+                   for layer, rect in [*router.shapes, *extra_shapes]],
+        "labels": [{"layer": list(layer), "text": text, "at_um": [x, y]}
+                   for layer, text, x, y in router.labels],
+    }
+    return draw_params
+
+
+def compose_request(top_cell, blocks, order, origins,
+                    pdk_variant=PDK_VARIANT):
+    """The placement-only `klt.gen_compose.request/1` both generators build.
+
+    ``blocks`` is the per-block entry list -- each cell owns its entries'
+    shape: the OTA passes plain ``generator_report`` references, the
+    integrator adds ``orientation`` and the placed OTA instance's ``cell``
+    block.  ``order`` and ``origins`` exclude the route block, which is
+    appended here after every cell block at origin (0, 0): the router drew
+    its shapes in the composed cell's own frame already.
+    """
+    return {
+        "schema": "klt.gen_compose.request/1",
+        "pdk": {"variant": pdk_variant},
+        "blocks": [*blocks, {"id": "route", "generator_report": "draw.json"}],
+        "placement": {
+            "strategy": "explicit",
+            "order": [*order, "route"],
+            "origins_um": {**origins, "route": {"x": 0.0, "y": 0.0}},
+        },
+        # No `routing` block on purpose: gen-compose is a placer here; every
+        # wire is in the `route` block the cell's own router drew.
+        "connectivity": [],
+        "options": {"cell_name": top_cell, "output": f"{top_cell}.gds"},
+    }
+
+
+def draw_compose_and_drc(klt_cmd, pdk_args, out_dir, top_cell, draw_params,
+                         compose_req, route_summary, say=lambda _msg: None,
+                         draw_step="", drc_step=""):
+    """Write the three flow documents, run the shared `klt draw` +
+    `klt gen-compose` + `klt drc` steps, and return the parsed DRC report.
+
+    The document set is the same three files in both generators:
+    ``draw.request.json`` (the router's shape/label payload, indent 1),
+    ``compose.request.json`` (indent 2) and ``route.summary.json``
+    (indent 2).  ``klt draw``'s stdout is filed verbatim to ``draw.json``
+    -- never re-serialised -- because that file is the route block's
+    generator report; a compose that did not write ``<top_cell>.gds`` is a
+    hard error.  ``klt drc`` runs with ``check=False`` to capture stdout,
+    the parsed report is written to ``drc.report.json`` *before*
+    ``assert_drc_clean`` re-reads the verdict, and the status line is said
+    only after the guard passes -- a dirty report aborts the flow with the
+    report already on disk.  ``draw_step``/``drc_step`` are the caller's
+    progress lines, said where the two klt steps start.
+    """
+    if draw_step:
+        say(draw_step)
+    (out_dir / "draw.request.json").write_text(
+        json.dumps(draw_params, indent=1) + "\n")
+    (out_dir / "compose.request.json").write_text(
+        json.dumps(compose_req, indent=2) + "\n")
+    (out_dir / "route.summary.json").write_text(
+        json.dumps(route_summary, indent=2) + "\n")
+    r = run([*klt_cmd, "draw", "--params", "draw.request.json",
+             "--cell-name", "ROUTE", "-o", "route.gds", "--format", "json"],
+            cwd=out_dir)
+    (out_dir / "draw.json").write_text(r.stdout)
+    run([*klt_cmd, "gen-compose", "compose.request.json", "--format", "json"],
+        cwd=out_dir)
+    gds = out_dir / f"{top_cell}.gds"
+    if not gds.exists():
+        raise RuntimeError(f"gen-compose did not write {gds}")
+    if drc_step:
+        say(drc_step)
+    r = run([*klt_cmd, "drc", f"{top_cell}.gds", "--deck", "sky130",
+             "--top", top_cell]
+            + pdk_args + ["--format", "json"], cwd=out_dir, check=False)
+    drc = json.loads(r.stdout) if r.stdout.strip() else {"error": r.stderr}
+    (out_dir / "drc.report.json").write_text(json.dumps(drc, indent=2) + "\n")
+    assert_drc_clean(drc, str(out_dir / "drc.report.json"))
+    say(f"  drc: status={drc.get('status')!r} "
+        f"violations={drc.get('violation_count')}")
+    return drc
