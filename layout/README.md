@@ -329,8 +329,9 @@ shared signature** — the first output strobe never appears (`clock: edge 41: r
 valid=0, model valid=1`) — recorded verbatim in
 `../verification/decimator/fv-sdf-decimator-entries-all.report.json`. That is not a
 timing outcome and is not recorded as one: the design is timing-clean by a wide margin
-(worst setup slack +179.58 ns on the 195.3125 ns clock, TNS 0, zero setup/hold
-violations at all ten committed STA corners), and klt's own isolation table
+(setup slack +179.55 ns at the SDF's own write corner `tt_025C_1v80` on the
+195.3125 ns clock; worst across the ten committed STA corners +157.838 ns at
+`ss_n40C_1v60`; TNS 0 and zero setup/hold violations at all ten), and klt's own isolation table
 (klayout-tools issue #2364, quoted in the report's
 `environment.sdf.dropped.iopath_interconnect_only.reason`) documents that on a
 timing-clean sky130A design IOPATH annotation kills the simulation in Icarus "even at a
