@@ -118,6 +118,36 @@ and 0.280 V from ground (was 67 mV and 43 mV). Row 13 passes at every anchor
 `Ci` load did not break power. Row 5 holds (`phi1` 1024 edges everywhere);
 the clock generator and supply span are untouched.
 
+### Re-run on the committed netlist (`record-c0p3-netlist430e.json`)
+
+`record-c0p3.json` above was produced against `design/modulator/modulator.spice`
+at sha256 `f59eb1e1…`, the netlist before the #129 switch cell (LVT switches,
+`L` 0.35, complementary PMOS bottom-plate switches) arrived from `main`. The
+netlist this PR ships is `430e0a79…`. The seven anchors were therefore re-run
+on it: `sim/modulator-tran/record-c0p3-netlist430e.json` (+
+`samples-record-c0p3-netlist430e/`), same deck and request (`deck_sha256`
+`f5abe6dd…`, `request_sha256` `2d6a2e27…`), `modulator_netlist_sha256`
+`430e0a79…`, klt 0.9.2, batch fleet. `record-c0p3.json` and its samples are
+untouched. Still `fail` at 0/7 anchors on the unchanged 1.39 V<sub>pp</sub> limit.
+**These are the figures to cite; the table above is kept as history.**
+
+| anchor | int 1 (f59eb1e1) | int 1 (430e0a79) | int 2 (f59eb1e1) | int 2 (430e0a79) |
+|---|---|---|---|---|
+| `tt`/1.800/27 | 2.475 | 2.462 | 1.567 | 1.558 |
+| `ss`/1.620/125 | 2.297 | 2.357 | 1.545 | 1.562 |
+| `ss`/1.620/−40 | 2.275 | 2.397 | 1.384 | 1.553 |
+| `ff`/1.980/−40 | 2.530 | 2.526 | 1.605 | 1.593 |
+| `ff`/1.980/125 | 2.522 | 2.515 | 1.609 | 1.593 |
+| `sf`/1.800/27 | 2.476 | 2.458 | 1.559 | 1.520 |
+| `fs`/1.800/27 | 2.401 | 2.409 | 1.589 | 1.594 |
+
+Worst integrator 1 is 2.526 V<sub>pp</sub> (was 2.530), worst integrator 2 is
+1.594 (was 1.609); the conclusions above hold. At `tt` the single-ended
+integrator 1 output spans 0.282–1.527 V, 0.273 V from VDDA. Worst analog power
+is 0.601 mW at `ff`/1.980 V/125 °C, so row 13 still passes. The `tt`
+transistor-level swing remains about 17 % above the model's (2.462 vs 2.113
+V<sub>pp</sub>), so the pre-#129 switch cell was not the cause of that gap.
+
 **The transistor-level swing is about 20 % above the model's** (2.475 vs
 2.113 V<sub>pp</sub> at `tt`), not the 10 % seen at 0.5/0.5 where the circuit
 was railing. Why is not diagnosed here. It is exactly what DR-001 item 3's
