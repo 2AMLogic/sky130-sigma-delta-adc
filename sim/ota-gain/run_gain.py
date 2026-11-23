@@ -11,7 +11,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
 from settling_common import (grid_complete, measurements_present,  # noqa: E402
-                             pdk_stamp, run_klt, sha256)
+                             pdk_stamp, run_klt, sha256, shas)
 
 sys.path.insert(0, str(HERE))
 import make_request as mk  # noqa: E402
@@ -182,8 +182,7 @@ def main():
         "engine_host": env.get("engine_host"),
         "remote": env.get("remote"),
         "batch_receipt": rep.get("batch_receipt"),
-        "request_sha256": sha256(HERE / "request.json"),
-        "deck_sha256": sha256(HERE / "ota_gain.cir"),
+        **shas(HERE / "request.json", HERE / "ota_gain.cir"),
         "ota_netlist_sha256": sha256(REPO / "design/ota/ota_fd.spice"),
         "comparison_column": {
             "from": "sim/integrator-ci/record.json derived.dac_crosscheck.per_corner",

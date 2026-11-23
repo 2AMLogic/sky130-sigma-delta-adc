@@ -12,8 +12,8 @@ import argparse, json, math, pathlib, re, subprocess, sys, tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import (grid_complete, measurements_present,  # noqa: E402
-                             pdk_stamp, run_klt, sha256)
+from settling_common import (grid_complete, join_continuations,  # noqa: E402
+                             measurements_present, pdk_stamp, run_klt, sha256)
 
 sys.path.insert(0, str(HERE))
 import make_request as mk  # noqa: E402
@@ -113,16 +113,6 @@ DEV_PTS_PER_SUMMARY = 1000000   # > the point count, so exactly one summary
 DEV_COVERAGE = 0.90         # the share the named device list must reach
 
 
-def _join_continuations(text):
-    out = []
-    for raw in text.splitlines():
-        if raw.startswith("+") and out:
-            out[-1] += " " + raw[1:].strip()
-        else:
-            out.append(raw.strip())
-    return out
-
-
 def mim_farads(w_um, l_um):
     """sky130_fd_pr__cap_mim_m3_1 capacitance at the typical cap section."""
     wc, lc = w_um + M3_DW_UM, l_um + M3_DW_UM
@@ -132,7 +122,7 @@ def mim_farads(w_um, l_um):
 def drawn_caps(netlist=REPO / "design/integrator/integrator.spice"):
     """Cs and Ci as drawn in the cell, not the 1 pF / 2 pF planning values."""
     geo = {}
-    for line in _join_continuations(pathlib.Path(netlist).read_text()):
+    for line in join_continuations(pathlib.Path(netlist).read_text()):
         m = re.match(r"^X(Csi|Csr|Ci)_([pn])\s+.*\bW=([0-9.eE+-]+)\s+L=([0-9.eE+-]+)", line)
         if m:
             geo.setdefault(m.group(1), []).append((float(m.group(3)), float(m.group(4))))
@@ -169,7 +159,7 @@ def device_geometry(netlists=("design/ota/ota_fd.spice",
     """
     geo = {}
     for rel in netlists:
-        for line in _join_continuations((REPO / rel).read_text()):
+        for line in join_continuations((REPO / rel).read_text()):
             m = re.match(r"^X(\S+)\s+.*?\b(sky130_fd_pr__\S+?)\s+"
                          r"L=([0-9.eE+-]+)\s+W=([0-9.eE+-]+)", line)
             if m:
@@ -203,14 +193,15 @@ def temp_k(corner_id):
     return None if m is None else float(m.group(1)) + 273.15
 
 
-def upper_edge(c, g, var_tot):
+def upper_edge(c):
     """Measured evidence that the band integral converged below F_HI.
 
     The truncated-band integrals are the direct test: an integral that still
     has content above its edge moves when the edge moves, so
     1 - (rms_trunc/rms_tot)^2 is the share of the full-band variance above each
-    truncated edge. The input referral `g` cancels in every ratio here, which
-    is why the shares are comparable with var_total_V2 directly.
+    truncated edge. Every ratio here is between rms values of the same
+    variant, so the input referral cancels, which is why the shares are
+    comparable with var_total_V2 directly.
     """
     rms = c.get("nz_rms_tot")
 
@@ -276,7 +267,7 @@ def part(corner_id, c, variant):
         "diagnostics": c.get("diagnostics", []),
     }
     row["spectrum_V_per_rtHz"][f"{mk.F_DENS_TOP:g}Hz"] = c.get("nz_dens_top")
-    row["upper_edge"] = upper_edge(c, g, var_tot)
+    row["upper_edge"] = upper_edge(c)
     # Model B's ktc_noise_var is a per-event variance in FS^2 at the
     # integrator-1 state increment; one FS of integrator input becomes C1 FS
     # there, and 1 FS = VREFP - VREFN volts. The equivalent WHITE per-event
