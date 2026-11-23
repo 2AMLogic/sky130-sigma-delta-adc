@@ -347,32 +347,19 @@ selects `entries: "interconnect"`, and the committed report states what that dro
 
 **Reproduce** (from the repo root, pinned klt on `PATH` — e.g.
 `uvx --from "klayout-tools==$(cat .github/klt-version)" --with cocotb klt …`;
-Icarus >= 13 is required for `options.sdf`). The committed request's sky130
-cell-model `sources` are written as `../../../../.ciel/…` escapes that resolve only
-from a checkout at the primary clone's depth — a worktree cannot use the file as-is
-(#360; a run-time resolver is in review as #362). The committed reports were therefore
-produced from a materialized request with absolute paths, PDK resolved by
-`klt pdk find --pdk sky130A --format json` (on the producing host: `~/.ciel/sky130A`,
-open_pdks `f6eeac7…`, the `sim/pdk.json` pin) — this is the machine-relative-path
-disclosure: the PDK install path differs per host, `klt pdk find` is the resolver:
+Icarus >= 13 is required for `options.sdf`). The committed request keeps its
+`sources` repo-relative (only the gate netlist); the sky130 cell models are resolved at
+run time by `verification/decimator/resolve_fv_sdf.py` (#360; #362), because a
+`../../../../.ciel/…` escape would resolve only from a checkout at the primary clone's
+depth. The committed reports were produced from the materialized request that helper
+emits (absolute paths), PDK resolved by `klt pdk find --pdk sky130A --format json`
+(on the producing host: `~/.ciel/sky130A`, open_pdks `f6eeac7…`, the `sim/pdk.json`
+pin) — this is the machine-relative-path disclosure: the PDK install path differs per
+host, `klt pdk find` is the resolver (the helper refuses an off-pin `SOURCES` stamp):
 
 ```sh
 # 1. materialize the request (request-relative -> absolute; models appended)
-python3 - <<'EOF' > /tmp/fv_sdf_run.json
-import json, os, subprocess, sys
-v = json.loads(subprocess.check_output(
-    ["klt", "pdk", "find", "--pdk", "sky130A", "--format", "json"]))["root"] \
-    + "/sky130A/libs.ref/sky130_fd_sc_hd/verilog"
-req = os.path.abspath("verification/decimator/fv_sdf_request.json")
-d = os.path.dirname(req)
-abs1 = lambda p: p if os.path.isabs(p) else os.path.abspath(os.path.join(d, p))
-r = json.load(open(req))
-r["sources"] = [abs1("../../layout/digital/decimator_pnr.v"),
-                v + "/primitives.v", v + "/sky130_fd_sc_hd.v"]
-r["options"]["sdf"]["file"] = abs1("../../layout/digital/decimator.sdf")
-r["testbench"]["search_path"] = d
-json.dump(r, sys.stdout, indent=2)
-EOF
+python3 verification/decimator/resolve_fv_sdf.py > /tmp/fv_sdf_run.json
 # 2. run (one corner, ~8 min measured; entries "all" fails in ~30 s)
 klt functional-verification /tmp/fv_sdf_run.json \
   -o /tmp/klt-fv-sdf-decimator --format json > /tmp/fv-sdf-report.json
