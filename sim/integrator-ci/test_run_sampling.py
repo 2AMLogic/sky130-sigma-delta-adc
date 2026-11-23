@@ -5,8 +5,8 @@ No fleet, no ngspice, no klt: `run_klt` and `pdk_stamp` are patched and the
 runner's HERE / .partials are redirected into a temporary directory, so the
 committed record-i106.json is never read or written. `shas()` is NOT patched --
 the real request and deck files are copied into the temporary HERE, so the
-.partials hash gate is exercised as written. Same harness shape as
-test_run_ci.py.
+.partials hash gate is exercised as written. The harness itself is
+`sim/runner_test_common.py`, bound to this bench below, as in test_run_ci.py.
 
 What is pinned here (issue #106):
 
@@ -20,39 +20,27 @@ What is pinned here (issue #106):
   carried as a labelled scale and never as a pass/fail limit.
 """
 import contextlib
-import importlib.util
-import io
 import json
 import pathlib
 import re
 import subprocess
 import sys
-import tempfile
 import unittest
 from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parent
+# `sim/` is not on sys.path under `python3 -I`: isolated mode drops CWD and
+# PYTHONPATH, and `discover -s sim/integrator-ci` puts only the bench directory
+# there. The runner inserts it at load time, which is too late for this import.
+sys.path.insert(0, str(HERE.parent))
 
+import runner_test_common as rtc                                    # noqa: E402
+from runner_test_common import CORNER_IDS                           # noqa: E402
 
-def load_runner():
-    """Load run_sampling.py by path: 'integrator-ci' is not importable."""
-    spec = importlib.util.spec_from_file_location(
-        "run_sampling_under_test", HERE / "run_sampling.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-RUNNER = load_runner()
+RUNNER = rtc.load_runner("run_sampling_under_test", HERE / "run_sampling.py")
 MK = sys.modules["make_request"]
-PIN = json.loads((RUNNER.REPO / "sim/pdk.json").read_text())
 SENTINEL = RUNNER.SENTINEL
 AMPS = RUNNER.VARIANTS
-
-PROCESS = ("tt", "ss", "ff", "sf", "fs")
-VDDA = ("1p620", "1p800", "1p980")
-TEMP = ("m40", "27", "125")
-CORNER_IDS = tuple(f"{p}_{v}_{t}" for p in PROCESS for v in VDDA for t in TEMP)
 
 
 def corner(sampled, vin_diff=0.2, **over):
@@ -88,68 +76,49 @@ def ideal(v):
     return MK.i106_variant(v)["vin_diff"]
 
 
-class RunnerCase(unittest.TestCase):
-    """Runs main() against a temporary HERE with run_klt / pdk_stamp patched."""
+class RunnerCase(rtc.RunnerCase):
+    """The shared harness, bound to the sampling bench's runner and inputs.
 
-    maxDiff = None
+    Beyond the base: `make_request`'s HERE is redirected alongside the
+    runner's, and `klt --version` is faked. This campaign's request files
+    are named `request_i106_<amp>.json`, its partials cache under
+    `i106-<amp>.json`, and its default partial corners are per-amplitude.
+    """
 
-    def setUp(self):
-        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="test-run-sampling-"))
-        self.addCleanup(lambda: __import__("shutil").rmtree(self.tmp, ignore_errors=True))
-        self.here = self.tmp / "bench"
-        self.here.mkdir()
-        for v in AMPS:                       # real inputs: real shas()
-            for name in (f"request_i106_{v}.json", MK.deck_name(v)):
-                (self.here / name).write_bytes((HERE / name).read_bytes())
-        self.partials = self.here / ".partials"
-        self.work = self.tmp / "work"
-        self.work.mkdir()
-        self.calls, self.kwargs = [], []
+    RUNNER = RUNNER
+    BENCH = HERE
+    VARIANTS = AMPS
+    TMP_PREFIX = "test-run-sampling-"
+    ARGV0 = "run_sampling.py"
 
-    def shas(self, v):
+    def deck_name(self, v):
+        return MK.deck_name(v)
+
+    def input_names(self):
+        for v in self.VARIANTS:
+            yield f"request_i106_{v}.json"
+            yield self.deck_name(v)
+
+    def partial_name(self, v, **kw):
+        return f"i106-{v}.json"
+
+    @contextlib.contextmanager
+    def patch_here(self):
         with mock.patch.object(RUNNER, "HERE", self.here), \
              mock.patch.object(MK, "HERE", self.here):
-            return RUNNER.shas(v)
+            yield
 
-    def write_partial(self, v, corners=None, passed=True, stale=False):
-        self.partials.mkdir(exist_ok=True)
-        d = {"summary": {"corner_count": 45, "pass": 45, "fail": 0},
-             "corners": grid(ideal(v), ideal(v)) if corners is None else corners,
-             "pass": passed, "ngspice": "ngspice-47", "engine_host": "fleet-node-0",
-             "remote": {"job_id": f"job-earlier-{v}"}, **self.shas(v)}
-        if stale:
-            d["deck_sha256"] = "0" * 64
-        (self.partials / f"i106-{v}.json").write_text(json.dumps(d, indent=2) + "\n")
-        return d
+    def patch_extra(self, st):
+        st.enter_context(mock.patch.object(MK, "HERE", self.here))
+        st.enter_context(mock.patch.object(
+            RUNNER.subprocess, "run",
+            lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout="klt 0.0.0-test\n",
+                                                        stderr="")))
 
-    def run_main(self, argv, submits):
-        """main() with argv; `submits` maps run_klt tag -> its return value."""
-        def fake_run_klt(request_path, probe, tmpdir, tag, probe_path, **kw):
-            self.calls.append(tag)
-            self.kwargs.append(kw)
-            return submits.get(tag)
-
-        out, err = io.StringIO(), io.StringIO()
-        with contextlib.ExitStack() as st:
-            st.enter_context(mock.patch.object(RUNNER, "HERE", self.here))
-            st.enter_context(mock.patch.object(MK, "HERE", self.here))
-            st.enter_context(mock.patch.object(RUNNER, "PARTIALS", self.partials))
-            st.enter_context(mock.patch.object(RUNNER, "ARTIFACTS", self.here / ".artifacts"))
-            st.enter_context(mock.patch.object(
-                RUNNER, "pdk_stamp",
-                lambda variant, root: (pathlib.Path("/fake/pdk"), PIN["sources_stamp"])))
-            st.enter_context(mock.patch.object(RUNNER, "run_klt", fake_run_klt))
-            st.enter_context(mock.patch.object(
-                RUNNER.tempfile, "mkdtemp", lambda *a, **k: str(self.work)))
-            st.enter_context(mock.patch.object(
-                RUNNER.subprocess, "run",
-                lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout="klt 0.0.0-test\n",
-                                                            stderr="")))
-            st.enter_context(mock.patch.object(sys, "argv", ["run_sampling.py", *argv]))
-            st.enter_context(contextlib.redirect_stdout(out))
-            st.enter_context(contextlib.redirect_stderr(err))
-            rc = RUNNER.main()
-        return rc, out.getvalue(), err.getvalue()
+    def write_partial(self, v, corners=None, **kw):
+        """The bench's default corners are per-amplitude: ideal(v) everywhere."""
+        return super().write_partial(
+            v, grid(ideal(v), ideal(v)) if corners is None else corners, **kw)
 
     def all_submits(self, sampled=None):
         """A passing submit for every amplitude; `sampled` maps amplitude -> V."""
@@ -158,8 +127,7 @@ class RunnerCase(unittest.TestCase):
                 for v in AMPS}
 
     def assertNoRecord(self, name="record-i106.json"):
-        self.assertFalse((self.here / name).exists(),
-                         f"{name} was written from a run that should have refused")
+        super().assertNoRecord(name)
 
     def record(self, name="record-i106.json"):
         return json.loads((self.here / name).read_text())

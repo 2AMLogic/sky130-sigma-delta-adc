@@ -3,8 +3,10 @@
 Imported by the per-bench test modules (`sim/integrator-ci/test_run_ci.py`,
 `sim/integrator-settling/test_run_settling.py`,
 `sim/comparator-decision/test_run_decision.py`, `sim/test_settling_common.py`,
-`sim/ota-gain/test_run_gain.py`, `sim/integrator-noise/test_run_noise.py`).
-The module name is
+`sim/ota-gain/test_run_gain.py`, `sim/integrator-noise/test_run_noise.py`,
+`sim/switch-probe/test_run_probe.py`, `sim/ota-swing/test_run_swing.py`,
+`sim/modulator-tran/test_run_tran.py`,
+`sim/integrator-ci/test_run_sampling.py`). The module name is
 deliberately NOT `test_`-prefixed: neither
 `python3 -I -m unittest discover -s sim -p 'test_settling*.py'` nor a
 per-bench `discover -s sim/<bench> -p 'test_*.py'` may collect it, because

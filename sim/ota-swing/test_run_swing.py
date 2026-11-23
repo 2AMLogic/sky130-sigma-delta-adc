@@ -17,31 +17,21 @@ pinned:
   the request is the DR-002 anchor set with the fleet capacity wait, and the
   #257 swing reference table covers all 7 anchors with a cited sha256.
 """
-import importlib.util
-import io
 import json
 import math
 import pathlib
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stderr
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE))
+import runner_test_common as rtc                                    # noqa: E402
 import settling_common as sc  # noqa: E402
 
 
-def load_runner():
-    spec = importlib.util.spec_from_file_location("run_swing_under_test",
-                                                  HERE / "run_swing.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-RUNNER = load_runner()
+RUNNER = rtc.load_runner("run_swing_under_test", HERE / "run_swing.py")
 MK = sys.modules["make_request"]
 SC = sys.modules["settling_common"]
 REQUEST = json.loads((HERE / "request.json").read_text())
@@ -87,11 +77,7 @@ def full_corners():
     return {f"c{i}": corner(key=k) for i, k in enumerate(ANCHOR_KEYS)}
 
 
-def refuses(fn, *args, **kw):
-    buf = io.StringIO()
-    with redirect_stderr(buf):
-        ok = fn(*args, **kw)
-    return ok, buf.getvalue()
+refuses = rtc.call
 
 
 class SegGain(unittest.TestCase):
