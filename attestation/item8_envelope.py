@@ -32,6 +32,11 @@ so `--check` fails until the envelope is regenerated in the same change.
     python3 -I attestation/item8_envelope.py            # write the envelope
     python3 -I attestation/item8_envelope.py --check    # exit 1 if stale or malformed
     python3 -I attestation/item8_envelope.py --verify-issues   # also: pending issues are open (needs gh)
+
+Exit codes: 0 = verified; 1 = malformed, stale, or a genuinely closed citation;
+3 = `--verify-issues` could not run (gh failed). A gh failure (no auth, rate
+limit, network) is reported plainly as "could not verify" and never as a closed
+citation, so a red run cannot be misread as a finding -- or as a pass.
 """
 import argparse
 import hashlib
@@ -48,6 +53,10 @@ VERDICTS = {"evidenced", "partial", "pending"}
 DEC_STATUSES = ("evidenced", "pending", "declared-gap")
 PATH_RE = re.compile(r"`([^`]+)`")
 ISSUE_RE = re.compile(r"#(\d+)")
+# The report cites this repo's issues; pin the slug so `gh` never resolves it
+# from the cwd's git remote (a fork PR's checkout would resolve the fork,
+# where these issue numbers do not exist).
+GH_REPO = "2AMLogic/sky130-sigma-delta-adc"
 RECORD_RE = re.compile(r"spec/decisions/DR-\d+-[^`]+\.md$")
 
 
@@ -180,14 +189,32 @@ def build() -> tuple[dict, list[str], set[str]]:
     return envelope, errors, issues
 
 
-def verify_issues(issues: set[str]) -> list[str]:
-    bad = []
+def verify_issues(issues: set[str]) -> tuple[list[str], list[str]]:
+    """Check every cited issue is still open, via `gh`.
+
+    Returns (bad, could_not_run): genuinely closed citations, and issues `gh`
+    could not answer (no auth, rate limit, network). A gh failure is never
+    reported as a closed citation -- the caller exits 3 and says plainly that
+    the check could not run.
+    """
+    bad, could_not_run = [], []
     for n in sorted(issues, key=int):
-        out = subprocess.run(["gh", "issue", "view", n, "--json", "state", "--jq", ".state"],
+        # -R pins the repo: gh otherwise resolves owner/repo from the cwd's
+        # git remote, which on a fork PR's checkout is the fork, where these
+        # issue numbers do not exist. The report cites THIS repo's issues.
+        out = subprocess.run(["gh", "issue", "view", n, "-R", GH_REPO,
+                              "--json", "state", "--jq", ".state"],
                              capture_output=True, text=True)
-        if out.returncode != 0 or out.stdout.strip() != "OPEN":
-            bad.append(f"#{n} is not an open issue ({out.stdout.strip() or out.stderr.strip()})")
-    return bad
+        if out.returncode != 0:
+            detail = (out.stderr.strip() or out.stdout.strip() or "gh failed").splitlines()[-1]
+            could_not_run.append(f"#{n}: gh issue view failed ({detail})")
+        elif out.stdout.strip() == "OPEN":
+            continue
+        elif out.stdout.strip() == "CLOSED":
+            bad.append(f"#{n} is not an open issue (CLOSED)")
+        else:
+            could_not_run.append(f"#{n}: unexpected gh output {out.stdout.strip()!r}")
+    return bad, could_not_run
 
 
 def main() -> int:
@@ -197,8 +224,18 @@ def main() -> int:
     args = ap.parse_args()
 
     envelope, errors, issues = build()
+    could_not_run: list[str] = []
     if args.verify_issues:
-        errors += verify_issues(issues)
+        bad, could_not_run = verify_issues(issues)
+        errors += bad
+    if could_not_run:
+        if errors:
+            print("\n".join(f"error: {e}" for e in errors), file=sys.stderr)
+        print("error: could not verify cited issues: gh failed, so the check "
+              "did not run to completion (this is not a pass and names no "
+              "closure)", file=sys.stderr)
+        print("\n".join(f"  {e}" for e in could_not_run), file=sys.stderr)
+        return 3
     if errors:
         print("\n".join(f"error: {e}" for e in errors), file=sys.stderr)
         return 1

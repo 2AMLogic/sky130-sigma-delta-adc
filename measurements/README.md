@@ -7,5 +7,9 @@ called measured (see the repo README).
   report, one row per spec row plus the decimator Fmax/area/power table, each
   verdict citing its evidence file or naming the issue it waits on. Bound to its
   evidence by `attestation/item8-envelope.json`; regenerate with
-  `python3 -I attestation/item8_envelope.py` after any edit to the report or to a
-  file it cites.
+  `python3 -I attestation/item8_envelope.py` after any edit to the report or to
+  a file it cites. CI also re-checks on every push and pull request that each
+  issue a `partial`/`pending` row cites is still open; run that check by hand
+  with `python3 -I attestation/item8_envelope.py --check --verify-issues`
+  (needs an authenticated `gh`; exit 3 means it could not run, not that a
+  citation is stale).
