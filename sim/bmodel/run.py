@@ -142,10 +142,6 @@ def build_record(params, params_sha, n_out, table, best, det, cycles,
     return rec
 
 
-def load_params(path):
-    return model.load_params(path)
-
-
 def load_corner(path):
     """Load one sim/bmodel/corners/<anchor>.json parameter file.
 
