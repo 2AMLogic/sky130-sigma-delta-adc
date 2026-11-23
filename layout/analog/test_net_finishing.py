@@ -167,10 +167,10 @@ class FinishNetTests(unittest.TestCase):
         pad = Anchor("vdda", "mb1", "met1", 6.0, 0.0, 1.0, ["B"])
         summary: dict = {}
         finish_net(self.router, summary, "vdda",
-                   [(0.75, 5.0, riser), (0.5, 6.0, pad)], ("vdda",))
-        # The label lands on the met1 anchor (column 0.5), never on the
+                   [(0.5, 5.0, riser), (0.75, 6.0, pad)], ("vdda",))
+        # The label lands on the met1 anchor (column 0.75), never on the
         # MiM riser that sorted ahead of it.
-        self.assertEqual(self.router.labels, [(L_MET1_PIN, "vdda", 0.5, 6.0)])
+        self.assertEqual(self.router.labels, [(L_MET1_PIN, "vdda", 0.75, 6.0)])
 
     def test_pin_net_without_a_label_plane_anchor_raises(self):
         riser = Anchor("vdda", "ccm", "cap4", 5.0, 0.0, 1.0, ["A"])
