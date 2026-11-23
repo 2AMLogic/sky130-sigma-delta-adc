@@ -16,7 +16,7 @@ def main():
     ap.add_argument("--pdk-root")
     a = ap.parse_args()
     pin = json.load(open(REPO / "sim/pdk.json"))
-    root = require_pinned_pdk(pin, a.pdk_root)
+    root, _ = require_pinned_pdk(pin, a.pdk_root)
     ng = root / "libs.tech/ngspice"
     deck = ((HERE / "integrator_load.cir").read_text()
             .replace("{{PDK_LIB}}", f'"{ng / "sky130.lib.spice"}"')

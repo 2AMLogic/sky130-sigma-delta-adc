@@ -18,7 +18,7 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
 import settling_common as sc
 from settling_common import (grid_complete, measurements_present,
-                             pdk_stamp, run_klt, sha256, summarize)
+                             require_pinned_stamp, run_klt, sha256, summarize)
 
 VARIANTS = ("int1", "int2")
 PARTIALS = HERE / ".partials"      # per-variant results, gitignored (see README)
@@ -41,10 +41,7 @@ def main():
                     help="record file name, for a re-run after a sizing change (new file)")
     a = ap.parse_args()
     pin = json.load(open(REPO / "sim/pdk.json"))
-    root, stamp = pdk_stamp(pin["variant"], a.pdk_root)
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
-        return 2
+    root, stamp = require_pinned_stamp(pin, a.pdk_root)
     out = HERE / a.record_name
     if a.record and out.exists():
         print(f"REFUSE: {out.name} exists; records are append-only (use --record-name)", file=sys.stderr)
