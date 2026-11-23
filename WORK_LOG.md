@@ -4,6 +4,22 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-23
 
+- **PR #375**: test: share corner and bitstream fixtures across B-model cross-check suites
+- **PR #373**: refactor: adopt settling_common helpers in remaining sim runners, drop two dead parameters
+- **PR #369**: signoff: cite 11.digital power-delivery evidence and grade it met
+- **PR #368**: refactor: share the PDK pin check as settling_common.require_pinned_pdk
+- **PR #365**: refactor(sim/bmodel): drop xcheck's duplicate git_state/write_record and unused run.load_params
+- **PR #364**: test(verification): commit SDF-annotated decimator fv evidence, cite T1 item 7 digital
+- **PR #362**: fix(fv): resolve decimator SDF fv cell models at run time
+- **PR #361**: test: dedupe the module-by-path test loaders into shared helpers
+- **Issue #374** (closed): Share the corner and bitstream fixtures in the B-model cross-check tests
+- **Issue #372** (closed): Finish settling_common helper adoption in non-attested sim runners and drop two dead parameters
+- **Issue #360** (closed): fv_sdf_request.json locates the PDK cell library by relative escape, not klt pdk find
+- **Issue #358** (closed): Remove duplicate git_state/write_record in sim/bmodel/xcheck.py and unused run.load_params
+- **Issue #355** (closed): Dedupe nine copies of the module-by-path test loader
+- **Issue #333** (closed): T1 item 11, digital only: klt erc supply spec for VDDD/VSSD on the routed decimator, plus the P&R response, cited for 11.digital
+- **Issue #162** (closed): T1 item 7, digital only: SDF-annotated klt functional-verification of the routed decimator, cited for 7.digital
+- **Issue #81** (closed): Consolidate 7 copies of the klt pdk find lookup into one helper
 - **PR #357**: test(attest): pin verify_issues()'s three-way gh classification offline
 - **PR #342**: feat(pnr): commit post-route decimator.sdf, saved P&R response, and klt 0.9.2 GDS reproduction receipt
 - **PR #359**: refactor: fold the four runners' multi-variant klt-sim loop into settling_common
