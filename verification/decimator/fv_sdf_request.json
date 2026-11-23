@@ -2,9 +2,7 @@
   "schema": "klt.functional_verification.request/1",
   "engine": "icarus",
   "sources": [
-    "../../layout/digital/decimator_pnr.v",
-    "../../../../.ciel/sky130A/libs.ref/sky130_fd_sc_hd/verilog/primitives.v",
-    "../../../../.ciel/sky130A/libs.ref/sky130_fd_sc_hd/verilog/sky130_fd_sc_hd.v"
+    "../../layout/digital/decimator_pnr.v"
   ],
   "hdl_toplevel": "decimator",
   "testbench": {"module": "test_decimator"},
