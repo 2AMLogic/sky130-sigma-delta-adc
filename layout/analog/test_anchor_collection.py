@@ -41,23 +41,11 @@ What is pinned here:
 The generator modules are loaded by path the way test_drc_guard.py and
 test_integrator_summing_pair.py do it.
 """
-import importlib.util
-import pathlib
 import unittest
 
 from layout_common import (JOG_REACH_UM, L_LI1, L_MET3, L_MET4, Rect,
                            RouteError, collect_anchors, ring_params)
-
-HERE = pathlib.Path(__file__).resolve().parent
-
-
-def load_generator(rel: str):
-    """Load a generator module by path: 'layout/analog/...' is not importable."""
-    spec = importlib.util.spec_from_file_location(
-        rel.replace("/", "_") + "_under_test", HERE / rel)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+from layout_test_common import load_generator
 
 
 GO = load_generator("ota_fd/gen_ota_fd.py")

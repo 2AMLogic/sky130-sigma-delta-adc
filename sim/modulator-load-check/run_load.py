@@ -4,21 +4,15 @@ import json, pathlib, re, subprocess, sys, tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
+sys.path.insert(0, str(HERE.parent))
+from settling_common import require_pinned_pdk
+
 MIN_GAP_S = 0.3e-9  # a non-overlap gap must exceed this at tt; corner margins are owed to the T-tier work
 
 
 def main():
     pin = json.load(open(REPO / "sim/pdk.json"))
-    out = subprocess.run(["klt", "pdk", "find", "--pdk", pin["variant"], "--format", "json"],
-                         capture_output=True, text=True)
-    if out.returncode:
-        sys.exit(f"REFUSE: klt pdk find failed: {out.stderr.strip()}")
-    root = pathlib.Path(json.loads(out.stdout)["root"]) / pin["variant"]
-    src = root / "SOURCES"
-    stamp = src.read_text().strip() if src.exists() else "<missing SOURCES>"
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
-        return 2
+    root = require_pinned_pdk(pin, None)
     ng = root / "libs.tech/ngspice"
     deck = ((HERE / "modulator_load.cir").read_text()
             .replace("{{PDK_LIB}}", f'"{ng / "sky130.lib.spice"}"')

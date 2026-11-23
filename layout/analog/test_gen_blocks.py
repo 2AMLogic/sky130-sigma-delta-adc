@@ -31,7 +31,6 @@ What is pinned here:
   definition (same object, no re-pasted copy), so the call sites resolve
   and divergence cannot come back through an import.
 """
-import importlib.util
 import json
 import pathlib
 import shutil
@@ -40,17 +39,7 @@ import unittest
 from unittest import mock
 
 import layout_common
-
-HERE = pathlib.Path(__file__).resolve().parent
-
-
-def load_generator(rel: str):
-    """Load a generator module by path: 'layout/analog/...' is not importable."""
-    spec = importlib.util.spec_from_file_location(
-        rel.replace("/", "_") + "_under_test", HERE / rel)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+from layout_test_common import load_generator
 
 
 INTEGRATOR = load_generator("integrator/gen_integrator.py")
