@@ -4,6 +4,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-23
 
+- **PR #383**: refactor: share every PDK-pin call site as settling_common helpers
+- **Issue #376** (closed): Consolidate PDK-pin resolve_root and REFUSE blocks across 15 runners (re-file of #43)
 - **PR #366**: refactor: share the settling measurement list in settling_common
 - **Issue #95** (closed): Share the settling measurement list between the OTA and integrator benches: two copies, one already out of step with its request
 - **PR #381**: test: sort the MiM riser ahead of the pad in the pin-label test
