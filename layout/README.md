@@ -12,6 +12,8 @@ gate-level netlist `rtl/netlist/decimator_synth.v`. Not hand-edited.
 | `run_pnr.py` | driver; `python3 layout/digital/run_pnr.py` regenerates, `--check` compares |
 | `decimator.gds` | routed layout (T1 item 2, digital); hash-pinned by `design/attest/item2-digital-envelope.json` |
 | `decimator.def`, `decimator_pnr.v` | routed DEF and as-built netlist (CTS buffers included): the LVS reference for the digital partition (item 4, below); analog-partition and assembled-top LVS stay with #32 |
+| `decimator.sdf` | post-route SDF (SDF 3.0, written at the request's `tt_025C_1v80` corner) for the SDF-annotated functional-verification run (#162); regenerated, not hand-edited |
+| `pnr-decimator.response.json` | the `klt place-and-route` response envelope, written by the driver with the producing checkout's absolute paths rewritten to repo-relative (`scrub_paths`, #333); T1 item 11 digital (#39) reads `power.pdn`/`power.tapcell_master`/`power.straps` from it |
 | `sta_request.json` | the multi-corner `klt sta` request on the routed DEF |
 | `sta-decimator.report.json` | the committed STA report (T1 item 5, digital, with `verification/decimator/fv-decimator.report.json`) |
 | `erc_request.json` | the `klt erc` supply spec (T1 item 11, digital: `VDDD`/`VSSD` islands, ties, strap ownership) |
@@ -29,11 +31,39 @@ Recorded choices (`pnr_request.json`):
   the first integrator is left to the assembly step.
 - **Clock**: `clk`, 195.3125 ns (fs = 5.12 MHz, spec row 5). Timing is graded by the STA below.
 
-Reproducibility: two independent runs of the driver (same pinned PDK, OpenROAD
-`26Q3-1510-g6cb3f2b704` container, seed 1) gave a byte-identical GDS, DEF and netlist. The
-flow takes about 30 minutes (detailed routing dominates), so it is not in CI; CI checks the
-envelope and the graded verdict. The driver runs `klt` from the repo root because the
-containerised `openroad` mounts only the working directory.
+Reproducibility: three independent runs of the driver (same pinned PDK, OpenROAD
+`26Q3-1510-g6cb3f2b704` container, seed 1) gave a byte-identical GDS, DEF and netlist — two
+at klt 0.8.0, and one at the 0.9.2 pin (2026-11-21) that also wrote the `decimator.sdf` and
+`pnr-decimator.response.json` committed here. The flow is not in CI; CI checks the envelope
+and the graded verdict. The driver runs `klt` from the repo root because the containerised
+`openroad` mounts only the working directory.
+
+Wall time per stage, measured on the 2026-11-21 klt 0.9.2 run (`.github/klt-version`; PDK
+`sky130A` per `sim/pdk.json`, `open_pdks f6eeac7…`; 8-vCPU host shared with other load):
+floorplan 3 s, place 10 s, CTS 5 s, detailed route 29.5 min, post-route corner sweep 46 s,
+parasitic extraction + SPEF/SDF write + SPEF-annotated STA 61 min — 92 min total.
+`--check` is a **full re-run** of the same flow that then compares the fresh GDS with the
+committed one byte for byte (exit 3 on drift); it is not a hash comparison of committed
+files and costs the same ~90 minutes. Regenerate with `python3 layout/digital/run_pnr.py`
+run with the pinned klt first on `PATH` (e.g. a venv with
+`klayout-tools==$(cat .github/klt-version)` prepended, so the driver's own `klt` call
+resolves the pin; the host `klt` may be a different version).
+
+The SDF was written at the request's single liberty corner `tt_025C_1v80` (SDF header:
+1.800 V, 25.0 °C; report `interconnect_corner: nom`) from the extracted SPEF
+(`sha256:6b1736cd3f10138be682ffc00ac3e9dd22307b5a668bca033d9955f41f821bcd`, not committed —
+the SDF is the only file the follow-on fv run consumes). The report's `spef_sta` block also
+carries klt's annotation warning, quoted for the #162 fv run: the SPEF names 5238 of the
+5256 nets in the linked design, so 18 nets take no interconnect annotation.
+
+Provenance note: `pnr-decimator.response.json` was derived from the 2026-11-21 klt 0.9.2
+run's saved response by the driver's own `scrub_paths` (no new P&R run), so the producing
+checkout's root is rewritten to repo-relative; the artifact paths it names (`gds_path`,
+`def_path`, `verilog_path`, `spef_sta.spef_path`, `spef_sta.sdf_path`) resolve only inside a
+fresh run's checkout, and every one is re-created by the regeneration command above. The one
+absolute path that survives is the PDK layer map (`/home/ubuntu/.ciel/sky130A/…/sky130A.map`),
+which lies outside the repo root and which klt gives no option to emit relative — filed
+generically as `2AMLogic/klayout-tools#5784`.
 
 DRC: `klt drc` (klt 0.8.0, `sky130` deck, content hash
 `sha256:ba0f97887e3d231aec8b54f1f52f2941ded0228f0234b6759712bcaca0e942e6`) on
@@ -135,11 +165,10 @@ formality:
   `erc_coverage.checked_by_well_assertion`, not a literal box list) both graded
   `checked` via the dedicated tap layer `65/44`; nothing in `erc_coverage.skipped`.
 
-This is the ERC third of item 11's compound citation. The row cannot reach `met`
-until the `klt place-and-route` response (`power.pdn: true`, `tapcell_master`,
-strap layers inside this spec's stackup) is committed and cited beside it — the
-P&R re-run that produces it is #332 (tracked for #162), after which `11.digital`
-is cited in `manifests/sky130-sigma-delta-adc.json` (#333 Part B).
+This is the ERC third of item 11's compound citation. The P&R third is
+`digital/pnr-decimator.response.json` (committed by #332): `power.pdn: true`,
+`tapcell_master: sky130_fd_sc_hd__tapvpwrvgnd_1`, and straps on `met1`, `met4` and `met5`.
+Citing `11.digital` in `manifests/sky130-sigma-delta-adc.json` is #333 Part B.
 
 ## Multi-corner STA (T1 item 5, digital)
 
