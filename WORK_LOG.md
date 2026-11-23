@@ -4,6 +4,10 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-23
 
+- **PR #381**: test: sort the MiM riser ahead of the pad in the pin-label test
+- **PR #379**: refactor(analog): consolidate net finishing, compose/DRC steps and MiM constants into layout_common
+- **Issue #380** (closed): test_net_finishing: the label-plane ordering test does not pin the behaviour it names
+- **Issue #377** (closed): Consolidate net-finishing, compose/DRC pipeline, and MiM constants across gen_ota_fd and gen_integrator
 - **PR #375**: test: share corner and bitstream fixtures across B-model cross-check suites
 - **PR #373**: refactor: adopt settling_common helpers in remaining sim runners, drop two dead parameters
 - **PR #369**: signoff: cite 11.digital power-delivery evidence and grade it met
