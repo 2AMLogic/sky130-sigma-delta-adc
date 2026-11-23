@@ -4,7 +4,7 @@ import json, pathlib, sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from settling_common import measurement as e, request
+from settling_common import request, settling_measurements
 
 T_STEP = 35.0e-9      # phi2 mid-edge (200 ps edge from 34.9 ns)
 T_PHASE = 97.66e-9    # 1 / (2 * 5.12 MHz), spec row 5
@@ -27,27 +27,9 @@ VARIANTS = {
 }
 
 
-# `lt`/`gt`: bare < > are shell redirections in ngspice's control language.
-slewmask = f"(abs(deriv(v(vod))) ge 0.8*slope_pk)*(time gt {T_SLEW0:.6g})"
-MEASUREMENTS = [
-    e("vod_pre", "v(vod)[0]", "V"),
-    e("vod_end", "v(vod)[length(v(vod))-1]", "V"),
-    e("step_dv", "vod_end - vod_pre", "V"),
-    e("k_phase", f"mean(time lt {T_SAMPLE:.6g})*length(time)"),
-    e("vod_phase", f"v(vod)[k_phase-1] + ({T_SAMPLE:.6g}-time[k_phase-1])/(time[k_phase]-time[k_phase-1])"
-                   "*(v(vod)[k_phase]-v(vod)[k_phase-1])", "V"),
-    e("err_phase", "abs(vod_phase - vod_end)/abs(step_dv)", None, {"max": ERR_MAX}),
-    e("t_1e4", f"vecmax((abs(v(vod)-vod_end) gt 1e-4*abs(step_dv))*time) - {T_STEP:.6g}", "s"),
-    e("t_1e3", f"vecmax((abs(v(vod)-vod_end) gt 1e-3*abs(step_dv))*time) - {T_STEP:.6g}", "s"),
-    e("t_1e2", f"vecmax((abs(v(vod)-vod_end) gt 1e-2*abs(step_dv))*time) - {T_STEP:.6g}", "s"),
-    e("slope_pk", f"vecmax(abs(deriv(v(vod)))*(time gt {T_SLEW0:.6g}))", "V/s"),
-    e("t_slew", f"vecmax({slewmask}*time) - vecmin({slewmask}*time + 1*(1-{slewmask}))", "s"),
-    e("slew_frac", "t_slew/t_1e4"),
-    e("end_ripple_rel", f"(vecmax(v(vod)*(time gt {T_END - 20e-9:.6g}) - 10*(time le {T_END - 20e-9:.6g}))"
-                        f" - vecmin(v(vod)*(time gt {T_END - 20e-9:.6g}) + 10*(time le {T_END - 20e-9:.6g})))"
-                        "/abs(step_dv)", None, {"max": RIPPLE_MAX}),
-    e("step_err_vs_ideal", f"abs(abs(step_dv) - {IDEAL_DV})/{IDEAL_DV}", None, {"max": IDEAL_TOL}),
-]
+MEASUREMENTS = settling_measurements(
+    t_step=T_STEP, t_sample=T_SAMPLE, t_end=T_END, t_slew0=T_SLEW0,
+    ideal_dv=IDEAL_DV, err_max=ERR_MAX, ripple_max=RIPPLE_MAX, ideal_tol=IDEAL_TOL)
 
 
 if __name__ == "__main__":

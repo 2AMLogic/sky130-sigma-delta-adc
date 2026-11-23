@@ -259,6 +259,65 @@ class NgspiceVersion(unittest.TestCase):
             self.assertEqual(run.call_args[0][0], ["ngspice", "-v"])
 
 
+class SettlingMeasurements(unittest.TestCase):
+    """The shared settling measurement list (issue #95, operator option a).
+
+    One definition of err_phase / t_1e4 / t_slew for both settling benches,
+    built from per-bench timing and limit constants. The names are pinned to
+    KEYS plus the intermediate `k_phase`, the constants must reach the
+    formatted expressions and the limits, and the OTA bench's list must
+    still match its committed request -- which that bench never rebuilds
+    byte-exactly (issue #192) -- modulo the documented slew-start literal.
+    """
+
+    def build(self, **over):
+        kw = dict(t_step=35.0e-9, t_sample=132.66e-9, t_end=335e-9,
+                  t_slew0=35.3e-9, ideal_dv=0.9, err_max=1e-4,
+                  ripple_max=1e-3, ideal_tol=0.05)
+        kw.update(over)
+        return sc.settling_measurements(**kw)
+
+    def test_names_are_keys_plus_the_intermediate_k_phase(self):
+        self.assertEqual([m["name"] for m in self.build()],
+                         [*sc.KEYS[:3], "k_phase", *sc.KEYS[3:]])
+
+    def test_timing_and_ideal_arguments_reach_the_expressions(self):
+        ms = {m["name"]: m for m in self.build()}
+        self.assertIn("mean(time lt 1.3266e-07)*length(time)",
+                      ms["k_phase"]["expr"])
+        self.assertIn("(1.3266e-07-time[k_phase-1])", ms["vod_phase"]["expr"])
+        self.assertIn(") - 3.5e-08", ms["t_1e4"]["expr"])
+        self.assertIn("time gt 3.53e-08", ms["slope_pk"]["expr"])
+        self.assertIn("(time gt 3.53e-08)*time)", ms["t_slew"]["expr"])
+        self.assertIn("time gt 3.15e-07", ms["end_ripple_rel"]["expr"])
+        self.assertIn("abs(step_dv) - 0.9)/0.9", ms["step_err_vs_ideal"]["expr"])
+
+    def test_other_constants_move_the_formatted_numbers(self):
+        ms = {m["name"]: m for m in self.build(t_step=3.0e-9, t_sample=100.66e-9,
+                                               t_end=300e-9, t_slew0=3.3e-9)}
+        self.assertIn("mean(time lt 1.0066e-07)", ms["k_phase"]["expr"])
+        self.assertIn(") - 3e-09", ms["t_1e4"]["expr"])
+        self.assertIn("time gt 3.3e-09", ms["slope_pk"]["expr"])
+        self.assertIn("time gt 2.8e-07", ms["end_ripple_rel"]["expr"])
+
+    def test_limit_arguments_reach_the_limits(self):
+        ms = {m["name"]: m for m in self.build(err_max=2e-4, ripple_max=2e-3,
+                                               ideal_tol=0.1)}
+        self.assertEqual(ms["err_phase"]["limits"], {"max": 2e-4})
+        self.assertEqual(ms["end_ripple_rel"]["limits"], {"max": 2e-3})
+        self.assertEqual(ms["step_err_vs_ideal"]["limits"], {"max": 0.1})
+        self.assertNotIn("limits", ms["slew_frac"])
+
+    def test_ota_bench_matches_its_committed_request_modulo_slew_start(self):
+        here = pathlib.Path(__file__).resolve().parent / "ota-settling"
+        mod = rtc.load_runner("ota_settling_mk", here / "make_request.py")
+        committed = json.loads((here / "request.json").read_text())["measurements"]
+        self.assertEqual(
+            [{**m, "expr": m["expr"].replace("3.3e-09", "3.3e-9")}
+             for m in mod.MEASUREMENTS],
+            committed)
+
+
 class CommittedRequestsAreUnmoved(unittest.TestCase):
     """The pre-#126 benches' committed requests must still rebuild byte-exactly.
 

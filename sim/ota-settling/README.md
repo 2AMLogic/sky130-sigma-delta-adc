@@ -50,10 +50,14 @@ id is in the record's `remote` field. It never falls back to a local grid.
 
 **Do not commit the regenerated `request.json` on its own.** The committed
 file is intentionally stale: it predates 6df6862, which made
-`settling_common.request()` always emit `capacity_wait_s`, so regenerating
-adds exactly that one key — and both records below pin the committed file's
-hash (`request_sha256: 83ada7cf…`). Committing the regenerated file alone
-silently orphans both recorded results from the request that produced them.
+`settling_common.request()` always emit `capacity_wait_s`, and #95, which
+moved the measurement list into `settling_common.settling_measurements()`.
+Regenerating therefore adds that one key and formats the slew-mask start as
+`3.3e-09` where the committed file spells the numerically identical `3.3e-9`
+(the `slope_pk` and `t_slew` expressions) — and both records below pin the
+committed file's hash (`request_sha256: 83ada7cf…`). Committing the
+regenerated file alone silently orphans both recorded results from the
+request that produced them.
 If a new run is ever needed, resolve the drift the evidence-safe way:
 regenerate, record the new `request_sha256` in a **new** append-only record,
 and commit the regenerated request together with that record. The
