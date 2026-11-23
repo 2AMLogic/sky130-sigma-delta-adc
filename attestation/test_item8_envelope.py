@@ -11,6 +11,10 @@ never to an issue that could never close it, and it may not read as evidence.
 """
 import importlib.util
 import json
+import os
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -142,6 +146,49 @@ class DeclaredGapGrammar(unittest.TestCase):
     def test_accepts_a_pending_row_that_names_an_issue(self):
         ok = f"{GAP_ROW_PREFIX} none | the points | none | pending (#33): not yet run |"
         self.assertEqual([], only_gap_errors(with_gap_row(ok)))
+
+
+class GhLaunchFailure(unittest.TestCase):
+    """A gh that cannot start is exit 3, never a traceback (#328).
+
+    Runs the script itself with `sys.executable` under a PATH we control, so
+    the coverage is offline: no gh is reachable and none is invoked.
+    """
+
+    def run_checker(self, path_dir: Path, *flags: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [sys.executable, "-I", str(ROOT / "attestation" / "item8_envelope.py"), *flags],
+            capture_output=True, text=True, cwd=ROOT,
+            env=dict(os.environ, PATH=str(path_dir)))
+
+    def assert_could_not_start(self, proc: subprocess.CompletedProcess, why: str):
+        self.assertEqual(3, proc.returncode, proc.stderr)
+        self.assertIn("could not start gh", proc.stderr)
+        self.assertIn(why, proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+        self.assertNotIn("is not an open issue", proc.stderr,
+                         "a launch failure must never read as a closed citation")
+        self.assertEqual(1, proc.stderr.count("could not start gh"),
+                         "one launch failure stops further lookups for that invocation")
+
+    def test_missing_gh_exits_3_with_a_plain_diagnostic(self):
+        with tempfile.TemporaryDirectory() as d:
+            proc = self.run_checker(Path(d), "--check", "--verify-issues")
+        self.assert_could_not_start(proc, "No such file or directory")
+
+    def test_non_executable_gh_exits_3_with_a_plain_diagnostic(self):
+        with tempfile.TemporaryDirectory() as d:
+            gh = Path(d) / "gh"
+            gh.write_text("#!/bin/sh\nexit 4\n")
+            gh.chmod(0o644)
+            proc = self.run_checker(Path(d), "--check", "--verify-issues")
+        self.assert_could_not_start(proc, "Permission denied")
+
+    def test_plain_check_needs_no_gh(self):
+        with tempfile.TemporaryDirectory() as d:
+            proc = self.run_checker(Path(d), "--check")
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn("reproduces", proc.stdout)
 
 
 if __name__ == "__main__":

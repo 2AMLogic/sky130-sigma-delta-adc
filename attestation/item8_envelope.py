@@ -35,8 +35,9 @@ so `--check` fails until the envelope is regenerated in the same change.
 
 Exit codes: 0 = verified; 1 = malformed, stale, or a genuinely closed citation;
 3 = `--verify-issues` could not run (gh failed). A gh failure (no auth, rate
-limit, network) is reported plainly as "could not verify" and never as a closed
-citation, so a red run cannot be misread as a finding -- or as a pass.
+limit, network, or gh could not start -- missing or non-executable) is reported
+plainly as "could not verify" and never as a closed citation, so a red run
+cannot be misread as a finding -- or as a pass.
 """
 import argparse
 import hashlib
@@ -193,18 +194,26 @@ def verify_issues(issues: set[str]) -> tuple[list[str], list[str]]:
     """Check every cited issue is still open, via `gh`.
 
     Returns (bad, could_not_run): genuinely closed citations, and issues `gh`
-    could not answer (no auth, rate limit, network). A gh failure is never
-    reported as a closed citation -- the caller exits 3 and says plainly that
-    the check could not run.
+    could not answer (no auth, rate limit, network, or gh could not start).
+    A gh failure is never reported as a closed citation -- the caller exits 3
+    and says plainly that the check could not run.
     """
     bad, could_not_run = [], []
     for n in sorted(issues, key=int):
         # -R pins the repo: gh otherwise resolves owner/repo from the cwd's
         # git remote, which on a fork PR's checkout is the fork, where these
         # issue numbers do not exist. The report cites THIS repo's issues.
-        out = subprocess.run(["gh", "issue", "view", n, "-R", GH_REPO,
-                              "--json", "state", "--jq", ".state"],
-                             capture_output=True, text=True)
+        try:
+            out = subprocess.run(["gh", "issue", "view", n, "-R", GH_REPO,
+                                  "--json", "state", "--jq", ".state"],
+                                 capture_output=True, text=True)
+        except OSError as e:
+            # gh missing from PATH (FileNotFoundError) or not executable
+            # (PermissionError): the CLI could not start, which is a failure
+            # to run the check, not a finding. No later lookup can start
+            # either, so stop here and let main() report it with exit 3.
+            could_not_run.append(f"#{n}: could not start gh: {e}")
+            break
         if out.returncode != 0:
             detail = (out.stderr.strip() or out.stdout.strip() or "gh failed").splitlines()[-1]
             could_not_run.append(f"#{n}: gh issue view failed ({detail})")
