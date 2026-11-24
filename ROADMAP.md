@@ -3,8 +3,7 @@
 A second-order, single-bit switched-capacitor delta-sigma ADC with its decimation
 filter on sky130, carried to T1 (sim-validated) evidence as graded by `klt signoff`.
 
-Status as of 2026-11-17, `main` @ `0309c08`. Every figure is simulated; none is
-measured. The verdict of record is
+Every figure is simulated; none is measured. The verdict of record is
 [`manifests/sky130-sigma-delta-adc.signoff.json`](manifests/sky130-sigma-delta-adc.signoff.json)
 and wins over this file. Tracking issue: #3 (its hand-kept checklist is stale).
 `WORK_PLAN.md` is the label-generated queue; this file gives the order and why.
