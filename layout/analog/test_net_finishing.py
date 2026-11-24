@@ -76,7 +76,6 @@ class AddMet1Router(Router):
 
     def add_met1(self, net, rects):
         for rect in rects:
-            self.met1.append((net, rect))
             for b in range(rect.y0 // layout_common.BUCKET_NM,
                            rect.y1 // layout_common.BUCKET_NM + 1):
                 self.met1_index[b].append((net, rect))

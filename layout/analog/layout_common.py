@@ -569,7 +569,6 @@ class Router:
         self.x_lo, self.x_hi, self.y_lo, self.y_hi = x_lo, x_hi, y_lo, y_hi
         self.shapes: list[tuple[tuple[int, int], Rect]] = []
         self.labels: list[tuple[tuple[int, int], str, float, float]] = []
-        self.met1: list[tuple[str, Rect]] = []
         self.met1_index: dict[int, list[tuple[str, Rect]]] = defaultdict(list)
         self.met3: list[tuple[str, Rect]] = []
         self.met4: list[tuple[str, Rect]] = []
