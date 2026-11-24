@@ -32,22 +32,20 @@ Judge-approved PRs under a hold (`loom:blocked` or `loom:operator`) — only a h
 
 Human-approved issues ready for implementation (`loom:issue`).
 
-- **#367**: Remove the write-only metal-1 placement list from the analog routers
+_None._
 
 ## In Progress
 
 Issues currently being built (`loom:building`).
 
-- **#108**: Ideal B-model peak SNDR sits ~8 dB below the spec section 5.1 quantization-noise ceiling
 - **#142**: Decision record: add an amplifier 1/f line to the spec 5.3 noise budget without changing the 80 dB total
 - **#150**: comparator-decision: the trip staircase does not bracket the comparator's trip point at sf/1.620V/-40C
-- **#370**: ROADMAP.md's status stamp drifts while its counts are CI-gated
 
 ## PRs Awaiting Review
 
 PRs waiting on Judge (`loom:review-requested`).
 
-- **#371**: docs: drop ROADMAP's drifting status stamp; graded record states as-of-ness
+_None._
 
 ## Approved (Awaiting Merge)
 
@@ -68,7 +66,6 @@ Issues carrying `loom:curated`.
 - **#142**: Decision record: add an amplifier 1/f line to the spec 5.3 noise budget without changing the 80 dB total *(curated)*
 - **#150**: comparator-decision: the trip staircase does not bracket the comparator's trip point at sf/1.620V/-40C *(curated)*
 - **#290**: DR-001 decision-record change: ratify the long-record cross-check leg that row 2's remaining evidence waits on *(curated)*
-- **#370**: ROADMAP.md's status stamp drifts while its counts are CI-gated *(curated)*
 
 ## Proposed (Architect / Hermit)
 
@@ -85,11 +82,11 @@ _None._
 | Operator merge-risk holds | 3 |
 | Very important | 1 |
 | Important | 6 |
-| Ready (`loom:issue`) | 1 |
-| In Progress (`loom:building`) | 4 |
-| PRs awaiting review | 1 |
+| Ready (`loom:issue`) | 0 |
+| In Progress (`loom:building`) | 2 |
+| PRs awaiting review | 0 |
 | Approved PRs awaiting merge | 4 |
-| Curated | 7 |
+| Curated | 6 |
 | Architect / Hermit proposals | 0 |
 | Active epics | 0 |
 <!-- guide:plan-body:end -->
