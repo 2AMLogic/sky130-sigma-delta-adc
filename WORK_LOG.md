@@ -2,6 +2,13 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-24
+
+- **PR #371**: docs: drop ROADMAP's drifting status stamp; graded record states as-of-ness
+- **Issue #370** (closed): ROADMAP.md's status stamp drifts while its counts are CI-gated
+- **PR #390**: refactor: remove unused flat met1 placement list from production routers
+- **Issue #367** (closed): Remove the write-only metal-1 placement list from the analog routers
+
 ### 2026-11-23
 
 - **PR #386**: chore: remove unread sim/toolchain.json and point docs at checked tool-version lists
