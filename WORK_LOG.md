@@ -4,6 +4,8 @@ Chronological record of merged PRs and closed issues, maintained by the Guide ro
 
 ### 2026-11-23
 
+- **PR #386**: chore: remove unread sim/toolchain.json and point docs at checked tool-version lists
+- **Issue #96** (closed): Remove sim/toolchain.json: a tool-version pin file that no code reads and that has gone stale
 - **PR #383**: refactor: share every PDK-pin call site as settling_common helpers
 - **Issue #376** (closed): Consolidate PDK-pin resolve_root and REFUSE blocks across 15 runners (re-file of #43)
 - **PR #366**: refactor: share the settling measurement list in settling_common
