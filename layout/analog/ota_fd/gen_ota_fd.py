@@ -358,7 +358,6 @@ class Router(RouterBase):
     # -- geometry bookkeeping -------------------------------------------------
     def add_met1(self, net: str, rects: list[Rect]) -> None:
         for rect in rects:
-            self.met1.append((net, rect))
             for b in range(rect.y0 // BUCKET_NM, rect.y1 // BUCKET_NM + 1):
                 self.met1_index[b].append((net, rect))
             self.add_shape(L_MET1, rect)

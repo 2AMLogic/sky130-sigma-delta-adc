@@ -52,11 +52,17 @@ GAP = nm(MET1_SPACE_UM)  # the met1 spacing every router search uses
 class AddMet1Router(Router):
     """The base Router leaves add_met1 to the cell generators; the tests
     need exactly the bucket index met1_free reads, so this subclass mirrors
-    the generators' override with nothing else added."""
+    the generators' override, plus a ``placed`` list of (net, rect) in
+    placement order that the route-spine assertions observe (production
+    routers keep no flat placement list)."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.placed = []
 
     def add_met1(self, net, rects):
         for rect in rects:
-            self.met1.append((net, rect))
+            self.placed.append((net, rect))
             for b in range(rect.y0 // BUCKET_NM, rect.y1 // BUCKET_NM + 1):
                 self.met1_index[b].append((net, rect))
 
@@ -267,8 +273,8 @@ class RouteSpineTests(unittest.TestCase):
     def test_takes_preferred_track_and_drops_both_vias(self):
         y = self.r.route_spine("s", 3.0, 1.0, 7.0, 2.0)
         self.assertEqual(y, 1.5)  # nearest track to (1.0 + 2.0) / 2
-        self.assertEqual(len(self.r.met1), 1)
-        net, rect = self.r.met1[0]
+        self.assertEqual(len(self.r.placed), 1)
+        net, rect = self.r.placed[0]
         self.assertEqual(net, "s")
         self.assertEqual((rect.x0, rect.y0, rect.x1, rect.y1),
                          (2830, 1330, 7170, 1670))
@@ -287,7 +293,7 @@ class RouteSpineTests(unittest.TestCase):
         y = self.r.route_spine("s", 3.0, 1.0, 7.0, 2.0)
         # 1.5 is taken; 1.0 and 2.0 tie on distance and 1.0 sorts first.
         self.assertEqual(y, 1.0)
-        self.assertEqual([net for net, _rect in self.r.met1],
+        self.assertEqual([net for net, _rect in self.r.placed],
                          ["blocker", "s"])
 
     def test_raises_when_no_track_is_free(self):
@@ -297,7 +303,7 @@ class RouteSpineTests(unittest.TestCase):
         with self.assertRaises(RouteError):
             self.r.route_spine("s", 3.0, 1.0, 7.0, 2.0)
         # The blocker is still the only met1 geometry: nothing was placed.
-        self.assertEqual([net for net, _rect in self.r.met1], ["blocker"])
+        self.assertEqual([net for net, _rect in self.r.placed], ["blocker"])
 
 
 if __name__ == "__main__":
