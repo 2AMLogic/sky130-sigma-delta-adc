@@ -107,7 +107,7 @@ the verdict of record is
 CI re-renders it with the `klayout-tools` version pinned in
 [`.github/klt-version`](.github/klt-version) and fails on any difference.
 The committed verdict grades 22 T1 rows — 11 items across the analog and
-digital partitions — as 10 met, 1 not applicable and 11 unmet; the per-item
+digital partitions — as 12 met, 1 not applicable and 9 unmet; the per-item
 state is in the record.
 Regenerate it with:
 
@@ -150,8 +150,13 @@ scripts/       CI helper scripts
 
 ## Reproduce
 
-The PDK revision is pinned in [`sim/pdk.json`](sim/pdk.json), tool versions in
-[`sim/toolchain.json`](sim/toolchain.json). Each PDK-dependent runner exits `2`
+The PDK revision is pinned in [`sim/pdk.json`](sim/pdk.json). Tool versions are
+in the checked lists: the klayout-tools pin in
+[`.github/klt-version`](.github/klt-version), the versions the benches were
+attested with in
+[`attestation/item9-inventory.json`](attestation/item9-inventory.json)
+(`pins.tools`), and the version each run observed in that run's record. Each
+PDK-dependent runner exits `2`
 and refuses to run if the PDK's `SOURCES` stamp differs from the pin. The smoke
 flows are fixtures ("smoke fixture, not design") that prove the toolchain runs
 on the pinned PDK.

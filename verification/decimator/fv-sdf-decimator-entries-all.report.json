@@ -1,0 +1,117 @@
+{
+  "schema_version": 2,
+  "engine": "icarus",
+  "hdl_toplevel": "decimator",
+  "testbench": "test_decimator",
+  "status": "fail",
+  "test_count": 8,
+  "passed_count": 0,
+  "failed_count": 8,
+  "skipped_count": 0,
+  "tests": [
+    {
+      "name": "random_bits",
+      "status": "failed",
+      "sim_time_ns": 441.0,
+      "real_time_s": 5.513,
+      "error_type": "AssertionError",
+      "error_message": "clock: edge 41: rtl valid=0 dout=0, model valid=1 dout=0\nassert (0, 0) == (1, 0)"
+    },
+    {
+      "name": "biased_random_bits",
+      "status": "failed",
+      "sim_time_ns": 451.0,
+      "real_time_s": 0.128,
+      "error_type": "AssertionError",
+      "error_message": "clock: edge 41: rtl valid=0 dout=0, model valid=1 dout=0\nassert (0, 0) == (1, 0)"
+    },
+    {
+      "name": "first_output_latency",
+      "status": "failed",
+      "sim_time_ns": 451.0,
+      "real_time_s": 0.124,
+      "error_type": "AssertionError",
+      "error_message": "clock: edge 41: rtl valid=0 dout=0, model valid=1 dout=0\nassert (0, 0) == (1, 0)"
+    },
+    {
+      "name": "alternating_input_is_midscale",
+      "status": "failed",
+      "sim_time_ns": 451.0,
+      "real_time_s": 0.134,
+      "error_type": "AssertionError",
+      "error_message": "clock: edge 41: rtl valid=0 dout=0, model valid=1 dout=0\nassert (0, 0) == (1, 0)"
+    },
+    {
+      "name": "full_scale_saturates",
+      "status": "failed",
+      "sim_time_ns": 451.0,
+      "real_time_s": 0.147,
+      "error_type": "AssertionError",
+      "error_message": "clock: edge 41: rtl valid=0 dout=0, model valid=1 dout=0\nassert (0, 0) == (1, 0)"
+    },
+    {
+      "name": "step_response_overshoot",
+      "status": "failed",
+      "sim_time_ns": 451.0,
+      "real_time_s": 0.131,
+      "error_type": "AssertionError",
+      "error_message": "clock: edge 41: rtl valid=0 dout=0, model valid=1 dout=0\nassert (0, 0) == (1, 0)"
+    },
+    {
+      "name": "reset_mid_stream",
+      "status": "failed",
+      "sim_time_ns": 451.0,
+      "real_time_s": 0.135,
+      "error_type": "AssertionError",
+      "error_message": "clock: edge 41: rtl valid=0 dout=0, model valid=1 dout=0\nassert (0, 0) == (1, 0)"
+    },
+    {
+      "name": "tone_gain_matches_analytic_response",
+      "status": "failed",
+      "sim_time_ns": 451.0,
+      "real_time_s": 0.147,
+      "error_type": "AssertionError",
+      "error_message": "clock: edge 41: rtl valid=0 dout=0, model valid=1 dout=0\nassert (0, 0) == (1, 0)"
+    }
+  ],
+  "coverage": null,
+  "trace": null,
+  "environment": {
+    "engine": "icarus",
+    "engine_version": "13.0",
+    "tools": [],
+    "cocotb_version": "2.1.0",
+    "results_xml": {
+      "path": null,
+      "scope": "external",
+      "sha256": "sha256:d02ef06687b8c66a3e76fea39de990fb232a8238d828ffd35c0540cdd5e6b698"
+    },
+    "test_log": {
+      "path": null,
+      "scope": "external",
+      "sha256": "sha256:5c257eb18e62984fdd166a633f546023b5cdf00744c590386ab69b18cfe659b9"
+    },
+    "build_log": {
+      "path": null,
+      "scope": "external",
+      "sha256": "sha256:32d6de3225d3f08f0c91005c16e7243ed9d30ca69a886896b912472a4d51e5fb"
+    },
+    "random_seed": 1,
+    "source_defines": {},
+    "env": {},
+    "initial_state": null,
+    "sdf": {
+      "file": "layout/digital/decimator.sdf",
+      "corner": "typ",
+      "entries": "all",
+      "annotated": true,
+      "partial": true,
+      "dropped": {
+        "timingcheck": {
+          "count": 924,
+          "reason": "Icarus Verilog implements SDF delay annotation (IOPATH/INTERCONNECT) but not SDF TIMINGCHECK -- every TIMINGCHECK section in the SDF is dropped, so $setup/$hold/$width checks run against the cell library's own placeholder timing, not the characterised limits in the SDF"
+        }
+      }
+    }
+  }
+}

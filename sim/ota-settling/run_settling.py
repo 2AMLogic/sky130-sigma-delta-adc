@@ -10,7 +10,8 @@ import argparse, json, pathlib, subprocess, sys, tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import grid_complete, pdk_stamp, run_klt, sha256, summarize
+from settling_common import (grid_complete, require_pinned_stamp, run_klt,  # noqa: E402
+                             sha256, shas, summarize)
 
 
 def main():
@@ -23,10 +24,7 @@ def main():
                     help="record file name, for a re-run after a sizing change (new file)")
     a = ap.parse_args()
     pin = json.load(open(REPO / "sim/pdk.json"))
-    root, stamp = pdk_stamp(pin["variant"], a.pdk_root)
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
-        return 2
+    root, stamp = require_pinned_stamp(pin, a.pdk_root)
     req = json.load(open(HERE / "request.json"))
     out = HERE / a.record_name
     if a.record and out.exists():
@@ -59,8 +57,7 @@ def main():
         "klt": subprocess.run(["klt", "--version"], capture_output=True, text=True).stdout.strip(),
         "engine_host": env.get("engine_host"),
         "remote": env.get("remote"),
-        "request_sha256": sha256(HERE / "request.json"),
-        "deck_sha256": sha256(HERE / "ota_fd_step.cir"),
+        **shas(HERE / "request.json", HERE / "ota_fd_step.cir"),
         "netlist_sha256": sha256(REPO / "design/ota/ota_fd.spice"),
         "summary": summary,
         "corners": corners,

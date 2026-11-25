@@ -3,8 +3,10 @@
 Imported by the per-bench test modules (`sim/integrator-ci/test_run_ci.py`,
 `sim/integrator-settling/test_run_settling.py`,
 `sim/comparator-decision/test_run_decision.py`, `sim/test_settling_common.py`,
-`sim/ota-gain/test_run_gain.py`, `sim/integrator-noise/test_run_noise.py`).
-The module name is
+`sim/ota-gain/test_run_gain.py`, `sim/integrator-noise/test_run_noise.py`,
+`sim/switch-probe/test_run_probe.py`, `sim/ota-swing/test_run_swing.py`,
+`sim/modulator-tran/test_run_tran.py`,
+`sim/integrator-ci/test_run_sampling.py`). The module name is
 deliberately NOT `test_`-prefixed: neither
 `python3 -I -m unittest discover -s sim -p 'test_settling*.py'` nor a
 per-bench `discover -s sim/<bench> -p 'test_*.py'` may collect it, because
@@ -41,9 +43,9 @@ from unittest import mock
 
 SIM = pathlib.Path(__file__).resolve().parent
 
-# The PDK pin the fake `pdk_stamp` hands back. Read from this module's own
-# directory: `sim/pdk.json` is the same file the runners reach for as
-# `RUNNER.REPO / "sim/pdk.json"`.
+# The PDK pin the fake `require_pinned_stamp` hands back. Read from this
+# module's own directory: `sim/pdk.json` is the same file the runners reach
+# for as `RUNNER.REPO / "sim/pdk.json"`.
 PIN = json.loads((SIM / "pdk.json").read_text())
 
 # DR-002 full grid: 5 process x 3 Vdda x 3 T, in the runners' corner_id shape.
@@ -91,7 +93,7 @@ def call(fn, *args, **kw):
 
 
 class RunnerCase(unittest.TestCase):
-    """Runs main() against a temporary HERE with run_klt / pdk_stamp patched.
+    """Runs main() against a temporary HERE with run_klt / require_pinned_stamp patched.
 
     No fleet, no ngspice, no klt. `shas()` is NOT faked: the real request and
     deck files are copied into the temporary HERE, so the .partials hash gate
@@ -204,8 +206,8 @@ class RunnerCase(unittest.TestCase):
             st.enter_context(mock.patch.object(
                 self.RUNNER, "ARTIFACTS", self.here / ".artifacts"))
             st.enter_context(mock.patch.object(
-                self.RUNNER, "pdk_stamp",
-                lambda variant, root: (pathlib.Path("/fake/pdk"), PIN["sources_stamp"])))
+                self.RUNNER, "require_pinned_stamp",
+                lambda pin, root: (pathlib.Path("/fake/pdk"), PIN["sources_stamp"])))
             st.enter_context(mock.patch.object(self.RUNNER, "run_klt", fake_run_klt))
             st.enter_context(mock.patch.object(
                 self.RUNNER.tempfile, "mkdtemp", lambda *a, **k: str(self.work)))

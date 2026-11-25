@@ -6,7 +6,19 @@ are what separate "simulated and failing" from "never simulated", so they are
 the last thing standing between a dead fleet job and a recorded result
 (issue #94). `grid_complete` counts grid points; `measurements_present`
 requires a non-null `err_phase` at every one of them.
+
+`RunVariantSet` below pins the shared multi-variant loop the same way
+(issue #354): reuse, the failed-submit refusal, the `usable_fn` cache gate,
+and the two `--from-partials` refusals, all against a fake `run_klt` with no
+bench bound -- the four `test_run_*.py` suites still assert the rule through
+their own runners.
 """
+import contextlib
+import io
+import json
+import pathlib
+import shutil
+import tempfile
 import unittest
 from unittest import mock
 
@@ -247,6 +259,65 @@ class NgspiceVersion(unittest.TestCase):
             self.assertEqual(run.call_args[0][0], ["ngspice", "-v"])
 
 
+class SettlingMeasurements(unittest.TestCase):
+    """The shared settling measurement list (issue #95, operator option a).
+
+    One definition of err_phase / t_1e4 / t_slew for both settling benches,
+    built from per-bench timing and limit constants. The names are pinned to
+    KEYS plus the intermediate `k_phase`, the constants must reach the
+    formatted expressions and the limits, and the OTA bench's list must
+    still match its committed request -- which that bench never rebuilds
+    byte-exactly (issue #192) -- modulo the documented slew-start literal.
+    """
+
+    def build(self, **over):
+        kw = dict(t_step=35.0e-9, t_sample=132.66e-9, t_end=335e-9,
+                  t_slew0=35.3e-9, ideal_dv=0.9, err_max=1e-4,
+                  ripple_max=1e-3, ideal_tol=0.05)
+        kw.update(over)
+        return sc.settling_measurements(**kw)
+
+    def test_names_are_keys_plus_the_intermediate_k_phase(self):
+        self.assertEqual([m["name"] for m in self.build()],
+                         [*sc.KEYS[:3], "k_phase", *sc.KEYS[3:]])
+
+    def test_timing_and_ideal_arguments_reach_the_expressions(self):
+        ms = {m["name"]: m for m in self.build()}
+        self.assertIn("mean(time lt 1.3266e-07)*length(time)",
+                      ms["k_phase"]["expr"])
+        self.assertIn("(1.3266e-07-time[k_phase-1])", ms["vod_phase"]["expr"])
+        self.assertIn(") - 3.5e-08", ms["t_1e4"]["expr"])
+        self.assertIn("time gt 3.53e-08", ms["slope_pk"]["expr"])
+        self.assertIn("(time gt 3.53e-08)*time)", ms["t_slew"]["expr"])
+        self.assertIn("time gt 3.15e-07", ms["end_ripple_rel"]["expr"])
+        self.assertIn("abs(step_dv) - 0.9)/0.9", ms["step_err_vs_ideal"]["expr"])
+
+    def test_other_constants_move_the_formatted_numbers(self):
+        ms = {m["name"]: m for m in self.build(t_step=3.0e-9, t_sample=100.66e-9,
+                                               t_end=300e-9, t_slew0=3.3e-9)}
+        self.assertIn("mean(time lt 1.0066e-07)", ms["k_phase"]["expr"])
+        self.assertIn(") - 3e-09", ms["t_1e4"]["expr"])
+        self.assertIn("time gt 3.3e-09", ms["slope_pk"]["expr"])
+        self.assertIn("time gt 2.8e-07", ms["end_ripple_rel"]["expr"])
+
+    def test_limit_arguments_reach_the_limits(self):
+        ms = {m["name"]: m for m in self.build(err_max=2e-4, ripple_max=2e-3,
+                                               ideal_tol=0.1)}
+        self.assertEqual(ms["err_phase"]["limits"], {"max": 2e-4})
+        self.assertEqual(ms["end_ripple_rel"]["limits"], {"max": 2e-3})
+        self.assertEqual(ms["step_err_vs_ideal"]["limits"], {"max": 0.1})
+        self.assertNotIn("limits", ms["slew_frac"])
+
+    def test_ota_bench_matches_its_committed_request_modulo_slew_start(self):
+        here = pathlib.Path(__file__).resolve().parent / "ota-settling"
+        mod = rtc.load_runner("ota_settling_mk", here / "make_request.py")
+        committed = json.loads((here / "request.json").read_text())["measurements"]
+        self.assertEqual(
+            [{**m, "expr": m["expr"].replace("3.3e-09", "3.3e-9")}
+             for m in mod.MEASUREMENTS],
+            committed)
+
+
 class CommittedRequestsAreUnmoved(unittest.TestCase):
     """The pre-#126 benches' committed requests must still rebuild byte-exactly.
 
@@ -351,6 +422,343 @@ class RecordRequestPinsResolve(unittest.TestCase):
         record = {"request_sha256": {"amp": "ab" * 32, "ampq": "cd" * 32}}
         self.assertEqual(list(record_request_pins(record)),
                          [("$[amp]", "ab" * 32), ("$[ampq]", "cd" * 32)])
+
+
+class RunVariantSet(unittest.TestCase):
+    """The shared multi-variant loop (issue #354), pinned with no bench bound.
+
+    `run_variant_set`/`run_probe`/`refuse_missing_variants`/
+    `refuse_from_partials_conflicts` are what the four multi-variant runners
+    call; these tests hold the loop's own rules (the issue #94 failed-submit
+    refusal, reuse for unrequested variants, the `usable_fn` cache gate and
+    the `--from-partials` refusals) so the per-bench suites only have to pin
+    what their bench adds.
+    """
+
+    VARIANTS = ("a", "b")
+
+    def setUp(self):
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="test-variant-set-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.partials = self.tmp / ".partials"
+        self.calls, self.kwargs = [], []
+
+    # ---- the fake bench ------------------------------------------------
+
+    def fake_run_klt(self, submits):
+        def run_klt(request_path, probe, tmpdir, tag, probe_path, **kw):
+            self.calls.append(tag)
+            self.kwargs.append(kw)
+            return submits.get(tag)
+        return run_klt
+
+    def hooks(self):
+        return dict(
+            request_fn=lambda v: self.tmp / f"request_{v}.json",
+            probe_request_fn=lambda v: self.tmp / f"probe_request_{v}.json",
+            tag_fn=lambda v: v,
+            partial_fn=lambda v: self.partials / f"{v}.json",
+            shas_fn=lambda v: {"request_sha256": v, "deck_sha256": v},
+            summarize_fn=lambda v, c: {"corner_count": len(c)})
+
+    @staticmethod
+    def report(job="job-1"):
+        return {"status": "pass",
+                "environment": {"engine_version": "ngspice-47",
+                                "engine_host": "fleet-node-1",
+                                "remote": {"job_id": job}}}
+
+    @staticmethod
+    def corners(n=2):
+        return {f"c{i}": {"status": "pass", "err_phase": 1e-5, "diagnostics": []}
+                for i in range(n)}
+
+    def run_set(self, run, submits, want=VARIANTS, err=None, out=None, **kw):
+        """run_variant_set with stdout/stderr captured; returns (results, out, err)."""
+        out, err = out or io.StringIO(), err or io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            results = sc.run_variant_set(
+                want, run, self.tmp / "work",
+                run_klt_fn=self.fake_run_klt(submits),
+                artifacts_dir=None, **self.hooks(), **kw)
+        return results, out.getvalue(), err.getvalue()
+
+    def write_partial(self, v, **over):
+        d = {"summary": {"corner_count": 2}, "corners": self.corners(),
+             "pass": True, "ngspice": "ngspice-47", "engine_host": "fleet-node-0",
+             "remote": {"job_id": f"job-earlier-{v}"},
+             "request_sha256": v, "deck_sha256": v}
+        d.update(over)
+        sc.save_partial(self.partials / f"{v}.json", d)
+        return d
+
+    # ---- reuse and the issue #94 rule ----------------------------------
+
+    def test_a_variant_not_requested_is_reused_from_its_partial(self):
+        self.write_partial("a")
+
+        results, out, _ = self.run_set(("b",), {"b": (self.report(), self.corners())})
+
+        self.assertEqual(self.calls, ["b"], "a must not be re-submitted")
+        self.assertIn("a: reusing a.json", out)
+        self.assertEqual(results["a"]["remote"], {"job_id": "job-earlier-a"})
+        self.assertEqual(results["b"]["remote"], {"job_id": "job-1"})
+        self.assertTrue((self.partials / "b.json").exists(),
+                        "a fresh submit is cached")
+
+    def test_a_failed_submit_is_refused_never_backfilled_from_partials(self):
+        before = json.dumps(self.write_partial("a"))
+
+        results, _, err = self.run_set(("a",), {"a": None})
+
+        self.assertNotIn("a", results)
+        self.assertIn("a: no usable report", err)
+        self.assertIn("not falling back to a local grid or to .partials/", err)
+        self.assertEqual(json.loads((self.partials / "a.json").read_text()),
+                         json.loads(before), "the old partial is left on disk")
+        verdict, rerr = call(sc.refuse_missing_variants, self.VARIANTS, results)
+        self.assertTrue(verdict)
+        self.assertIn("REFUSE: no result for a", rerr)
+
+    def test_a_stale_partial_is_not_reused_and_refuses_the_set(self):
+        self.write_partial("a", deck_sha256="0" * 64)
+
+        results, _, err = self.run_set(("b",), {"b": (self.report(), self.corners())})
+
+        self.assertNotIn("a", results)
+        self.assertIn("ignoring stale .partials/a.json", err)
+        verdict, rerr = call(sc.refuse_missing_variants, self.VARIANTS, results)
+        self.assertTrue(verdict)
+        self.assertIn("REFUSE: no result for a", rerr)
+
+    # ---- the usable_fn cache gate ---------------------------------------
+
+    def test_usable_fn_skips_the_cache_but_keeps_the_result(self):
+        results, _, err = self.run_set(
+            ("b",), {"b": (self.report(), self.corners())},
+            usable_fn=lambda v, c: False)
+
+        self.assertIn("b", results, "an unusable result is still reported")
+        self.assertFalse((self.partials / "b.json").exists(),
+                         "an unusable result must not be cached")
+        self.assertIn("not cached in .partials/", err)
+
+    def test_usable_fn_does_not_shadow_a_good_partial(self):
+        """The gate runs on the fresh submit only; a reused partial passes as-is."""
+        self.write_partial("a")
+
+        results, out, _ = self.run_set(
+            ("b",), {"b": (self.report(), self.corners())},
+            usable_fn=lambda v, c: v != "b")
+
+        self.assertIn("a: reusing a.json", out)
+        self.assertIn("a", results)
+
+    # ---- the probe ------------------------------------------------------
+
+    def test_run_probe_refuses_with_exit_one_wording_when_submit_fails(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            res = sc.run_probe(
+                "a", self.tmp / "work", run_klt_fn=self.fake_run_klt({}),
+                artifacts_dir=None, **self.hooks())
+
+        self.assertIsNone(res)
+        self.assertIn("a: no usable report", err.getvalue())
+        self.assertIn("REFUSE: no result for the a probe; nothing printed.",
+                      err.getvalue())
+        self.assertFalse((self.partials / "a.json").exists(),
+                         "a probe must not write a partial")
+
+    def test_run_probe_assembles_the_result_and_prints_no_partial(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            res = sc.run_probe(
+                "a", self.tmp / "work",
+                run_klt_fn=self.fake_run_klt({"a": (self.report(), self.corners())}),
+                artifacts_dir=None, status_line=True, **self.hooks())
+
+        self.assertEqual(res["corners"], self.corners())
+        self.assertIn('"status": "pass"', out.getvalue())
+        self.assertFalse((self.partials / "a.json").exists())
+
+    # ---- --from-partials -------------------------------------------------
+
+    def test_from_partials_conflicts_refuse_with_the_tested_wording(self):
+        verdict, err = call(sc.refuse_from_partials_conflicts,
+                            probe=True, variant=False)
+        self.assertTrue(verdict)
+        self.assertIn("--from-partials", err)
+        self.assertIn("--probe has no meaning", err)
+
+        verdict, err = call(sc.refuse_from_partials_conflicts, variant=True)
+        self.assertTrue(verdict)
+        self.assertIn("--variant has no meaning", err,
+                      "the wording test_run_ci.py asserts")
+
+        verdict, err = call(sc.refuse_from_partials_conflicts,
+                            probe=False, variant=False, resume=False)
+        self.assertFalse(verdict)
+        self.assertEqual(err, "")
+
+    def test_from_partials_run_reuses_only_and_says_cached_partial(self):
+        for v in self.VARIANTS:
+            self.write_partial(v)
+
+        results, out, err = self.run_set((), {})
+
+        self.assertEqual(self.calls, [], "nothing is submitted")
+        self.assertEqual(set(results), set(self.VARIANTS))
+        self.assertFalse(sc.refuse_missing_variants(
+            self.VARIANTS, results, from_partials=True))
+
+    def test_from_partials_missing_variant_says_no_cached_partial(self):
+        self.write_partial("a")
+
+        results, _, err = self.run_set((), {})
+        self.assertNotIn("b", results)
+
+        verdict, err2 = call(sc.refuse_missing_variants, self.VARIANTS, results,
+                             from_partials=True)
+        self.assertTrue(verdict)
+        self.assertIn("no cached partial for b", err2)
+        self.assertNotIn("no result for b", err2)
+
+    # ---- the assembled result --------------------------------------------
+
+    def test_submit_variant_assembles_the_common_result_dict(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            res = sc.submit_variant(
+                self.fake_run_klt({"t": (self.report(job="j"), self.corners())}),
+                self.tmp / "request_t.json", self.tmp / "work", "t",
+                self.tmp / "probe_t.json",
+                summarize_fn=lambda v, c: {"corner_count": len(c)},
+                shas={"request_sha256": "r", "deck_sha256": "d"},
+                env_fields=lambda e: {"monte_carlo_env": e.get("monte_carlo")})
+
+        self.assertEqual(res["summary"], {"corner_count": 2})
+        self.assertEqual(res["pass"], True)
+        self.assertEqual(res["ngspice"], "ngspice-47")
+        self.assertEqual(res["engine_host"], "fleet-node-1")
+        self.assertEqual(res["remote"], {"job_id": "j"})
+        self.assertEqual(res["monte_carlo_env"], None)
+        self.assertEqual(res["request_sha256"], "r")
+        self.assertEqual(res["deck_sha256"], "d")
+        self.assertEqual(self.kwargs, [{"artifacts_dir": None}])
+
+    def test_status_line_merges_the_report_status_into_the_summary(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            sc.submit_variant(
+                self.fake_run_klt({"t": (self.report(), self.corners())}),
+                self.tmp / "r.json", self.tmp / "work", "t", self.tmp / "p.json",
+                summarize_fn=lambda v, c: {"corner_count": len(c)},
+                shas={}, status_line=True)
+        self.assertIn('"status": "pass"', out.getvalue())
+        self.assertTrue(out.getvalue().startswith("t "))
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            sc.submit_variant(
+                self.fake_run_klt({"t": (self.report(), self.corners())}),
+                self.tmp / "r.json", self.tmp / "work", "t", self.tmp / "p.json",
+                summarize_fn=lambda v, c: {"corner_count": len(c)},
+                shas={})
+        self.assertNotIn('"status"', out.getvalue())
+
+
+class RequirePinnedPdk(unittest.TestCase):
+    """`require_pinned_pdk`: the PDK-root lookup plus sim/pdk.json pin check
+    the three non-attested local runners (ota-op-smoke, both load checks)
+    each hand-copied before issue #81, and -- with the same refusal wording
+    -- the smoke and decimator runners' `resolve_root` blocks before issue
+    #376. The refusal line and both exit codes are the local runners'
+    historical behaviour, pinned here so the shared copy cannot drift
+    from it.
+    """
+
+    def patched_stamp(self, stamp):
+        return mock.patch.object(sc, "pdk_stamp",
+                                 lambda variant, root: (pathlib.Path("/fake/pdk"), stamp))
+
+    def test_matching_stamp_returns_the_variant_path_and_the_stamp(self):
+        with self.patched_stamp(rtc.PIN["sources_stamp"]):
+            root, stamp = sc.require_pinned_pdk(rtc.PIN, None)
+        self.assertEqual(root, pathlib.Path("/fake/pdk") / rtc.PIN["variant"])
+        self.assertEqual(stamp, rtc.PIN["sources_stamp"])
+
+    def test_mismatch_refuses_with_the_historical_line_and_exit_2(self):
+        err = io.StringIO()
+        with self.patched_stamp("other-stamp"):
+            with contextlib.redirect_stderr(err):
+                with self.assertRaises(SystemExit) as cm:
+                    sc.require_pinned_pdk(rtc.PIN, None)
+        self.assertEqual(cm.exception.code, 2)
+        self.assertEqual(
+            err.getvalue(),
+            f"REFUSE: PDK at /fake/pdk/{rtc.PIN['variant']} is "
+            f"'other-stamp', pinned '{rtc.PIN['sources_stamp']}'\n")
+
+    def test_the_stamp_lookup_stays_pdk_stamp_s_job(self):
+        """pdk_root (or None) is passed through, so the `klt pdk find` call
+        and its `REFUSE: klt pdk find failed:` exit stay in `pdk_stamp`."""
+        seen = []
+        with mock.patch.object(
+                sc, "pdk_stamp",
+                lambda variant, root: seen.append((variant, root))
+                or (pathlib.Path("/fake/pdk"), rtc.PIN["sources_stamp"])):
+            sc.require_pinned_pdk(rtc.PIN, None)
+            sc.require_pinned_pdk(rtc.PIN, "/given/root")
+        self.assertEqual(seen, [(rtc.PIN["variant"], None),
+                                (rtc.PIN["variant"], "/given/root")])
+
+
+class RequirePinnedStamp(unittest.TestCase):
+    """`require_pinned_stamp`: the same lookup and pin check the twelve
+    klt-submitted runners each hand-copied before issue #376, whose refusal
+    line names the un-varianted root `pdk_stamp` returns (their historical
+    wording, distinct from `require_pinned_pdk`'s variant path) and whose
+    return is `pdk_stamp`'s `(root, stamp)` pair unchanged -- the runners
+    record the stamp and build their PDK paths off that root. Pinned here
+    the same way so the shared copy cannot drift from either cohort's
+    behaviour.
+    """
+
+    def patched_stamp(self, stamp):
+        return mock.patch.object(sc, "pdk_stamp",
+                                 lambda variant, root: (pathlib.Path("/fake/pdk"), stamp))
+
+    def test_matching_stamp_returns_pdk_stamp_s_pair_unchanged(self):
+        with self.patched_stamp(rtc.PIN["sources_stamp"]):
+            root, stamp = sc.require_pinned_stamp(rtc.PIN, None)
+        self.assertEqual(root, pathlib.Path("/fake/pdk"))
+        self.assertEqual(stamp, rtc.PIN["sources_stamp"])
+
+    def test_mismatch_refuses_with_the_historical_line_and_exit_2(self):
+        err = io.StringIO()
+        with self.patched_stamp("other-stamp"):
+            with contextlib.redirect_stderr(err):
+                with self.assertRaises(SystemExit) as cm:
+                    sc.require_pinned_stamp(rtc.PIN, None)
+        self.assertEqual(cm.exception.code, 2)
+        self.assertEqual(
+            err.getvalue(),
+            f"REFUSE: PDK at /fake/pdk is "
+            f"'other-stamp', pinned '{rtc.PIN['sources_stamp']}'\n")
+
+    def test_the_stamp_lookup_stays_pdk_stamp_s_job(self):
+        """pdk_root (or None) is passed through, so the `klt pdk find` call
+        and its `REFUSE: klt pdk find failed:` exit stay in `pdk_stamp`."""
+        seen = []
+        with mock.patch.object(
+                sc, "pdk_stamp",
+                lambda variant, root: seen.append((variant, root))
+                or (pathlib.Path("/fake/pdk"), rtc.PIN["sources_stamp"])):
+            sc.require_pinned_stamp(rtc.PIN, None)
+            sc.require_pinned_stamp(rtc.PIN, "/given/root")
+        self.assertEqual(seen, [(rtc.PIN["variant"], None),
+                                (rtc.PIN["variant"], "/given/root")])
 
 
 if __name__ == "__main__":

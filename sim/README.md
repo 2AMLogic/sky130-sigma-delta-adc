@@ -1,6 +1,6 @@
 # sim
 
-PDK and tool pins (`pdk.json`, `toolchain.json`) and the analog smoke fixture in
+The PDK pin (`pdk.json`; tool versions are in `.github/klt-version`, `attestation/item9-inventory.json` and each run's record) and the analog smoke fixture in
 `smoke/`. The transistor-level benches are `ota-settling/`, `integrator-settling/`,
 `integrator-ci/`, `comparator-decision/`, `ota-gain/`, `ota-swing/` and `integrator-noise/`;
 each has its own README with the run command (`python3 -I sim/<bench>/run_*.py
@@ -134,6 +134,6 @@ runner's own gates and derivations are covered the same way:
 `runner_test_common.py` is the test-side counterpart: the harness those
 per-bench runner tests share (loading a runner by path, the DR-002 corner ids,
 a `RunnerCase` base that runs `main()` against a temporary `HERE` with
-`run_klt`/`pdk_stamp` patched, and the issue #94 admission tests as a mixin each
+`run_klt`/`require_pinned_stamp` patched, and the issue #94 admission tests as a mixin each
 bench binds to its own variants). It is deliberately not `test_`-prefixed, so no
 `unittest discover` pattern collects it with no runner bound.

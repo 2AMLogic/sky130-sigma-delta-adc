@@ -26,28 +26,21 @@ What is pinned here:
 - The per-clock reduction: the sampling grid, the analytic u[n], and the
   bitstream polarity.
 """
-import importlib.util
-import io
 import json
 import math
 import pathlib
 import sys
 import unittest
-from contextlib import redirect_stderr
 
 HERE = pathlib.Path(__file__).resolve().parent
+# `sim/` is not on sys.path under `python3 -I`: isolated mode drops CWD and
+# PYTHONPATH, and `discover -s sim/modulator-tran` puts only the bench directory
+# there. run_tran.py inserts it once loaded, which is too late for this import.
+sys.path.insert(0, str(HERE.parent))
 
+import runner_test_common as rtc                                    # noqa: E402
 
-def load_runner():
-    """Load run_tran.py by path: 'modulator-tran' is not an importable name."""
-    spec = importlib.util.spec_from_file_location("run_tran_under_test",
-                                                  HERE / "run_tran.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-RUNNER = load_runner()
+RUNNER = rtc.load_runner("run_tran_under_test", HERE / "run_tran.py")
 MK = sys.modules["make_request"]          # put on sys.path by run_tran.py above
 REQUEST = json.loads((HERE / "request.json").read_text())
 ANCHOR_IDS = tuple(f"{p}/vclk={v:.3f}_vdda={v:.3f}V/{t:g}C"
@@ -101,12 +94,7 @@ def report(n_anchors=len(ANCHOR_IDS), n_clocks=None, **over):
             "environment": {"engine_version": "46"}, "measurements": []}
 
 
-def refuses(fn, *args, **kw):
-    """(result, stderr) of a gate, so the REFUSE text is asserted too."""
-    buf = io.StringIO()
-    with redirect_stderr(buf):
-        ok = fn(*args, **kw)
-    return ok, buf.getvalue()
+refuses = rtc.call
 
 
 class RecordGates(unittest.TestCase):

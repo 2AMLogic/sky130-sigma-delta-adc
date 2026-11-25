@@ -27,6 +27,7 @@ test_run_decision.py cover the derivations without any EDA tool.
 import argparse
 import json
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -35,9 +36,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
 import settling_common as sc  # noqa: E402
-from settling_common import (CAPACITY_WAIT_S, grid_complete, load_partial,  # noqa: E402
-                             measurements_present, pdk_stamp, run_klt, save_partial,
-                             sha256)
+from settling_common import (CAPACITY_WAIT_S, grid_complete,  # noqa: E402
+                             measurements_present, require_pinned_stamp, run_klt, sha256)
 sys.path.insert(0, str(HERE))
 import make_request as MR  # noqa: E402
 
@@ -465,10 +465,7 @@ def main():
     a = ap.parse_args()
 
     pin = json.load(open(REPO / "sim/pdk.json"))
-    root, stamp = pdk_stamp(pin["variant"], a.pdk_root)
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
-        return 2
+    root, stamp = require_pinned_stamp(pin, a.pdk_root)
     out = HERE / a.record_name
     if a.record and out.exists():
         print(f"REFUSE: {out.name} exists; records are append-only (use --record-name)",
@@ -478,75 +475,57 @@ def main():
         print("REFUSE: --resume needs the --work directory the earlier run used",
               file=sys.stderr)
         return 2
+    if a.from_partials and sc.refuse_from_partials_conflicts(
+            probe=bool(a.probe), variant=bool(a.variant), resume=bool(a.resume)):
+        return 2
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="comparator-decision-"))
-    if a.from_partials:
-        if a.probe or a.variant or a.resume:
-            print("REFUSE: --from-partials runs nothing, so it takes no --probe, "
-                  "--variant or --resume", file=sys.stderr)
-            return 2
-        run = ()
-    else:
-        run = ((a.probe,) if a.probe
-               else tuple(dict.fromkeys(a.variant)) if a.variant else VARIANTS)
+    try:
+        def klt_kwargs(v):
+            return {"keys": keys_for(v), "capacity_wait_s": a.capacity_wait_s,
+                    "outdir": (a.work / f"out-{v}") if a.work else None,
+                    "resume": a.resume}
 
-    results = {}
-    for v in (run if a.probe else VARIANTS):
-        if v not in run:
-            saved = load_partial(PARTIALS / f"{v}.json", shas(v))
-            if saved:
-                print(f"{v}: reusing .partials/{v}.json ({saved['summary']})")
-                results[v] = saved
-            continue
-        res = run_klt(HERE / f"request_{v}.json", bool(a.probe), tmp, v,
-                      HERE / f"probe_request_{v}.json",
-                      artifacts_dir=None if a.probe else ARTIFACTS,
-                      keys=keys_for(v), capacity_wait_s=a.capacity_wait_s,
-                      outdir=(a.work / f"out-{v}") if a.work else None,
-                      resume=a.resume)
-        if res is None:
-            print(f"{v}: no usable report (see .artifacts/klt-{v}.stderr.txt); "
-                  "not falling back to a local grid or to .partials/", file=sys.stderr)
-            continue
-        rep, corners = res
-        summary = summarize(v, corners)
-        print(v, json.dumps({"status": rep.get("status"), **summary}, indent=2))
-        e = rep.get("environment", {})
-        results[v] = {"summary": summary, "corners": corners,
-                      "pass": rep.get("status") == "pass",
-                      "ngspice": e.get("engine_version", "unknown"),
-                      "engine_host": e.get("engine_host"), "remote": e.get("remote"),
-                      **shas(v)}
-        if not a.probe:
-            if usable(v, corners):
-                save_partial(PARTIALS / f"{v}.json", results[v])
-            else:
-                print(f"{v}: not cached in .partials/ -- this result cannot stand "
-                      "in a record on its own; re-run this variant", file=sys.stderr)
+        if a.probe:
+            res = sc.run_probe(
+                a.probe, tmp, run_klt_fn=run_klt, artifacts_dir=ARTIFACTS,
+                request_fn=lambda v: HERE / f"request_{v}.json",
+                probe_request_fn=lambda v: HERE / f"probe_request_{v}.json",
+                tag_fn=lambda v: v, summarize_fn=summarize, shas_fn=shas,
+                status_line=True, **klt_kwargs(a.probe))
+            if res is None:
+                return 1
+            print(json.dumps(res["corners"], indent=2))
+            return 0
 
-    if a.probe:
-        if a.probe not in results:
-            print(f"REFUSE: no result for the {a.probe} probe; nothing printed.", file=sys.stderr)
+        run = () if a.from_partials else (
+            tuple(dict.fromkeys(a.variant)) if a.variant else VARIANTS)
+        results = sc.run_variant_set(
+            VARIANTS, run, tmp, run_klt_fn=run_klt, artifacts_dir=ARTIFACTS,
+            request_fn=lambda v: HERE / f"request_{v}.json",
+            probe_request_fn=lambda v: HERE / f"probe_request_{v}.json",
+            tag_fn=lambda v: v,
+            partial_fn=lambda v: PARTIALS / f"{v}.json",
+            reuse_label_fn=lambda v: f".partials/{v}.json",
+            shas_fn=shas, summarize_fn=summarize, submit_kwargs_fn=klt_kwargs,
+            usable_fn=usable, status_line=True)
+        if sc.refuse_missing_variants(VARIANTS, results,
+                                      from_partials=a.from_partials):
             return 1
-        print(json.dumps(results[a.probe]["corners"], indent=2))
-        return 0
-    missing = [v for v in VARIANTS if v not in results]
-    if missing:
-        print(f"REFUSE: no result for {', '.join(missing)}; no record written. "
-              f"Re-run with --variant {missing[0]} when the fleet has capacity.", file=sys.stderr)
-        return 1
-    if not all(usable(v, results[v]["corners"]) for v in VARIANTS):
-        return 1
-    if not a.record:
-        print("both variants complete; re-run with --record to write the record")
-        return 0
+        if not all(usable(v, results[v]["corners"]) for v in VARIANTS):
+            return 1
+        if not a.record:
+            print("both variants complete; re-run with --record to write the record")
+            return 0
 
-    rec = build_record(results, pin, stamp)
-    out.write_text(json.dumps(rec, indent=2) + "\n")
-    print(f"wrote {out.name}: pass={rec['pass']}")
-    print(json.dumps(rec["derived"]["decision_time"], indent=2))
-    print(json.dumps({k: rec["derived"][k] for k in
-                      ("comparator_offset", "comparator_hysteresis")}, indent=2))
-    return 0 if rec["pass"] else 1
+        rec = build_record(results, pin, stamp)
+        out.write_text(json.dumps(rec, indent=2) + "\n")
+        print(f"wrote {out.name}: pass={rec['pass']}")
+        print(json.dumps(rec["derived"]["decision_time"], indent=2))
+        print(json.dumps({k: rec["derived"][k] for k in
+                          ("comparator_offset", "comparator_hysteresis")}, indent=2))
+        return 0 if rec["pass"] else 1
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def build_record(results, pin, stamp):

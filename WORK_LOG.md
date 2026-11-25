@@ -2,6 +2,71 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-24
+
+- **PR #371**: docs: drop ROADMAP's drifting status stamp; graded record states as-of-ness
+- **Issue #370** (closed): ROADMAP.md's status stamp drifts while its counts are CI-gated
+- **PR #390**: refactor: remove unused flat met1 placement list from production routers
+- **Issue #367** (closed): Remove the write-only metal-1 placement list from the analog routers
+
+### 2026-11-23
+
+- **PR #386**: chore: remove unread sim/toolchain.json and point docs at checked tool-version lists
+- **Issue #96** (closed): Remove sim/toolchain.json: a tool-version pin file that no code reads and that has gone stale
+- **PR #383**: refactor: share every PDK-pin call site as settling_common helpers
+- **Issue #376** (closed): Consolidate PDK-pin resolve_root and REFUSE blocks across 15 runners (re-file of #43)
+- **PR #366**: refactor: share the settling measurement list in settling_common
+- **Issue #95** (closed): Share the settling measurement list between the OTA and integrator benches: two copies, one already out of step with its request
+- **PR #381**: test: sort the MiM riser ahead of the pad in the pin-label test
+- **PR #379**: refactor(analog): consolidate net finishing, compose/DRC steps and MiM constants into layout_common
+- **Issue #380** (closed): test_net_finishing: the label-plane ordering test does not pin the behaviour it names
+- **Issue #377** (closed): Consolidate net-finishing, compose/DRC pipeline, and MiM constants across gen_ota_fd and gen_integrator
+- **PR #375**: test: share corner and bitstream fixtures across B-model cross-check suites
+- **PR #373**: refactor: adopt settling_common helpers in remaining sim runners, drop two dead parameters
+- **PR #369**: signoff: cite 11.digital power-delivery evidence and grade it met
+- **PR #368**: refactor: share the PDK pin check as settling_common.require_pinned_pdk
+- **PR #365**: refactor(sim/bmodel): drop xcheck's duplicate git_state/write_record and unused run.load_params
+- **PR #364**: test(verification): commit SDF-annotated decimator fv evidence, cite T1 item 7 digital
+- **PR #362**: fix(fv): resolve decimator SDF fv cell models at run time
+- **PR #361**: test: dedupe the module-by-path test loaders into shared helpers
+- **Issue #374** (closed): Share the corner and bitstream fixtures in the B-model cross-check tests
+- **Issue #372** (closed): Finish settling_common helper adoption in non-attested sim runners and drop two dead parameters
+- **Issue #360** (closed): fv_sdf_request.json locates the PDK cell library by relative escape, not klt pdk find
+- **Issue #358** (closed): Remove duplicate git_state/write_record in sim/bmodel/xcheck.py and unused run.load_params
+- **Issue #355** (closed): Dedupe nine copies of the module-by-path test loader
+- **Issue #333** (closed): T1 item 11, digital only: klt erc supply spec for VDDD/VSSD on the routed decimator, plus the P&R response, cited for 11.digital
+- **Issue #162** (closed): T1 item 7, digital only: SDF-annotated klt functional-verification of the routed decimator, cited for 7.digital
+- **Issue #81** (closed): Consolidate 7 copies of the klt pdk find lookup into one helper
+- **PR #357**: test(attest): pin verify_issues()'s three-way gh classification offline
+- **PR #342**: feat(pnr): commit post-route decimator.sdf, saved P&R response, and klt 0.9.2 GDS reproduction receipt
+- **PR #359**: refactor: fold the four runners' multi-variant klt-sim loop into settling_common
+- **PR #356**: fix(attest): exit 3, not a traceback, when item-8 checker cannot start gh
+- **PR #352**: test: migrate the four unmigrated sim bench tests onto runner_test_common
+- **Issue #43** (closed): Deduplicate PDK-pin helpers copy-pasted across three runners
+- **Issue #218** (closed): Unit-test verify_issues()'s three-way gh classification (open / closed / could-not-run)
+- **Issue #332** (closed): T1 item 7 digital, slice 1 of 2: one P&R re-run that commits decimator.sdf with its GDS reproduction receipt, so #162 fits a Builder step
+- **Issue #354** (closed): Consolidate the multi-variant klt-sim submission and .partials/ loop into settling_common.py
+- **Issue #328** (closed): Report exit 3 when the item-8 citation checker cannot start gh
+- **Issue #350** (closed): Consolidate duplicate test helpers in 4 sim bench tests onto runner_test_common
+- **PR #213**: ci: run the item-8 cited-issue check on every push and pull request
+- **Issue #187** (closed): CI never runs item8_envelope.py --verify-issues, so characterization.md can cite a closed issue indefinitely
+- **PR #348**: refactor(analog): consolidate collect_anchors and guard-ring sizing into layout_common
+- **Issue #347** (closed): Consolidate duplicated collect_anchors and ring_params between gen_ota_fd and gen_integrator
+
+### 2026-11-21
+
+- **PR #344**: fix: ignore loom-daemon Codex account-ranking state via regenerated managed gitignore block
+- **PR #343**: fix(sim): gate OTA swing records on a complete ota-gain reference
+- **PR #341**: fix: fail run_erc.sh regeneration when klt erc exits 0
+- **PR #339**: feat(layout): ERC supply evidence for the digital partition; keep the P&R response envelope
+- **PR #336**: refactor(layout): run both generators' klt gen blocks through one shared runner
+- **PR #334**: feat(sim): OTA swing/gain-compression bench across the DR-002 anchors (sim/ota-swing)
+- **Issue #340** (closed): run_erc.sh exits 0 when klt erc exits 0, silently keeping the stale committed report
+- **Issue #338** (closed): Compute the OTA swing gain comparison once and require all seven reference corners
+- **Issue #337** (closed): Sync Loom's managed gitignore so check-main-clean accepts Codex account-ranking state
+- **Issue #335** (closed): Reuse the OTA block generator for integrator devices and guard rings
+- **Issue #331** (closed): OTA output swing and gain-compression bench across the DR-002 anchors (step 1 of the operator ruling on #148)
+
 ### 2026-11-18
 
 - **PR #326**: ci: run the signoff check on merge_group events

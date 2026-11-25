@@ -89,7 +89,6 @@ import datetime
 import hashlib
 import json
 import pathlib
-import subprocess
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -578,13 +577,6 @@ def no_t_samples_entry(corner_path, long=False):
     }
 
 
-def git_state():
-    def g(*a):
-        r = subprocess.run(["git", "-C", str(REPO), *a], capture_output=True, text=True)
-        return r.stdout.strip() if r.returncode == 0 else None
-    return {"git_commit": g("rev-parse", "HEAD"), "git_dirty": bool(g("status", "--porcelain"))}
-
-
 def build_record(entries, long=False):
     if long:
         return {
@@ -691,12 +683,6 @@ def build_record(entries, long=False):
     }
 
 
-def write_record(path, rec):
-    with open(path, "x") as f:
-        json.dump(rec, f, indent=2)
-        f.write("\n")
-
-
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--corner", help="one sim/bmodel/corners/<anchor>.json")
@@ -738,7 +724,7 @@ def main(argv=None):
     entries = [finalise_entry(e, long=args.long) for e in entries]
 
     rec = build_record(entries, long=args.long)
-    write_record(args.record, rec)
+    brun.write_record(args.record, rec)
     for e in entries:
         line = f"{e['corner_id']}: {e['cross_check_status'].split('. ')[0]}"
         leg = e.get("legs", {}).get("sndr_inband_3db") or {}

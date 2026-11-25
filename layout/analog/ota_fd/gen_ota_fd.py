@@ -54,7 +54,7 @@ from __future__ import annotations
 
 import json
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 # layout_common is the shared plumbing module one directory up (issue #176);
@@ -62,34 +62,26 @@ from pathlib import Path
 # run from any working directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_MET2,
-                           PDK_VARIANT, TRACK_PITCH_UM,
-                           TRUNK_PITCH_UM, Anchor, Rect, RouteError,
+from layout_common import (BUCKET_NM, DBU, GRID_UM, L_MET1, L_MET1_PIN,
+                           L_MET2, L_MET3, L_MET4, L_VIA2, L_VIA3,
+                           MET34_SPACE_UM, MET34_W_UM, PAD34_UM, PDK_VARIANT,
+                           TRACK_PITCH_UM, TRUNK_PITCH_UM, VIA2_UM, VIA3_UM,
+                           Anchor, Rect, RouteError,
                            Router as RouterBase, WIRE_UM, assert_drc_clean,
-                           extract_nets, gen_blocks, klt_pin, nm,
-                           parse_extract_devices, run, run_cli, snap)
+                           collect_anchors as collect_cell_anchors,
+                           compose_request, draw_compose_and_drc,
+                           extract_nets, finalize_routing, finish_net,
+                           gen_blocks, group_anchors_by_net, klt_pin, nm,
+                           parse_extract_devices, ring_params, run, run_cli,
+                           snap)
 
 # --- sky130A GDS layer numbers ------------------------------------------------
-# The router core's layers (L_MCON/L_MET1/L_MET2/L_VIA) come from layout_common,
-# alongside the shared geometry constants it routes with.
-L_LI1 = (67, 20)
-L_MET1_PIN = (68, 5)
-L_VIA2 = (69, 44)
-L_MET3 = (70, 20)
-L_VIA3 = (70, 44)
-L_MET4 = (71, 20)
-
-# --- rule-derived geometry (sky130 deck minimums plus margin) -----------------
-VIA2_UM = 0.20           # via2.1a exact size
-VIA3_UM = 0.20           # via3.1a exact size
-MET34_W_UM = 0.60        # met3/met4 wire width: m3.1/m4.1 want 0.30, but
-                         # a run narrower than its own via pad leaves a
-                         # notch at the corner that m3.2/m4.2 then flag
-MET34_SPACE_UM = 0.30    # m3.2/m4.2
-PAD34_UM = 0.60          # met2/met3/met4 landing pad for a via2/via3
-                         # (0.60^2 = 0.36um2 clears met3/met4 min area 0.24)
-PAD_MARGIN_UM = 0.12     # keep an mcon this far inside its li1 pad's own edge
-JOG_REACH_UM = 6.0       # how far a met1 jog may climb off a strap's own y
+# The router core's layers (L_MCON/L_MET1/L_MET2/L_VIA), the anchor
+# collection's port layers, the MiM-riser geometry constants
+# (L_MET1_PIN/L_VIA2/L_VIA3, VIA2_UM/VIA3_UM/MET34_*_UM/PAD34_UM, issue #377)
+# and the net-finishing/compose/DRC helpers all come from layout_common,
+# imported here so the shared-table tests can pin that both generators carry
+# the one definition.
 
 # --- PDK pin (mirrors sim/pdk.json) -------------------------------------------
 TOP_CELL = "ota_fd"
@@ -291,10 +283,9 @@ ROWS: list[tuple[str, float, float, tuple[str, ...]]] = [
 #: in-block straps.
 ROW_GAP_UM = {"res": 9.0, "caps": 11.0, "nbias": 11.0, "nsig": 11.0}
 
-#: Rows the two body-tie rings enclose, and the padding they leave.
+#: Rows the two body-tie rings enclose (`ring_params` in layout_common sizes
+#: each ring from them).
 RING_ROWS = {"ptapring": ("nbias", "nsig"), "ntapring": ("pfet",)}
-RING_PAD_UM = 2.0
-RING_WIDTH_UM = 0.42
 
 
 def place_rows(reports: dict[str, dict]) -> tuple[dict[str, dict[str, float]],
@@ -318,117 +309,32 @@ def place_rows(reports: dict[str, dict]) -> tuple[dict[str, dict[str, float]],
     return origins, extents
 
 
-def ring_params(extents: dict[str, tuple[float, float, float, float]],
-                ring_id: str) -> tuple[dict, dict[str, float]]:
-    """guard_ring params + origin enclosing this ring's rows."""
-    rows = [extents[r] for r in RING_ROWS[ring_id]]
-    x0 = min(r[0] for r in rows) - RING_PAD_UM
-    y0 = min(r[1] for r in rows) - RING_PAD_UM
-    x1 = max(r[2] for r in rows) + RING_PAD_UM
-    y1 = max(r[3] for r in rows) + RING_PAD_UM
-    params = {
-        "inner_width_um": snap(x1 - x0),
-        "inner_height_um": snap(y1 - y0),
-        "ring_width_um": RING_WIDTH_UM,
-        "contacts_per_side_ns": max(4, int((x1 - x0) / 4.0)),
-        "contacts_per_side_ew": max(4, int((y1 - y0) / 4.0)),
-        "add_well": ring_id == "ntapring",
-    }
-    # guard_ring draws its inner area starting at (ring_width, ring_width).
-    origin = {"x": snap(x0 - RING_WIDTH_UM), "y": snap(y0 - RING_WIDTH_UM)}
-    return params, origin
-
-
 # --- anchors ------------------------------------------------------------------
 def collect_anchors(blocks, reports, origins, port_nets):
     """Turn every block's ports into anchors, one per (block, net, pad row).
 
-    S/D-style li1 pads (``direction`` 0/180) are tall, so several nets share
-    one pad row: each net present in a row gets its own y offset on a 0.5um
-    ladder inside the pads, and every pad of that net in that row is tied by
-    one horizontal met1 strap.  Gate-style pads (``direction`` 90/270) are
-    0.42um square, so their y is pinned: a row holding more than one net there
-    must hold exactly one pad per net, and each becomes its own anchor.
+    Thin adapter over the shared collector (``layout_common.collect_anchors``,
+    issue #347): this cell's blocks are ``klt gen`` reports placed by
+    ``origins``, so each block's ports and bbox are projected into placed
+    cell-frame coordinates here (report ports carry ``layer`` as a
+    ``{"layer": .., "datatype": ..}`` dict; the shared collector wants the
+    tuple form) and the bucketing, pad-row ladders and strapping are the
+    shared code's.  Block order is the floorplan order of ``blocks``.
     """
-    anchors: list[Anchor] = []
-    straps: list[tuple[str, Rect]] = []
-    mcons: list[tuple[float, float]] = []
-    for block_id, generator, _cell, _params in blocks:
+    cells = []
+    for block_id, _generator, _cell, _params in blocks:
         report = reports[block_id]
         dx, dy = origins[block_id]["x"], origins[block_id]["y"]
         bb = report["bbox_um"]
-        nets = port_nets[block_id]
-        # -- bucket the ports -------------------------------------------------
-        flat: dict[tuple, list[tuple[str, float, float, float, int]]] = defaultdict(list)
-        for p in report["ports"]:
-            if p["name"] not in nets:
-                continue
-            layer = (p["layer"]["layer"], p["layer"]["datatype"])
-            key = (layer, round(p["y_um"] + dy, 4), p["direction_deg"] in (0, 180))
-            flat[key].append((p["name"], p["x_um"] + dx, p["y_um"] + dy,
-                              p["width_um"], p["direction_deg"]))
-        for (layer, row_y, is_sd), ports in sorted(flat.items(), key=lambda kv: str(kv[0])):
-            by_net: dict[str, list] = defaultdict(list)
-            for name, px, py, pw, pdir in ports:
-                by_net[nets[name]].append((name, px, py, pw, pdir))
-            ordered = sorted(by_net)
-            if layer == L_MET3:
-                for net in ordered:
-                    for name, px, py, pw, pdir in sorted(by_net[net]):
-                        anchors.append(Anchor(net, block_id, "cap3", py, px, px,
-                                              [name], pdir, bb["y0"] + dy, bb["y1"] + dy))
-                continue
-            if layer == L_MET4:
-                for net in ordered:
-                    for name, px, py, pw, pdir in sorted(by_net[net]):
-                        anchors.append(Anchor(net, block_id, "cap4", py, px, px,
-                                              [name], pdir, bb["y0"] + dy, bb["y1"] + dy))
-                continue
-            if layer != L_LI1:
-                raise RouteError(f"{block_id}: unexpected port layer {layer}")
-            if is_sd:
-                half = min(p[3] for p in ports) / 2 - PAD_MARGIN_UM - WIRE_UM / 2
-                k = len(ordered)
-                # Only a net with several pads in this row needs a horizontal
-                # strap, and only a strap can cross another net's pad -- so a
-                # row where every net has a single pad needs no ladder at all
-                # (that is the only way a 0.42um-wide S/D pad row can work).
-                spread = k > 1 and (k - 1) * TRACK_PITCH_UM / 2 <= half + 1e-9
-                if not spread and any(len(by_net[n]) > 1 for n in ordered) and k > 1:
-                    raise RouteError(
-                        f"{block_id}: {k} nets share a {2 * (half + PAD_MARGIN_UM):.2f}um "
-                        f"pad row at y={row_y} and one of them needs a strap -- "
-                        "no room for a ladder")
-                for i, net in enumerate(ordered):
-                    off = snap((i - (k - 1) / 2) * TRACK_PITCH_UM) if spread else 0.0
-                    y = snap(row_y + off)
-                    xs = sorted(p[1] for p in by_net[net])
-                    rect = Rect.hwire(xs[0], xs[-1], y, WIRE_UM)
-                    straps.append((net, rect))
-                    for x in xs:
-                        mcons.append((x, y))
-                    anchors.append(Anchor(net, block_id, "met1", y, xs[0], xs[-1],
-                                          [p[0] for p in by_net[net]],
-                                          pad_xs=xs, jog_um=JOG_REACH_UM))
-            else:
-                for net in ordered:
-                    members = sorted(by_net[net])
-                    # sorted by x, never by port name: diff_pair numbers its
-                    # top row in the mirrored order, so name order would leave
-                    # the row's outermost gate outside the strap (and float it)
-                    xs = sorted(m[1] for m in members)
-                    if len(ordered) > 1 and len(members) > 1:
-                        raise RouteError(
-                            f"{block_id}: gate row y={row_y} holds {len(ordered)} nets "
-                            f"and net {net} has {len(members)} pads -- cannot strap")
-                    rect = Rect.hwire(xs[0], xs[-1], row_y, WIRE_UM)
-                    straps.append((net, rect))
-                    for x in xs:
-                        mcons.append((x, row_y))
-                    anchors.append(Anchor(net, block_id, "met1", row_y, xs[0], xs[-1],
-                                          [m[0] for m in members],
-                                          pad_xs=xs, jog_um=JOG_REACH_UM))
-    return anchors, straps, mcons
+        placed = [{"name": p["name"],
+                   "layer": (p["layer"]["layer"], p["layer"]["datatype"]),
+                   "x_um": p["x_um"] + dx, "y_um": p["y_um"] + dy,
+                   "width_um": p["width_um"],
+                   "direction_deg": p["direction_deg"]}
+                  for p in report["ports"]]
+        cells.append((block_id, bb["y0"] + dy, bb["y1"] + dy,
+                      placed, port_nets[block_id]))
+    return collect_cell_anchors(cells)
 
 
 # --- router -------------------------------------------------------------------
@@ -452,7 +358,6 @@ class Router(RouterBase):
     # -- geometry bookkeeping -------------------------------------------------
     def add_met1(self, net: str, rects: list[Rect]) -> None:
         for rect in rects:
-            self.met1.append((net, rect))
             for b in range(rect.y0 // BUCKET_NM, rect.y1 // BUCKET_NM + 1):
                 self.met1_index[b].append((net, rect))
             self.add_shape(L_MET1, rect)
@@ -547,66 +452,19 @@ def build(blocks, reports, origins, port_nets):
     for x, y in mcons:
         router.add_mcon(x, y)
 
-    by_net: dict[str, list[Anchor]] = defaultdict(list)
-    for a in anchors:
-        by_net[a.net].append(a)
-    missing = sorted(set(by_net) - set(NET_ORDER))
-    unrouted = sorted(set(NET_ORDER) - set(by_net))
-    if missing or unrouted:
-        raise RouteError(f"net table mismatch: not in NET_ORDER {missing}, "
-                         f"no anchors {unrouted}")
+    by_net = group_anchors_by_net(anchors, NET_ORDER)
 
     summary: dict[str, dict] = {}
     for net in NET_ORDER:
         group = sorted(by_net[net], key=lambda a: (a.block, a.plane, a.y, a.x0))
         placed = [(*router.connect(a), a) for a in group]
-        placed.sort(key=lambda t: (t[0], t[1]))
-        spines = []
-        for (ca, ya, _a), (cb, yb, _b) in zip(placed, placed[1:]):
-            spines.append(router.route_spine(net, ca, ya, cb, yb))
-        summary[net] = {
-            "anchors": [{"block": a.block, "plane": a.plane, "ports": a.ports,
-                         "column_x_um": col, "y_um": y}
-                        for col, y, a in placed],
-            "spine_y_um": spines,
-        }
-        if net in PIN_NETS:
-            # The label must land on met1 that actually exists, so a net whose
-            # first anchor is a MiM riser (met2/met3/met4) is labelled at its
-            # first met1 anchor instead.
-            on_met1 = [t for t in placed if t[2].plane == "met1"]
-            if not on_met1:
-                raise RouteError(f"port net {net} has no met1 anchor to label")
-            col, y, _a = on_met1[0]
-            router.labels.append((L_MET1_PIN, net, col, y))
-    router.finish_trunks()
-
-    for net, info in summary.items():
-        info["wire_length_um"] = round(router.wire_um[net], 3)
-
-    draw_params = {
-        "shapes": [{"layer": list(layer), "rect_um": rect.as_um()}
-                   for layer, rect in router.shapes],
-        "labels": [{"layer": list(layer), "text": text, "at_um": [x, y]}
-                   for layer, text, x, y in router.labels],
-    }
-    order = [b for b, _g, _c, _p in blocks] + ["route"]
-    compose_request = {
-        "schema": "klt.gen_compose.request/1",
-        "pdk": {"variant": PDK_VARIANT},
-        "blocks": [{"id": b, "generator_report": f"{b}.json"}
-                   for b, _g, _c, _p in blocks]
-        + [{"id": "route", "generator_report": "draw.json"}],
-        "placement": {
-            "strategy": "explicit",
-            "order": order,
-            "origins_um": {**origins, "route": {"x": 0.0, "y": 0.0}},
-        },
-        # No `routing` block on purpose: gen-compose is a placer here; every
-        # wire is in the `route` block this script drew.
-        "connectivity": [],
-        "options": {"cell_name": TOP_CELL, "output": f"{TOP_CELL}.gds"},
-    }
+        finish_net(router, summary, net, placed, PIN_NETS)
+    draw_params = finalize_routing(router, summary)
+    compose_req = compose_request(
+        TOP_CELL,
+        [{"id": b, "generator_report": f"{b}.json"}
+         for b, _g, _c, _p in blocks],
+        [b for b, _g, _c, _p in blocks], origins)
     route_summary = {
         "block_origins_um": origins,
         # used_cols holds trunks plus the MiM risers' ±1-pitch keep-outs, so
@@ -614,7 +472,7 @@ def build(blocks, reports, origins, port_nets):
         "met2_columns_reserved": len(router.used_cols),
         "nets": summary,
     }
-    return draw_params, compose_request, route_summary
+    return draw_params, compose_req, route_summary
 
 
 # --- device-count evidence ----------------------------------------------------
@@ -651,7 +509,8 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path,
     origins, extents = place_rows(reports)
     ring_blocks = []
     for ring_id in RING_BLOCKS:
-        params, origin = ring_params(extents, ring_id)
+        params, origin = ring_params([extents[r] for r in RING_ROWS[ring_id]],
+                                     ring_id == "ntapring")
         ring_blocks.append((ring_id, "guard_ring", ring_id.upper(), params))
         origins[ring_id] = origin
     reports.update(gen_blocks(klt_cmd, pdk_args, out_dir, ring_blocks))
@@ -665,7 +524,7 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path,
                              f"did not emit: {sorted(want - have)}")
 
     say("[3/6] strap + route")
-    draw_params, compose_request, route_summary = build(
+    draw_params, compose_req, route_summary = build(
         blocks, reports, origins, port_nets)
     # Per-row footprints, keyed by the ROWS ids the README's floorplan table
     # quotes: the authoritative row spans, emitted so the README does not have
@@ -675,31 +534,14 @@ def flow(klt_cmd: list[str], pdk_root: Path, out_dir: Path,
                  "x1": round(e[2], 3), "y1": round(e[3], 3)}
         for row_id, e in extents.items()
     }
-    (out_dir / "draw.request.json").write_text(
-        json.dumps(draw_params, indent=1) + "\n")
-    (out_dir / "compose.request.json").write_text(
-        json.dumps(compose_request, indent=2) + "\n")
-    (out_dir / "route.summary.json").write_text(
-        json.dumps(route_summary, indent=2) + "\n")
     say(f"  {len(draw_params['shapes'])} routing shapes, "
         f"{route_summary['met2_columns_reserved']} met2 columns reserved")
-
-    say("[4/6] klt draw (routing cell) + klt gen-compose (explicit placement)")
-    r = run([*klt_cmd, "draw", "--params", "draw.request.json", "--cell-name", "ROUTE",
-             "-o", "route.gds", "--format", "json"], cwd=out_dir)
-    (out_dir / "draw.json").write_text(r.stdout)
-    run([*klt_cmd, "gen-compose", "compose.request.json", "--format", "json"], cwd=out_dir)
-    gds = out_dir / f"{TOP_CELL}.gds"
-    if not gds.exists():
-        raise RuntimeError(f"gen-compose did not write {gds}")
-
-    say("[5/6] klt drc (sky130 deck)")
-    r = run([*klt_cmd, "drc", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]
-            + pdk_args + ["--format", "json"], cwd=out_dir, check=False)
-    drc = json.loads(r.stdout) if r.stdout.strip() else {"error": r.stderr}
-    (out_dir / "drc.report.json").write_text(json.dumps(drc, indent=2) + "\n")
-    assert_drc_clean(drc, str(out_dir / "drc.report.json"))
-    say(f"  drc: status={drc.get('status')!r} violations={drc.get('violation_count')}")
+    drc = draw_compose_and_drc(
+        klt_cmd, pdk_args, out_dir, TOP_CELL, draw_params, compose_req,
+        route_summary, say=say,
+        draw_step="[4/6] klt draw (routing cell) + klt gen-compose "
+                  "(explicit placement)",
+        drc_step="[5/6] klt drc (sky130 deck)")
 
     say("[6/6] klt extract (device-count evidence)")
     run([*klt_cmd, "extract", f"{TOP_CELL}.gds", "--deck", "sky130", "--top", TOP_CELL]

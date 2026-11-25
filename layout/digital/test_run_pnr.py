@@ -29,7 +29,6 @@ What is pinned here:
   the advertised contract and the implementation cannot drift apart again.
 """
 import contextlib
-import importlib.util
 import io
 import json
 import pathlib
@@ -41,16 +40,16 @@ from unittest import mock
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 
+# `sim/` is not on sys.path under `python3 -I`: isolated mode drops CWD and
+# PYTHONPATH, and `discover -s layout/digital` puts only this directory
+# there. The shared loader lives in `sim/runner_test_common.py` (issue #355);
+# this module already reads `sim/pdk.json`, so the dependency is not new.
+sys.path.insert(0, str(REPO / "sim"))
 
-def load_runner():
-    """Load run_pnr.py by path: 'layout/digital' is not an importable name."""
-    spec = importlib.util.spec_from_file_location("run_pnr_under_test", HERE / "run_pnr.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+import runner_test_common as rtc                                    # noqa: E402
 
 
-RUNNER = load_runner()
+RUNNER = rtc.load_runner("run_pnr_under_test", HERE / "run_pnr.py")
 PIN = json.loads((REPO / "sim/pdk.json").read_text())
 STAMP = PIN["sources_stamp"]
 WRONG = "open_pdks 0000000000000000000000000000000000000000"
@@ -65,7 +64,10 @@ COMMITTED = {
 
 def report(stamp=STAMP, *, provenance=True, pdk=True, artifacts=("a.gds", "a.def", "a.v")):
     """A minimal `klt place-and-route --format json` report, in klt's shape."""
-    rep = {key: name for key, name in zip(RUNNER.OUT, artifacts)}
+    rep = {key: name for key, name in zip(RUNNER.OUT, artifacts) if key != "sdf_path"}
+    # post_route_spef/post_route_sdf (issue #162): the SDF path rides inside
+    # `spef_sta`, not at the top level the other three artifacts use.
+    rep["spef_sta"] = {"spef_path": "a.spef", "sdf_path": "a.sdf"}
     if provenance:
         block = {"klt_version": "0.9.2", "klayout_version": "0.30.13"}
         if pdk:
@@ -97,8 +99,11 @@ def fake_flow(rep, *, returncode=0, argv=("run_pnr.py",), committed=None, fresh=
             (here / name).write_bytes(blob)
         # The report's artifact paths are repo-relative, as klt emits them.
         for name in rep.values():
-            if isinstance(name, str) and name.endswith((".gds", ".def", ".v")):
+            if isinstance(name, str) and name.endswith((".gds", ".def", ".v", ".sdf", ".spef")):
                 (repo / name).write_bytes(fresh if name.endswith(".gds") else b"X")
+        for name in (rep.get("spef_sta") or {}).values():
+            if isinstance(name, str):
+                (repo / name).write_bytes(fresh if name.endswith(".sdf") else b"S")
         out = mock.Mock(returncode=returncode, stdout=json.dumps(rep), stderr="")
         err = io.StringIO()
         with mock.patch.object(RUNNER, "REPO", repo), \
@@ -155,6 +160,18 @@ class PdkPinRefusal(unittest.TestCase):
             rc = RUNNER.main()
             self.assertEqual(rc, 0)
             self.assertEqual((here / "decimator.gds").read_bytes(), b"GDS")
+
+    def test_absent_sdf_returns_1_naming_the_request_key(self):
+        """A report that reached the gate but wrote no SDF cannot feed the fv
+        request (issue #162): the runner says so instead of copying three of
+        four artifacts and exiting 0."""
+        rep = report()
+        rep["spef_sta"] = {"spef_path": "a.spef", "sdf_path": None}
+        with fake_flow(rep) as (_, here, err):
+            rc = RUNNER.main()
+            self.assertEqual(rc, 1)
+            self.assertIn("post_route_sdf", err.getvalue())
+            self.assertFalse((here / "decimator.sdf").exists())
 
     def test_failed_flow_returns_1_before_the_gate(self):
         with fake_flow(report(WRONG), returncode=1) as (_, _here, _err):

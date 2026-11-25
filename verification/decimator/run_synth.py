@@ -15,23 +15,9 @@ import xml.etree.ElementTree as ET
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(REPO / "sim"))
 import model as m  # noqa: E402
-
-
-def resolve_root(variant, pdk_root):
-    if pdk_root:
-        return pathlib.Path(pdk_root).expanduser()
-    out = subprocess.run(["klt", "pdk", "find", "--pdk", variant, "--format", "json"],
-                         capture_output=True, text=True)
-    if out.returncode:
-        sys.exit(f"REFUSE: klt pdk find failed: {out.stderr.strip()}")
-    return pathlib.Path(json.loads(out.stdout)["root"])
-
-
-def ver(cmd, pat):
-    o = subprocess.run(cmd, capture_output=True, text=True)
-    mt = re.search(pat, o.stdout + o.stderr)
-    return mt.group(0) if mt else "unknown"
+from settling_common import require_pinned_pdk, tool_version as ver  # noqa: E402
 
 
 def main():
@@ -43,13 +29,7 @@ def main():
     a = ap.parse_args()
     pin = json.load(open(REPO / "sim/pdk.json"))
     assert re.fullmatch(r"[0-9a-f]{40}", pin["open_pdks_revision"]), "pin is not a 40-hex SHA"
-    root_all = resolve_root(pin["variant"], a.pdk_root)
-    src = root_all / pin["variant"] / "SOURCES"
-    stamp = src.read_text().strip() if src.exists() else "<missing SOURCES>"
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root_all / pin['variant']} is '{stamp}', pinned '{pin['sources_stamp']}'",
-              file=sys.stderr)
-        return 2
+    root, stamp = require_pinned_pdk(pin, a.pdk_root)
     rtl = pathlib.Path(a.rtl_dir).resolve() if a.rtl_dir else REPO / "rtl"
     files = [rtl / "decimator.v", rtl / "decimator_coef.v"]
 
@@ -82,7 +62,8 @@ def main():
         shutil.rmtree(build, ignore_errors=True)
         return 0
 
-    # 3. klt synthesize against the pinned PDK
+    # 3. klt synthesize against the pinned PDK (klt's --pdk-root wants the
+    #    install root, the variant dir's parent)
     req = json.load(open(HERE / "synth_request.json"))
     if a.rtl_dir:
         req["sources"] = [str(f) for f in files]
@@ -91,7 +72,7 @@ def main():
     else:
         req_path = HERE / "synth_request.json"
     o = subprocess.run(["klt", "synthesize", str(req_path), "--pdk", pin["variant"],
-                        "--pdk-root", str(root_all), "--format", "json"], capture_output=True, text=True)
+                        "--pdk-root", str(root.parent), "--format", "json"], capture_output=True, text=True)
     if o.returncode:
         print(o.stdout + o.stderr, file=sys.stderr)
         return 1
