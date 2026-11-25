@@ -4,6 +4,9 @@ import argparse, json, pathlib, re, subprocess, sys, tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
+sys.path.insert(0, str(HERE.parent))
+from settling_common import require_pinned_pdk
+
 VCM, VREFP, VREFN, VINP, VINN = 0.9, 1.5, 0.3, 1.05, 0.75
 TOL = 0.020  # volts; switch-level nodes are driven by ideal sources through on switches
 
@@ -13,20 +16,7 @@ def main():
     ap.add_argument("--pdk-root")
     a = ap.parse_args()
     pin = json.load(open(REPO / "sim/pdk.json"))
-    if a.pdk_root:
-        root = pathlib.Path(a.pdk_root).expanduser()
-    else:
-        out = subprocess.run(["klt", "pdk", "find", "--pdk", pin["variant"], "--format", "json"],
-                             capture_output=True, text=True)
-        if out.returncode:
-            sys.exit(f"REFUSE: klt pdk find failed: {out.stderr.strip()}")
-        root = pathlib.Path(json.loads(out.stdout)["root"])
-    root = root / pin["variant"]
-    src = root / "SOURCES"
-    stamp = src.read_text().strip() if src.exists() else "<missing SOURCES>"
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
-        return 2
+    root, _ = require_pinned_pdk(pin, a.pdk_root)
     ng = root / "libs.tech/ngspice"
     deck = ((HERE / "integrator_load.cir").read_text()
             .replace("{{PDK_LIB}}", f'"{ng / "sky130.lib.spice"}"')

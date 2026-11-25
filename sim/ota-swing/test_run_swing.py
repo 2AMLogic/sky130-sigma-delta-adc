@@ -17,31 +17,21 @@ pinned:
   the request is the DR-002 anchor set with the fleet capacity wait, and the
   #257 swing reference table covers all 7 anchors with a cited sha256.
 """
-import importlib.util
-import io
 import json
 import math
 import pathlib
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stderr
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE))
+import runner_test_common as rtc                                    # noqa: E402
 import settling_common as sc  # noqa: E402
 
 
-def load_runner():
-    spec = importlib.util.spec_from_file_location("run_swing_under_test",
-                                                  HERE / "run_swing.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-RUNNER = load_runner()
+RUNNER = rtc.load_runner("run_swing_under_test", HERE / "run_swing.py")
 MK = sys.modules["make_request"]
 SC = sys.modules["settling_common"]
 REQUEST = json.loads((HERE / "request.json").read_text())
@@ -87,11 +77,7 @@ def full_corners():
     return {f"c{i}": corner(key=k) for i, k in enumerate(ANCHOR_KEYS)}
 
 
-def refuses(fn, *args, **kw):
-    buf = io.StringIO()
-    with redirect_stderr(buf):
-        ok = fn(*args, **kw)
-    return ok, buf.getvalue()
+refuses = rtc.call
 
 
 class SegGain(unittest.TestCase):
@@ -251,17 +237,17 @@ class GainReferenceGate(unittest.TestCase):
 
     def test_matching_reference_passes(self):
         _, xc = self.build_xcheck(56.6)
-        self.assertTrue(RUNNER.gain_reference_matches(None, xc))
+        self.assertTrue(RUNNER.gain_reference_matches(xc))
 
     def test_disagreeing_reference_refuses(self):
         _, xc = self.build_xcheck(53.0)   # 3.6 dB off the record
-        ok, err = refuses(RUNNER.gain_reference_matches, None, xc)
+        ok, err = refuses(RUNNER.gain_reference_matches, xc)
         self.assertFalse(ok)
         self.assertIn("sim/ota-gain", err)
 
     def test_missing_record_entry_refuses(self):
         # an empty xcheck means nothing was verified against the record
-        ok, err = refuses(RUNNER.gain_reference_matches, None, {})
+        ok, err = refuses(RUNNER.gain_reference_matches, {})
         self.assertFalse(ok)
         self.assertIn("REFUSE", err)
 
@@ -325,7 +311,7 @@ class GainReferenceGate(unittest.TestCase):
             for cid, row in per.items():
                 if cid != dropped_cid:
                     self.assertEqual(row, full[cell][cid])
-        ok, err = refuses(RUNNER.gain_reference_matches, None, xc)
+        ok, err = refuses(RUNNER.gain_reference_matches, xc)
         self.assertFalse(ok)
         self.assertIn("REFUSE", err)
         self.assertIn(gid, err)

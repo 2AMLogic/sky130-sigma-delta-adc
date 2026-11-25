@@ -34,6 +34,73 @@ def sndr_at(params, amp_dbfs):
     return run.run_point(params, amp_dbfs, N, sndr.odd_cycles(N))[0]
 
 
+# The eight parameter names a fixture corner declares under no_t_source.
+# They stay spelled out here -- never derived from model.PARAM_DEFAULTS --
+# so the fixtures remain an independent check of the corner schema: a
+# parameter the model adds or renames fails these suites first.
+NO_T_SOURCE_PARAMS = ("dc_gain", "settling_error", "ci_offset", "ci_gain_error",
+                      "ktc_noise_var", "comparator_offset",
+                      "comparator_hysteresis", "jitter_rms_s")
+
+
+def fixture_corner(params=None):
+    """Synthetic corner document: every NO_T_SOURCE_PARAMS parameter is
+    declared fixture-sourced, so the corner loads with no committed T
+    record (run.load_corner)."""
+    return {
+        "schema": "fixture",
+        "corner_id": "tt/1.800V/27C",
+        "sample_slug": "zz-fixture-no-such-samples",
+        "params": dict(model.PARAM_DEFAULTS) if params is None else dict(params),
+        "sources": {},
+        "no_t_source": {k: {"why": "fixture"} for k in NO_T_SOURCE_PARAMS},
+    }
+
+
+def write_corner(tmp, params=None):
+    path = tmp / "corner.json"
+    path.write_text(json.dumps(fixture_corner(params)))
+    return path
+
+
+def t_side(params, n_clocks, tone_cycles, with_input=False):
+    """T-format record from model B: a -6 dBFS coherent tone and integrator
+    states rounded to seven places in volts; the long fixture also carries
+    the input waveform in u_diff_v."""
+    u = model.tone_input(10 ** (-6 / 20), tone_cycles, n_clocks, 1, 0, params)
+    y, x1, x2 = model.modulate_with_states(u, params)
+    rec = {
+        "n_clocks": n_clocks,
+        "y": [int(v) for v in y],
+        "o1d_v": [round(float(v) * 1.2, 7) for v in x1],
+        "o2d_v": [round(float(v) * 1.2, 7) for v in x2],
+    }
+    if with_input:
+        rec["u_diff_v"] = [float(v) * 1.2 for v in u]
+    return rec
+
+
+def b_side(params, n_clocks, tone_cycles):
+    """B-format side of the same run: the bitstream plus the states
+    converted back to full scale."""
+    s = t_side(params, n_clocks, tone_cycles)
+    return {"y": s["y"],
+            "x1_fs": [v / 1.2 for v in s["o1d_v"]],
+            "x2_fs": [v / 1.2 for v in s["o2d_v"]]}
+
+
+def write_pair(tmp, b_params, t_params, n_clocks, tone_cycles,
+               with_input=False, corner_params=None):
+    """Write the corner, T-side and B-side fixture files; return their
+    paths (corner, b, t)."""
+    corner = write_corner(tmp, params=corner_params)
+    t_path = tmp / "t.json"
+    t_path.write_text(json.dumps(t_side(t_params, n_clocks, tone_cycles, with_input)))
+    b_path = tmp / "b.json"
+    b_path.write_text(json.dumps(b_side(b_params, n_clocks, tone_cycles)))
+    return corner, b_path, t_path
+
+
 class KnownSnrEstimator(unittest.TestCase):
     """`sndr_db` on a synthetic tone + white noise of known in-band SNR.
 
@@ -280,22 +347,6 @@ class CornerParams(unittest.TestCase):
     all its parameters under no_t_source so no committed record is needed.
     """
 
-    COVERED = ("dc_gain", "settling_error", "ci_offset", "ci_gain_error",
-               "ktc_noise_var", "comparator_offset", "comparator_hysteresis",
-               "jitter_rms_s")
-
-    def fixture_corner(self, **over):
-        doc = {
-            "schema": "fixture",
-            "corner_id": "tt/1.800V/27C",
-            "sample_slug": "zz-fixture-no-such-samples",
-            "params": dict(model.PARAM_DEFAULTS),
-            "sources": {},
-            "no_t_source": {k: {"why": "fixture"} for k in self.COVERED},
-        }
-        doc.update(over)
-        return doc
-
     def write_and_load(self, doc, tmp):
         path = tmp / "corner.json"
         path.write_text(json.dumps(doc))
@@ -312,21 +363,21 @@ class CornerParams(unittest.TestCase):
 
     def test_unknown_param_key_refused(self):
         with tempfile.TemporaryDirectory() as td:
-            doc = self.fixture_corner()
+            doc = fixture_corner()
             doc["params"]["bogus"] = 1
             with self.assertRaises(ValueError):
                 self.write_and_load(doc, pathlib.Path(td))
 
     def test_missing_param_key_refused(self):
         with tempfile.TemporaryDirectory() as td:
-            doc = self.fixture_corner()
+            doc = fixture_corner()
             del doc["params"]["seed"]
             with self.assertRaises(ValueError):
                 self.write_and_load(doc, pathlib.Path(td))
 
     def test_missing_wrapper_key_refused(self):
         with tempfile.TemporaryDirectory() as td:
-            doc = self.fixture_corner()
+            doc = fixture_corner()
             del doc["sources"]
             with self.assertRaises(ValueError):
                 self.write_and_load(doc, pathlib.Path(td))
@@ -335,14 +386,14 @@ class CornerParams(unittest.TestCase):
         """A parameter with neither a T source nor a no_t_source entry is an
         error, never a silent default (issue #128 acceptance criteria)."""
         with tempfile.TemporaryDirectory() as td:
-            doc = self.fixture_corner()
+            doc = fixture_corner()
             del doc["no_t_source"]["ktc_noise_var"]
             with self.assertRaises(ValueError):
                 self.write_and_load(doc, pathlib.Path(td))
 
     def test_missing_record_refused(self):
         with tempfile.TemporaryDirectory() as td:
-            doc = self.fixture_corner()
+            doc = fixture_corner()
             doc["sources"] = {"dc_gain": {
                 "record": "sim/no-such-record.json",
                 "record_sha256": "sha256:" + "0" * 64,
@@ -354,7 +405,7 @@ class CornerParams(unittest.TestCase):
     def test_stale_record_hash_refused(self):
         real = REPO / "sim/ota-gain/record.json"
         with tempfile.TemporaryDirectory() as td:
-            doc = self.fixture_corner()
+            doc = fixture_corner()
             doc["sources"] = {"dc_gain": {
                 "record": "sim/ota-gain/record.json",
                 "record_sha256": "sha256:" + "0" * 64,
@@ -377,46 +428,11 @@ class CrossCheck(unittest.TestCase):
     """
 
     N = 1024
-
-    def side(self, params):
-        u = model.tone_input(10 ** (-6 / 20), 3, self.N, 1, 0, params)
-        y, x1, x2 = model.modulate_with_states(u, params)
-        return {
-            "n_clocks": self.N,
-            "y": [int(v) for v in y],
-            "o1d_v": [round(float(v) * 1.2, 7) for v in x1],
-            "o2d_v": [round(float(v) * 1.2, 7) for v in x2],
-        }
-
-    def b_side(self, params):
-        s = self.side(params)
-        return {"y": s["y"],
-                "x1_fs": [v / 1.2 for v in s["o1d_v"]],
-                "x2_fs": [v / 1.2 for v in s["o2d_v"]]}
-
-    def fixture_corner_path(self, tmp):
-        doc = {
-            "schema": "fixture",
-            "corner_id": "tt/1.800V/27C",
-            "sample_slug": "zz-fixture-no-such-samples",
-            "params": dict(model.PARAM_DEFAULTS),
-            "sources": {},
-            "no_t_source": {k: {"why": "fixture"} for k in
-                            ("dc_gain", "settling_error", "ci_offset",
-                             "ci_gain_error", "ktc_noise_var",
-                             "comparator_offset", "comparator_hysteresis",
-                             "jitter_rms_s")},
-        }
-        p = tmp / "corner.json"
-        p.write_text(json.dumps(doc))
-        return p
+    TONE_CYCLES = 3
 
     def compare(self, tmp, b_params, t_params):
-        corner = self.fixture_corner_path(tmp)
-        t_path = tmp / "t.json"
-        t_path.write_text(json.dumps(self.side(t_params)))
-        b_path = tmp / "b.json"
-        b_path.write_text(json.dumps(self.b_side(b_params)))
+        corner, b_path, t_path = write_pair(tmp, b_params, t_params,
+                                            self.N, self.TONE_CYCLES)
         return xcheck.compare_corner(corner, b_path, t_path)
 
     def test_near_identical_pair_passes_all_legs(self):
@@ -442,10 +458,11 @@ class CrossCheck(unittest.TestCase):
     def test_length_mismatch_refused(self):
         with tempfile.TemporaryDirectory() as td:
             tmp = pathlib.Path(td)
-            corner = self.fixture_corner_path(tmp)
+            p = dict(model.PARAM_DEFAULTS)
+            corner = write_corner(tmp)
             t_path = tmp / "t.json"
-            t_path.write_text(json.dumps(self.side(dict(model.PARAM_DEFAULTS))))
-            b = self.b_side(dict(model.PARAM_DEFAULTS))
+            t_path.write_text(json.dumps(t_side(p, self.N, self.TONE_CYCLES)))
+            b = b_side(p, self.N, self.TONE_CYCLES)
             b["y"] = b["y"][:-1]
             b["x1_fs"] = b["x1_fs"][:-1]
             b["x2_fs"] = b["x2_fs"][:-1]
@@ -472,8 +489,7 @@ class CrossCheck(unittest.TestCase):
         uncross-checked, never skipped (issue #128 acceptance criteria)."""
         with tempfile.TemporaryDirectory() as td:
             entry = xcheck.finalise_entry(
-                xcheck.no_t_samples_entry(self.fixture_corner_path(
-                    pathlib.Path(td))))
+                xcheck.no_t_samples_entry(write_corner(pathlib.Path(td))))
             self.assertTrue(entry["cross_check_status"].startswith("uncross-checked"))
             self.assertIsNotNone(entry["error"])
             self.assertIsNone(entry["t_samples_file"])
@@ -615,51 +631,16 @@ class CrossCheckLong(unittest.TestCase):
     short path reads the short record."""
 
     N = 4096
-
-    def side(self, params):
-        u = model.tone_input(10 ** (-6 / 20), 12, self.N, 1, 0, params)
-        y, x1, x2 = model.modulate_with_states(u, params)
-        return {
-            "n_clocks": self.N,
-            "u_diff_v": [float(v) * 1.2 for v in u],
-            "y": [int(v) for v in y],
-            "o1d_v": [round(float(v) * 1.2, 7) for v in x1],
-            "o2d_v": [round(float(v) * 1.2, 7) for v in x2],
-        }
-
-    def b_side(self, params):
-        s = self.side(params)
-        return {"y": s["y"],
-                "x1_fs": [v / 1.2 for v in s["o1d_v"]],
-                "x2_fs": [v / 1.2 for v in s["o2d_v"]]}
-
-    def fixture_corner_path(self, tmp, params=None):
-        doc = {
-            "schema": "fixture",
-            "corner_id": "tt/1.800V/27C",
-            "sample_slug": "zz-fixture-no-such-samples",
-            "params": dict(model.PARAM_DEFAULTS) if params is None
-            else dict(params),
-            "sources": {},
-            "no_t_source": {k: {"why": "fixture"} for k in
-                            ("dc_gain", "settling_error", "ci_offset",
-                             "ci_gain_error", "ktc_noise_var",
-                             "comparator_offset", "comparator_hysteresis",
-                             "jitter_rms_s")},
-        }
-        p = tmp / "corner.json"
-        p.write_text(json.dumps(doc))
-        return p
+    TONE_CYCLES = 12
 
     def compare(self, tmp, b_params, t_params):
         # The corner file carries the B side's parameters, as the real
         # pipeline does (run.py --xcheck loads them from the corner file),
         # so the seed ensemble re-derives the committed B side exactly.
-        corner = self.fixture_corner_path(tmp, params=b_params)
-        t_path = tmp / "t.json"
-        t_path.write_text(json.dumps(self.side(t_params)))
-        b_path = tmp / "b.json"
-        b_path.write_text(json.dumps(self.b_side(b_params)))
+        corner, b_path, t_path = write_pair(tmp, b_params, t_params,
+                                            self.N, self.TONE_CYCLES,
+                                            with_input=True,
+                                            corner_params=b_params)
         return xcheck.compare_corner(corner, b_path, t_path, long=True)
 
     def test_band_resolves_with_noise_bins_beside_the_lobe(self):
@@ -718,10 +699,12 @@ class CrossCheckLong(unittest.TestCase):
     def test_length_mismatch_refused(self):
         with tempfile.TemporaryDirectory() as td:
             tmp = pathlib.Path(td)
-            corner = self.fixture_corner_path(tmp)
+            p = dict(model.PARAM_DEFAULTS)
+            corner = write_corner(tmp)
             t_path = tmp / "t.json"
-            t_path.write_text(json.dumps(self.side(dict(model.PARAM_DEFAULTS))))
-            b = self.b_side(dict(model.PARAM_DEFAULTS))
+            t_path.write_text(json.dumps(
+                t_side(p, self.N, self.TONE_CYCLES, with_input=True)))
+            b = b_side(p, self.N, self.TONE_CYCLES)
             b["y"] = b["y"][:-1]
             b_path = tmp / "b.json"
             b_path.write_text(json.dumps(b))
@@ -783,8 +766,8 @@ class CrossCheckLong(unittest.TestCase):
     def test_missing_t_bitstream_reported_uncrosschecked(self):
         with tempfile.TemporaryDirectory() as td:
             entry = xcheck.finalise_entry(
-                xcheck.no_t_samples_entry(self.fixture_corner_path(
-                    pathlib.Path(td)), long=True), long=True)
+                xcheck.no_t_samples_entry(write_corner(pathlib.Path(td)),
+                                          long=True), long=True)
             self.assertTrue(entry["cross_check_status"].startswith("uncross-checked"))
             self.assertIn("samples-long", entry["error"])
 

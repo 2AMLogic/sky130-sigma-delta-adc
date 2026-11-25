@@ -37,7 +37,6 @@ class CellRouter(Router):
 
     def add_met1(self, net, rects):
         for rect in rects:
-            self.met1.append((net, rect))
             for b in range(rect.y0 // BUCKET_NM, rect.y1 // BUCKET_NM + 1):
                 self.met1_index[b].append((net, rect))
 
@@ -192,7 +191,6 @@ class ConnectMet1BudgetTests(unittest.TestCase):
         # jog tracks, while the pad-38 vwire at x 37.83..38.17 clears it.
         band = Rect.um(27.5, 3.19, 28.5, 3.31)
         for b in (flank, band):
-            r.met1.append(("blocker", b))
             for bucket in range(b.y0 // BUCKET_NM, b.y1 // BUCKET_NM + 1):
                 r.met1_index[bucket].append(("blocker", b))
         return r, a

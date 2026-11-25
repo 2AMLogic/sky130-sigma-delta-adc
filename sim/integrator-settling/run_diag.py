@@ -17,7 +17,8 @@ import argparse, hashlib, json, pathlib, re, subprocess, sys, tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
-from settling_common import join_continuations, ngspice_version, pdk_stamp
+from settling_common import (join_continuations, ngspice_version,  # noqa: E402
+                             require_pinned_stamp, sha256)
 
 BASELINE_REV = "ffbbb3b"   # merge of PR #93: the netlists record.json was taken on
 
@@ -216,10 +217,7 @@ def main():
     a = ap.parse_args()
 
     pin = json.load(open(REPO / "sim/pdk.json"))
-    root, stamp = pdk_stamp(pin["variant"], a.pdk_root)
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'", file=sys.stderr)
-        return 2
+    root, stamp = require_pinned_stamp(pin, a.pdk_root)
     out = HERE / a.out
     if a.write and out.exists():
         print(f"REFUSE: {out.name} exists; results are append-only (use --out)", file=sys.stderr)
@@ -247,8 +245,8 @@ def main():
         "pdk_sources_stamp": stamp,
         "pdk_pin": {"file": "sim/pdk.json", "open_pdks_revision": pin["open_pdks_revision"]},
         "ngspice": ngspice_version(),
-        "deck_sha256": sha256_bytes((HERE / "diag_1v62.cir.tmpl").read_bytes()),
-        "ota_netlist_sha256": sha256_bytes((REPO / "design/ota/ota_fd.spice").read_bytes()),
+        "deck_sha256": sha256(HERE / "diag_1v62.cir.tmpl"),
+        "ota_netlist_sha256": sha256(REPO / "design/ota/ota_fd.spice"),
         "baseline_rev": a.baseline_rev,
         "runs": {},
     }

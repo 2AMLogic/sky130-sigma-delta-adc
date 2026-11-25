@@ -25,27 +25,23 @@ bytes against the hashes in probe-i92.json / probe-i106.json, so a later edit
 of those templates fails here instead of silently invalidating the records'
 provenance.
 """
-import importlib.util
 import pathlib
 import re
 import subprocess
+import sys
 import tempfile
 import unittest
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
+# `sim/` is not on sys.path under `python3 -I`: isolated mode drops CWD and
+# PYTHONPATH, and `discover -s sim/switch-probe` puts only the bench directory
+# there. run_probe.py inserts it once loaded, which is too late for this import.
+sys.path.insert(0, str(HERE.parent))
 
+import runner_test_common as rtc                                    # noqa: E402
 
-def load_runner():
-    """Load run_probe.py by path: 'switch-probe' is not an importable name."""
-    spec = importlib.util.spec_from_file_location(
-        "run_probe_under_test", HERE / "run_probe.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-R = load_runner()
+R = rtc.load_runner("run_probe_under_test", HERE / "run_probe.py")
 
 # spec row 11 / section 5.4: each input side within +/-0.3 V of vcm = 0.9 V.
 RANGE_LO, RANGE_HI = 0.6, 1.2

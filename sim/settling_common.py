@@ -1,13 +1,34 @@
 """Shared `klt sim` plumbing for the transistor-level benches.
 
 Used by ota-settling, integrator-settling, integrator-ci, ota-gain,
-integrator-noise, comparator-decision and modulator-tran. Toolchain only:
+integrator-noise, comparator-decision and modulator-tran; the local runners
+ota-op-smoke, integrator-load-check and modulator-load-check import only
+`require_pinned_pdk` (issue #81), and since issue #376 the analog and digital
+smoke runners, the decimator runner and `resolve_fv_sdf.py` import the PDK-pin
+gate too (`require_pinned_pdk`/`require_pinned_stamp`/`resolve_root`, plus
+`tool_version` for the tool stamps), so every runner owes the pin check
+exactly once, here, before it may touch the PDK. Toolchain only:
 submits a `klt sim` request, parses the report into per-corner measurements,
 summarizes it, and builds the common DR-002 request. The `.partials/` cache
 (`shas`/`load_partial`/`save_partial`) is a record-admission gate like the
 other two (`grid_complete`/`measurements_present`), so it lives here too: a
 partial produced by a different request or deck must never reach a record.
-Each bench keeps its own fixture, measurements and record metadata.
+The settling benches share their measurement expressions, not just their
+names: `settling_measurements()` builds both benches' 14-entry list from
+per-bench timing and limit constants (the 2026-11-23 operator ruling on
+issue #95, reversing the per-bench choice this paragraph used to record),
+so `err_phase`, `t_1e4` and `t_slew` mean the same thing in both. Everything
+else stays per bench: each keeps its own fixture, constants and limits,
+record metadata, and the non-settling benches their own measurements.
+
+The multi-variant loop over that cache (`submit_variant`, `run_variant_set`,
+`run_probe`, `refuse_missing_variants`, `refuse_from_partials_conflicts`)
+is shared the same way (issue #354, continuing #57/#174/#253): the four
+multi-variant runners (integrator-settling, comparator-decision,
+integrator-ci, integrator-sampling) pass their own request/probe/tag/partial
+spellings and their own `run_klt`/`HERE`/`PARTIALS`/`ARTIFACTS` in as hooks,
+so the loop is written once while each bench keeps its filenames, its
+refusal-wording history and its test seams.
 
 The measurement-key list and the admission sentinel are per bench: the
 settling benches' defaults (`KEYS`, `err_phase`) are the historical ones, and
@@ -122,17 +143,91 @@ def ngspice_version(log=None):
     return m.group(0) if m else "unknown"
 
 
-def pdk_stamp(variant, pdk_root):
+def tool_version(cmd, pat):
+    """The first `pat` match in `cmd`'s combined output, or 'unknown'.
+
+    The `ver()` the digital smoke and decimator runners each hand-copied
+    before issue #376 (continuing the same consolidation); callers import it
+    aliased as `ver` so their `tools` records keep the spelling they were
+    written with.
+    """
+    o = subprocess.run(cmd, capture_output=True, text=True)
+    m = re.search(pat, o.stdout + o.stderr)
+    return m.group(0) if m else "unknown"
+
+
+def resolve_root(variant, pdk_root):
+    """The PDK-root lookup every runner owes: `--pdk-root` wins, `klt pdk find` else.
+
+    The wrapper the analog and digital smoke runners, the decimator runner
+    and `resolve_fv_sdf.py` each hand-copied before issue #376. On a lookup
+    failure it keeps the historical `REFUSE: klt pdk find failed:` exit.
+    """
     if pdk_root:
-        root = pathlib.Path(pdk_root).expanduser()
-    else:
-        out = subprocess.run(["klt", "pdk", "find", "--pdk", variant, "--format", "json"],
-                             capture_output=True, text=True)
-        if out.returncode:
-            sys.exit(f"REFUSE: klt pdk find failed: {out.stderr.strip()}")
-        root = pathlib.Path(json.loads(out.stdout)["root"])
+        return pathlib.Path(pdk_root).expanduser()
+    out = subprocess.run(["klt", "pdk", "find", "--pdk", variant, "--format", "json"],
+                         capture_output=True, text=True)
+    if out.returncode:
+        sys.exit(f"REFUSE: klt pdk find failed: {out.stderr.strip()}")
+    return pathlib.Path(json.loads(out.stdout)["root"])
+
+
+def pdk_stamp(variant, pdk_root):
+    root = resolve_root(variant, pdk_root)
     src = root / variant / "SOURCES"
     return root, (src.read_text().strip() if src.exists() else "<missing SOURCES>")
+
+
+def require_pinned_stamp(pin, pdk_root):
+    """`pdk_stamp` plus the sim/pdk.json pin check, for a runner that records
+    the stamp but builds its PDK paths off the un-varianted root.
+
+    The gate the twelve klt-submitted runners (comparator-decision, both
+    integrator-ci runners, integrator-noise, the three integrator-settling
+    runners, modulator-tran, ota-gain, ota-settling, ota-swing, switch-probe)
+    each hand-copied before issue #376, continuing #81: resolve the PDK root
+    (`pdk_root`, else `klt pdk find`), read `<root>/<variant>/SOURCES`, and
+    on a mismatch with `pin["sources_stamp"]` print that cohort's historical
+    `REFUSE:` line -- which names the un-varianted root `pdk_stamp` returns
+    -- to stderr and exit 2. Returns `pdk_stamp`'s `(root, stamp)` pair
+    unchanged, so the runners' `root / variant / ...` paths and their
+    records' `pdk_sources_stamp` keep their form. The lookup failure path
+    (exit with `REFUSE: klt pdk find failed: …`) stays in `pdk_stamp`,
+    unchanged.
+    """
+    root, stamp = pdk_stamp(pin["variant"], pdk_root)
+    if stamp != pin["sources_stamp"]:
+        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'",
+              file=sys.stderr)
+        sys.exit(2)
+    return root, stamp
+
+
+def require_pinned_pdk(pin, pdk_root):
+    """`pdk_stamp` plus the sim/pdk.json pin check every local runner owes.
+
+    The lookup and the SOURCES-stamp comparison the non-attested local
+    runners (ota-op-smoke, integrator-load-check, modulator-load-check) each
+    hand-copied before issue #81, and -- with the same refusal wording, which
+    names the `<root>/<variant>` path -- the `resolve_root` blocks the analog
+    and digital smoke runners, the decimator runner and `resolve_fv_sdf.py`
+    each carried before issue #376: resolve the PDK root (`pdk_root`, else
+    `klt pdk find` via `pdk_stamp`), read `<root>/<variant>/SOURCES`, and on
+    a mismatch with `pin["sources_stamp"]` print the historical `REFUSE:`
+    line to stderr and exit 2. Returns `(<root>/<variant>, stamp)`: the
+    variant path the local runners build their `libs.tech`/`libs.ref` paths
+    against, and the stamp the recording runners write as
+    `pdk_sources_stamp`. The lookup failure path (exit with
+    `REFUSE: klt pdk find failed: …`) stays in `pdk_stamp`, unchanged.
+    """
+    variant = pin["variant"]
+    root, stamp = pdk_stamp(variant, pdk_root)
+    root = root / variant
+    if stamp != pin["sources_stamp"]:
+        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'",
+              file=sys.stderr)
+        sys.exit(2)
+    return root, stamp
 
 
 def anchor_units(process_map=None):
@@ -160,6 +255,44 @@ def measurement(name, expr, unit=None, limits=None):
     if limits:
         m["limits"] = limits
     return m
+
+
+def settling_measurements(t_step, t_sample, t_end, t_slew0, ideal_dv,
+                          err_max, ripple_max, ideal_tol):
+    """The settling benches' 14-entry measurement list (issue #95).
+
+    One definition of err_phase / t_1e4 / t_slew for ota-settling and
+    integrator-settling (the 2026-11-23 operator ruling): the integrator
+    result is read against the OTA one (#92), which only holds while the
+    expressions mean the same thing in both benches. The per-bench timing
+    constants, slew-mask start and limits stay arguments.
+
+    The formatting matches the integrator bench's historical f-strings, so
+    `request_int1.json` / `request_int2.json` rebuild byte-identically; the
+    OTA bench's committed request keeps its hand-written `3.3e-9` slew start
+    (`{t_slew0:.6g}` prints `3.3e-09`) and is not regenerated (issue #192).
+    """
+    # `lt`/`gt`: bare < > are shell redirections in ngspice's control language.
+    slewmask = f"(abs(deriv(v(vod))) ge 0.8*slope_pk)*(time gt {t_slew0:.6g})"
+    return [
+        measurement("vod_pre", "v(vod)[0]", "V"),
+        measurement("vod_end", "v(vod)[length(v(vod))-1]", "V"),
+        measurement("step_dv", "vod_end - vod_pre", "V"),
+        measurement("k_phase", f"mean(time lt {t_sample:.6g})*length(time)"),
+        measurement("vod_phase", f"v(vod)[k_phase-1] + ({t_sample:.6g}-time[k_phase-1])/(time[k_phase]-time[k_phase-1])"
+                     "*(v(vod)[k_phase]-v(vod)[k_phase-1])", "V"),
+        measurement("err_phase", "abs(vod_phase - vod_end)/abs(step_dv)", None, {"max": err_max}),
+        measurement("t_1e4", f"vecmax((abs(v(vod)-vod_end) gt 1e-4*abs(step_dv))*time) - {t_step:.6g}", "s"),
+        measurement("t_1e3", f"vecmax((abs(v(vod)-vod_end) gt 1e-3*abs(step_dv))*time) - {t_step:.6g}", "s"),
+        measurement("t_1e2", f"vecmax((abs(v(vod)-vod_end) gt 1e-2*abs(step_dv))*time) - {t_step:.6g}", "s"),
+        measurement("slope_pk", f"vecmax(abs(deriv(v(vod)))*(time gt {t_slew0:.6g}))", "V/s"),
+        measurement("t_slew", f"vecmax({slewmask}*time) - vecmin({slewmask}*time + 1*(1-{slewmask}))", "s"),
+        measurement("slew_frac", "t_slew/t_1e4"),
+        measurement("end_ripple_rel", f"(vecmax(v(vod)*(time gt {t_end - 20e-9:.6g}) - 10*(time le {t_end - 20e-9:.6g}))"
+                     f" - vecmin(v(vod)*(time gt {t_end - 20e-9:.6g}) + 10*(time le {t_end - 20e-9:.6g})))"
+                     "/abs(step_dv)", None, {"max": ripple_max}),
+        measurement("step_err_vs_ideal", f"abs(abs(step_dv) - {ideal_dv})/{ideal_dv}", None, {"max": ideal_tol}),
+    ]
 
 
 def request(deck, measurements, t_end=None, timeout_s=None, poll_timeout_s=None, *,
@@ -323,4 +456,155 @@ def measurements_present(corners_list, key="err_phase"):
         print(f"REFUSE: {len(bad)} corner(s) returned no {key} (diagnostics: {', '.join(codes)}); "
               "nothing was simulated there, so no record is written", file=sys.stderr)
         return False
+    return True
+
+
+# ------------------------------------------------- the variant-set loop ----
+#
+# The multi-variant runners (integrator-settling, comparator-decision,
+# integrator-ci, integrator-sampling) share one loop shape: a `want` set of
+# variants the record needs, a `run` subset asked for this invocation, reuse
+# of a cached partial for the rest, and the issue #94 rule -- a variant whose
+# submit fails is refused, never backfilled from .partials/. It lived as four
+# hand-copied blocks (already drifting: --from-partials vs --probe ordering,
+# missing-partial wording, temp-dir cleanup) until issue #354 folded it here.
+# Everything per-bench stays a hook, so each bench keeps its spelling and the
+# shared test harness keeps patching RUNNER.run_klt / HERE / PARTIALS /
+# ARTIFACTS on the runner module.
+
+
+def submit_variant(run_klt_fn, request_path, tmp, tag, probe_path, *,
+                   variant=None, probe=False, artifacts_dir=None,
+                   summarize_fn, shas, env_fields=None, status_line=False,
+                   **run_klt_kw):
+    """One variant's `klt sim` submission, assembled into its result dict.
+
+    Returns the result dict (`summary`/`corners`/`pass`/`ngspice`/
+    `engine_host`/`remote`, any `env_fields(e)`, then `shas`), or None after
+    the issue #94 refusal line if `run_klt_fn` returned no usable report: a
+    failed submit is never a result, and never a reason to fall back to a
+    local grid or to .partials/.
+
+    `tag` names the run_klt artifacts (`.artifacts/klt-{tag}.stderr.txt`);
+    `variant` (default `tag`) is the label the loop prints and the value
+    `summarize_fn(variant, corners)` sees. `status_line` prints the summary
+    with the report status merged in, the settling benches' shape.
+    `env_fields` derives extra result fields from the report's environment
+    block (the charge-injection bench's `monte_carlo_env`).
+    """
+    v = tag if variant is None else variant
+    res = run_klt_fn(request_path, probe, tmp, tag, probe_path,
+                     artifacts_dir=None if probe else artifacts_dir, **run_klt_kw)
+    if res is None:
+        print(f"{tag}: no usable report (see .artifacts/klt-{tag}.stderr.txt); "
+              "not falling back to a local grid or to .partials/", file=sys.stderr)
+        return None
+    rep, corners = res
+    e = rep.get("environment", {})
+    summary = summarize_fn(v, corners)
+    result = {"summary": summary, "corners": corners,
+              "pass": rep.get("status") == "pass",
+              "ngspice": e.get("engine_version", "unknown"),
+              "engine_host": e.get("engine_host"), "remote": e.get("remote"),
+              **(env_fields(e) if env_fields else {}), **shas}
+    line = {"status": rep.get("status"), **summary} if status_line else summary
+    print(v, json.dumps(line, indent=2))
+    return result
+
+
+def run_probe(variant, tmp, *, run_klt_fn, artifacts_dir, request_fn,
+              probe_request_fn, tag_fn, summarize_fn, shas_fn,
+              env_fields=None, status_line=False, **run_klt_kw):
+    """One local tt/27C/1.8V corner of one variant; None means refuse (exit 1).
+
+    The single-variant `--probe` shape every runner shares: submit locally,
+    refuse with the probe's own exit-1 line if nothing came back, else hand
+    the result dict to the caller (which prints its corners). No partial is
+    written for a probe.
+    """
+    res = submit_variant(run_klt_fn, request_fn(variant), tmp, tag_fn(variant),
+                         probe_request_fn(variant), variant=variant, probe=True,
+                         summarize_fn=summarize_fn, shas=shas_fn(variant),
+                         env_fields=env_fields, status_line=status_line,
+                         **run_klt_kw)
+    if res is None:
+        print(f"REFUSE: no result for the {variant} probe; nothing printed.",
+              file=sys.stderr)
+        return None
+    return res
+
+
+def run_variant_set(want, run, tmp, *, run_klt_fn, artifacts_dir, request_fn,
+                    probe_request_fn, tag_fn, partial_fn, shas_fn, summarize_fn,
+                    reuse_label_fn=None, submit_kwargs_fn=None, usable_fn=None,
+                    env_fields=None, status_line=False):
+    """The want-vs-run loop: reuse a partial, submit fresh, cache. -> results.
+
+    For every variant in `want` that this invocation did not ask for (not in
+    `run`), a sha-matching cached partial is reused. Every variant in `run`
+    is submitted fresh, and its result is cached under `partial_fn(v)` --
+    unless `usable_fn(v, corners)` says it could not stand in a record on its
+    own (a lost-shard grid: legitimate to report, illegitimate to cache over
+    a good partial). A failed submit prints the issue #94 refusal line and
+    leaves the variant missing; `refuse_missing_variants` turns that into
+    the exit-1 refusal.
+
+    The hooks are the per-bench spellings: `request_fn`/`probe_request_fn`/
+    `tag_fn` name the request, probe request and run_klt tag for a variant;
+    `partial_fn` the cache path; `reuse_label_fn` (default: the partial's
+    filename) the reuse line's label; `shas_fn` the hash gate;
+    `summarize_fn(variant, corners)` the summary; and `submit_kwargs_fn(v)`
+    any extra run_klt kwargs (keys, capacity_wait_s, hosts, outdir, resume).
+    """
+    results = {}
+    for v in want:
+        if v not in run:
+            saved = load_partial(partial_fn(v), shas_fn(v))
+            if saved:
+                label = partial_fn(v).name if reuse_label_fn is None else reuse_label_fn(v)
+                print(f"{v}: reusing {label} ({saved['summary']})")
+                results[v] = saved
+            continue
+        res = submit_variant(
+            run_klt_fn, request_fn(v), tmp, tag_fn(v), probe_request_fn(v),
+            variant=v, artifacts_dir=artifacts_dir, summarize_fn=summarize_fn,
+            shas=shas_fn(v), env_fields=env_fields, status_line=status_line,
+            **(submit_kwargs_fn(v) if submit_kwargs_fn else {}))
+        if res is None:
+            continue
+        results[v] = res
+        if usable_fn is None or usable_fn(v, res["corners"]):
+            save_partial(partial_fn(v), res)
+        else:
+            print(f"{v}: not cached in .partials/ -- this result cannot stand "
+                  "in a record on its own; re-run this variant", file=sys.stderr)
+    return results
+
+
+def refuse_missing_variants(want, results, from_partials=False):
+    """The shared missing-variant refusal; True refuses (caller exits 1)."""
+    missing = [v for v in want if v not in results]
+    if not missing:
+        return False
+    how = "no cached partial for" if from_partials else "no result for"
+    print(f"REFUSE: {how} {', '.join(missing)}; no record written. "
+          f"Re-run with --variant {missing[0]} when the fleet has capacity.", file=sys.stderr)
+    return True
+
+
+def refuse_from_partials_conflicts(**flags):
+    """Refuse --from-partials combined with flags that would mean something.
+
+    `flags` maps a flag name (without dashes) to whether it was given; any
+    given flag prints the exit-2 refusal and returns True. --from-partials
+    submits nothing, so --probe/--variant/--resume cannot change what it
+    does -- and a runner that dispatched on --probe first would silently
+    launch a local simulation instead of refusing, the drift issue #354
+    closed.
+    """
+    bad = [f"--{name}" for name, given in flags.items() if given]
+    if not bad:
+        return False
+    print(f"REFUSE: --from-partials submits nothing, so {', '.join(bad)} "
+          "has no meaning with it", file=sys.stderr)
     return True

@@ -3,8 +3,7 @@
 A second-order, single-bit switched-capacitor delta-sigma ADC with its decimation
 filter on sky130, carried to T1 (sim-validated) evidence as graded by `klt signoff`.
 
-Status as of 2026-11-17, `main` @ `0309c08`. Every figure is simulated; none is
-measured. The verdict of record is
+Every figure is simulated; none is measured. The verdict of record is
 [`manifests/sky130-sigma-delta-adc.signoff.json`](manifests/sky130-sigma-delta-adc.signoff.json)
 and wins over this file. Tracking issue: #3 (its hand-kept checklist is stale).
 `WORK_PLAN.md` is the label-generated queue; this file gives the order and why.
@@ -12,7 +11,7 @@ and wins over this file. Tracking issue: #3 (its hand-kept checklist is stale).
 ## Where it stands
 
 `klt signoff` (pinned klt 0.9.2) grades 22 rows, 11 items by two partitions:
-**10 met, 1 not applicable, 11 unmet.**
+**12 met, 1 not applicable, 9 unmet.**
 
 | T1 item | Analog (modulator) | Digital (decimator) |
 |---|---|---|
@@ -22,11 +21,11 @@ and wins over this file. Tracking issue: #3 (its hand-kept checklist is stale).
 | 4 LVS clean | unmet: #32 | met: `layout/digital/lvs-decimator.report.json` (#82) |
 | 5 Corner verification | unmet (`check_failed`): envelope fails row 11 (integrator swing, #148) | met at ten liberty corners (#132); 35 DR-002 points uncovered, #131 |
 | 6 Monte Carlo | unmet: #34 | not applicable, hash-bound statement (#134) |
-| 7 Post-layout | unmet: #35 | unmet: no SDF-annotated run yet |
+| 7 Post-layout | unmet: #35 | met: `verification/decimator/fv-sdf-decimator.report.json` — SDF-annotated gate-level re-simulation (#162) |
 | 8 Characterization report | unmet (`check_failed`): rows still `partial`/`pending` in `measurements/characterization.md` | same envelope |
 | 9 Testbenches shipped | met | met |
 | 10 Repo hygiene | met | met |
-| 11 Power delivery | unmet: #39 | unmet: #39 |
+| 11 Power delivery | unmet: #39 | met: `layout/digital/erc-decimator.report.json` with the LVS report and P&R response (#333) |
 
 Evidence on `main` that does not yet move a row:
 
@@ -64,10 +63,6 @@ Evidence on `main` that does not yet move a row:
   top-level devices, assemble `modulator.gds` per DR-004. After #119 and #121.
 - **After #29**: DRC of the analog partition and the top (#31), analog LVS (#32),
   the assembled ADC stream (#122), power delivery (#39), post-layout `klt pex` (#35).
-- **Item 11, digital** (#333, carved out of #39): `klt erc` supply evidence for
-  `VDDD`/`VSSD` is committed clean (`layout/digital/erc-decimator.report.json`);
-  the row turns `met` when the `klt place-and-route` response (#332, for #162)
-  is committed and cited beside it (#333 Part B).
 - **Decimator electrical rules** (no issue yet; file after #136 so the STA report
   is regenerated once): `layout/README.md` records 660 max-transition and 7
   max-capacitance violations at `ss_n40C_1v60`. Done when the committed STA report
@@ -101,8 +96,7 @@ Evidence on `main` that does not yet move a row:
   alternative (draw the intra-gate wiring with `klt draw`, under a decision record)
   needs a maintainer decision. This is the one external blocker on #29, and through
   it on analog items 2, 3, 4, 7 and 11.
-- **Cleanup proposals awaiting a maintainer ruling**: #96 (remove
-  `sim/toolchain.json`), #95, #43; #81 waits on #43, #153 on PR #145.
+- **Cleanup proposals awaiting a maintainer ruling**: #95, #43; #81 waits on #43, #153 on PR #145.
 - **klayout-tools#5550**: the functional-verification report carries no provenance
   block, so the manifest pins no `content_hash` for that citation.
 

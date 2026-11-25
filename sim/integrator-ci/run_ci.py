@@ -35,8 +35,8 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
 import settling_common as sc  # noqa: E402
 from settling_common import (ANCHOR_SUBSET_NOTE, CAPACITY_WAIT_S, grid_complete,  # noqa: E402
-                             join_continuations, load_partial, measurements_present,
-                             pdk_stamp, run_klt, save_partial, sha256, summarize)
+                             join_continuations, measurements_present,
+                             require_pinned_stamp, run_klt, sha256, summarize)
 
 sys.path.insert(0, str(HERE))
 import make_request as mk  # noqa: E402
@@ -168,28 +168,6 @@ def mc_shas(v):
 
 def partial_path(v, mc):
     return PARTIALS / (f"mc-{v}.json" if mc else f"{v}.json")
-
-
-def submit(v, mc, tmp, probe=False, probe_path=None, hosts=None,
-           capacity_wait_s=CAPACITY_WAIT_S):
-    req = HERE / (f"request_mc_{v}.json" if mc else f"request_{v}.json")
-    tag = f"mc-{v}" if mc else v
-    res = run_klt(req, probe, tmp, tag, probe_path or (HERE / f"probe_request_{tag}.json"),
-                  artifacts_dir=None if probe else ARTIFACTS, keys=mk.KEYS,
-                  hosts=None if probe else hosts, capacity_wait_s=capacity_wait_s)
-    if res is None:
-        print(f"{tag}: no usable report (see .artifacts/klt-{tag}.stderr.txt); not "
-              "falling back to a local grid or to .partials/", file=sys.stderr)
-        return None
-    rep, corners = res
-    e = rep.get("environment", {})
-    result = {"summary": summarize(corners, SENTINEL), "corners": corners,
-              "pass": rep.get("status") == "pass",
-              "ngspice": e.get("engine_version", "unknown"),
-              "engine_host": e.get("engine_host"), "remote": e.get("remote"),
-              "monte_carlo_env": e.get("monte_carlo"),
-              **(mc_shas(v) if mc else shas(v))}
-    return result
 
 
 # ---------------------------------------------------------- derivations -----
@@ -561,8 +539,10 @@ def self_test(tmp):
         print("REFUSE: the self-test probe returned no report", file=sys.stderr)
         return 1
     skewed = next(iter(res[1].values()))[SENTINEL]
-    base = submit("post_v0", False, tmp, probe=True,
-                  probe_path=HERE / ".selftest_probe_base.json")
+    base = sc.submit_variant(run_klt, HERE / "request_post_v0.json", tmp, "post_v0",
+                             HERE / ".selftest_probe_base.json", probe=True,
+                             summarize_fn=lambda v, c: summarize(c, SENTINEL),
+                             shas=shas("post_v0"), keys=mk.KEYS)
     if base is None:
         return 1
     floor = next(iter(base["corners"].values()))[SENTINEL]
@@ -813,11 +793,7 @@ def main():
     if a.bmodel_params:          # reads records only: no klt, no PDK, no fleet
         return write_bmodel_params(a.bmodel_params)
     pin = json.load(open(REPO / "sim/pdk.json"))
-    root, stamp = pdk_stamp(pin["variant"], a.pdk_root)
-    if stamp != pin["sources_stamp"]:
-        print(f"REFUSE: PDK at {root} is '{stamp}', pinned '{pin['sources_stamp']}'",
-              file=sys.stderr)
-        return 2
+    root, stamp = require_pinned_stamp(pin, a.pdk_root)
     out = HERE / (a.record_name or ("record-mc.json" if a.mc else "record.json"))
     if a.record and out.exists():
         print(f"REFUSE: {out.name} exists; records are append-only (use --record-name)",
@@ -829,21 +805,29 @@ def main():
             return self_test(tmp)
         if a.probe_step:
             return probe_step(a.probe_step, tmp)
+        want = MC_VARIANTS if a.mc else GRID_VARIANTS
+        # Checked before the probe dispatch: --from-partials submits nothing,
+        # so --probe must not silently launch a local simulation under it.
+        if a.from_partials and sc.refuse_from_partials_conflicts(
+                probe=bool(a.probe), variant=bool(a.variant)):
+            return 2
         if a.probe:
-            res = submit(a.probe, False, tmp, probe=True)
+            res = sc.run_probe(
+                a.probe, tmp, run_klt_fn=run_klt, artifacts_dir=ARTIFACTS,
+                request_fn=lambda v: HERE / f"request_{v}.json",
+                probe_request_fn=lambda v: HERE / f"probe_request_{v}.json",
+                tag_fn=lambda v: v,
+                summarize_fn=lambda v, c: summarize(c, SENTINEL), shas_fn=shas,
+                keys=mk.KEYS, hosts=None, capacity_wait_s=a.capacity_wait)
             if res is None:
-                print(f"REFUSE: no result for the {a.probe} probe; nothing printed.",
-                      file=sys.stderr)
                 return 1
             print(json.dumps(res["corners"], indent=2))
             return 0
 
-        want = MC_VARIANTS if a.mc else GRID_VARIANTS
+        def tag(v):
+            return f"mc-{v}" if a.mc else v
+
         if a.from_partials:
-            if a.variant:
-                print("REFUSE: --from-partials submits nothing, so --variant has "
-                      "no meaning with it", file=sys.stderr)
-                return 2
             run = ()
         else:
             run = tuple(dict.fromkeys(a.variant)) if a.variant else want
@@ -853,28 +837,19 @@ def main():
                   file=sys.stderr)
             return 2
 
-        results = {}
-        for v in want:
-            if v not in run:
-                saved = load_partial(partial_path(v, a.mc), mc_shas(v) if a.mc else shas(v))
-                if saved:
-                    print(f"{v}: reusing {partial_path(v, a.mc).name} ({saved['summary']})")
-                    results[v] = saved
-                continue
-            res = submit(v, a.mc, tmp, hosts=a.hosts,
-                         capacity_wait_s=a.capacity_wait)
-            if res is None:
-                continue
-            print(v, json.dumps(res["summary"], indent=2))
-            results[v] = res
-            save_partial(partial_path(v, a.mc), res)
-
-        missing = [v for v in want if v not in results]
-        if missing:
-            how = ("no cached partial for" if a.from_partials else "no result for")
-            print(f"REFUSE: {how} {', '.join(missing)}; no record written. "
-                  f"Re-run with --variant {missing[0]} when the fleet has capacity.",
-                  file=sys.stderr)
+        results = sc.run_variant_set(
+            want, run, tmp, run_klt_fn=run_klt, artifacts_dir=ARTIFACTS,
+            request_fn=lambda v: HERE / (f"request_mc_{v}.json" if a.mc
+                                         else f"request_{v}.json"),
+            probe_request_fn=lambda v: HERE / f"probe_request_{tag(v)}.json",
+            tag_fn=tag,
+            partial_fn=lambda v: partial_path(v, a.mc),
+            shas_fn=lambda v: mc_shas(v) if a.mc else shas(v),
+            summarize_fn=lambda v, c: summarize(c, SENTINEL),
+            submit_kwargs_fn=lambda v: {"keys": mk.KEYS, "hosts": a.hosts,
+                                        "capacity_wait_s": a.capacity_wait},
+            env_fields=lambda e: {"monte_carlo_env": e.get("monte_carlo")})
+        if sc.refuse_missing_variants(want, results, from_partials=a.from_partials):
             return 1
 
         corner_sets = [results[v]["corners"] for v in want]

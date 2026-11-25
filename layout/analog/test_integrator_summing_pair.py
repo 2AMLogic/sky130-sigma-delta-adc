@@ -25,24 +25,11 @@ Both are pure geometry over synthetic `Anchor`/`Rect` inputs, exactly like
 test_router_core.py / test_router_shared.py; the generator module is loaded
 by path the way test_drc_guard.py does it.
 """
-import importlib.util
-import pathlib
 import unittest
 
 from layout_common import (Anchor, L_MET1, L_MET2, Rect, RouteError, nm,
                            snap)
-
-HERE = pathlib.Path(__file__).resolve().parent
-
-
-def load_generator(rel: str):
-    """Load a generator module by path: 'layout/analog/...' is not importable."""
-    spec = importlib.util.spec_from_file_location(
-        rel.replace("/", "_") + "_under_test", HERE / rel)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
+from layout_test_common import load_generator
 
 GI = load_generator("integrator/gen_integrator.py")
 
