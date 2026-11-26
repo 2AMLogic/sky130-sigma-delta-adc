@@ -9,8 +9,13 @@ pinned:
   railed-output refusal, the compression-point interpolation (crossed and
   never-crossed curves), and the interpolation at the #257 recorded swings.
 - The record-admission gates (issue #94's rule for this bench): a missing
-  anchor, a segment with no measurement, and a segment still moving at the
-  measurement instant each refuse the record.
+  anchor, a same-count substitution of one, a segment with no measurement,
+  and a segment still moving at the measurement instant each refuse the
+  record.
+- A completed run's partial, saved with `save_partial` and reloaded with
+  `load_partial`, still covers the anchors and builds its record: the JSON
+  round trip decodes the corner identities as lists, which the shared rule
+  normalizes instead of raising on (issue #393).
 - The small-signal reference gate: a per-anchor disagreement with
   sim/ota-gain's record larger than the tolerance refuses the record.
 - The committed deck and request are exactly what make_request.py builds,
@@ -191,6 +196,17 @@ class RecordGates(unittest.TestCase):
         corners["c99"] = corner(key=("tt", 1.8, 125))       # not an anchor
         self.assertFalse(RUNNER.anchors_complete(corners))
 
+    def test_same_count_substitution_refuses(self):
+        # issue #393: 7 rows, one of them not an anchor -- coverage is
+        # identities, not a row count
+        corners = full_corners()
+        corners["c0"]["corner_key"] = ("tt", 1.8, 125)
+        ok, err = refuses(RUNNER.anchors_complete, corners)
+        self.assertFalse(ok)
+        self.assertIn("unexpected", err)
+        self.assertIn("('tt', 1.8, 125)", err)
+        self.assertIn("('tt', 1.8, 27)", err)
+
     def test_missing_segment_measurement_refuses(self):
         corners = full_corners()
         corners["c0"]["segments"]["a"]["04u"]["outn"] = None
@@ -220,6 +236,71 @@ class RecordGates(unittest.TestCase):
                 for name, s in corners[cid]["segments"][cell].items():
                     s["rip"] = s["vod"] + 1e-6
         self.assertTrue(RUNNER.segments_settled(corners))
+
+
+class PartialRoundTrip(unittest.TestCase):
+    """The documented --record workflow: a completed run is saved under
+    .partials/ and recorded later without re-simulating. The JSON round trip
+    decodes each corner_key tuple as a list, which used to raise TypeError in
+    the coverage gate and silently missed every c0p3 swing lookup downstream
+    (issue #393)."""
+
+    def setUp(self):
+        self.corners = full_corners()
+        self.expected_shas = sc.shas(HERE / MK.REQUEST, HERE / MK.DECK)
+
+    def round_trip(self):
+        saved = {"corners": self.corners,
+                 "environment": {"engine_version": "ngspice-47"},
+                 "provenance": {"klt_version": "klt-test"},
+                 "batch_receipt": None,
+                 **self.expected_shas}
+        with tempfile.TemporaryDirectory() as td:
+            path = pathlib.Path(td) / "swing.json"
+            sc.save_partial(path, saved)
+            return sc.load_partial(path, self.expected_shas)
+
+    def test_round_tripped_keys_are_lists_and_still_cover_the_anchors(self):
+        loaded = self.round_trip()
+        self.assertIsNotNone(loaded)
+        for c in loaded["corners"].values():
+            self.assertIsInstance(c["corner_key"], list)
+        ok, err = refuses(RUNNER.anchors_complete, loaded["corners"])
+        self.assertTrue(ok, err)
+
+    def test_a_round_tripped_substitution_is_refused(self):
+        self.corners["c0"]["corner_key"] = ("tt", 1.8, 125)
+        loaded = self.round_trip()
+        ok, err = refuses(RUNNER.anchors_complete, loaded["corners"])
+        self.assertFalse(ok)
+        self.assertIn("unexpected", err)
+
+    def test_the_record_builds_from_a_reloaded_partial(self):
+        loaded = self.round_trip()
+        corners = RUNNER.normalize_corner_keys(loaded["corners"])
+        self.assertTrue(RUNNER.segments_present(corners))
+        self.assertTrue(RUNNER.segments_settled(corners))
+        derived = {cid: {cell: RUNNER.derive_cell(c["segments"], cell)
+                         for cell in sorted(MK.CELLS)}
+                   for cid, c in corners.items()}
+        xc = RUNNER.gain_xcheck(corners, derived)
+        rec = RUNNER.build_record({"corners": corners, "batch_receipt": None},
+                                  derived, xc, "open_pdks test",
+                                  {"open_pdks_revision": "deadbeef"},
+                                  {"engine_version": "ngspice-47"},
+                                  {"klt_version": "klt-test"})
+        self.assertEqual(len(rec["corners"]), 7)
+        for cid, c in rec["corners"].items():
+            self.assertEqual(c["corner_key"], list(corners[cid]["corner_key"]))
+        # the swing lookups keyed on the normalized tuple: every anchor found
+        # its c0p3 reference swing (with the list form these were silently
+        # None and every verdict read "inconclusive")
+        for cell in rec["summary"]["per_cell"].values():
+            for row in cell["per_anchor"].values():
+                self.assertIsNotNone(row["o1_ref_swing_vpp"])
+                self.assertIsNotNone(row["o2_ref_swing_vpp"])
+                self.assertIsNotNone(row["gain_at_o1_swing_db"])
+                self.assertIsNotNone(row["gain_at_o2_swing_db"])
 
 
 class GainReferenceGate(unittest.TestCase):

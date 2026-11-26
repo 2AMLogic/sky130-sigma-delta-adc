@@ -92,12 +92,16 @@ def measurement_map(corner):
 
 # ------------------------------------------------------------ record gates --
 def anchors_complete(corners, expected=len(mk.ANCHOR_POINTS)):
-    """True if the report holds one entry per DR-002 anchor; else print REFUSE."""
-    if len(corners) != expected:
-        print(f"REFUSE: {len(corners)} of {expected} anchor points returned; "
-              "no record written", file=sys.stderr)
-        return False
-    return True
+    """True if the report holds one entry per DR-002 anchor; else print REFUSE.
+
+    The row count AND the identities (issue #393): the rule itself is
+    `sc.anchors_complete`, and this bench's corner entries -- a report
+    corner's process, supply_v and temperature_c -- convert to the hashable
+    anchor identity at the boundary here. A same-count substitution of one
+    anchor is not coverage.
+    """
+    return sc.anchors_complete([sc.corner_key(c) for c in corners.values()],
+                               expected)
 
 
 def scalars_present(corners):
