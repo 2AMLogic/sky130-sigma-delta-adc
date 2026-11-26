@@ -2,6 +2,11 @@
 
 Chronological record of merged PRs and closed issues, maintained by the Guide role.
 
+### 2026-11-26
+
+- **PR #395**: fix: share the DR-002 anchor coverage gate between the anchor benches
+- **Issue #393** (closed): Share DR-002 anchor validation between the modulator transient and OTA swing runners
+
 ### 2026-11-24
 
 - **PR #371**: docs: drop ROADMAP's drifting status stamp; graded record states as-of-ness
