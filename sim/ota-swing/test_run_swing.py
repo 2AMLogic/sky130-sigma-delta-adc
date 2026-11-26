@@ -28,6 +28,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
@@ -238,30 +239,45 @@ class RecordGates(unittest.TestCase):
         self.assertTrue(RUNNER.segments_settled(corners))
 
 
-class PartialRoundTrip(unittest.TestCase):
+class PartialRoundTrip(rtc.RunnerCase):
     """The documented --record workflow: a completed run is saved under
     .partials/ and recorded later without re-simulating. The JSON round trip
     decodes each corner_key tuple as a list, which used to raise TypeError in
     the coverage gate and silently missed every c0p3 swing lookup downstream
     (issue #393)."""
 
-    def setUp(self):
-        self.corners = full_corners()
-        self.expected_shas = sc.shas(HERE / MK.REQUEST, HERE / MK.DECK)
+    RUNNER = RUNNER
+    BENCH = HERE
+    ARGV0 = "run_swing.py"
 
-    def round_trip(self):
+    def input_names(self):
+        return MK.REQUEST, MK.DECK
+
+    def patch_extra(self, stack):
+        stack.enter_context(mock.patch.object(RUNNER, "SCRATCH", self.work))
+
+    def setUp(self):
+        super().setUp()
+        reference = json.loads(RUNNER.GAIN_RECORD.read_text())["corners"]
+        self.corners = {}
+        for i, key in enumerate(ANCHOR_KEYS):
+            process, vdda, temp = key
+            gain_db = reference[f"{process}/{vdda:.3f}V/{temp:g}C"]["dc_gain_db"]
+            self.corners[f"c{i}"] = corner(key=key, segments=settled_segments(gain_db=gain_db))
+        self.expected_shas = sc.shas(self.here / MK.REQUEST, self.here / MK.DECK)
+        self.partial_path = self.partials / "swing.json"
+
+    def save_corners(self):
         saved = {"corners": self.corners,
                  "environment": {"engine_version": "ngspice-47"},
                  "provenance": {"klt_version": "klt-test"},
                  "batch_receipt": None,
                  **self.expected_shas}
-        with tempfile.TemporaryDirectory() as td:
-            path = pathlib.Path(td) / "swing.json"
-            sc.save_partial(path, saved)
-            return sc.load_partial(path, self.expected_shas)
+        sc.save_partial(self.partial_path, saved)
 
     def test_round_tripped_keys_are_lists_and_still_cover_the_anchors(self):
-        loaded = self.round_trip()
+        self.save_corners()
+        loaded = sc.load_partial(self.partial_path, self.expected_shas)
         self.assertIsNotNone(loaded)
         for c in loaded["corners"].values():
             self.assertIsInstance(c["corner_key"], list)
@@ -269,33 +285,33 @@ class PartialRoundTrip(unittest.TestCase):
         self.assertTrue(ok, err)
 
     def test_a_round_tripped_substitution_is_refused(self):
-        self.corners["c0"]["corner_key"] = ("tt", 1.8, 125)
-        loaded = self.round_trip()
-        ok, err = refuses(RUNNER.anchors_complete, loaded["corners"])
-        self.assertFalse(ok)
-        self.assertIn("unexpected", err)
+        for key in [("tt", 1.8, 125), ("tt", 1.8, 27.5), ("tt", 1.8004, 27)]:
+            with self.subTest(key=key):
+                self.corners["c0"] = corner(key=key)
+                self.save_corners()
+                rc, _, err = self.run_main(["--record"], submits={})
+                self.assertEqual(rc, 1, err)
+                self.assertIn(f"unexpected: [{key!r}]", err)
+                self.assertEqual(self.calls, [])
+                self.assertFalse((self.here / "record.json").exists())
 
     def test_the_record_builds_from_a_reloaded_partial(self):
-        loaded = self.round_trip()
-        corners = RUNNER.normalize_corner_keys(loaded["corners"])
-        self.assertTrue(RUNNER.segments_present(corners))
-        self.assertTrue(RUNNER.segments_settled(corners))
-        derived = {cid: {cell: RUNNER.derive_cell(c["segments"], cell)
-                         for cell in sorted(MK.CELLS)}
-                   for cid, c in corners.items()}
-        xc = RUNNER.gain_xcheck(corners, derived)
-        rec = RUNNER.build_record({"corners": corners, "batch_receipt": None},
-                                  derived, xc, "open_pdks test",
-                                  {"open_pdks_revision": "deadbeef"},
-                                  {"engine_version": "ngspice-47"},
-                                  {"klt_version": "klt-test"})
+        self.save_corners()
+        rc, _, err = self.run_main(["--record"], submits={})
+        self.assertEqual(self.calls, [])
+        self.assertEqual(rc, 0, err)
+        rec = json.loads((self.here / "record.json").read_text())
+        self.assertTrue(rec["pass"])
         self.assertEqual(len(rec["corners"]), 7)
         for cid, c in rec["corners"].items():
-            self.assertEqual(c["corner_key"], list(corners[cid]["corner_key"]))
+            self.assertEqual(c["corner_key"], list(self.corners[cid]["corner_key"]))
         # the swing lookups keyed on the normalized tuple: every anchor found
         # its c0p3 reference swing (with the list form these were silently
         # None and every verdict read "inconclusive")
-        for cell in rec["summary"]["per_cell"].values():
+        per_cell = rec["summary"]["per_cell"]
+        self.assertEqual(set(per_cell), {c["label"] for c in MK.CELLS.values()})
+        for cell in per_cell.values():
+            self.assertEqual(cell["per_anchor"].keys(), self.corners.keys())
             for row in cell["per_anchor"].values():
                 self.assertIsNotNone(row["o1_ref_swing_vpp"])
                 self.assertIsNotNone(row["o2_ref_swing_vpp"])

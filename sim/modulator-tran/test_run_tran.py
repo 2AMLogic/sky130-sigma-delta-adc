@@ -119,22 +119,21 @@ class RecordGates(unittest.TestCase):
         self.assertIn("6 of 7 DR-002 anchor points", err)
 
     def test_same_count_substitution_is_refused(self):
-        # issue #393: the 27 C tt anchor replaced by a 125 C corner at the
-        # same voltage (corner ID updated to match) still returns 7 entries
-        # and passes every OTHER gate -- only the identity rule sees it
         rep = report()
-        rep["corners"][0] = report_corner("tt/vclk=1.800_vdda=1.800V/125C")
-        corners, samples = RUNNER.extract(rep)
-        self.assertEqual(len(corners), len(ANCHOR_IDS))
-        self.assertTrue(RUNNER.scalars_present(corners))
-        self.assertTrue(RUNNER.samples_present(samples))
-        self.assertTrue(RUNNER.clock_ran_at_fs(corners))
-        self.assertTrue(RUNNER.power_routes_agree(corners, WINDOW_S))
-        ok, err = refuses(RUNNER.anchors_complete, corners)
-        self.assertFalse(ok)
-        self.assertIn("unexpected", err)
-        self.assertIn("('tt', 1.8, 125)", err)
-        self.assertIn("('tt', 1.8, 27)", err)
+        for vdda, temp in [(1.8, 125), (1.8, 27.5), (1.8004, 27)]:
+            with self.subTest(vdda=vdda, temp=temp):
+                rep["corners"][0] = report_corner(f"tt/vclk={vdda}_vdda={vdda}V/{temp}C")
+                corners, samples = RUNNER.extract(rep)
+                self.assertEqual(len(corners), len(ANCHOR_IDS))
+                self.assertTrue(RUNNER.scalars_present(corners))
+                self.assertTrue(RUNNER.samples_present(samples))
+                self.assertTrue(RUNNER.clock_ran_at_fs(corners))
+                self.assertTrue(RUNNER.power_routes_agree(corners, WINDOW_S))
+                ok, err = refuses(RUNNER.anchors_complete, corners)
+                self.assertFalse(ok)
+                self.assertIn("missing: [('tt', 1.8, 27)]", err)
+                key = ("tt", vdda, float(temp))
+                self.assertIn(f"unexpected: [{key!r}]", err)
 
     def test_missing_scalar_measurement_is_refused(self):
         # A fleet job that dies still returns one entry per point, so the

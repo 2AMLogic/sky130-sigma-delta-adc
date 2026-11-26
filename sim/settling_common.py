@@ -470,11 +470,10 @@ def anchor_key(a):
 
     One normalization for every form that identity takes in the benches: an
     `ANCHOR_POINTS` triple, a bench corner's `corner_key`, or the JSON list
-    a cached partial holds it in (a tuple becomes a list through
-    `save_partial`). The voltage is rounded to millivolts and the
-    temperature coerced to int, so 1.8, 1.800 and 27.0 all compare equal.
+    a cached partial holds it in. Keep the reported coordinates intact.
+    Numeric equality already handles equivalent forms such as 27 and 27.0.
     """
-    return (a[0], round(float(a[1]), 3), int(a[2]))
+    return tuple(a)
 
 
 def corner_key(c):
@@ -483,8 +482,7 @@ def corner_key(c):
     Read off the report's own corner fields, independent of the corner_id
     text a bench parses for its filenames and summaries.
     """
-    return (c["process"], round(float(c["supply_v"]["vdda"]), 3),
-            int(c["temperature_c"]))
+    return (c["process"], c["supply_v"]["vdda"], c["temperature_c"])
 
 
 def anchors_complete(corner_keys, expected=len(ANCHOR_POINTS)):
