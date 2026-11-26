@@ -301,7 +301,9 @@ corners, and the batch fleet then needs no artifact retrieval at all.
 `run_tran.py` writes no record unless **all** of these hold (fixture tests in
 `test_run_tran.py` pin each one; no EDA tools needed):
 
-1. all seven anchors returned;
+1. all seven anchors returned, and they are exactly the declared anchor set —
+   identities, not just a row count, so a same-count substitution of one
+   anchor refuses (the shared rule in `settling_common`, issue #393);
 2. every anchor produced every scalar measurement — a fleet job that dies
    still returns one entry per point, so a count gate alone would let an empty
    grid become a "record";

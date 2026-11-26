@@ -12,6 +12,10 @@ What is pinned here:
   a clock that did not run at fs, and two power routes that disagree each
   refuse the record (issue #94's rule for this bench: a partial or failed batch
   submit must not become a record).
+- A same-count substitution -- the 27 C tt anchor's corner replaced by a
+  125 C one at the same voltage, corner ID updated to match -- refuses it
+  too: coverage is anchor identities, not a row count (issue #393, the
+  shared rule in settling_common).
 - A corner that *fails* a limit is still recorded, and recorded as failing --
   the opposite of a missing corner, and what the issue asks for.
 - The request is what the record says it is: 7 DR-002 anchors with `vclk`
@@ -112,7 +116,24 @@ class RecordGates(unittest.TestCase):
         corners, _ = RUNNER.extract(report(n_anchors=6))
         ok, err = refuses(RUNNER.anchors_complete, corners)
         self.assertFalse(ok)
-        self.assertIn("6 of 7 anchor points", err)
+        self.assertIn("6 of 7 DR-002 anchor points", err)
+
+    def test_same_count_substitution_is_refused(self):
+        rep = report()
+        for vdda, temp in [(1.8, 125), (1.8, 27.5), (1.8004, 27)]:
+            with self.subTest(vdda=vdda, temp=temp):
+                rep["corners"][0] = report_corner(f"tt/vclk={vdda}_vdda={vdda}V/{temp}C")
+                corners, samples = RUNNER.extract(rep)
+                self.assertEqual(len(corners), len(ANCHOR_IDS))
+                self.assertTrue(RUNNER.scalars_present(corners))
+                self.assertTrue(RUNNER.samples_present(samples))
+                self.assertTrue(RUNNER.clock_ran_at_fs(corners))
+                self.assertTrue(RUNNER.power_routes_agree(corners, WINDOW_S))
+                ok, err = refuses(RUNNER.anchors_complete, corners)
+                self.assertFalse(ok)
+                self.assertIn("missing: [('tt', 1.8, 27)]", err)
+                key = ("tt", vdda, float(temp))
+                self.assertIn(f"unexpected: [{key!r}]", err)
 
     def test_missing_scalar_measurement_is_refused(self):
         # A fleet job that dies still returns one entry per point, so the

@@ -13,6 +13,12 @@ summarizes it, and builds the common DR-002 request. The `.partials/` cache
 (`shas`/`load_partial`/`save_partial`) is a record-admission gate like the
 other two (`grid_complete`/`measurements_present`), so it lives here too: a
 partial produced by a different request or deck must never reach a record.
+The anchor-set coverage gate (`anchor_key`/`corner_key`/`anchors_complete`)
+is shared the same way (issue #393): the modulator-tran and ota-swing
+runners each hand-wrote it and the two disagreed -- the modulator's counted
+rows only, so a same-count substitution passed as coverage, and the OTA's
+keyed on the tuples a cached JSON partial returns as lists, so a reloaded
+run raised instead of recording.
 The settling benches share their measurement expressions, not just their
 names: `settling_measurements()` builds both benches' 14-entry list from
 per-bench timing and limit constants (the 2026-11-23 operator ruling on
@@ -455,6 +461,50 @@ def measurements_present(corners_list, key="err_phase"):
         codes = sorted({d for _, _, ds in bad for d in ds}) or ["<none>"]
         print(f"REFUSE: {len(bad)} corner(s) returned no {key} (diagnostics: {', '.join(codes)}); "
               "nothing was simulated there, so no record is written", file=sys.stderr)
+        return False
+    return True
+
+
+def anchor_key(a):
+    """The hashable identity of an anchor point: (process, vdda, temp_c).
+
+    One normalization for every form that identity takes in the benches: an
+    `ANCHOR_POINTS` triple, a bench corner's `corner_key`, or the JSON list
+    a cached partial holds it in. Keep the reported coordinates intact.
+    Numeric equality already handles equivalent forms such as 27 and 27.0.
+    """
+    return tuple(a)
+
+
+def corner_key(c):
+    """`anchor_key` of one report corner: its process, vdda and temperature.
+
+    Read off the report's own corner fields, independent of the corner_id
+    text a bench parses for its filenames and summaries.
+    """
+    return (c["process"], c["supply_v"]["vdda"], c["temperature_c"])
+
+
+def anchors_complete(corner_keys, expected=len(ANCHOR_POINTS)):
+    """True if `corner_keys` is exactly the declared DR-002 anchor set.
+
+    The shared coverage rule for the anchor-subset benches (issue #393,
+    replacing the modulator transient's count-only check and the OTA swing
+    bench's own set comparison): the row count AND the identities must both
+    match, so a same-count substitution -- a 125 C corner standing where the
+    27 C anchor was requested -- or a duplicate filling the count refuses
+    instead of passing as coverage. `corner_keys` holds one identity per
+    returned corner in whatever form the bench's boundary produced; each is
+    normalized by `anchor_key`, so the JSON lists a cached partial decodes
+    the identities into are accepted, not raised on.
+    """
+    keys = [anchor_key(k) for k in corner_keys]
+    want = {anchor_key(a) for a in ANCHOR_POINTS}
+    got = set(keys)
+    if len(keys) != expected or got != want:
+        print(f"REFUSE: {len(keys)} of {expected} DR-002 anchor points returned "
+              f"(missing: {sorted(want - got)}, unexpected: {sorted(got - want)}); "
+              "no record written", file=sys.stderr)
         return False
     return True
 

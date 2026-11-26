@@ -34,7 +34,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE.parent))
 import settling_common as sc  # noqa: E402
-from settling_common import require_pinned_stamp, run_klt, sha256  # noqa: E402
+from settling_common import (anchor_key, corner_key,  # noqa: E402
+                             require_pinned_stamp, run_klt, sha256)
 
 sys.path.insert(0, str(HERE))
 import make_request as mk  # noqa: E402
@@ -81,13 +82,19 @@ def db(a):
     return None if a is None or a <= 0 else 20.0 * math.log10(a)
 
 
-def corner_key(c):
-    """(process, vdda, temp) -- the anchor identity, independent of corner_id text."""
-    return (c["process"], round(float(c["supply_v"]["vdda"]), 3), int(c["temperature_c"]))
+def normalize_corner_keys(corners):
+    """Corner identities back to hashable tuples after a JSON round trip.
 
-
-def anchor_key(anchor):
-    return (anchor[0], round(float(anchor[1]), 3), int(anchor[2]))
+    `save_partial`/`load_partial` serialize each `corner_key` tuple into a
+    list, which is unhashable and never equal to the tuple keys the anchor
+    comparison and the c0p3 swing table use. One conversion at the bench
+    boundary (issue #393), so every consumer downstream -- the shared
+    coverage rule, the ota-gain reference row, the c0p3 swing interpolation
+    -- keys on the same normalized `anchor_key`. Idempotent on the tuple
+    form a fresh extract produces.
+    """
+    return {cid: {**c, "corner_key": anchor_key(c["corner_key"])}
+            for cid, c in corners.items()}
 
 
 # ------------------------------------------------------------ extraction --
@@ -264,14 +271,14 @@ def gain_xcheck(corners, derived):
 
 # ------------------------------------------------------------ record gates --
 def anchors_complete(corners, expected=len(sc.ANCHOR_POINTS)):
-    want = {anchor_key(a) for a in sc.ANCHOR_POINTS}
-    got = {c["corner_key"] for c in corners.values()}
-    if len(corners) != expected or got != want:
-        print(f"REFUSE: {len(corners)} of {expected} DR-002 anchor points returned "
-              f"(missing: {sorted(want - got)}, unexpected: {sorted(got - want)}); "
-              "no record written", file=sys.stderr)
-        return False
-    return True
+    """The shared rule over this bench's corner identities (issue #393).
+
+    The keys arrive as tuples from a fresh extract or as the JSON lists a
+    cached partial returns; `sc.anchors_complete` normalizes each one at the
+    boundary, so a reloaded partial cannot raise on the unhashable form.
+    """
+    return sc.anchors_complete([c["corner_key"] for c in corners.values()],
+                               expected)
 
 
 def segments_present(corners):
@@ -600,7 +607,10 @@ def main():
                  **sc.shas(HERE / mk.REQUEST, HERE / mk.DECK)}
         sc.save_partial(PARTIALS / "swing.json", saved)
 
-    corners = saved["corners"]
+    # a cached partial's corner keys are the JSON list form; the gate, the
+    # ota-gain reference row and the c0p3 swing lookups all key on the
+    # normalized hashable tuple, so the boundary conversion happens once here
+    corners = normalize_corner_keys(saved["corners"])
     gates = (anchors_complete(corners)
              and segments_present(corners)
              and segments_settled(corners))

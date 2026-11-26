@@ -5,7 +5,11 @@ No fleet, no ngspice, no klt: every corner set here is hand-built. The gates
 are what separate "simulated and failing" from "never simulated", so they are
 the last thing standing between a dead fleet job and a recorded result
 (issue #94). `grid_complete` counts grid points; `measurements_present`
-requires a non-null `err_phase` at every one of them.
+requires a non-null `err_phase` at every one of them. `anchors_complete` is
+the anchor-subset counterpart (issue #393): the row count AND the identities,
+so a same-count substitution of one anchor is not coverage, and the JSON
+lists a cached partial decodes corner identities into are normalized rather
+than raised on.
 
 `RunVariantSet` below pins the shared multi-variant loop the same way
 (issue #354): reuse, the failed-submit refusal, the `usable_fn` cache gate,
@@ -150,6 +154,69 @@ class GridComplete(unittest.TestCase):
 
     def test_grid_points_matches_the_dr_002_grid(self):
         self.assertEqual(sc.GRID_POINTS, len(PROCESS) * len(VDDA) * len(TEMP))
+
+
+class AnchorsComplete(unittest.TestCase):
+    """The shared anchor-coverage rule (issue #393). The modulator transient
+    and OTA swing benches each hand-wrote one and the two disagreed: the
+    modulator's counted rows only, so a same-count substitution passed as
+    coverage, and the OTA's keyed on the tuples a cached JSON partial returns
+    as lists, raising TypeError. One rule now: count and identity, every key
+    normalized at the bench boundary."""
+
+    def anchor_keys(self):
+        return [sc.anchor_key(a) for a in sc.ANCHOR_POINTS]
+
+    def test_the_declared_anchor_set_is_accepted(self):
+        verdict, err = call(sc.anchors_complete, self.anchor_keys())
+        self.assertTrue(verdict, err)
+        self.assertEqual(err, "")
+
+    def test_a_missing_point_is_refused(self):
+        verdict, err = call(sc.anchors_complete, self.anchor_keys()[1:])
+        self.assertFalse(verdict)
+        self.assertIn("6 of 7 DR-002 anchor points", err)
+        self.assertIn("missing", err)
+
+    def test_a_same_count_substitution_is_refused(self):
+        # the modulator transient's gap: 7 rows, one of them not an anchor
+        keys = self.anchor_keys()
+        keys[0] = ("tt", 1.8, 125)       # the 27 C tt anchor's slot
+        verdict, err = call(sc.anchors_complete, keys)
+        self.assertFalse(verdict)
+        self.assertIn("unexpected", err)
+        self.assertIn("('tt', 1.8, 125)", err)
+        self.assertIn("('tt', 1.8, 27)", err)
+
+    def test_a_duplicate_keeping_the_count_is_refused(self):
+        keys = self.anchor_keys()
+        keys[-1] = keys[0]
+        verdict, err = call(sc.anchors_complete, keys)
+        self.assertFalse(verdict)
+        self.assertIn("missing", err)
+
+    def test_json_decoded_list_keys_are_normalized(self):
+        # the OTA swing bench's gap: a cached partial's identities come back
+        # as lists, which the rule must not raise on
+        verdict, err = call(sc.anchors_complete,
+                            [list(k) for k in self.anchor_keys()])
+        self.assertTrue(verdict, err)
+
+    def test_corner_key_reads_a_report_corner(self):
+        c = {"process": "ss", "supply_v": {"vdda": 1.62}, "temperature_c": -40}
+        self.assertEqual(sc.corner_key(c), ("ss", 1.62, -40))
+
+    def test_corner_key_normalizes_voltage_and_temperature_forms(self):
+        # 1.800 V vs 1.8 V, 27.0 C vs 27 C: the report's floats and the
+        # declared anchors must land on the same identity
+        self.assertEqual(
+            sc.corner_key({"process": "tt", "supply_v": {"vdda": 1.800},
+                           "temperature_c": 27.0}),
+            sc.anchor_key(("tt", 1.8, 27)))
+
+    def test_anchor_key_normalizes_anchor_and_list_forms(self):
+        self.assertEqual(sc.anchor_key(("tt", 1.80, 27)), ("tt", 1.8, 27))
+        self.assertEqual(sc.anchor_key(["fs", 1.8, 27.0]), ("fs", 1.8, 27))
 
 
 class Request(unittest.TestCase):

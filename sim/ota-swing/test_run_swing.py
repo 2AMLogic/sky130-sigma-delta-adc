@@ -9,8 +9,13 @@ pinned:
   railed-output refusal, the compression-point interpolation (crossed and
   never-crossed curves), and the interpolation at the #257 recorded swings.
 - The record-admission gates (issue #94's rule for this bench): a missing
-  anchor, a segment with no measurement, and a segment still moving at the
-  measurement instant each refuse the record.
+  anchor, a same-count substitution of one, a segment with no measurement,
+  and a segment still moving at the measurement instant each refuse the
+  record.
+- A completed run's partial, saved with `save_partial` and reloaded with
+  `load_partial`, still covers the anchors and builds its record: the JSON
+  round trip decodes the corner identities as lists, which the shared rule
+  normalizes instead of raising on (issue #393).
 - The small-signal reference gate: a per-anchor disagreement with
   sim/ota-gain's record larger than the tolerance refuses the record.
 - The committed deck and request are exactly what make_request.py builds,
@@ -23,6 +28,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
@@ -191,6 +197,17 @@ class RecordGates(unittest.TestCase):
         corners["c99"] = corner(key=("tt", 1.8, 125))       # not an anchor
         self.assertFalse(RUNNER.anchors_complete(corners))
 
+    def test_same_count_substitution_refuses(self):
+        # issue #393: 7 rows, one of them not an anchor -- coverage is
+        # identities, not a row count
+        corners = full_corners()
+        corners["c0"]["corner_key"] = ("tt", 1.8, 125)
+        ok, err = refuses(RUNNER.anchors_complete, corners)
+        self.assertFalse(ok)
+        self.assertIn("unexpected", err)
+        self.assertIn("('tt', 1.8, 125)", err)
+        self.assertIn("('tt', 1.8, 27)", err)
+
     def test_missing_segment_measurement_refuses(self):
         corners = full_corners()
         corners["c0"]["segments"]["a"]["04u"]["outn"] = None
@@ -220,6 +237,86 @@ class RecordGates(unittest.TestCase):
                 for name, s in corners[cid]["segments"][cell].items():
                     s["rip"] = s["vod"] + 1e-6
         self.assertTrue(RUNNER.segments_settled(corners))
+
+
+class PartialRoundTrip(rtc.RunnerCase):
+    """The documented --record workflow: a completed run is saved under
+    .partials/ and recorded later without re-simulating. The JSON round trip
+    decodes each corner_key tuple as a list, which used to raise TypeError in
+    the coverage gate and silently missed every c0p3 swing lookup downstream
+    (issue #393)."""
+
+    RUNNER = RUNNER
+    BENCH = HERE
+    ARGV0 = "run_swing.py"
+
+    def input_names(self):
+        return MK.REQUEST, MK.DECK
+
+    def patch_extra(self, stack):
+        stack.enter_context(mock.patch.object(RUNNER, "SCRATCH", self.work))
+
+    def setUp(self):
+        super().setUp()
+        reference = json.loads(RUNNER.GAIN_RECORD.read_text())["corners"]
+        self.corners = {}
+        for i, key in enumerate(ANCHOR_KEYS):
+            process, vdda, temp = key
+            gain_db = reference[f"{process}/{vdda:.3f}V/{temp:g}C"]["dc_gain_db"]
+            self.corners[f"c{i}"] = corner(key=key, segments=settled_segments(gain_db=gain_db))
+        self.expected_shas = sc.shas(self.here / MK.REQUEST, self.here / MK.DECK)
+        self.partial_path = self.partials / "swing.json"
+
+    def save_corners(self):
+        saved = {"corners": self.corners,
+                 "environment": {"engine_version": "ngspice-47"},
+                 "provenance": {"klt_version": "klt-test"},
+                 "batch_receipt": None,
+                 **self.expected_shas}
+        sc.save_partial(self.partial_path, saved)
+
+    def test_round_tripped_keys_are_lists_and_still_cover_the_anchors(self):
+        self.save_corners()
+        loaded = sc.load_partial(self.partial_path, self.expected_shas)
+        self.assertIsNotNone(loaded)
+        for c in loaded["corners"].values():
+            self.assertIsInstance(c["corner_key"], list)
+        ok, err = refuses(RUNNER.anchors_complete, loaded["corners"])
+        self.assertTrue(ok, err)
+
+    def test_a_round_tripped_substitution_is_refused(self):
+        for key in [("tt", 1.8, 125), ("tt", 1.8, 27.5), ("tt", 1.8004, 27)]:
+            with self.subTest(key=key):
+                self.corners["c0"] = corner(key=key)
+                self.save_corners()
+                rc, _, err = self.run_main(["--record"], submits={})
+                self.assertEqual(rc, 1, err)
+                self.assertIn(f"unexpected: [{key!r}]", err)
+                self.assertEqual(self.calls, [])
+                self.assertFalse((self.here / "record.json").exists())
+
+    def test_the_record_builds_from_a_reloaded_partial(self):
+        self.save_corners()
+        rc, _, err = self.run_main(["--record"], submits={})
+        self.assertEqual(self.calls, [])
+        self.assertEqual(rc, 0, err)
+        rec = json.loads((self.here / "record.json").read_text())
+        self.assertTrue(rec["pass"])
+        self.assertEqual(len(rec["corners"]), 7)
+        for cid, c in rec["corners"].items():
+            self.assertEqual(c["corner_key"], list(self.corners[cid]["corner_key"]))
+        # the swing lookups keyed on the normalized tuple: every anchor found
+        # its c0p3 reference swing (with the list form these were silently
+        # None and every verdict read "inconclusive")
+        per_cell = rec["summary"]["per_cell"]
+        self.assertEqual(set(per_cell), {c["label"] for c in MK.CELLS.values()})
+        for cell in per_cell.values():
+            self.assertEqual(cell["per_anchor"].keys(), self.corners.keys())
+            for row in cell["per_anchor"].values():
+                self.assertIsNotNone(row["o1_ref_swing_vpp"])
+                self.assertIsNotNone(row["o2_ref_swing_vpp"])
+                self.assertIsNotNone(row["gain_at_o1_swing_db"])
+                self.assertIsNotNone(row["gain_at_o2_swing_db"])
 
 
 class GainReferenceGate(unittest.TestCase):
