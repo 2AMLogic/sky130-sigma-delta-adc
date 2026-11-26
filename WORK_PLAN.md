@@ -7,9 +7,7 @@ Roadmap generated from current GitHub label state by the Guide role. Only the re
 
 Judge-approved PRs under a hold (`loom:blocked` or `loom:operator`) — only a human merge decision is missing.
 
-- **#115**: fix(spec): correct the section 5.1 ideal ceiling for the single-bit full-scale convention
 - **#199**: comparator-decision: settle the sf/1.620V/-40C trip corner by measurement (DR-007, grounds reporting)
-- **#257**: feat(design): rescale integrators to C1=C2=0.3 and record DR-007
 
 ## Very Important
 
@@ -32,7 +30,7 @@ Judge-approved PRs under a hold (`loom:blocked` or `loom:operator`) — only a h
 
 Human-approved issues ready for implementation (`loom:issue`).
 
-_None._
+- **#108**: Ideal B-model peak SNDR sits ~8 dB below the spec section 5.1 quantization-noise ceiling
 
 ## In Progress
 
@@ -45,16 +43,15 @@ Issues currently being built (`loom:building`).
 
 PRs waiting on Judge (`loom:review-requested`).
 
-_None._
+- **#115**: fix(spec): correct the section 5.1 ideal ceiling for the single-bit full-scale convention
+- **#257**: feat(design): rescale integrators to C1=C2=0.3 and record DR-007
 
 ## Approved (Awaiting Merge)
 
 PRs that passed review and are queued for Champion auto-merge (`loom:pr`).
 
-- **#115**: fix(spec): correct the section 5.1 ideal ceiling for the single-bit full-scale convention
 - **#175**: docs(spec): add DR-009 amplifier 1/f line to the 5.3 noise budget, total unchanged
 - **#199**: comparator-decision: settle the sf/1.620V/-40C trip corner by measurement (DR-007, grounds reporting)
-- **#257**: feat(design): rescale integrators to C1=C2=0.3 and record DR-007
 
 ## Proposed
 
@@ -69,7 +66,7 @@ Issues carrying `loom:curated`.
 
 ## Proposed (Architect / Hermit)
 
-_None._
+- **#393**: Share DR-002 anchor validation between the modulator transient and OTA swing runners *(hermit)*
 
 ## Epics
 
@@ -79,14 +76,14 @@ _None._
 
 | Bucket | Count |
 |------|-------|
-| Operator merge-risk holds | 3 |
+| Operator merge-risk holds | 1 |
 | Very important | 1 |
 | Important | 6 |
-| Ready (`loom:issue`) | 0 |
+| Ready (`loom:issue`) | 1 |
 | In Progress (`loom:building`) | 2 |
-| PRs awaiting review | 0 |
-| Approved PRs awaiting merge | 4 |
+| PRs awaiting review | 2 |
+| Approved PRs awaiting merge | 2 |
 | Curated | 6 |
-| Architect / Hermit proposals | 0 |
+| Architect / Hermit proposals | 1 |
 | Active epics | 0 |
 <!-- guide:plan-body:end -->
