@@ -8,6 +8,7 @@ Roadmap generated from current GitHub label state by the Guide role. Only the re
 Judge-approved PRs under a hold (`loom:blocked` or `loom:operator`) — only a human merge decision is missing.
 
 - **#115**: fix(spec): correct the section 5.1 ideal ceiling for the single-bit full-scale convention
+- **#175**: docs(spec): add DR-009 amplifier 1/f line to the 5.3 noise budget, total unchanged
 - **#199**: comparator-decision: settle the sf/1.620V/-40C trip corner by measurement (DR-007, grounds reporting)
 - **#257**: feat(design): rescale integrators to C1=C2=0.3 and record DR-007
 
@@ -79,7 +80,7 @@ _None._
 
 | Bucket | Count |
 |------|-------|
-| Operator merge-risk holds | 3 |
+| Operator merge-risk holds | 4 |
 | Very important | 1 |
 | Important | 6 |
 | Ready (`loom:issue`) | 0 |
