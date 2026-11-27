@@ -52,7 +52,7 @@
       "not_applicable": {
         "spec": {
           "file": "spec/decimator-rows.json",
-          "content_hash": "sha256:4961c9be68085e9af518f413f0cc6e28d0d7885403cac1ab069b7c233f319cdc"
+          "content_hash": "sha256:5b7a9dace096d5cae827bfb5e8eaea3330b6d9074a5d0a77c882c62fc3bbad33"
         },
         "statement": {
           "file": "spec/decimator-not-statistical.json",
@@ -73,7 +73,7 @@
     },
     "9": {
       "file": "attestation/item9-envelope.json",
-      "content_hash": "sha256:e319615f8ce711413ebbb185ed0e86c61e2950c8aed5cfb1597bd8022523f7b7"
+      "content_hash": "sha256:4c2ab4852134818d82a1cbceb0a58d6edb12062932074b7b9c6e7b0a571025cd"
     },
     "10": {
       "file": "attestation/item10-envelope.json",

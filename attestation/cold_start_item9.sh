@@ -19,6 +19,7 @@ python3 sim/smoke/run_smoke.py
 scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 .venv/bin/python -I sim/bmodel/run.py --params sim/bmodel/ideal.json --out-dir "$scratch"
+.venv/bin/python -I sim/bmodel/ceiling_gap.py --params sim/bmodel/ideal.json --out-dir "$scratch"
 .venv/bin/python -I -m unittest discover -s sim/bmodel -p 'test_*.py'
 
 .venv/bin/python verification/decimator/response.py

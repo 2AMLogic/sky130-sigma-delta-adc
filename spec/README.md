@@ -23,6 +23,9 @@ delta-sigma ADC.
   - [DR-006 corrigendum 01](decisions/DR-006-corrigendum-01.md) — corrects
     DR-006's stale Consequences bullet about `record.json` predating the gap
     line; DR-006's Decision is unchanged
+  - [DR-007](decisions/DR-007-single-bit-ideal-ceiling.md) — §5.1 ideal
+    quantization-noise ceiling corrected for the single-bit full-scale
+    convention, with the measured split of the gap to behavioural model B
   - [DR-008](decisions/DR-008-digital-timing-corners.md) — digital-partition
     timing corners are the ten shipped `sky130_fd_sc_hd` liberty corners; the
     other 35 DR-002 points are a declared gap and the block-boundary I/O
