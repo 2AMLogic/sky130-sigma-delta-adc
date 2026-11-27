@@ -231,6 +231,14 @@ Assumptions, each stated so it can be challenged:
   other half. This split is a planning allocation. It is fixed here so the
   row has a budget; measured shares replace it through a decision record,
   not in place.
+- The non-thermal half is subdivided by
+  [DR-009](decisions/DR-009-flicker-allocation.md): an explicit amplifier
+  1/f line of 4.5 × 10⁻¹⁰ V² is carved from the "everything else"
+  remainder, which keeps a stated 3.81 × 10⁻¹⁰ V² for the other named
+  non-thermal terms. The 1.8 × 10⁻⁹ V² total and the thermal and kT/C
+  lines are unchanged; the record also states the band the flicker line is
+  graded over ([1.22 Hz, 20 kHz]) and the simulated evidence (with its
+  pre-change-integrator provenance) behind the split.
 - Worst-case temperature 125 °C = 398.15 K, so `kT` = 5.497 × 10⁻²¹ J.
 - Sampled noise on a differential input, counting the input and the
   reference sampling phases and both sides: `4·kT / Cs`, spread over

@@ -42,6 +42,9 @@ delta-sigma ADC.
     #35, not the closed item-5 tracker #33, matching rows 13, 14 and the
     45-corner power row in `measurements/characterization.md`; DR-008's
     Decision is unchanged
+  - [DR-009](decisions/DR-009-flicker-allocation.md) — amplifier 1/f line
+    added to the §5.3 budget, carved from the non-thermal half; the 80 dB
+    total, thermal and kT/C lines unchanged; graded over [1.22 Hz, 20 kHz]
   - [DR-010](decisions/DR-010-input-sampling-completeness.md) —
     input-sampling completeness line (error ≤ 1e-4 at both amplitudes over
     the DR-002 grid, on the bottom-plate-only reading) and the low-Vth
