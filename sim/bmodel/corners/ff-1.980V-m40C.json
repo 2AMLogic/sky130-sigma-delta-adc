@@ -4,7 +4,7 @@
   "dr002_set": "anchor",
   "sample_slug": "ff-1.980V-m40C",
   "t_sample_file": "sim/modulator-tran/samples/ff-1.980V-m40C.json",
-  "tree_commit": "9fa9dd8286654c1e851a011c89af0881e4ee80fd",
+  "tree_commit": "dc182a59659606c3f8f5b9b580292cb52b3f7003",
   "params": {
     "dc_gain": 621.0789945383,
     "settling_error": 4.923672e-06,
@@ -48,14 +48,14 @@
     },
     "comparator_offset": {
       "record": "sim/comparator-decision/record.json",
-      "record_sha256": "sha256:9214f8c5d5516f3275bc65bcb82b652a9d1863f8cf7656cd48121628b26cee0e",
+      "record_sha256": "sha256:930da9554cc79bcad219863370ad7963897ce6262c1502ea3a765bf3591727b7",
       "field": "derived.per_corner.ff/1.980V/-40C.comparator_offset_FS",
       "value": 9.711299310249995e-06,
       "why": "input-referred offset from the staircase trip points (v_trip_up + v_trip_dn)/2, resolved to +/- half the staircase step at each corner (the per-corner quantization block)."
     },
     "comparator_hysteresis": {
       "record": "sim/comparator-decision/record.json",
-      "record_sha256": "sha256:9214f8c5d5516f3275bc65bcb82b652a9d1863f8cf7656cd48121628b26cee0e",
+      "record_sha256": "sha256:930da9554cc79bcad219863370ad7963897ce6262c1502ea3a765bf3591727b7",
       "field": "derived.per_corner.ff/1.980V/-40C.comparator_hysteresis_FS",
       "value": 0.0004882655009011668,
       "why": "v_trip_up - v_trip_dn: an UPPER BOUND on the hysteresis width (a comparator with none reads one whole staircase step); the lower bound is 0. The upper bound is the conservative value for model B (sim/comparator-decision/README.md, model_b_units)."

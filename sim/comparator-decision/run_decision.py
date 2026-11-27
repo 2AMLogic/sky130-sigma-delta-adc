@@ -258,12 +258,41 @@ def kickback_at(corner, clocks=MR.LOOP_KICK_CLKS):
     return out
 
 
+def bracket_failures(corner):
+    """Which bracket grounds this `trip` corner failed, by name.
+
+    Empty list exactly when `bracketed()` is True -- the same graded rows, in
+    the order `bracketed()` checks them, so the two cannot disagree. A bare
+    False says only that the corner is excluded; the names say which part of
+    the sweep broke. On the 2026-11-13 grid `sf/1.620V/-40C` fails three at
+    once -- `flip_up`, `k_dn`, `step_dn` -- all downstream of one
+    never-high decision, which no single-ground story would have found.
+    """
+    f = corner.get
+    bad = []
+    if not f("flip_up"):
+        bad.append("flip_up")
+    if not f("flip_dn"):
+        bad.append("flip_dn")
+    for tag, first, last in (("up", MR.TRIP_UP_FIRST, MR.TRIP_UP_LAST),
+                             ("dn", MR.TRIP_DN_FIRST, MR.TRIP_DN_LAST)):
+        k = f(f"k_{tag}")
+        if k is None or not (first + 1 <= k <= last):
+            bad.append(f"k_{tag}")
+    for name, want_positive in (("step_up", True), ("span_up", True),
+                                ("step_dn", False), ("span_dn", False)):
+        v = f(name)
+        if v is None or (v > 0) != want_positive or abs(v) < MR.SWEEP_FLOOR_V:
+            bad.append(name)
+    return bad
+
+
 def bracketed(corner):
     """True if this `trip` corner actually bracketed the comparator's trip.
 
     Only then do its two trip points -- and so its offset and hysteresis --
-    mean anything. Every condition here is a graded row of the request, so
-    this is a restatement of them, not a second opinion:
+    mean anything. This is `bracket_failures()`'s emptiness, so the gate and
+    the per-ground report are one derivation, not two that can drift:
 
       * the decision changed in each direction (`flip_up`, `flip_dn`);
       * it changed strictly inside the swept clocks (`k_up`, `k_dn`), not on
@@ -279,20 +308,7 @@ def bracketed(corner):
     keep the later expressions finite, and without this gate it would have
     been published as the binding offset corner at 1.41 mV.
     """
-    f = corner.get
-    if not (f("flip_up") and f("flip_dn")):
-        return False
-    for tag, first, last in (("up", MR.TRIP_UP_FIRST, MR.TRIP_UP_LAST),
-                             ("dn", MR.TRIP_DN_FIRST, MR.TRIP_DN_LAST)):
-        k = f(f"k_{tag}")
-        if k is None or not (first + 1 <= k <= last):
-            return False
-    for name, want_positive in (("step_up", True), ("span_up", True),
-                                ("step_dn", False), ("span_dn", False)):
-        v = f(name)
-        if v is None or (v > 0) != want_positive or abs(v) < MR.SWEEP_FLOOR_V:
-            return False
-    return True
+    return not bracket_failures(corner)
 
 
 def bracket_margin(corner):
@@ -309,6 +325,19 @@ def bracket_margin(corner):
         k = corner.get(f"k_{tag}")
         out[tag] = None if k is None else min(int(k) - first, last - int(k))
     return out
+
+
+def unbracketed_dispositions(corners):
+    """Per unbracketed corner: which bracket grounds failed there, as data.
+
+    `bracketed()` suppresses a corner's sentinel-derived numbers from the
+    headlines but records only a bare False in `per_corner`; this names the
+    graded rows that actually failed, so a reader -- or a decision record --
+    can tell a never-flipped sweep from a wrong-sign falling step without
+    re-deriving them from `variants.trip.corners`.
+    """
+    return {cid: {"bracket_failures": bracket_failures(c)}
+            for cid, c in sorted(corners.items()) if not bracketed(c)}
 
 
 def trip_summary(corners):
@@ -333,6 +362,9 @@ def trip_summary(corners):
                     # corner, so its two "trip points" are not trip points
                     # and it sets no headline number. See bracketed().
                     "bracketed": brk,
+                    # which of the graded rows kept it out of the headlines;
+                    # empty exactly when `bracketed` is true
+                    "bracket_failures": bracket_failures(c),
                     "diagnostics": c.get("diagnostics"),
                     # how far from the ends of the sweep the trip was found;
                     # 0 means it was bracketed only by the sweep's own edge
@@ -611,6 +643,7 @@ def build_record(results, pin, stamp):
             "per_corner": tsum["per_corner"],
             "bracketed_corner_count": tsum["bracketed_corner_count"],
             "corners_without_a_bracketed_trip": tsum["corners_without_a_bracketed_trip"],
+            "unbracketed_corner_dispositions": unbracketed_dispositions(trip),
             "kickback": {
                 "corner": kb_corner,
                 "note": ("Peak deviation of each node from the value it holds through "

@@ -45,7 +45,7 @@ Evidence on `main` that does not yet move a row:
 
 | What | Done when | Issue | State |
 |---|---|---|---|
-| Comparator trip staircase that brackets at sf/1.620 V/-40 C | `sim/comparator-decision/record.json` brackets the trip point at that corner | #150 | PR #199 approved, held on a maintainer merge decision |
+| Comparator trip staircase that brackets at sf/1.620 V/-40 C | `sim/comparator-decision/record.json` brackets the trip point at that corner, or a decision record says why it is not bracketable and gives the bound instead (the latter: DR-007, one-sided `v_trip` > −1.410 mV; probe `trip-probe-i150.json`) | #150 | PR #199 approved, held on a maintainer merge decision |
 
 ## Next (unblocked by a named item above)
 
