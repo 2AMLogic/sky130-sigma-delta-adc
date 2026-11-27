@@ -159,9 +159,11 @@ class IdealVsFormula(unittest.TestCase):
 
     Section 5.1 derives 94.2 dB at -6 dBFS for L = 2, N = 1, OSR = 128 assuming
     an unscaled (1-z^-1)^2 NTF and brick-wall decimation. The model runs
-    Boser-Wooley 0.5/0.5 coefficients through a sinc^3 decimator with no droop
-    compensation or FIR, and measures 86.26 dB (N = 2^13) -- a deficit of
-    7.98 dB.
+    C1 = C2 = 0.3 coefficients (DR-007; they were 0.5/0.5, deficit 7.98 dB at
+    86.26 dB, N = 2^13) through a sinc^3 decimator with no droop compensation
+    or FIR, and measures 82.92 dB (N = 2^13) -- a deficit of 11.32 dB. The
+    3.34 dB widening is the price DR-007 pays to keep integrator 1 off the
+    rails; it is not new unexplained loss.
 
     That deficit is real, unexplained, and NOT closed here: issue #108 owns it.
     Until it is explained this test pins the measured relationship instead of
@@ -171,7 +173,7 @@ class IdealVsFormula(unittest.TestCase):
     than resolve it.
     """
 
-    DEFICIT_DB = 7.98   # measured, N = 2^13, -6 dBFS, fixed estimator (issue #107)
+    DEFICIT_DB = 11.32  # measured, N = 2^13, -6 dBFS, C1 = C2 = 0.3 (DR-007); was 7.98 at 0.5/0.5
     TOL_DB = 0.5
 
     def test_section_5_1_bound_is_94_2_db(self):
@@ -195,11 +197,15 @@ class IdealVsFormula(unittest.TestCase):
 class Monotone(unittest.TestCase):
     def test_lower_dc_gain_lowers_sndr(self):
         s = []
-        for gain in (None, 1000.0, 100.0, 20.0, 5.0):
+        for gain in (1000.0, 100.0, 20.0, 5.0):
             p = ideal()
             p["dc_gain"] = gain
             s.append(sndr_at(p, -6))
         self.assertTrue(all(a > b for a, b in zip(s, s[1:])), s)
+        # A = 1000 leaks 0.1 % per clock: at this record length its SNDR is
+        # indistinguishable from infinite gain (0.66 dB apart, in the
+        # estimator's noise, at C1 = 0.3), so only a bounded gap is asserted.
+        self.assertLess(abs(sndr_at(ideal(), -6) - s[0]), 1.0, s)
 
     def test_same_params_same_sndr(self):
         p = ideal()

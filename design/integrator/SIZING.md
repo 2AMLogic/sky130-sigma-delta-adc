@@ -6,7 +6,7 @@ Schematic `integrator.sch`, symbol `integrator.sym`, netlist `integrator.spice`
 `design/ota/ota_fd.sym`, whose netlist is `design/ota/ota_fd.spice` and is
 `.include`d separately (the OTA symbol is `type=primitive` so the integrator
 netlist does not descend into, or redefine, the OTA). One cell serves both
-integrators: model B uses C1 = C2 = 0.5.
+integrators: model B uses C1 = C2 = 0.3 (DR-007; it was 0.5 until issue #148).
 
 Ports: `vdda vssa vinp vinn voutp voutn vrefp vrefn vcm ibias phi1 phi1b phi1e
 phi2 dp dn`.
@@ -43,8 +43,8 @@ Per side (p shown; n is the mirror image with the DAC rails swapped):
   comparator decision and its complement.
 - **Integrating cap** `Ci_p` from `sump` to `voutp`. The OTA inverts from `inn`
   to `outp` (and `inp` to `outn`), so the p-side caps sum at `inn`/`sump`:
-  `voutp - voutn` steps by `0.5 * (vin_diff + rsel_p - rsel_n)`, i.e.
-  `+0.5 * (u - y) * VREF` as in model B.
+  `voutp - voutn` steps by `0.3 * (vin_diff + rsel_p - rsel_n)`, i.e.
+  `+0.3 * (u - y) * VREF` as in model B (DR-007).
 - **Reference from boundary ports only (DR-005).** `vrefp`, `vrefn`, `vcm`,
   `ibias` are ports; nothing in the cell generates them. The reference node
   must settle through the mux and `Sr` within the phase, which is the DR-005
@@ -64,15 +64,15 @@ Per side (p shown; n is the mirror image with the DAC rails swapped):
 | Cell | Value | Source |
 |---|---|---|
 | `Csi_*`, `Csr_*` (`cap_mim_m3_1`, 22.17 x 22.17 um) | 1.000 pF | spec §5.3 planning value; the minimum is 0.38 pF. §5.3 counts the input and the reference sampling phases on both sides (`4 kT / Cs`), which is why both are 1 pF |
-| `Ci_*` (31.43 x 31.43 um) | 2.000 pF | `Ci = Cs / 0.5`, model B `C1 = C2 = 0.5` (`sim/bmodel/model.py:41-42`) |
+| `Ci_*` (40.64 x 40.64 um) | 3.334 pF | `Ci = Cs / 0.3`, model B `C1 = C2 = 0.3` (`sim/bmodel/model.py`, DR-007). Drawn ratio 1.000/3.334 = 0.29993. Was 31.43 x 31.43 um, 2.000 pF, until issue #148 |
 
-**Cs/Ci = 0.5**, equal to the model coefficient for both the input and the
+**Cs/Ci = 0.3** (DR-007; 0.5 before issue #148, when integrator 1 railed), equal to the model coefficient for both the input and the
 feedback path. kT/C figure is the spec's own: 1 pF gives 1.72e-10 V^2
 (13.1 uV rms), kT/C-only SNR 90.2 dB, 4 dB over the 86.0 dB the allocation
 needs (§5.3); not recomputed or simulated here. Capacitance is the nominal
 `2 fF/um^2 * W*L + 0.38 fF/um * (W+L)` shown by the xschem symbol; the ngspice
-model value and the area (about 490 um^2 per 1 pF, 990 um^2 per 2 pF, 3.9e3
-um^2 per cell) are to be confirmed at layout, as §5.3 already states. The
+model value and the area (about 490 um^2 per 1 pF, 1650 um^2 per 3.334 pF Ci, 5.9e3
+um^2 of capacitor per cell; was 990 um^2 and 3.9e3 at Ci = 2 pF) are to be confirmed at layout, as §5.3 already states. The
 amplifier-side plate of each capacitor is drawn on the MIM top plate (`c0`)
 to keep the substrate parasitic off the summing node (to be confirmed in
 layout).
@@ -722,3 +722,13 @@ integrate phase are all measured over the DR-002 full grid in
 `sim/integrator-settling/record.json` (as built) and `record-i92.json` (this
 cell), 45 corners per load variant, simulated on the batch fleet. The 1.620 V
 mechanism is in `diag-i92.json`.
+
+## DR-007 rescale: what was and was not redone (issue #148)
+
+`Ci` was raised from 2.000 to 3.334 pF with `Cs` unchanged. **Every section
+above that quotes a settling, load, charge-injection or noise figure was
+computed or simulated at `Ci` = 2 pF and has NOT been redone**: the larger `Ci`
+changes the OTA's feedback factor (`Ci/(Ci+Cs+Cp)` rises, so loop bandwidth
+falls) and its load. Those figures are stale until their benches are re-run on
+the new netlist (tracked in DR-007 "Consequences"). Only the swing and power
+benches (`sim/modulator-tran/record-c0p3.json`) were re-run for #148.

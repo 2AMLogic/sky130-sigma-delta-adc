@@ -254,6 +254,11 @@ class PerClockReduction(unittest.TestCase):
                 self.assertTrue(entry["file"].startswith("samples/"))
                 self.assertFalse(entry["file"].startswith("samples//"))
 
+    def test_later_records_do_not_reuse_the_committed_samples_dir(self):
+        self.assertEqual(RUNNER.samples_dir_for(MK.RECORD_NAME), RUNNER.SAMPLES)
+        self.assertEqual(RUNNER.samples_dir_for("record-c0p3.json"),
+                         HERE / "samples-record-c0p3")
+
     def test_corner_slug_is_a_safe_filename(self):
         for c in report()["corners"]:
             slug = RUNNER.corner_slug(c)
@@ -513,6 +518,8 @@ class LongBenchRequest(unittest.TestCase):
     def test_long_record_carries_the_corrigendum_identity(self):
         RUNNER.B = MK.LONG
         self.addCleanup(setattr, RUNNER, "B", MK)
+        self.assertEqual(RUNNER.samples_dir_for(MK.LONG.RECORD_NAME),
+                         HERE / MK.LONG.SAMPLES_DIR)
         corners, _ = RUNNER.extract(long_report(), rec_clocks=MK.LONG.REC_CLOCKS)
         rec = RUNNER.build_record(
             {"corners": corners, "samples_index": {}},

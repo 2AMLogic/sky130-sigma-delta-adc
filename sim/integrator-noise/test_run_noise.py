@@ -273,11 +273,15 @@ class CsEff(unittest.TestCase):
     def test_drawn_caps_are_the_drawn_geometry_not_the_planning_values(self):
         d = rn.drawn_caps()
         self.assertEqual(d["cs_drawn_geometry_um"], [22.17, 22.17])
-        self.assertEqual(d["ci_drawn_geometry_um"], [31.43, 31.43])
+        self.assertEqual(d["ci_drawn_geometry_um"], [40.64, 40.64])
         # Near but not equal to the 1 pF / 2 pF planning values.
         self.assertNotAlmostEqual(d["cs_drawn_F"], 1e-12, places=15)
         self.assertAlmostEqual(d["cs_drawn_F"], 1e-12, places=13)
-        self.assertAlmostEqual(d["drawn_ratio_cs_over_ci"], 0.5, places=3)
+        # The DR-007 cell: drawn area ratio through the PDK's own MIM
+        # area/perimeter model, not the planning 0.5.
+        self.assertAlmostEqual(d["drawn_ratio_cs_over_ci"],
+                               rn.mim_farads(22.17, 22.17)
+                               / rn.mim_farads(40.64, 40.64), places=12)
 
 
 class Verdicts(unittest.TestCase):

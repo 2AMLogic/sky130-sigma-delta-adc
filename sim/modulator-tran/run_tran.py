@@ -455,6 +455,14 @@ def dump_samples(s):
     return text + "\n"
 
 
+def samples_dir_for(record_name):
+    """Use the bench's samples directory for its default record and a
+    separate directory for each named record (issue #148)."""
+    if record_name == B.RECORD_NAME:
+        return HERE / B.SAMPLES_DIR
+    return HERE / f"samples-{pathlib.Path(record_name).stem}"
+
+
 def write_samples(samples, outdir):
     outdir.mkdir(parents=True, exist_ok=True)
     index = {}
@@ -462,9 +470,7 @@ def write_samples(samples, outdir):
         name = f"{corner_slug(s_corner(s))}.json"
         path = outdir / name
         path.write_text(dump_samples(s))
-        # the index is repo-relative and names the bench's own samples
-        # directory (samples/ for the short bench, samples-long/ for the
-        # long bench -- record-long.json must never point into samples/)
+        # Index entries are relative to the record, in its own samples directory.
         index[cid] = {"file": f"{outdir.name}/{name}", "sha256": sha256(path),
                       "n_clocks": s["n_clocks"]}
     return index
@@ -503,8 +509,10 @@ def main():
     pin = json.load(open(REPO / "sim/pdk.json"))
     root, stamp = require_pinned_stamp(pin, a.pdk_root)
     out = HERE / record_name
-    if a.record and out.exists():
-        print(f"REFUSE: {out.name} exists; records are append-only "
+    outdir = samples_dir_for(record_name)
+    if a.record and (out.exists() or outdir.exists()):
+        existing = out if out.exists() else outdir
+        print(f"REFUSE: {existing.name} exists; records are append-only "
               "(use --record-name)", file=sys.stderr)
         return 2
 
@@ -568,7 +576,7 @@ def main():
               "re-run with --record to write the record")
         return 0
 
-    index = write_samples(samples, HERE / B.SAMPLES_DIR)
+    index = write_samples(samples, outdir)
     rec = build_record({"corners": corners, "samples_index": index,
                         "staged_request_sha256":
                             saved.get("staged_request_sha256")
