@@ -106,6 +106,8 @@ layout/digital/.klt/
 .loom/gh-config-by-owner.*/
 .loom/gh-config-by-owner-*/
 /.loom-local/
+/node_modules/
+/pnpm-lock.yaml
 # <<< loom-managed <<<
 
 # Repo Skills machine-local install metadata (absolute source path + timestamp)
